@@ -148,3 +148,46 @@ def test_export_without_tesseract(tmp_path, capsys, monkeypatch):
     assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out")) == 2
     assert "--metin-katmani-yok" in capsys.readouterr().err
     assert not (tmp_path / "out").exists()
+
+
+def test_export_failure_keeps_every_document(tmp_path, capsys, monkeypatch):
+    from evrakci.cli import jobs
+    from evrakci.pipeline.ocr.engine import EngineUnavailable
+
+    calls = []
+
+    def flaky(src, dst, tessdata=None, **kwargs):
+        calls.append(dst.name)
+        if len(calls) == 2:
+            raise EngineUnavailable("disk dolu")
+        import shutil
+
+        shutil.copy(src, dst)
+        from evrakci.pipeline.ocr.textlayer import TextLayerResult
+
+        return TextLayerResult(dst, True)
+
+    class Ok:
+        def available(self):
+            return None
+
+    monkeypatch.setattr(jobs, "default_engine", lambda: Ok())
+    monkeypatch.setattr(jobs, "add_text_layer", flaky)
+    run, job_id = setup_job(tmp_path, capsys, [text_page(), qr_page(), text_page()])
+    assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out")) == 2
+    err = capsys.readouterr().err
+    assert "belge_002.pdf: disk dolu" in err and "belge_001.pdf" in err
+    names = sorted(p.name for p in (tmp_path / "out").iterdir())
+    assert names == ["belge_001.pdf", "belge_002.pdf"]
+
+
+@needs_tesseract
+def test_export_names_turkish_data_once(tmp_path, capsys, monkeypatch):
+    from evrakci.cli import jobs
+
+    real = jobs.default_tessdata
+    calls = []
+    monkeypatch.setattr(jobs, "default_tessdata", lambda: calls.append(1) or real())
+    run, job_id = setup_job(tmp_path, capsys, [text_page(), qr_page(), text_page()])
+    assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out")) == 0
+    assert "Türkçe veri: " in capsys.readouterr().out and len(calls) == 1

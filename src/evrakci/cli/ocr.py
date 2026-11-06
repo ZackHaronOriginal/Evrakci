@@ -261,7 +261,13 @@ def _download_tessdata(variant: str) -> bool:
 
 def ocr_file(args: argparse.Namespace, store) -> int:
     if not args.giris.is_file():
-        raise UserError(f"Dosya bulunamadı: {args.giris.name}")
+        raise UserError(f"Dosya bulunamadı: {args.giris}")
+    if args.cikti.resolve() == args.giris.resolve():
+        raise UserError("Giriş ve çıktı aynı dosya olamaz.")
+    if args.cikti.exists() and not args.uzerine_yaz:
+        raise UserError(
+            f"Çıktı dosyası zaten var: {args.cikti} (üzerine yazmak için --uzerine-yaz)"
+        )
     try:
         result = add_text_layer(args.giris, args.cikti, pdfa=not args.pdf)
     except EngineUnavailable as error:
@@ -276,6 +282,9 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument("giris", type=Path, metavar="GIRIS.pdf", help="taranmış PDF")
     p.add_argument("cikti", type=Path, metavar="CIKTI.pdf", help="yazılacak PDF")
     p.add_argument("--pdf", action="store_true", help="PDF/A yerine normal PDF yaz")
+    p.add_argument(
+        "--uzerine-yaz", action="store_true", help="var olan çıktı dosyasının üzerine yaz"
+    )
     p.set_defaults(handler=ocr_file)
 
     p = commands.add_parser("ocr-karsilastir", help="OCR motorlarını karşılaştırır, rapor yazar")

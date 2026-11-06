@@ -92,3 +92,46 @@ def test_plain_pdf_option(tmp_path):
     with pikepdf.open(out) as pdf:
         assert pdf.open_metadata().pdfa_status == ""
     assert "Örnek" in page_text(out, 0)
+
+
+@needs_tesseract
+def test_broken_input_turkish_message(tmp_path):
+    bad = tmp_path / "bozuk.pdf"
+    bad.write_bytes(scan(tmp_path).read_bytes()[:400])
+    with pytest.raises(EngineUnavailable) as caught:
+        add_text_layer(bad, tmp_path / "o.pdf")
+    assert "PDF okunamadı veya bozuk: bozuk.pdf" in str(caught.value)
+    assert "()" not in str(caught.value)
+
+
+def test_ocrmypdf_logging_quiet():
+    import logging
+
+    import evrakci.pipeline.ocr.textlayer  # noqa: F401
+
+    assert logging.getLogger("ocrmypdf").getEffectiveLevel() >= logging.ERROR
+
+
+@needs_tesseract
+def test_fresh_data_folder_end_to_end(tmp_path):
+    import shutil
+
+    from evrakci.pipeline.ocr.tesseract import TessData, system_tessdata
+
+    folder = tmp_path / "Şükrü" / "veri"
+    folder.mkdir(parents=True)
+    shutil.copy(system_tessdata() / "tur.traineddata", folder)
+    out = tmp_path / "o.pdf"
+    result = add_text_layer(scan(tmp_path), out, tessdata=TessData("tur", folder))
+    assert result.pdfa and "Örnek" in page_text(out, 0)
+
+
+def test_prefix_restored(monkeypatch, tmp_path):
+    import os
+
+    from evrakci.pipeline.ocr.textlayer import _tessdata_prefix
+
+    monkeypatch.delenv("TESSDATA_PREFIX", raising=False)
+    with _tessdata_prefix(tmp_path):
+        assert os.environ["TESSDATA_PREFIX"] == str(tmp_path)
+    assert "TESSDATA_PREFIX" not in os.environ

@@ -170,4 +170,19 @@ def test_ocr_command(tmp_path, capsys):
 
 def test_ocr_command_missing_input(tmp_path, capsys):
     assert main(["ocr", str(tmp_path / "yok.pdf"), str(tmp_path / "c.pdf")]) == 2
-    assert "Dosya bulunamadı: yok.pdf" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "Dosya bulunamadı:" in err and "yok.pdf" in err
+
+
+def test_ocr_refuses_overwrite_and_same_file(tmp_path, capsys):
+    src = make_pdf(tmp_path / "g.pdf", [text_page()])
+    existing = make_pdf(tmp_path / "c.pdf", [text_page()])
+    assert main(["ocr", str(src), str(existing)]) == 2
+    assert "zaten var" in capsys.readouterr().err
+    assert main(["ocr", str(src), str(src)]) == 2
+    assert "aynı dosya" in capsys.readouterr().err
+
+
+def test_ocr_missing_input_shows_folder(tmp_path, capsys):
+    assert main(["ocr", str(tmp_path / "yok.pdf"), str(tmp_path / "c.pdf")]) == 2
+    assert str(tmp_path / "yok.pdf") in capsys.readouterr().err

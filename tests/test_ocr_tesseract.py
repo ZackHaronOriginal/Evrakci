@@ -1,3 +1,4 @@
+import pytest
 from conftest import needs_tesseract
 from fakes import render_line
 
@@ -98,3 +99,21 @@ def test_comparison_lists_all_official_variants():
     names = [engine.name for engine in all_engines()]
     for name in ("tesseract-tur_fast", "tesseract-tur_standard", "tesseract-tur_best"):
         assert name in names
+
+
+def test_prepare_tessdata_fails_loudly(tmp_path, monkeypatch):
+    from evrakci.pipeline.ocr import tesseract
+    from evrakci.pipeline.ocr.engine import EngineUnavailable
+
+    monkeypatch.setattr(tesseract, "system_tessdata", lambda: None)
+    with pytest.raises(EngineUnavailable, match="ayar dosyaları"):
+        tesseract.prepare_tessdata(tmp_path)
+
+
+@needs_tesseract
+def test_system_tessdata_ignores_prefix(tmp_path, monkeypatch):
+    from evrakci.pipeline.ocr.tesseract import system_tessdata
+
+    real = system_tessdata()
+    monkeypatch.setenv("TESSDATA_PREFIX", str(tmp_path))
+    assert system_tessdata() == real

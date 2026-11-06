@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from evrakci.cli.errors import UserError
 from evrakci.pipeline.cuts import compute_documents
 from evrakci.pipeline.job import Job, job_to_dict
 from evrakci.pipeline.ocr.engine import EngineUnavailable
-from evrakci.pipeline.ocr.tesseract import default_engine
+from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.writer import write_documents
@@ -205,21 +206,27 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
             "Lütfen boş bir klasör seçin."
         ) from None
     notes = {}
-    if with_layer:
+    if with_layer and paths:
+        tessdata = default_tessdata()
+        label = "tur_best" if tessdata.folder else "sistem (tur)"
+        print(f"Türkçe veri: {label}")
         for number, path in enumerate(paths, start=1):
             print(f"\rMetin katmanı: {number}/{len(paths)} belge", end="", file=sys.stderr)
-            temporary = path.with_name(path.name + ".gecici")  # never looks like a document
-            path.replace(temporary)
+            # The original stays in place until the layered copy is complete.
+            layered = path.with_name(path.name + ".gecici")
             try:
-                result = add_text_layer(temporary, path)
-            except EngineUnavailable as error:
-                temporary.replace(path)
+                result = add_text_layer(path, layered, tessdata=tessdata)
+                os.replace(layered, path)
+            except (EngineUnavailable, OSError) as error:
                 print(file=sys.stderr)
-                raise UserError(f"{path.name}: {error}") from None
-            temporary.unlink()
+                done = ", ".join(p.name for p in paths[: number - 1]) or "yok"
+                raise UserError(
+                    f"{path.name}: {error}. Tüm belgeler yazıldı; metin katmanı eklenenler: {done}."
+                ) from None
+            finally:
+                layered.unlink(missing_ok=True)
             notes[path] = _layer_note(result.pdfa, result.note)
-        if paths:
-            print(file=sys.stderr)
+        print(file=sys.stderr)
     for path, document in zip(paths, documents, strict=True):
         positions = [job.position_of(pid) for pid in document.page_ids]
         print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}")

@@ -79,8 +79,9 @@ def system_tessdata() -> Path | None:
     binary = find_tesseract()
     if binary is None:
         return None
+    env = {k: v for k, v in os.environ.items() if k != "TESSDATA_PREFIX"}
     out = subprocess.run(
-        [str(binary), "--list-langs"], capture_output=True, text=True, check=False
+        [str(binary), "--list-langs"], capture_output=True, text=True, check=False, env=env
     ).stdout
     first = out.splitlines()[0] if out else ""
     return Path(first.split('"')[1]) if first.count('"') >= 2 else None
@@ -91,12 +92,15 @@ def prepare_tessdata(folder: Path) -> None:
 
     Tesseract looks for its `hocr`, `txt` and `tsv` configs next to the language data.
     """
-    source = system_tessdata()
-    if source is None:
+    if (folder / "configs" / "hocr").is_file():
         return
-    for name in ("configs", "tessconfigs"):
-        if (source / name).is_dir() and not (folder / name).is_dir():
-            shutil.copytree(source / name, folder / name)
+    source = system_tessdata()
+    if source is not None:
+        for name in ("configs", "tessconfigs"):
+            if (source / name).is_dir() and not (folder / name).is_dir():
+                shutil.copytree(source / name, folder / name)
+    if not (folder / "configs" / "hocr").is_file():
+        raise EngineUnavailable(f"Tesseract ayar dosyaları bulunamadı (configs): {folder}")
 
 
 @dataclass(frozen=True)

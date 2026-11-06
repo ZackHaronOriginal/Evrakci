@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,9 +13,20 @@ import ocrmypdf
 from ocrmypdf import exceptions
 
 from evrakci.pipeline.ocr.engine import EngineUnavailable
-from evrakci.pipeline.ocr.tesseract import TessData, default_tessdata, find_tesseract
+from evrakci.pipeline.ocr.tesseract import (
+    TessData,
+    default_tessdata,
+    find_tesseract,
+    prepare_tessdata,
+)
 
 PDFA_FALLBACK_NOTE = "PDF/A doğrulanamadı; normal PDF yazıldı"
+
+# OCRmyPDF logs warnings in English to the console; staff only see our Turkish messages.
+logging.getLogger("ocrmypdf").setLevel(logging.ERROR)
+
+# TESSDATA_PREFIX is process-wide, so only one text-layer call may change it at a time.
+_ENV_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -29,15 +42,16 @@ def _tessdata_prefix(folder: Path | None):
     if folder is None:
         yield
         return
-    previous = os.environ.get("TESSDATA_PREFIX")
-    os.environ["TESSDATA_PREFIX"] = str(folder)
-    try:
-        yield
-    finally:
-        if previous is None:
-            os.environ.pop("TESSDATA_PREFIX", None)
-        else:
-            os.environ["TESSDATA_PREFIX"] = previous
+    with _ENV_LOCK:
+        previous = os.environ.get("TESSDATA_PREFIX")
+        os.environ["TESSDATA_PREFIX"] = str(folder)
+        try:
+            yield
+        finally:
+            if previous is None:
+                os.environ.pop("TESSDATA_PREFIX", None)
+            else:
+                os.environ["TESSDATA_PREFIX"] = previous
 
 
 def _run(src: Path, dst: Path, tessdata: TessData, output_type: str, jobs: int | None):
@@ -65,6 +79,8 @@ def add_text_layer(
     if find_tesseract() is None:
         raise EngineUnavailable("Tesseract bulunamadı")
     tessdata = tessdata or default_tessdata()
+    if tessdata.folder is not None:
+        prepare_tessdata(tessdata.folder)
     dst.parent.mkdir(parents=True, exist_ok=True)
     try:
         try:
@@ -82,7 +98,10 @@ def add_text_layer(
     except exceptions.EncryptedPdfError as error:
         raise EngineUnavailable(f"PDF şifreli: {src.name}") from error
     except exceptions.MissingDependencyError as error:
-        raise EngineUnavailable(f"Eksik program: {error}") from error
+        raise EngineUnavailable("Gerekli bir program eksik (Tesseract kurulumu)") from error
+    except (exceptions.InputFileError, exceptions.BadArgsError) as error:
+        raise EngineUnavailable(f"PDF okunamadı veya bozuk: {src.name}") from error
     except exceptions.ExitCodeException as error:
-        raise EngineUnavailable(f"Metin katmanı eklenemedi: {src.name} ({error})") from error
+        detail = f" ({error})" if str(error).strip() else ""
+        raise EngineUnavailable(f"Metin katmanı eklenemedi: {src.name}{detail}") from error
     return TextLayerResult(dst, pdfa=pdfa)

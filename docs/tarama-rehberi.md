@@ -10,11 +10,18 @@ taranması için hazırlanmıştır.
   sıkışır ve tarayıcı camı çizilebilir.
 - Yırtık, buruşuk veya katlanmış sayfaları düzeltin.
 
-## 2. Ayıraç sayfası
+## 2. QR ayıraç sayfaları
 
-- Her destenin **önüne** bir ayıraç sayfası koyun: boş beyaz bir A4 ya da Evrakçı'nın
-  yazdırdığı QR'lı ayıraç sayfası.
-- Böylece tek seferde kalın bir deste taransa bile sistem nerede yeni belge başladığını anlar.
+- Ayıraç sayfalarını Evrakçı ile yazdırın: `evrakci ayirac ayirac.pdf --adet 10`. QR kod
+  yaprağın iki yüzüne de basılır, tek ve çift taraflı taramada aynı şekilde çalışır.
+- Ayıraç sayfası yalnızca "burada yeni belge başlıyor" demektir. Çıktıya girmez.
+- Ayrılması gereken bir belgenin **önüne ve arkasına** birer ayıraç koyun. Örneğin 2 sayfalık
+  kayıtların arasındaki 5 sayfalık bir kaydı ayıraçlarla çevirin.
+- Hepsi aynı uzunlukta olan belgelerde ayıraç gerekmez: taramadan sonra o sayfaları seçip
+  "her N sayfa bir belge" filtresini uygulayın.
+- Ayıraçlar tekrar kullanılabilir. Taramadan sonra desteden çıkarıp saklayın.
+- **Boş sayfalar hiçbir zaman belge ayırmaz.** Çift taraflı taramada oluşan boş arka yüzler,
+  istenirse iş ayarından atılabilir.
 
 ## 3. Küçük makbuzlar
 
@@ -27,14 +34,14 @@ taranması için hazırlanmıştır.
 |---|---|
 | Çözünürlük | 300 dpi |
 | Renk | Gri ton (renkli damga varsa renkli) |
-| Çift taraflı | Açık (boş arka yüzler otomatik atlanır) |
+| Çift taraflı | Belgeler iki yüzlüyse açık (boş arka yüzler iş ayarından atılabilir) |
 | Dosya türü | PDF |
 
 ## 5. Yükleme
 
-- Taranan PDF'i Evrakçı'da **Yükle** ekranına sürükleyin.
-- İşlem bitince **Kontrol** ekranında ayrımları ve belge türlerini onaylayın.
-- **Dışa aktar** ile PDF'leri ve Excel listesini indirin.
+- Her partiyi ayrı PDF olarak kaydedin ve hepsini aynı işe ekleyin, tarama sırasıyla.
+- Ayrımları kontrol edin, gerekirse kesim ekleyin veya kaldırın.
+- **Dışa aktar** ile her belgeyi ayrı PDF olarak alın.
 
 ## 6. Sonrası
 

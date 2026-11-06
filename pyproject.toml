@@ -11,13 +11,20 @@ dependencies = [
     "pypdfium2>=4.30",   # Apache-2.0 / BSD-3-Clause
     "openpyxl>=3.1",     # MIT
     "ocrmypdf>=16.0",    # MPL-2.0 (calls Tesseract and Ghostscript as external programs)
+    "pillow>=10",        # HPND (permissive)
+    "segno>=1.6",        # BSD-3-Clause: QR code generation
+    "zxing-cpp>=2.2",    # Apache-2.0: QR code reading
+    "platformdirs>=4.0", # MIT: app data folder
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
 
+[project.scripts]
+evrakci = "evrakci.cli:main"
+
 [project.gui-scripts]
-evrakci = "evrakci.app:main"
+evrakci-arayuz = "evrakci.app:main"
 
 [build-system]
 requires = ["setuptools>=77"]

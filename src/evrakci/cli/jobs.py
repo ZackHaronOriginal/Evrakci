@@ -17,6 +17,7 @@ from evrakci.pipeline.cuts import (
     record_values,
 )
 from evrakci.pipeline.export import plan_export
+from evrakci.pipeline.index import write_index
 from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
@@ -292,7 +293,11 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
         checks = f" [kontrol: {', '.join(item.checks)}]" if item.checks else ""
         print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}{checks}")
     needing = sum(1 for item in items if item.checks)
-    print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.")
+    listing = ""
+    if paths:
+        write_index(items, job, Path(args.cikti) / "index.xlsx")
+        listing = " Liste: index.xlsx"
+    print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.{listing}")
     return 0
 
 

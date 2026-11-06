@@ -226,3 +226,9 @@ def test_cli_export_with_template_names(tmp_path, capsys):
     assert "2 belge yazıldı, 0 belge kontrol gerektiriyor." in out
     names = sorted(p.name for p in (tmp_path / "out").glob("*.pdf"))
     assert names == ["Çağrı Ticaret.pdf", "Örnek Şirketi.pdf"]
+    assert "Liste: index.xlsx" in out
+    import openpyxl
+
+    sheet = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")["Belgeler"]
+    assert sheet.cell(row=2, column=1).value == "Örnek Şirketi.pdf"
+    assert sheet.cell(row=2, column=8).value == "Örnek Şirketi"

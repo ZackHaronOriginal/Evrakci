@@ -28,8 +28,9 @@ Sentetik test sonuçları için: [ocr-motor-karsilastirma.md](ocr-motor-karsilas
    evrakci ocr-modelleri-indir
    ```
 
-   RapidOCR modelleri, RapidOCR'ın yayımladığı SHA-256 değerleriyle doğrulanır. Doğrulanamayan
-   dosya kullanılmaz. `tur_best`, Tesseract'ın resmi GitHub deposundan indirilir.
+   Tüm dosyalar SHA-256 ile doğrulanır (RapidOCR modelleri RapidOCR'ın yayımladığı değerlerle,
+   `tur_best` Evrakçı'da kayıtlı değerle). Doğrulanamayan dosya silinir ve kullanılmaz. Bir dosya
+   indirilemezse komut hata koduyla biter ve hangi dosya olduğunu yazar.
 
 ## 2. Taramaları hazırlayın
 
@@ -65,6 +66,12 @@ sağ, alt; sayfanın sol üst köşesinden) ve kutudaki doğru metin.
 ```bash
 evrakci ocr-karsilastir tarama1.pdf tarama2.pdf --kutular kutular.json --cikti rapor.md
 ```
+
+Taramalarınız eğikse veya soluksa, aynı komutu `--on-isleme` ile bir kez daha çalıştırın: her motor
+için sayfayı düzeltir ve siyah-beyaz yapar. İki raporu karşılaştırın.
+
+- PDF adları farklı olmalı; aynı adlı iki PDF verirseniz komut uyarır.
+- `beklenen` içine sayı yazarken tırnak unutulursa da sorun olmaz, metin olarak okunur.
 
 Raporun "Kutularda tam doğru" sütunu, her motorun kaç kutuyu harfi harfine doğru okuduğunu
 gösterir. "Kutular" tablosunda okumalar yan yana durur.

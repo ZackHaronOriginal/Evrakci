@@ -21,6 +21,7 @@ from evrakci.pipeline.ocr.synthetic import make_pages
 from evrakci.pipeline.ocr.tesseract import (
     TUR_BEST_URL,
     TesseractEngine,
+    prepare_tessdata,
     tessdata_best_dir,
     verify_tur_best,
 )
@@ -225,6 +226,7 @@ def download_models(args: argparse.Namespace, store) -> int:
     folder = data_dir_for_tur_best()
     target = folder / "tur.traineddata"
     if verify_tur_best(folder):
+        prepare_tessdata(folder)
         print(f"tur_best: hazır ({target})")
     else:
         folder.mkdir(parents=True, exist_ok=True)
@@ -235,6 +237,7 @@ def download_models(args: argparse.Namespace, store) -> int:
             partial.replace(target)
             if not verify_tur_best(folder):
                 raise OSError("indirilen dosya doğrulanamadı")
+            prepare_tessdata(folder)
             print(f"tur_best: indirildi ({target})")
         except OSError as error:
             partial.unlink(missing_ok=True)

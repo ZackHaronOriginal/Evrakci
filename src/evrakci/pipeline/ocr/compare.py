@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import subprocess
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -14,7 +13,7 @@ from evrakci.pipeline.ocr.metrics import box_hit, cer, exact, turkish_char_error
 from evrakci.pipeline.ocr.models import data_dir, model_dir
 from evrakci.pipeline.ocr.preprocess import prepare_page, prepare_region
 from evrakci.pipeline.ocr.synthetic import SyntheticPage
-from evrakci.pipeline.ocr.tesseract import find_tesseract
+from evrakci.pipeline.ocr.tesseract import find_tesseract, system_tessdata
 
 _SAMPLE_LIMIT = 15
 
@@ -95,22 +94,11 @@ def _package_dir(module: str) -> Path | None:
     return Path(next(iter(spec.submodule_search_locations)))
 
 
-def _system_tessdata() -> Path | None:
-    binary = find_tesseract()
-    if binary is None:
-        return None
-    out = subprocess.run([str(binary), "--list-langs"], capture_output=True, text=True).stdout
-    first = out.splitlines()[0] if out else ""
-    if '"' in first:
-        return Path(first.split('"')[1])
-    return None
-
-
 def install_sizes() -> dict[str, int]:
     """Rough install size per engine, in bytes. Engines that aren't installed are left out."""
     sizes: dict[str, int] = {}
     binary = find_tesseract()
-    tessdata = _system_tessdata()
+    tessdata = system_tessdata()
     if binary is not None:
         base = _tree_size(binary.parent) if binary.parent.name == "Tesseract-OCR" else _tree_size(
             binary

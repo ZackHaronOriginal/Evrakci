@@ -25,9 +25,9 @@ def test_missing_language_reported(tmp_path):
 def test_separate_tessdata_folder_with_only_the_language_file(tmp_path):
     import shutil
 
-    from evrakci.pipeline.ocr.compare import _system_tessdata
+    from evrakci.pipeline.ocr.tesseract import system_tessdata
 
-    shutil.copy(_system_tessdata() / "tur.traineddata", tmp_path / "tur.traineddata")
+    shutil.copy(system_tessdata() / "tur.traineddata", tmp_path / "tur.traineddata")
     reading = TesseractEngine(tessdata_dir=tmp_path).read_region(render_line("Kayıt Şişli 2026"))
     assert reading.text == "Kayıt Şişli 2026"
 
@@ -45,3 +45,29 @@ def test_tur_best_checksum_checked(tmp_path, monkeypatch):
     (tmp_path / "tur.traineddata").write_bytes(b"truncated")
     assert len(TUR_BEST_SHA256) == 64 and verify_tur_best(tmp_path) is False
     assert not (tmp_path / "tur.traineddata").exists()
+
+
+@needs_tesseract
+def test_prepare_tessdata_copies_configs(tmp_path):
+    import shutil
+
+    from evrakci.pipeline.ocr.tesseract import prepare_tessdata, system_tessdata
+
+    shutil.copy(system_tessdata() / "tur.traineddata", tmp_path)
+    prepare_tessdata(tmp_path)
+    assert (tmp_path / "configs" / "hocr").is_file()
+
+
+def test_default_falls_back_to_system(tmp_path, monkeypatch):
+    from evrakci.pipeline.ocr.tesseract import TessData, default_tessdata
+
+    monkeypatch.setenv("EVRAKCI_TESSDATA_BEST", str(tmp_path / "none"))
+    assert default_tessdata() == TessData("tur", None)
+
+
+def test_default_engine_uses_default_tessdata(tmp_path, monkeypatch):
+    from evrakci.pipeline.ocr.tesseract import default_engine
+
+    monkeypatch.setenv("EVRAKCI_TESSDATA_BEST", str(tmp_path / "none"))
+    engine = default_engine()
+    assert engine.lang == "tur" and engine.tessdata_dir is None

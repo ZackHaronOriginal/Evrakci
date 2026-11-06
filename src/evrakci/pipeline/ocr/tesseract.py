@@ -8,6 +8,7 @@ import io
 import os
 import shutil
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
@@ -39,6 +40,46 @@ def verify_tur_best(folder: Path) -> bool:
         return True
     path.unlink()
     return False
+
+
+def system_tessdata() -> Path | None:
+    """The language data folder of the installed Tesseract."""
+    binary = find_tesseract()
+    if binary is None:
+        return None
+    out = subprocess.run(
+        [str(binary), "--list-langs"], capture_output=True, text=True, check=False
+    ).stdout
+    first = out.splitlines()[0] if out else ""
+    return Path(first.split('"')[1]) if first.count('"') >= 2 else None
+
+
+def prepare_tessdata(folder: Path) -> None:
+    """Copy Tesseract's small output config folders into a separate data folder.
+
+    Tesseract looks for its `hocr`, `txt` and `tsv` configs next to the language data.
+    """
+    source = system_tessdata()
+    if source is None:
+        return
+    for name in ("configs", "tessconfigs"):
+        if (source / name).is_dir() and not (folder / name).is_dir():
+            shutil.copytree(source / name, folder / name)
+
+
+@dataclass(frozen=True)
+class TessData:
+    language: str
+    folder: Path | None  # None: the system folder
+
+
+def default_tessdata() -> TessData:
+    """tur_best when it is installed and verified, otherwise the system's tur."""
+    best = tessdata_best_dir()
+    if verify_tur_best(best):
+        prepare_tessdata(best)
+        return TessData("tur", best)
+    return TessData("tur", None)
 
 
 def find_tesseract() -> Path | None:
@@ -115,3 +156,9 @@ class TesseractEngine:
 
     def read_region(self, image: Image.Image) -> Reading:
         return reading_from_words(self._run(image, psm=6))
+
+
+def default_engine() -> TesseractEngine:
+    data = default_tessdata()
+    name = "tesseract-tur_best" if data.folder else "tesseract-tur"
+    return TesseractEngine(data.language, tessdata_dir=data.folder, name=name)

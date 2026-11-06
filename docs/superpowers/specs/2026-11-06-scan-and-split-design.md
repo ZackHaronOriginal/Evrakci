@@ -13,9 +13,11 @@ It is slow and tedious. Nobody names the resulting files, because naming 800 fil
 Evrakçı should let staff unstaple once, feed the pile through the copier's **document feeder (ADF)**
 in a few big batches, and do all the splitting, naming and checking on the computer.
 
-Evrakçı is planned as a **toolbox** of quality-of-life features for chamber paperwork. This
-document covers only the **first module**. Later modules (Section 9) must be possible without
-rewriting this one.
+Evrakçı is planned as an **all-round quality-of-life toolbox** for chamber paperwork, not a fix for
+one problem. This document covers only the **first module**. Everything in it is built to be
+**configurable, not hardcoded for any one document**. Its building blocks (jobs, the page
+timeline, the template and variable system, the OCR engine) are meant to be reused by later
+modules (Section 9).
 
 ### Who uses it
 
@@ -38,16 +40,19 @@ and Windows, and nothing about OCR or Python.
 2. Split the job into documents using **two equally important tools** that can be mixed freely in
    one job (Section 4):
    - **QR separator pages**
-   - **range rules** ("every N pages is one document")
-3. Drop empty duplex backs automatically.
+   - **range rules**: filters applied to a selected stretch of pages, such as "every N pages is
+     one document"
+3. Optionally drop empty pages (a per-job switch; see 4.1).
 4. A **timeline editor** ("a video editor for mass PDFs") where staff see every page, apply rules
    and document types to ranges, and fix cuts by hand.
 5. OCR every output page, so the PDFs are searchable and text can be copied.
-6. Assign a **document type** to ranges ("this range is all seçim yetki belgesi"). Use that type's
-   template or text rules to find fields and **name the files**.
+6. Assign a **document type** (a template) to ranges, for example "this range is all seçim yetki
+   belgesi". Use that template's variables to read fields and **name the files**.
 7. Review and fix the found fields before export.
 8. Export the PDFs to a folder the user picks, plus `index.xlsx`.
-9. Let a chamber **add its own document types** without code changes and without training any model.
+9. A **template creator**: staff open a sample document, create variables such as
+   `{Firma_Unvani}` and mark where each one is on the page. No code changes and no model
+   training.
 
 ### Non-goals (not in this module)
 
@@ -57,7 +62,8 @@ and Windows, and nothing about OCR or Python.
 - General PDF editing tools (beyond the split editor's own page operations in Section 5).
 - Automatically classifying a mixed pile with no type given (see Section 6.4).
 - Local AI models for field extraction (planned later, Section 9).
-- Cloud processing, hosted version, multi-user or network features.
+- Cloud processing, hosted version, multi-user or network features. Sharing templates over the
+  network is planned for later; for now templates are moved between PCs by export and import.
 
 ### Anti-goals (failure even if it "works")
 
@@ -97,9 +103,11 @@ work, sometimes range rules do. Both tools are first-class.
   sheets at a time.
 - Each batch becomes one PDF. A job is an ordered list of batch PDFs. Staff can add, remove and
   reorder batches.
-- Duplex scanning is expected. Empty backs are detected (near-blank page) and **dropped**.
-  A blank page **never** means "new document". Separating is only done by QR pages and rules.
-  Staff can restore a dropped page in the editor.
+- **Blank pages are never used to split.** Only QR pages, range rules and manual cuts split.
+- When a pile is scanned double-sided, one-sided pages produce empty backs. A per-job switch,
+  "Boş sayfaları at" (drop empty pages), removes them from the output. Removed pages stay
+  visible, greyed out on the timeline, and can be put back with one click. It is off by default,
+  which suits single-sided scans.
 
 ### 4.2 QR separator pages
 
@@ -111,21 +119,23 @@ work, sometimes range rules do. Both tools are first-class.
 - The app can print separator sheets. They are reusable: staff pull them out after scanning and
   use them again.
 - Separator pages are detected automatically, turned into cuts, and removed from the output.
-- On a duplex scan the separator's back is blank and gets dropped like any other blank back.
-  (The builder may instead print the QR on both sides.)
+- The QR code is printed on **both sides** of the separator sheet, so it works the same in single-
+  and double-sided scans, and its back never shows up as a stray page.
 
-### 4.3 Range rules
+### 4.3 Range rules (filters on a selection)
 
-- Staff select a range of pages on the timeline and apply a rule: **"every N pages is one
-  document"**.
+- Nothing is applied automatically. Staff **select** a stretch of pages on the timeline and apply
+  a filter to it, like applying an effect to a clip in a video editor. The first filter is
+  **"every N pages is one document"**. More filters can be added later, such as "each page is its
+  own document" (which is N = 1) or "the first page is separate".
 - Rules never cross a QR cut. A QR cut always ends one document and starts the next. A range
   rule restarts its counting after each cut.
 - If the pages inside a ranged section don't divide evenly by N, the leftover pages become a
   short last document and are **flagged** in review.
 
-### 4.4 Default
+### 4.4 Pages with no filter
 
-Wherever no rule is applied, **each stretch between two QR cuts (or the start or end of the job)
+Wherever no filter is applied, **each stretch between two QR cuts (or the start or end of the job)
 is one document.** So a pile fenced entirely with QR pages needs no rules at all.
 
 ### 4.5 Manual fixes
@@ -136,23 +146,13 @@ On the timeline, staff can add, move and remove any cut, by mouse and keyboard.
 
 - Rules and type ranges are anchored to **page identities**, not page positions. Deleting,
   restoring or reordering pages never silently shifts them onto other pages.
-- **Any cut restarts counting**, whether it is a QR cut or a manual one. Example: in an "every 2"
-  run, a 3-page record with no QR around it gets a manual cut after its 3rd page, and everything
-  after that stays in step. A manual cut works like a QR page added after scanning.
+- A manual cut works like a QR page added after scanning. Inside a selection that has an "every N
+  pages" filter, the filter starts counting again after any cut.
 - When rules or types overlap, **the most recently applied one wins** on the overlapping pages.
 - A document that ends up spanning two typed ranges takes the type of its **first page** and is
   flagged in review.
 - After any edit, the cut list is rebuilt from: QR cuts, then manual cuts, then rules, then the
   default. That rebuild is what undo/redo and auto-save store.
-
-### 4.7 What N counts (my call)
-
-- By default, "every N pages" counts **kept pages** (after blank backs are dropped), because that
-  is how staff think about it.
-- A rule can switch to counting **sheets** (front and back), which is sturdier when a back
-  with a stamp or show-through is not detected as blank.
-- Any back that was kept but has very little ink is flagged on the timeline, so a slipped blank
-  is easy to spot.
 
 ## 5. The timeline editor (Kontrol screen)
 
@@ -168,7 +168,7 @@ editor's timeline:
 - Cuts are clearly visible. Documents are shown as alternating bands. QR cuts, rule cuts and
   manual cuts look different from each other.
 - The user selects a range by dragging, then applies a rule and/or a document type.
-- Basic page operations: rotate a page, delete a page, restore a dropped blank.
+- Basic page operations: rotate a page, delete a page, put back a dropped empty page.
 - A large view of the selected page.
 - **Undo/redo** for every edit.
 - It must stay smooth with **800+ pages**: thumbnails are rendered lazily, and nothing blocks the
@@ -203,36 +203,50 @@ The exact look is open, and mockups will be reviewed with the owner before build
   available only when Ghostscript is installed. This keeps a Ghostscript-free commercial build
   possible (see dependency-licenses.md).
 
-### 6.2 Document types (chamber-defined, no training)
+### 6.2 Templates and variables (chamber-made, no training)
 
-A document type is **data, not code**. A chamber adds or edits types in the app, and they are
-stored in the chamber's config folder. Each type has:
+Nothing about any specific document is written into the code. Page counts, field positions and
+which fields matter all come from **templates that staff create in the app**.
 
-- a name, for example "Seçim Yetki Belgesi"
-- **fields**, for example sicil no, ticaret sicil no, company type, company name, date. Each field
-  is found by **one or both** of:
-  - **Template:** a box drawn on a sample page ("the company name is here"). Best for the
-    chamber's own forms, which have a fixed layout.
-  - **Text rule:** a label to look for plus what follows it ("the number after 'Sicil No:'"),
-    with ready-made patterns for common things (sicil no, VKN, TCKN, dates, amounts). Best for
-    outside documents with varying layouts. Staff choose from patterns; they never write regex.
-- for each field, whether it is **required for naming**
-- a **file-name pattern**, for example `{sicil_no}_{sirket_turu}_{unvan}`
-- (optional) **keywords** that identify the type, for later use (Section 6.4).
+**Template creator:**
 
-The app ships with a few example types, including seçim yetki belgesi, built from synthetic
-samples.
+1. Open a sample document (scanned like the real ones).
+2. Create **variables**, such as `{Firma_Unvani}`, `{Sicil_No}`, `{Sirket_Turu}` or `{Tarih}`.
+   Any name the chamber wants.
+3. For each variable, **select its place** on the page by drawing a box. The variable records the
+   page (first page, page 2, last page, etc.) and the box.
+4. Set options per variable:
+   - **Value shape** (optional): pick from ready-made shapes such as text, number, sicil no, VKN,
+     TCKN, date or amount, which clean and check what is read. Staff never write regex.
+   - **Lines:** usually one line, but a long value (such as a long company name) can run onto 2–3
+     lines. The variable can allow growing downward to take in the continuation lines.
+   - **Search area when unsure or failed:** if the box reads nothing, or the result doesn't match
+     the value shape or has low confidence, the app searches a **wider area around the box**. As
+     another option, it can look for a **label** ("Sicil No:") anywhere on the page and read what
+     follows it. This handles scans that are slightly shifted, and outside documents whose layout
+     varies.
+   - **Required or optional** for naming, set by staff.
+5. Set the **file-name pattern** from the variables, for example
+   `{Sicil_No}_{Sirket_Turu}_{Firma_Unvani}`.
+6. **Test** the template on the sample, or on a few pages of the current job, and see what each
+   variable reads before saving.
+
+**Storage:** templates are stored on the PC, with **export and import** (a single file) to copy
+them to other PCs. Sharing over a network folder comes later.
+
+The app ships with a demo template built from a synthetic sample, only to show how templates
+work.
 
 ### 6.3 Assigning types
 
-Staff assign a type to a range on the timeline, the same way they apply a range rule. Every
-document in that range uses that type's fields and naming. A document with no type gets only
+Staff assign a template to a selection on the timeline, the same way they apply a range rule.
+Every document in that selection uses that template's variables and naming. A document with no type gets only
 OCR and a numbered fallback name.
 
 ### 6.4 Guessing types (deferred)
 
 Automatic type detection for documents with no type assigned is **not in this module**. The
-keyword field on types keeps that option open.
+data model should leave room for it (for example, an optional list of keywords per template).
 
 ### 6.5 Naming and review
 
@@ -241,6 +255,7 @@ keyword field on types keeps that option open.
 - File names are built from the pattern. Characters that are illegal in Windows file names are
   removed, and Turkish letters are kept. If two documents would get the same name, a number is
   added.
+- Staff can edit any value in the review table.
 - A document with a missing required field cannot be exported silently. It gets a fallback name
   and is marked in the index.
 
@@ -259,16 +274,17 @@ keyword field on types keeps that option open.
 | B | Local web app (Python backend, browser UI) | Rich editor UIs are easier, and it could become a hosted version later. But two languages and a clumsy "opens in browser" install | Rejected |
 | C | Tauri/Electron shell plus a Python sidecar | Feels native with a web UI, but it is the most complex to build, package and debug with OCR models | Rejected |
 
-On OCR customization, the owner chose **chamber-defined document types (templates plus text rules),
-not training an OCR model**. Local AI extraction was left as an optional later extra.
+On OCR customization, the owner chose **a template creator with variables placed on a sample
+page, plus label search and a wider search area as fallbacks**, instead of training an OCR model. Local AI extraction was left as an optional later extra.
 
 ## 9. Later modules (context only, not designed here)
 
-These are listed so the first module doesn't block them:
+Evrakçı is an all-round QOL toolbox. These are listed so the first module doesn't block them:
 
 - Makbuz and fatura handling, including flatbed scans of small slips, and re-attaching them to
   their documents.
 - A wider PDF editing toolkit.
+- Sharing templates between PCs over the network.
 - Automatic type detection for mixed piles.
 - Optional local AI (for example PaddleOCR-VL) to fill fields that rules and templates miss, on
   PCs strong enough to run it.
@@ -279,29 +295,33 @@ These are listed so the first module doesn't block them:
 **Decided by the owner:**
 - desktop app (A)
 - QR pages as cut marks only, used before and after fenced documents
-- QR pages and range rules are equally important
-- each stretch between QR cuts is one document by default
+- QR pages and range rules are equally important, and their mix varies by job
+- range rules are filters applied to a selection; nothing is applied by default
+- each stretch between QR cuts is one document unless a filter says otherwise
 - range-based type assignment
+- everything is configurable: a template creator with variables, drawn boxes, multi-line values
+  and a wider search when unsure or failed; required fields set per variable
+- templates stay on each PC for now, with export and import; network sharing comes later
 - naming from page data such as sicil no, company type and company name
 - PaddleOCR gets evaluated against Tesseract
-- chambers define their own document types; no training
+- chambers make their own templates; no training
 - makbuz, fatura and flatbed scans are out of scope for now
 
 **My calls (owner can correct):**
-- blank pages are only dropped, never used as cuts
+- dropping empty pages is an optional per-job switch, never used for splitting; QR printed on both sides
 - leftover pages from a range rule are flagged
 - an `index.xlsx` is included
 - no automatic type guessing in this module
-- staff pick from ready-made patterns instead of writing regex
+- staff pick from ready-made value shapes instead of writing regex; label search as a fallback
 - Turkish letters are kept in file names
 - auto-save and resume of jobs, with several saved jobs
-- how rules, cuts and types interact (4.6) and what N counts (4.7)
+- how rules, cuts and types interact (4.6)
 - the owner picks the OCR engine after the spike, and other work goes ahead on Tesseract until then
 - plain PDF by default, with PDF/A optional
 
 **Left to the builder:**
 - QR payload format and decoding library (license-checked)
-- blank-page threshold
+- empty-page threshold
 - job storage format
 - thumbnail caching
 - threading model
@@ -309,7 +329,7 @@ These are listed so the first module doesn't block them:
 - template-box coordinate handling
 - installer tooling
 - the order of milestones inside this module (suggested: split engine → timeline editor → OCR
-  spike and engine → document types and naming → review and export → installer)
+  spike and engine → template creator and naming → review and export → installer)
 
 Also rewrite the README and `docs/architecture.md` to match this design. They currently lead with
 makbuz and fatura.

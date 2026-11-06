@@ -18,8 +18,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Qt system libraries
-        run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libgl1
-      - run: pip install -e ".[dev]"
+      - name: Qt system libraries and Tesseract
+        run: >-
+          sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libgl1
+          tesseract-ocr tesseract-ocr-tur
+      - run: pip install -e ".[dev,rapidocr]"
+      - name: OCR models (downloaded and checksum-verified)
+        run: evrakci ocr-modelleri-indir
       - run: ruff check .
       - run: pytest -q

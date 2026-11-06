@@ -2,6 +2,8 @@
 
 [English](README.md) | **Türkçe**
 
+[![CI](https://github.com/ZackHaronOriginal/Evrakci/actions/workflows/ci.yml/badge.svg)](https://github.com/ZackHaronOriginal/Evrakci/actions/workflows/ci.yml)
+
 **Ticaret ve sanayi odaları için açık kaynaklı belge tarama ve ayıklama uygulaması.**
 Zımbalı evrak destelerini (makbuzlar, faturalar, üye formları) ayrılmış, aranabilir ve doğru
 adlandırılmış PDF'lere ve bir Excel listesine dönüştürür. Belgeler binadan hiç çıkmaz.

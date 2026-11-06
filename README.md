@@ -2,6 +2,8 @@
 
 **English** | [Türkçe](README.tr.md)
 
+[![CI](https://github.com/ZackHaronOriginal/Evrakci/actions/workflows/ci.yml/badge.svg)](https://github.com/ZackHaronOriginal/Evrakci/actions/workflows/ci.yml)
+
 **Open-source desktop app for scanning and sorting chamber of commerce paperwork.**
 Turn a stack of stapled paperwork (receipts/makbuz, invoices/fatura, member forms) into
 split, searchable, correctly named PDFs plus an Excel index, without documents ever

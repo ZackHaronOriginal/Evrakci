@@ -6,6 +6,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
+from evrakci.pipeline.analyze import PageInfo
+from evrakci.pipeline.job import Batch, Job, page_id
 from evrakci.pipeline.separator import render_separator_image
 
 DPI = 100
@@ -48,3 +50,20 @@ def make_pdf(path: Path, pages: list[Image.Image]) -> Path:
     path = Path(path)
     pages[0].save(path, save_all=True, append_images=pages[1:], resolution=DPI)
     return path
+
+
+_KINDS = {
+    "p": PageInfo(0.05, False),
+    "e": PageInfo(0.0, False),
+    "q": PageInfo(0.02, True),
+}
+
+
+def job_from_kinds(spec: dict[str, str]) -> Job:
+    """A job built without PDFs. Kinds per page: p text, e empty, q QR."""
+    job = Job(id="test", name="test")
+    for batch_id, kinds in spec.items():
+        job.batches.append(Batch(batch_id, f"{batch_id}.pdf", len(kinds)))
+        for index, kind in enumerate(kinds):
+            job.pages[page_id(batch_id, index)] = _KINDS[kind]
+    return job

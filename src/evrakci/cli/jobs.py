@@ -11,6 +11,7 @@ from evrakci.cli.errors import UserError
 from evrakci.pipeline.cuts import compute_documents
 from evrakci.pipeline.job import Job, job_to_dict
 from evrakci.pipeline.store import JobStore
+from evrakci.pipeline.writer import write_documents
 
 
 def load_job(store: JobStore, job_id: str) -> Job:
@@ -82,6 +83,91 @@ def delete(args: argparse.Namespace, store: JobStore) -> int:
     return 0
 
 
+def page_id_at(job: Job, position: int) -> str:
+    try:
+        return job.page_at(position)
+    except IndexError:
+        raise UserError(f"Sayfa yok: {position}") from None
+
+
+def parse_range(text: str) -> tuple[int, int]:
+    start, dash, end = text.partition("-")
+    if not dash or not start.isdigit() or not end.isdigit() or int(start) > int(end):
+        raise UserError(f"Geçersiz aralık: {text}")
+    return int(start), int(end)
+
+
+def apply_filter(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    start, end = parse_range(args.aralik)
+    if args.n < 1:
+        raise UserError("N en az 1 olmalı.")
+    page_ids = [page_id_at(job, position) for position in range(start, end + 1)]
+    job.apply_filter(page_ids, args.n)
+    store.save(job)
+    print(f"Filtre uygulandı: sayfa {start}-{end}, her {args.n} sayfa bir belge")
+    return 0
+
+
+def cut(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    pid = page_id_at(job, args.sayfa)
+    if args.kaldir:
+        try:
+            job.remove_cut(pid)
+        except ValueError:
+            raise UserError(f"Bu sayfada kesim yok: {args.sayfa}") from None
+        message = f"Kesim kaldırıldı: sayfa {args.sayfa}"
+    else:
+        job.add_cut(pid)
+        message = f"Kesim eklendi: sayfa {args.sayfa} öncesi"
+    store.save(job)
+    print(message)
+    return 0
+
+
+def edit_page(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    pid = page_id_at(job, args.sayfa)
+    if args.sil:
+        job.delete_page(pid)
+        message = f"Sayfa {args.sayfa} silindi"
+    elif args.geri_al:
+        job.undelete_page(pid)
+        message = f"Sayfa {args.sayfa} geri alındı"
+    elif args.bos_geri_al:
+        job.restore_empty(pid)
+        message = f"Boş sayfa {args.sayfa} geri getirildi"
+    else:
+        try:
+            job.rotate(pid, args.dondur)
+        except ValueError:
+            raise UserError("Döndürme 90'ın katı olmalı (90, 180, 270).") from None
+        message = f"Sayfa {args.sayfa} döndürüldü ({args.dondur}°)"
+    store.save(job)
+    print(message)
+    return 0
+
+
+def empty_pages(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    job.drop_empty = args.durum == "ac"
+    store.save(job)
+    print(f"Boş sayfaları atma: {'açık' if job.drop_empty else 'kapalı'}")
+    return 0
+
+
+def export(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    documents = compute_documents(job)
+    paths = write_documents(documents, store.batch_files(job), job.rotations, args.cikti)
+    for path, document in zip(paths, documents, strict=True):
+        positions = [job.position_of(pid) for pid in document.page_ids]
+        print(f"{path.name}: sayfa {positions_text(positions)}")
+    print(f"{len(paths)} belge yazıldı.")
+    return 0
+
+
 def add_commands(commands: argparse._SubParsersAction) -> None:
     job_parser = commands.add_parser("is", help="iş oluşturur, gösterir ve düzenler")
     job_commands = job_parser.add_subparsers(dest="is_komutu", required=True, metavar="KOMUT")
@@ -107,3 +193,37 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p = job_commands.add_parser("sil", help="işi siler")
     p.add_argument("id", help="iş numarası")
     p.set_defaults(handler=delete)
+
+    p = job_commands.add_parser("filtre", help="seçili sayfalara 'her N sayfa bir belge' uygular")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("aralik", metavar="BAS-SON", help="sayfa aralığı, örn. 1-40")
+    p.add_argument("n", type=int, metavar="N", help="kaç sayfada bir belge")
+    p.set_defaults(handler=apply_filter)
+
+    p = job_commands.add_parser("kes", help="bir sayfanın önüne kesim ekler veya kaldırır")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("sayfa", type=int, metavar="SAYFA", help="sayfa numarası")
+    p.add_argument("--kaldir", action="store_true", help="kesimi kaldırır")
+    p.set_defaults(handler=cut)
+
+    p = job_commands.add_parser("sayfa", help="bir sayfayı siler, geri alır veya döndürür")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("sayfa", type=int, metavar="SAYFA", help="sayfa numarası")
+    action = p.add_mutually_exclusive_group(required=True)
+    action.add_argument("--sil", action="store_true", help="sayfayı siler")
+    action.add_argument("--geri-al", action="store_true", help="silinen sayfayı geri alır")
+    action.add_argument("--dondur", type=int, metavar="DERECE", help="saat yönünde döndürür")
+    action.add_argument(
+        "--bos-geri-al", action="store_true", help="atılan boş sayfayı geri getirir"
+    )
+    p.set_defaults(handler=edit_page)
+
+    p = job_commands.add_parser("bos-sayfalar", help="boş sayfaları atmayı açar veya kapatır")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("durum", choices=["ac", "kapat"], help="ac veya kapat")
+    p.set_defaults(handler=empty_pages)
+
+    p = job_commands.add_parser("disa-aktar", help="her belgeyi ayrı PDF olarak yazar")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("--cikti", type=Path, required=True, help="çıktı klasörü")
+    p.set_defaults(handler=export)

@@ -20,8 +20,11 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
 
+[project.scripts]
+evrakci = "evrakci.cli:main"
+
 [project.gui-scripts]
-evrakci = "evrakci.app:main"
+evrakci-arayuz = "evrakci.app:main"
 
 [build-system]
 requires = ["setuptools>=77"]

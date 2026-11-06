@@ -26,8 +26,6 @@ jobs:
     env:
       PYTHONUTF8: "1"
       QT_QPA_PLATFORM: offscreen
-      # Tests must not write into the real C:\ProgramData.
-      EVRAKCI_ASCII_KOK: ${{ runner.temp }}\ascii-kok
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -55,6 +53,9 @@ jobs:
 
       - name: Tests
         shell: bash
+        env:
+          # Tests must not write into the real C:\ProgramData ("runner" is only allowed per step).
+          EVRAKCI_ASCII_KOK: ${{ runner.temp }}\ascii-kok
         run: |
           export PATH="/c/Program Files/Tesseract-OCR:$PATH"
           ruff check .

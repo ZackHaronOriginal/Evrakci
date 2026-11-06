@@ -89,7 +89,8 @@ def test_more_reserved_names():
 def test_fit_names_to_path_limit(tmp_path):
     from evrakci.pipeline.naming import fit_names
 
-    folder = tmp_path / ("ç" * 150)
+    # A folder whose full path is about 180 characters, whatever the temp folder is.
+    folder = tmp_path / ("ç" * max(1, 180 - len(str(tmp_path.resolve())) - 1))
     names = fit_names(["Ş" * 120, "kısa"], folder)
     budget = 250 - len(str(folder.resolve())) - len(" (99).pdf.gecici") - 1
     assert all(len(n) <= budget for n in names) and names[1] == "kısa"

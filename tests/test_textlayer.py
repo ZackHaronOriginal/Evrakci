@@ -136,3 +136,24 @@ def test_prefix_restored(monkeypatch, tmp_path):
     with _tessdata_prefix(tmp_path):
         assert os.environ["TESSDATA_PREFIX"] == str(tmp_path)
     assert "TESSDATA_PREFIX" not in os.environ
+
+
+@needs_tesseract
+def test_works_when_tesseract_is_not_on_path(tmp_path, monkeypatch):
+    """The installed app's bundled Tesseract is never on PATH; OCRmyPDF must still find it."""
+    import os
+
+    from evrakci.pipeline.ocr.tesseract import find_tesseract
+
+    binary = find_tesseract()
+    monkeypatch.setenv("EVRAKCI_TESSERACT", str(binary))
+    names = ("tesseract", "tesseract.exe")
+    kept = [
+        p
+        for p in os.environ["PATH"].split(os.pathsep)
+        if p and not any(os.path.isfile(os.path.join(p, n)) for n in names)
+    ]
+    monkeypatch.setenv("PATH", os.pathsep.join(kept))
+    out = tmp_path / "o.pdf"
+    result = add_text_layer(scan(tmp_path), out)
+    assert result.pdfa and "Örnek" in page_text(out, 0)

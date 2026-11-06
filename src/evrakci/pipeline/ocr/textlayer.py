@@ -38,20 +38,26 @@ class TextLayerResult:
 
 @contextmanager
 def _tessdata_prefix(folder: Path | None):
-    """Point Tesseract at a separate data folder for the duration of one call."""
-    if folder is None:
-        yield
-        return
+    """For one call: point Tesseract at its data, and put the Tesseract we found first on PATH.
+
+    OCRmyPDF finds Tesseract only through PATH, and the copy bundled with the installed app
+    is never on PATH. Both variables are process-wide, so changes are made under a lock.
+    """
     with _ENV_LOCK:
-        previous = os.environ.get("TESSDATA_PREFIX")
-        os.environ["TESSDATA_PREFIX"] = str(folder)
+        previous = {name: os.environ.get(name) for name in ("TESSDATA_PREFIX", "PATH")}
+        if folder is not None:
+            os.environ["TESSDATA_PREFIX"] = str(folder)
+        binary = find_tesseract()
+        if binary is not None:
+            os.environ["PATH"] = os.pathsep.join([str(binary.parent), previous["PATH"] or ""])
         try:
             yield
         finally:
-            if previous is None:
-                os.environ.pop("TESSDATA_PREFIX", None)
-            else:
-                os.environ["TESSDATA_PREFIX"] = previous
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
 
 
 def _run(src: Path, dst: Path, tessdata: TessData, output_type: str, jobs: int | None):
@@ -98,7 +104,7 @@ def add_text_layer(
     except exceptions.EncryptedPdfError as error:
         raise EngineUnavailable(f"PDF şifreli: {src.name}") from error
     except exceptions.MissingDependencyError as error:
-        raise EngineUnavailable("Gerekli bir program eksik (Tesseract kurulumu)") from error
+        raise EngineUnavailable(f"Gerekli bir program eksik: {error}") from error
     except (exceptions.InputFileError, exceptions.BadArgsError) as error:
         raise EngineUnavailable(f"PDF okunamadı veya bozuk: {src.name}") from error
     except exceptions.ExitCodeException as error:

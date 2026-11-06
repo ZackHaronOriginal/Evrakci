@@ -13,6 +13,21 @@ class Document:
     flags: frozenset[str] = frozenset()
 
 
+def _template_of(job: Job) -> dict[str, str]:
+    template_of: dict[str, str] = {}
+    for application in job.templates:  # later applications overwrite earlier ones
+        for pid in application.page_ids:
+            template_of[pid] = application.template_id
+    return template_of
+
+
+def document_template(job: Job, document: Document) -> tuple[str | None, bool]:
+    """The template of the document's first page, and whether its pages disagree."""
+    template_of = _template_of(job)
+    found = {template_of.get(pid) for pid in document.page_ids}
+    return template_of.get(document.page_ids[0]), len(found) > 1
+
+
 def compute_documents(job: Job) -> list[Document]:
     """Cut the job into documents.
 
@@ -28,6 +43,7 @@ def compute_documents(job: Job) -> list[Document]:
         for pid in application.page_ids:
             filter_of[pid] = application
 
+    template_of = _template_of(job)
     documents: list[Document] = []
     current: list[str] = []
     current_filter: FilterApplication | None = None
@@ -35,9 +51,12 @@ def compute_documents(job: Job) -> list[Document]:
     def close() -> None:
         if not current:
             return
-        leftover = current_filter is not None and len(current) < current_filter.every_n
-        flags = frozenset({"leftover"}) if leftover else frozenset()
-        documents.append(Document(tuple(current), flags))
+        flags = set()
+        if current_filter is not None and len(current) < current_filter.every_n:
+            flags.add("leftover")
+        if len({template_of.get(pid) for pid in current}) > 1:
+            flags.add("mixed_templates")
+        documents.append(Document(tuple(current), frozenset(flags)))
         current.clear()
 
     # A manual cut on a page that is left out still cuts before the next kept page.

@@ -21,8 +21,8 @@ Sentetik test sonuçları için: [ocr-motor-karsilastirma.md](ocr-motor-karsilas
    pip install -e ".[rapidocr]"
    ```
 
-3. **Modeller:** RapidOCR modellerini ve Tesseract'ın daha büyük Türkçe verisini (`tur_best`)
-   indirin:
+3. **Modeller:** RapidOCR modellerini ve Tesseract'ın üç resmi Türkçe verisini (`tur_fast`,
+   standart `tur`, `tur_best`) indirin:
 
    ```bash
    evrakci ocr-modelleri-indir

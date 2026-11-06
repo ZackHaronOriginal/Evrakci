@@ -8,7 +8,8 @@ library, and tools run as separate programs.
 | Dependency | License | How we use it | OK for commercial/closed builds? |
 |---|---|---|---|
 | PySide6 / Qt | LGPL-3.0 | Dynamically linked Python package | ✅ If users can replace the Qt libraries. Ship a folder build, not a single static binary, and include the LGPL text plus the source location |
-| pikepdf | MPL-2.0 | Library | ✅ Changes to pikepdf's own files must be shared |
+| pikepdf (with `[pdfa]`) | MPL-2.0 | Library | ✅ Changes to pikepdf's own files must be shared |
+| jsonschema, referencing, fonttools, rpds-py, attrs (via `pikepdf[pdfa]`) | MIT | Libraries | ✅ |
 | pypdfium2 / PDFium | Apache-2.0 / BSD-3 | Library | ✅ |
 | openpyxl | MIT | Library | ✅ |
 | Pillow | HPND | Library | ✅ |
@@ -16,7 +17,7 @@ library, and tools run as separate programs.
 | zxing-cpp | Apache-2.0 | Library (QR reading) | ✅ |
 | platformdirs | MIT | Library (app data folder) | ✅ |
 | OCRmyPDF | MPL-2.0 | Library | ✅ |
-| Tesseract + `tur` / `tur_best` data | Apache-2.0 | External program | ✅ |
+| Tesseract + official Turkish data (`tur_fast`, `tur` standard, `tur_best`) | Apache-2.0 | External program and data files (SHA-256 pinned) | ✅ |
 | rapidocr (optional extra `rapidocr`) | Apache-2.0 | Library | ✅ |
 | PaddleOCR model weights (via RapidOCR, `PP-OCRv5` det + `latin` rec) | Apache-2.0 | Model files, downloaded and SHA-256 verified | ✅ |
 | onnxruntime (optional) | MIT | Library | ✅ |

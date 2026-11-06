@@ -83,6 +83,12 @@ evrakci is goster <id>                              # list the documents
 evrakci is disa-aktar <id> --cikti cikti            # one PDF per document
 ```
 
+Every exported PDF gets a searchable Turkish text layer and is saved as PDF/A-2b (no Ghostscript).
+If a file fails the PDF/A check it is saved as a normal searchable PDF and the output says so.
+`--metin-katmani-yok` skips the text layer. A single file: `evrakci ocr giris.pdf cikti.pdf`.
+OCR uses Tesseract with the official `tur_best` data when installed (`evrakci ocr-modelleri-indir`).
+See [docs/ocr-motor-karsilastirma.md](docs/ocr-motor-karsilastirma.md) for the engine comparison.
+
 Page numbers always match the order of the scanned pile. `evrakci --help` and
 `evrakci is --help` list every command.
 

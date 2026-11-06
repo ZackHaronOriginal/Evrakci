@@ -84,6 +84,13 @@ evrakci is goster <no>                              # belgeleri listele
 evrakci is disa-aktar <no> --cikti cikti            # her belge için ayrı PDF
 ```
 
+Dışa aktarılan her PDF'e aranabilir Türkçe metin katmanı eklenir ve PDF/A-2b olarak kaydedilir
+(Ghostscript gerekmez). PDF/A doğrulamasından geçemeyen dosya normal aranabilir PDF olarak yazılır
+ve bu çıktıda belirtilir. `--metin-katmani-yok` metin katmanını atlar. Tek dosya için:
+`evrakci ocr giris.pdf cikti.pdf`. OCR, kuruluysa Tesseract'ın resmi `tur_best` verisini kullanır
+(`evrakci ocr-modelleri-indir`). Motor karşılaştırması:
+[docs/ocr-motor-karsilastirma.md](docs/ocr-motor-karsilastirma.md).
+
 Sayfa numaraları her zaman taranan destenin sırasıyla aynıdır. Tüm komutlar için:
 `evrakci --help` ve `evrakci is --help`.
 

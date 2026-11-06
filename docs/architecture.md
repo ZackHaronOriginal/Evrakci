@@ -35,9 +35,14 @@ argument and a core product promise.
 | `cuts.py` | `compute_documents(job)`: turns a job into documents from QR pages, manual cuts and filters |
 | `writer.py` | Writes one PDF per document |
 | `store.py` | Jobs on disk |
+| `ocr/engine.py` | The OCR engine interface (`read_page`, `read_region`) |
+| `ocr/tesseract.py` | Tesseract engine; the three official Turkish data files with pinned checksums; `default_engine()` (tur_best when installed) |
+| `ocr/rapid.py`, `ocr/models.py` | RapidOCR engine (optional extra) with checksum-verified models |
+| `ocr/textlayer.py` | Searchable text layer via OCRmyPDF, PDF/A-2b with the internal backend, plain-PDF fallback |
+| `ocr/synthetic.py`, `ocr/metrics.py`, `ocr/compare.py`, `ocr/preprocess.py` | The engine comparison (`evrakci ocr-karsilastir`) |
 
-Coming next (see the roadmap in `docs/superpowers/plans/`): OCR, templates and variables, review
-and export (named PDFs, PDF/A-2b, `index.xlsx`), then the window.
+Coming next (see the roadmap in `docs/superpowers/plans/`): templates and variables, review and
+export (named PDFs, `index.xlsx`), then the window and the installer.
 
 ## Splitting rules
 
@@ -64,7 +69,7 @@ Pages are identified as `<batch id>/<index>`, so edits stay on their pages when 
 | Window | PySide6 (Qt for Python, LGPL) |
 | PDF | pikepdf (write), pypdfium2 (render) |
 | QR | segno (make), zxing-cpp (read) |
-| OCR | Tesseract or RapidOCR, chosen after the engine test; OCRmyPDF for the text layer and PDF/A without Ghostscript |
+| OCR | Tesseract with the official `tur_best` data (owner's pick after the engine test); OCRmyPDF for the text layer and PDF/A-2b without Ghostscript |
 | Packaging | Folder build + Windows installer, so Qt stays replaceable (LGPL) |
 
 ## Data handling

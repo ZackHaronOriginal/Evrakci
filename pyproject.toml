@@ -19,6 +19,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
+# Optional OCR engine: Apache-2.0 code and models, MIT runtime
+rapidocr = ["rapidocr>=3.4", "onnxruntime>=1.17"]
 
 [project.scripts]
 evrakci = "evrakci.cli:main"

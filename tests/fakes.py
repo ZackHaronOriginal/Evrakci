@@ -78,3 +78,10 @@ def render_line(text: str, size: int = 40) -> Image.Image:
     image = Image.new("L", (right - left + 40, bottom - top + 40), 255)
     ImageDraw.Draw(image).text((20 - left, 20 - top), text, fill=0, font=font)
     return image
+
+
+def a4_with(image: Image.Image, at_mm: tuple[float, float]) -> Image.Image:
+    """Paste `image` onto a 100 dpi A4 page at the given position in millimetres."""
+    page = Image.new("L", A4, 255)
+    page.paste(image, (round(at_mm[0] / 25.4 * DPI), round(at_mm[1] / 25.4 * DPI)))
+    return page

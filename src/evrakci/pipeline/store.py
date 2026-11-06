@@ -11,7 +11,7 @@ from pathlib import Path
 
 import platformdirs
 
-from evrakci.pipeline.analyze import PageInfo, analyze_pdf
+from evrakci.pipeline.analyze import PageInfo, analyze_pdf, count_pages
 from evrakci.pipeline.job import Batch, Job, job_from_dict, job_to_dict, page_id
 
 Progress = Callable[[int, int], None]
@@ -44,7 +44,8 @@ class JobStore:
     def create_job(
         self, name: str, pdf_paths: Sequence[Path], progress: Progress | None = None
     ) -> Job:
-        # Analyze everything first, so a bad file never leaves a half-made job.
+        # Check and analyze everything first, so a bad file never leaves a half-made job.
+        total = sum(count_pages(Path(path)) for path in pdf_paths)
         analyses = []
         done = 0
         for path in pdf_paths:
@@ -52,7 +53,7 @@ class JobStore:
 
             def report(d: int, t: int, offset: int = offset) -> None:
                 if progress:
-                    progress(offset + d, offset + t)
+                    progress(offset + d, total)
 
             infos = analyze_pdf(Path(path), report)
             done += len(infos)
@@ -71,7 +72,12 @@ class JobStore:
     def add_batch(self, job: Job, pdf_path: Path) -> Batch:
         infos = analyze_pdf(Path(pdf_path))
         batch = self._attach(job, Path(pdf_path), infos)
-        self.save(job)
+        try:
+            self.save(job)
+        except BaseException:
+            job.remove_batch(batch.id)
+            self.batch_file(job, batch).unlink(missing_ok=True)
+            raise
         return batch
 
     def _attach(self, job: Job, path: Path, infos: list[PageInfo]) -> Batch:

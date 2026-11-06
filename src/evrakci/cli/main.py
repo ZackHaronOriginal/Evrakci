@@ -56,9 +56,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return args.handler(args, store)
     except (UserError, BatchError, JobFileError) as error:
+        jobs.finish_progress_line()
         print(str(error), file=sys.stderr)
         return 2
     except OSError as error:
+        jobs.finish_progress_line()
         name = Path(error.filename).name if error.filename else ""
         print(f"Dosyaya erişilemedi: {name} ({error.strerror})", file=sys.stderr)
         return 2

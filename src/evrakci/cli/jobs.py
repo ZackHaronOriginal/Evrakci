@@ -25,9 +25,23 @@ def positions_text(positions: list[int]) -> str:
     return ", ".join(str(p) for p in positions)
 
 
+_progress_line_open = False
+
+
 def _progress(done: int, total: int) -> None:
-    end = "\n" if done == total else ""
+    global _progress_line_open
+    finished = done == total
+    end = "\n" if finished else ""
     print(f"\rİnceleniyor: {done}/{total} sayfa", end=end, file=sys.stderr, flush=True)
+    _progress_line_open = not finished
+
+
+def finish_progress_line() -> None:
+    """End an unfinished progress line, so an error message starts on its own line."""
+    global _progress_line_open
+    if _progress_line_open:
+        print(file=sys.stderr)
+        _progress_line_open = False
 
 
 def create(args: argparse.Namespace, store: JobStore) -> int:
@@ -94,8 +108,11 @@ def page_id_at(job: Job, position: int) -> str:
 
 
 def parse_range(text: str) -> tuple[int, int]:
+    """`BAS-SON`, or a single page number."""
     start, dash, end = text.partition("-")
-    if not dash or not start.isdigit() or not end.isdigit() or int(start) > int(end):
+    if not dash:
+        end = start
+    if not start.isdigit() or not end.isdigit() or int(start) > int(end):
         raise UserError(f"Geçersiz aralık: {text}")
     return int(start), int(end)
 
@@ -122,7 +139,10 @@ def cut(args: argparse.Namespace, store: JobStore) -> int:
             raise UserError(f"Bu sayfada kesim yok: {args.sayfa}") from None
         message = f"Kesim kaldırıldı: sayfa {args.sayfa}"
     else:
-        job.add_cut(pid)
+        try:
+            job.add_cut(pid)
+        except ValueError:
+            raise UserError(f"Bu sayfada zaten kesim var: {args.sayfa}") from None
         message = f"Kesim eklendi: sayfa {args.sayfa} öncesi"
     store.save(job)
     print(message)

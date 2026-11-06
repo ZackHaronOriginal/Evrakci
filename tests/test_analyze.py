@@ -1,8 +1,9 @@
 import pikepdf
+import pypdfium2 as pdfium
 import pytest
 from fakes import empty_page, make_pdf, qr_page, text_page
 
-from evrakci.pipeline.analyze import BatchError, analyze_pdf
+from evrakci.pipeline.analyze import BatchError, analyze_pdf, count_pages
 
 
 def test_kinds_detected(tmp_path):
@@ -56,3 +57,26 @@ def test_zero_page_pdf(tmp_path):
         pdf.save(empty)
     with pytest.raises(BatchError):
         analyze_pdf(empty)
+
+
+def test_count_pages(tmp_path):
+    pdf = make_pdf(tmp_path / "b.pdf", [text_page(), text_page(), text_page()])
+    assert count_pages(pdf) == 3
+    with pytest.raises(BatchError, match="Dosya bulunamadı"):
+        count_pages(tmp_path / "yok.pdf")
+
+
+def test_page_render_error_names_the_page(tmp_path, monkeypatch):
+    pdf = make_pdf(tmp_path / "b.pdf", [text_page(), text_page()])
+    real_render = pdfium.PdfPage.render
+    calls = []
+
+    def flaky(self, *args, **kwargs):
+        calls.append(1)
+        if len(calls) == 2:
+            raise pdfium.PdfiumError("boom")
+        return real_render(self, *args, **kwargs)
+
+    monkeypatch.setattr(pdfium.PdfPage, "render", flaky)
+    with pytest.raises(BatchError, match="Sayfa 2 okunamadı: b.pdf"):
+        analyze_pdf(pdf)

@@ -88,8 +88,13 @@ class Job:
             self.rotations.pop(pid, None)
 
     def add_cut(self, pid: str) -> None:
-        if self.pages[self._check(pid)].is_separator and pid in self.removed_cuts:
+        """Add a cut before `pid`. Raises ValueError if one is already there."""
+        if self.pages[self._check(pid)].is_separator:
+            if pid not in self.removed_cuts:
+                raise ValueError(f"QR page {pid} already cuts")
             self.removed_cuts.discard(pid)
+        elif pid in self.manual_cuts:
+            raise ValueError(f"cut already at {pid}")
         else:
             self.manual_cuts.add(pid)
 

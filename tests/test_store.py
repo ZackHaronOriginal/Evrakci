@@ -71,3 +71,26 @@ def test_remove_batch_deletes_file(tmp_path):
     path = store.batch_file(job, job.batches[1])
     store.remove_batch(job, "b2")
     assert not path.exists() and [b.id for b in store.load(job.id).batches] == ["b1"]
+
+
+def test_progress_total_known_from_the_start(tmp_path):
+    a = make_pdf(tmp_path / "a.pdf", [text_page(), text_page()])
+    b = make_pdf(tmp_path / "b.pdf", [text_page()])
+    calls = []
+    JobStore(tmp_path / "jobs").create_job("x", [a, b], progress=lambda d, t: calls.append((d, t)))
+    assert calls == [(1, 3), (2, 3), (3, 3)]
+
+
+def test_add_batch_rolls_back_when_save_fails(tmp_path, monkeypatch):
+    src = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("x", [src])
+
+    def broken_save(job):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(store, "save", broken_save)
+    with pytest.raises(OSError):
+        store.add_batch(job, src)
+    assert [b.id for b in job.batches] == ["b1"] and "b2/0" not in job.pages
+    assert not (tmp_path / "jobs" / job.id / "batches" / "b2.pdf").exists()

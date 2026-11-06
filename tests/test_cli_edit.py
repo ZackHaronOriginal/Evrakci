@@ -90,3 +90,29 @@ def test_corrupt_job_listed_as_unreadable(tmp_path, capsys):
     assert f"Okunamayan iş: {job_id}" in capsys.readouterr().err
     assert run("is", "goster", job_id) == 2
     assert "İş dosyası okunamadı" in capsys.readouterr().err
+
+
+def test_single_page_range(tmp_path, capsys):
+    run, job_id = setup_job(tmp_path, capsys, [text_page(), text_page()])
+    assert run("is", "filtre", job_id, "2", "1") == 0
+    assert "sayfa 2-2" in capsys.readouterr().out
+
+
+def test_cut_where_qr_already_cuts(tmp_path, capsys):
+    run, job_id = setup_job(tmp_path, capsys, [text_page(), qr_page(), text_page()])
+    assert run("is", "kes", job_id, "2") == 2
+    assert "Bu sayfada zaten kesim var: 2" in capsys.readouterr().err
+
+
+def test_error_starts_on_its_own_line(tmp_path, capsys, monkeypatch):
+    import evrakci.pipeline.store as store_module
+    from evrakci.pipeline.analyze import BatchError
+
+    def half_done(path, progress=None):
+        progress(1, 2)
+        raise BatchError("Sayfa 2 okunamadı: t.pdf")
+
+    monkeypatch.setattr(store_module, "analyze_pdf", half_done)
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page(), text_page()])
+    assert main(["--kok", str(tmp_path / "k"), "is", "olustur", "x", str(pdf)]) == 2
+    assert "\nSayfa 2 okunamadı: t.pdf" in capsys.readouterr().err

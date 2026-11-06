@@ -65,3 +65,13 @@ def test_move_and_remove_batch():
         job.remove_batch("zz")
     with pytest.raises(IndexError):
         job.move_batch("a", 5)
+
+
+def test_add_cut_refuses_where_a_cut_already_is():
+    job = job_from_kinds({"a": "pqp"})
+    with pytest.raises(ValueError):
+        job.add_cut("a/1")  # active QR cut
+    assert job.manual_cuts == set()
+    job.add_cut("a/2")
+    with pytest.raises(ValueError):
+        job.add_cut("a/2")  # manual cut already there

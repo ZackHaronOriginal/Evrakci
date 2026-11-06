@@ -47,28 +47,46 @@ def _is_separator(image) -> bool:
     return any(is_separator_payload(barcode.text) for barcode in found)
 
 
-def analyze_pdf(
-    path: Path, progress: Callable[[int, int], None] | None = None
-) -> list[PageInfo]:
-    path = Path(path)
+def _open(path: Path) -> pdfium.PdfDocument:
     if not path.is_file():
         raise BatchError(f"Dosya bulunamadı: {path.name}")
     try:
         pdf = pdfium.PdfDocument(str(path))
     except pdfium.PdfiumError as error:
         raise BatchError(f"PDF açılamadı: {path.name}") from error
+    if len(pdf) == 0:
+        pdf.close()
+        raise BatchError(f"PDF boş: {path.name}")
+    return pdf
+
+
+def count_pages(path: Path) -> int:
+    """Page count, with the same checks as `analyze_pdf`. Fast: nothing is rendered."""
+    pdf = _open(Path(path))
+    try:
+        return len(pdf)
+    finally:
+        pdf.close()
+
+
+def analyze_pdf(
+    path: Path, progress: Callable[[int, int], None] | None = None
+) -> list[PageInfo]:
+    path = Path(path)
+    pdf = _open(path)
     try:
         total = len(pdf)
-        if total == 0:
-            raise BatchError(f"PDF boş: {path.name}")
         infos = []
         for index in range(total):
-            page = pdf[index]
             try:
-                bitmap = page.render(scale=_RENDER_DPI / 72, grayscale=True)
-                image = bitmap.to_pil().convert("L")
-            finally:
-                page.close()
+                page = pdf[index]
+                try:
+                    bitmap = page.render(scale=_RENDER_DPI / 72, grayscale=True)
+                    image = bitmap.to_pil().convert("L")
+                finally:
+                    page.close()
+            except pdfium.PdfiumError as error:
+                raise BatchError(f"Sayfa {index + 1} okunamadı: {path.name}") from error
             infos.append(PageInfo(_ink_ratio(image), _is_separator(image)))
             if progress:
                 progress(index + 1, total)

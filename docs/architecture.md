@@ -1,47 +1,73 @@
 # Architecture
 
+The full design is in
+[superpowers/specs/2026-11-06-scan-and-split-design.md](superpowers/specs/2026-11-06-scan-and-split-design.md).
+This page is a short map of the code.
+
 ## Deployment model
 
 Evrakçı is a **desktop application** installed on the chamber's own computers (Windows first).
-No document data leaves the machine. This is the main KVKK (Turkish data protection law)
+No document data leaves the machine, which is the main KVKK (Turkish data protection law)
 argument and a core product promise.
 
-## Components
+## One core, two entry points
 
-| Part | Tech | Role |
-|---|---|---|
-| UI | PySide6 (Qt for Python, LGPL) | Yükle, Kontrol (thumbnails + split editor), Dışa Aktar, Rehber |
-| Pipeline | Pure Python, no Qt imports | Split, OCR, classify, extract, export |
-| PDF ops | pikepdf, pypdfium2 | Split, merge, render thumbnails, detect blank/QR separators |
-| OCR | OCRmyPDF + Tesseract (`tur`) | Searchable text layer |
-| Classification | Keyword/regex rules (later: optional local ML) | makbuz / fatura / e-arşiv / other |
-| Extraction | Regex per document type | Date, amount (TL), company, sicil no, VKN/TCKN, ETTN |
-| Storage | Local folder + SQLite | Jobs, pages, labels, audit log |
-| Packaging | PyInstaller (folder build) + Windows installer | Qt stays dynamically linked (LGPL) |
+```
+              ┌──────────────────────┐      ┌───────────────────────────┐
+              │ evrakci (CLI)        │      │ evrakci-arayuz (window)   │
+              │ src/evrakci/cli/     │      │ src/evrakci/ui/  PySide6  │
+              └──────────┬───────────┘      └─────────────┬─────────────┘
+                         └──────────────┬─────────────────┘
+                                        ▼
+                         core: src/evrakci/pipeline/  (never imports Qt)
+```
 
-The pipeline does not depend on Qt, so the same code can later power a command-line tool or a
-hosted version.
+- The **command line** is built first and can do everything.
+- The **window** is a second entry point that calls the same core, so both always behave the same.
 
-Long-running work (OCR) runs in a background worker thread (`QThreadPool`), so the window never freezes.
+## Core modules (`src/evrakci/pipeline/`)
 
-## Processing flow
+| Module | Role |
+|---|---|
+| `separator.py` | The printable QR separator sheet (QR on both sides) and its payload |
+| `analyze.py` | Looks at each scanned page once: is it a QR page, how much ink does it have (`PageInfo`) |
+| `job.py` | The `Job`: batches, page info and every user edit (filters, cuts, deletions, rotations). All edits are methods here |
+| `cuts.py` | `compute_documents(job)`: turns a job into documents from QR pages, manual cuts and filters |
+| `writer.py` | Writes one PDF per document |
+| `store.py` | Jobs on disk |
 
-1. **Ingest.** Copy the selected PDF into the job folder, `<data>/jobs/<id>/original.pdf`.
-2. **Split.** Find separator pages (near-blank page, or a page with an `EVRAKCI-AYIRAC` QR code)
-   and propose document boundaries.
-3. **OCR.** Add a Turkish text layer to each page.
-4. **Classify and extract.** Run rule sets per document type. Each field stores its confidence.
-5. **Kontrol.** Staff move boundaries, change types and edit fields.
-6. **Dışa Aktar.** Write renamed PDFs (`YYYY-MM-DD_tur_firma.pdf`) and `index.xlsx` to a folder the user picks.
+Coming next (see the roadmap in `docs/superpowers/plans/`): OCR, templates and variables, review
+and export (named PDFs, PDF/A-2b, `index.xlsx`), then the window.
 
-## Multi-chamber design
+## Splitting rules
 
-- Chamber-specific settings (name, logo, naming pattern, custom document types) live in a
-  config file, not in code.
-- Document-type rules are data (YAML), so a chamber can add its own types without forking.
+- QR pages cut, and never reach the output.
+- Filters apply only to the pages the user selected. "Every N pages is one document" restarts
+  counting after any cut. The last-applied filter wins on overlaps.
+- Everything between two cuts with no filter is one document.
+- Blank pages **never** cut. A per-job switch can leave empty pages out of the output.
+
+## Storage
+
+```
+<app data>/Evrakci/jobs/<job id>/job.json          job state (format version 1)
+<app data>/Evrakci/jobs/<job id>/batches/b1.pdf    copy of each scanned batch
+```
+
+`job.json` is written to a temporary file and renamed, so a crash never leaves it half-written.
+Pages are identified as `<batch id>/<index>`, so edits stay on their pages when batches are reordered.
+
+## Technology
+
+| Part | Tech |
+|---|---|
+| Window | PySide6 (Qt for Python, LGPL) |
+| PDF | pikepdf (write), pypdfium2 (render) |
+| QR | segno (make), zxing-cpp (read) |
+| OCR | Tesseract or RapidOCR, chosen after the engine test; OCRmyPDF for the text layer and PDF/A without Ghostscript |
+| Packaging | Folder build + Windows installer, so Qt stays replaceable (LGPL) |
 
 ## Data handling
 
 - Job data lives in the user's app-data folder, never inside the repository.
-- Configurable retention: delete job files after export or after N days.
-- Tests and demos use synthetic documents only.
+- Tests and demos use synthetic documents only (`tests/fakes.py`).

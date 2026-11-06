@@ -11,9 +11,13 @@ library, and tools run as separate programs.
 | pikepdf | MPL-2.0 | Library | ✅ Changes to pikepdf's own files must be shared |
 | pypdfium2 / PDFium | Apache-2.0 / BSD-3 | Library | ✅ |
 | openpyxl | MIT | Library | ✅ |
+| Pillow | HPND | Library | ✅ |
+| segno | BSD-3-Clause | Library (QR generation) | ✅ |
+| zxing-cpp | Apache-2.0 | Library (QR reading) | ✅ |
+| platformdirs | MIT | Library (app data folder) | ✅ |
 | OCRmyPDF | MPL-2.0 | Library | ✅ |
 | Tesseract + `tur` data | Apache-2.0 | External program | ✅ |
-| Ghostscript | **AGPL-3.0** | External program used by OCRmyPDF for PDF/A output | ⚠️ Fine for the open-source edition. For a closed commercial build, avoid bundling it (use OCRmyPDF's plain `pdf` output) or buy an Artifex license |
+| Ghostscript | **AGPL-3.0** | **Not used.** OCRmyPDF 17.13+ makes PDF/A without it (`--pdfa-backend internal`) | Not bundled and never called |
 | qpdf | Apache-2.0 | Via pikepdf | ✅ |
 
 ## Avoid

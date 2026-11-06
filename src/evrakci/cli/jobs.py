@@ -361,6 +361,80 @@ def _read_one(args, store, job, document, template_id, templates, engine) -> str
     return f" ({template.name}): {summary}{mark}"
 
 
+def _templated_documents(args, job: Job):
+    """(number, document, template or None) for every document that has a template."""
+    from evrakci.cli.templates import template_store
+
+    store_ = template_store(args)
+    cache: dict[str, Template | None] = {}
+    for number, document in enumerate(compute_documents(job), start=1):
+        template_id, _ = document_template(job, document)
+        if template_id is None:
+            continue
+        if template_id not in cache:
+            try:
+                cache[template_id] = store_.load(template_id)
+            except (KeyError, TemplateError):
+                cache[template_id] = None
+        yield number, document, cache[template_id]
+
+
+def list_values(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    for number, document, template in _templated_documents(args, job):
+        marks = _check_marks(job, document)
+        if args.kontrol and not marks:
+            continue
+        positions = positions_text([job.position_of(p) for p in document.page_ids])
+        name = template.name if template else "şablon bulunamadı"
+        print(f"{number}. belge ({name}) sayfa {positions}")
+        values = current_values(job, document)
+        if template is None or values is None:
+            print("  değerler okunmadı")
+            continue
+        for variable in template.variables:
+            value = values.get(variable.key)
+            if value is None:
+                print(f"  {variable.name}: [okunmadı]")
+            elif value.flagged:
+                hint = f", öneri: {value.suggestion}" if value.suggestion else ""
+                print(f"  {variable.name}: [okunamadı{hint}]")
+            else:
+                mark = " [düzeltildi]" if value.edited else ""
+                print(f"  {variable.name}: {value.value}{mark}")
+    return 0
+
+
+def fix_value(args: argparse.Namespace, store: JobStore) -> int:
+    from evrakci.pipeline.review import accept_suggestion, set_value
+
+    job = load_job(store, args.id)
+    found = {n: (d, t) for n, d, t in _templated_documents(args, job)}
+    if args.belge not in found:
+        raise UserError(f"Belge yok: {args.belge} (şablonlu belge numarası, is goster)")
+    document, template = found[args.belge]
+    if template is None:
+        raise UserError(f"{args.belge}. belgenin şablonu bulunamadı.")
+    try:
+        key = template.variable(args.ad).key
+    except TemplateError as error:
+        raise UserError(str(error)) from None
+    try:
+        if args.oneri:
+            accept_suggestion(job, document, key)
+        else:
+            if args.deger is None:
+                raise UserError("Yeni değeri yazın veya --oneri kullanın.")
+            set_value(job, document, key, args.deger)
+    except KeyError:
+        raise UserError(f"{args.belge}. belgenin değerleri okunmadı (is oku).") from None
+    except ValueError:
+        raise UserError(f"{args.ad} için öneri yok.") from None
+    store.save(job)
+    print(f"{args.belge}. belge, {args.ad}: {current_values(job, document)[key].value}")
+    return 0
+
+
 def move_batch(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
     try:
@@ -462,6 +536,19 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
         "--sadece-eksik", action="store_true", help="yalnızca henüz okunmamış belgeleri oku"
     )
     p.set_defaults(handler=read_values)
+
+    p = job_commands.add_parser("degerler", help="okunan değerleri listeler")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("--kontrol", action="store_true", help="yalnızca kontrol gereken belgeler")
+    p.set_defaults(handler=list_values)
+
+    p = job_commands.add_parser("deger", help="bir değeri düzeltir veya öneriyi kabul eder")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("belge", type=int, metavar="BELGE", help="belge numarası (is goster)")
+    p.add_argument("ad", help="değişken adı")
+    p.add_argument("deger", nargs="?", help="yeni değer")
+    p.add_argument("--oneri", action="store_true", help="okunan öneriyi kabul et")
+    p.set_defaults(handler=fix_value)
 
     p = job_commands.add_parser("disa-aktar", help="her belgeyi ayrı PDF olarak yazar")
     p.add_argument("id", help="iş numarası")

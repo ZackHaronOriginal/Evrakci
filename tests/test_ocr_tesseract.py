@@ -19,3 +19,14 @@ def test_page_words_have_boxes():
 
 def test_missing_language_reported(tmp_path):
     assert "dil" in (TesseractEngine(lang="tur", tessdata_dir=tmp_path).available() or "")
+
+
+@needs_tesseract
+def test_separate_tessdata_folder_with_only_the_language_file(tmp_path):
+    import shutil
+
+    from evrakci.pipeline.ocr.compare import _system_tessdata
+
+    shutil.copy(_system_tessdata() / "tur.traineddata", tmp_path / "tur.traineddata")
+    reading = TesseractEngine(tessdata_dir=tmp_path).read_region(render_line("Kayıt Şişli 2026"))
+    assert reading.text == "Kayıt Şişli 2026"

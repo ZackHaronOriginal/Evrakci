@@ -70,7 +70,7 @@ class TesseractEngine:
         command = [str(find_tesseract()), "stdin", "stdout", "-l", self.lang, "--psm", str(psm)]
         if self.tessdata_dir is not None:
             command += ["--tessdata-dir", str(self.tessdata_dir)]
-        command.append("tsv")
+        command += ["-c", "tessedit_create_tsv=1"]  # works without the "tsv" config file
         result = subprocess.run(command, input=buffer.getvalue(), capture_output=True, check=False)
         if result.returncode != 0:
             message = result.stderr.decode("utf-8", "replace").strip().splitlines()[-1:]

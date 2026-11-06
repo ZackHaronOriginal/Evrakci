@@ -26,8 +26,29 @@ Kutu içindeki alanların harfi harfine doğru okunma oranı (her satır 10 sent
 - **PP-OCRv6** bu ortamın ağından indirilemedi. Gerçek tarama testinde sizin bilgisayarınızda
   otomatik denenir.
 
-**Önerim: Tesseract + tur_best.** Doğruluk, Türkçe harfler, kurulum boyutu ve Windows kurulumu
+**Önerim ve sahibin seçimi: Tesseract + tur_best.** Doğruluk, Türkçe harfler, kurulum boyutu ve Windows kurulumu
 açısından en iyisi. Motor tek bir arayüzün arkasında olduğu için ileride değiştirilebilir.
+
+## Tesseract'ın üç resmi Türkçe verisi
+
+Tesseract projesi Türkçe için üç resmi dosya yayımlar: `tur_fast`, standart `tur` ve `tur_best`.
+Linux paketleri ve birçok kurulum "tur" adıyla aslında **tur_fast** dosyasını kurar (bu ortamda
+SHA-256 ile doğrulandı); yukarıdaki "Tesseract + tur" satırı bu dosyadır.
+
+Üçü aynı sayfalarda karşılaştırıldı (toplam ~235 kutu; 10 sayfalık taranmış görünüm + 5'er
+sayfalık taranmış, temiz ve 2° eğik):
+
+| Veri | Tüm ölçümler (tam doğru) | Tek tek ölçümlerde aralık | Türkçe harf hatası | Boyut |
+|---|---|---|---|---|
+| **tur_best** | **~%92,7** | %90–95 | %0,9–2,3 | 7 MB |
+| tur (standart) | ~%92,3 | %88–95 | %0,6–2,3 | 18 MB |
+| tur_fast | ~%91,4 | %84–96 | %1,1–2,3 | 4,5 MB |
+
+- Fark, bu örnek büyüklüğünde **gürültü düzeyinde** (bir iki kutu). Bazı ölçümlerde tur_fast,
+  bazılarında tur_best önde.
+- **Karar (sahibin seçimi): Tesseract + tur_best.** Genel ortalamada hafif önde ve boyutu makul.
+- Asıl karar verici test gerçek taramalardır: `evrakci ocr-karsilastir` üç dosyayı da otomatik
+  dener (bkz. [ocr-gercek-tarama-testi.md](ocr-gercek-tarama-testi.md)).
 
 ## Nasıl ölçüldü?
 
@@ -296,6 +317,233 @@ Alan sayısı: 100.
 ### Notlar
 
 - Ön işleme açık: her motor için düzeltme ve siyah-beyaz yapıldı.
+- Sayfalar sentetiktir: kelimeler uydurmadır. Sözlük bilgisi kullanan motorlar (Tesseract) gerçek metinde biraz daha iyi sonuç verebilir.
+- Kurulum boyutları yaklaşıktır. Linux'ta Tesseract için yalnızca program dosyası ve dil verisi sayılır, paylaşılan kütüphaneleri sayılmaz; Windows'ta Tesseract programı ve kütüphaneleri ayrıca onlarca MB yer kaplar. RapidOCR sayısına çalışma kütüphaneleri (onnxruntime, OpenCV) dahildir.
+- Saniye/sayfa: tam sayfa okuma süresi, 300 dpi A4, bu bilgisayarda.
+
+## OCR motor karşılaştırması: 5 sentetik sayfa (tohum 2)
+
+| Motor | Tam doğru % | Karakter hatası % | Türkçe harf hatası % | Saniye/sayfa | Metin katmanı hizası % | Kurulum MB |
+|---|---|---|---|---|---|---|
+| tesseract-tur (sistem) | 93.2 | 0.2 | 1.1 | 1.59 | 100.0 | 4.4 |
+| tesseract-tur_fast | 93.2 | 0.2 | 1.1 | 5.25 | 100.0 | 4.4 |
+| tesseract-tur_standard | 90.9 | 0.6 | 1.1 | 2.17 | 100.0 | 17.9 |
+| tesseract-tur_best | 90.9 | 0.6 | 1.7 | 1.68 | 100.0 | 7.1 |
+| rapidocr-v5-latin | 47.7 | 5.5 | 27.4 | 1.43 | 100.0 | 174.8 |
+| rapidocr-v6-multi | kullanılamıyor: Model indirilemedi: multi_PP-OCRv6_rec_small.onnx (<urlopen error Tunnel connection failed: 403 Forbidden>) | | | | | - |
+
+Alan sayısı: 44.
+
+### Hatalı okumalar: tesseract-tur (sistem)
+
+| Doğrusu | Okunan |
+|---|---|
+| Vıtgirbıkgıt Şuyvöz guyşiğlütvöm | Vitgirbıkgıt Şuyvöz guyşiğlütvöm |
+| FÖLTÜYSÜMMUR çepıtfuçan Şıtmenyu | FÖLTÜYSÜMMUR çepitfuçan Şıtmenyu |
+| bur duthoy FAZSÜLVIĞHEK züm | bur duthoy FAZSÜLMIĞHEK züm |
+
+### Hatalı okumalar: tesseract-tur_fast
+
+| Doğrusu | Okunan |
+|---|---|
+| Vıtgirbıkgıt Şuyvöz guyşiğlütvöm | Vitgirbıkgıt Şuyvöz guyşiğlütvöm |
+| FÖLTÜYSÜMMUR çepıtfuçan Şıtmenyu | FÖLTÜYSÜMMUR çepitfuçan Şıtmenyu |
+| bur duthoy FAZSÜLVIĞHEK züm | bur duthoy FAZSÜLMIĞHEK züm |
+
+### Hatalı okumalar: tesseract-tur_standard
+
+| Doğrusu | Okunan |
+|---|---|
+| Vıtgirbıkgıt Şuyvöz guyşiğlütvöm | Vitgirbıkgıt Şuyvöz guyşiğlütvöm |
+| GITBUZ | GIİTBUZ |
+| bur duthoy FAZSÜLVIĞHEK züm | bur duthoy FAZSÜLVİĞHEK züm |
+| 894325 CUŞFIŞ zıt Güzfönboygım | 894325 CUŞFİIŞ zıt Güzfönboygım |
+
+### Hatalı okumalar: tesseract-tur_best
+
+| Doğrusu | Okunan |
+|---|---|
+| Vıtgirbıkgıt Şuyvöz guyşiğlütvöm | Vitgirbıkgıt Şuyvöz guyşiğlütvöm |
+| GITBUZ | GIİTBUZ |
+| bur duthoy FAZSÜLVIĞHEK züm | bur duthoy FAZSÜLVİĞHEK züm |
+| 894325 CUŞFIŞ zıt Güzfönboygım | 894325 CUŞFİŞ zıt Güzfönboygım |
+
+### Hatalı okumalar: rapidocr-v5-latin
+
+| Doğrusu | Okunan |
+|---|---|
+| Vıtgirbıkgıt Şuyvöz guyşiğlütvöm | Vitgirbikgit Şuyvöz guyşiğlütvöm |
+| goğmoyvul çöybiydaz Dılki CÖK | goğmoyvul cöyk biydaz Dilki CÖK |
+| boğyalrığkem | boğyalrigkem |
+| Sazzaşvıtö mölbudor | Sazzaşvitö mölbudor |
+| FÖLTÜYSÜMMUR çepıtfuçan Şıtmenyu | FÖLTÜYSÜMMUR cepitfuçan Şitmenyu |
+| Zığşazrış luytötneykiş | Ziğşazri luytötneykiş |
+| bur duthoy FAZSÜLVIĞHEK züm | bur duthoy FAZSÜLVIGHEK : züm |
+| 25.07.2006 Cığrüm 584508 | 25.07.2006 Ciğrüm 584508 |
+| Tığyolöl rethuzvıt | Tiğyolöl rethuzvit |
+| HOKGERTİMPIK 281694 Rölvöyrotçöl 12.08.2020 | HOKGERTIMPIK 281694 Rölvöyrotçöl 12.08.2020 |
+| dıroğ 111117 gansek Ti | diroğ 111117 gansek Ti |
+| VİNPÜFER | VINPÜFER |
+| Venhış Sışno vülkuyfe HUZCIM | Venhi Sişno vülkuyfe HUZCIM |
+| CİFIŞOR veşsağmem | CIFIŞOR veşsağmem |
+| sıygüğ HÜĞHÜZNO KIMMİTMEBİK ŞEŞTALZIR | siygüğ HÜGHÜZNO KIMMITMEBIK ŞEŞTALZIR |
+
+### Notlar
+
+- Sayfalar sentetiktir: kelimeler uydurmadır. Sözlük bilgisi kullanan motorlar (Tesseract) gerçek metinde biraz daha iyi sonuç verebilir.
+- Kurulum boyutları yaklaşıktır. Linux'ta Tesseract için yalnızca program dosyası ve dil verisi sayılır, paylaşılan kütüphaneleri sayılmaz; Windows'ta Tesseract programı ve kütüphaneleri ayrıca onlarca MB yer kaplar. RapidOCR sayısına çalışma kütüphaneleri (onnxruntime, OpenCV) dahildir.
+- Saniye/sayfa: tam sayfa okuma süresi, 300 dpi A4, bu bilgisayarda.
+
+## OCR motor karşılaştırması: 5 sentetik sayfa (tohum 2)
+
+| Motor | Tam doğru % | Karakter hatası % | Türkçe harf hatası % | Saniye/sayfa | Metin katmanı hizası % | Kurulum MB |
+|---|---|---|---|---|---|---|
+| tesseract-tur (sistem) | 84.1 | 1.1 | 2.3 | 0.43 | 100.0 | 4.4 |
+| tesseract-tur_fast | 84.1 | 1.1 | 2.3 | 0.43 | 100.0 | 4.4 |
+| tesseract-tur_standard | 93.2 | 0.6 | 1.7 | 0.70 | 100.0 | 17.9 |
+| tesseract-tur_best | 93.2 | 0.6 | 2.3 | 0.51 | 100.0 | 7.1 |
+| rapidocr-v5-latin | 47.7 | 4.8 | 25.1 | 1.49 | 100.0 | 174.8 |
+| rapidocr-v6-multi | kullanılamıyor: Model indirilemedi: multi_PP-OCRv6_rec_small.onnx (<urlopen error Tunnel connection failed: 403 Forbidden>) | | | | | - |
+
+Alan sayısı: 44.
+
+### Hatalı okumalar: tesseract-tur (sistem)
+
+| Doğrusu | Okunan |
+|---|---|
+| suyvöt | Suyvöt |
+| Vıtgirbıkgıt Şuyvöz guyşiğlütvöm | Vitgirbıkgıt Şuyvöz guyşiğlütvöm |
+| FÖLLUMBIM 169003 15.11.2004 Kiy | FOLLUMBIM 169003 15.11.2004 Kiy |
+| FÖLTÜYSÜMMUR çepıtfuçan Şıtmenyu | FÖLTÜYSÜMMUR çepitfuçan Şıtmenyu |
+| bur duthoy FAZSÜLVIĞHEK züm | bur duthoy FAZSÜLMIĞHEK züm |
+| 26.08.1994 990-8925 Matyisın cöğcır | 26.08.1994 990-8925 Matyisın cöğcir |
+| 874567 | 8/4567 |
+
+### Hatalı okumalar: tesseract-tur_fast
+
+| Doğrusu | Okunan |
+|---|---|
+| suyvöt | Suyvöt |
+| Vıtgirbıkgıt Şuyvöz guyşiğlütvöm | Vitgirbıkgıt Şuyvöz guyşiğlütvöm |
+| FÖLLUMBIM 169003 15.11.2004 Kiy | FOLLUMBIM 169003 15.11.2004 Kiy |
+| FÖLTÜYSÜMMUR çepıtfuçan Şıtmenyu | FÖLTÜYSÜMMUR çepitfuçan Şıtmenyu |
+| bur duthoy FAZSÜLVIĞHEK züm | bur duthoy FAZSÜLMIĞHEK züm |
+| 26.08.1994 990-8925 Matyisın cöğcır | 26.08.1994 990-8925 Matyisın cöğcir |
+| 874567 | 8/4567 |
+
+### Hatalı okumalar: tesseract-tur_standard
+
+| Doğrusu | Okunan |
+|---|---|
+| Vıtgirbıkgıt Şuyvöz guyşiğlütvöm | Vitgirbıkgit Şuyvöz guyşiğlütvöm |
+| GITBUZ | GIİTBUZ |
+| bur duthoy FAZSÜLVIĞHEK züm | bur duthoy FAZSÜLVİĞHEK züm |
+
+### Hatalı okumalar: tesseract-tur_best
+
+| Doğrusu | Okunan |
+|---|---|
+| Vıtgirbıkgıt Şuyvöz guyşiğlütvöm | Vitgirbıkgit Şuyvöz guyşiğlütvöm |
+| GITBUZ | GİTBUZ |
+| bur duthoy FAZSÜLVIĞHEK züm | bur duthoy FAZSÜLVİĞHEK züm |
+
+### Hatalı okumalar: rapidocr-v5-latin
+
+| Doğrusu | Okunan |
+|---|---|
+| Vıtgirbıkgıt Şuyvöz guyşiğlütvöm | Vitgirbikgit Şuyvöz guyşiğlütvöm |
+| goğmoyvul çöybiydaz Dılki CÖK | goğmoyvul çöyl biydaz Dilki CÖK |
+| boğyalrığkem | boğyalriğkem |
+| Sazzaşvıtö mölbudor | Sazzavitö mölbudor |
+| FÖLTÜYSÜMMUR çepıtfuçan Şıtmenyu | FÖLTÜYSÜMMUR çepitfuçan Şitmenyu |
+| Zığşazrış luytötneykiş | Ziğşazri luytötneykiş |
+| bur duthoy FAZSÜLVIĞHEK züm | bur duthoy FAZSÜLVIGHEK züm |
+| 25.07.2006 Cığrüm 584508 | 25.07.2006 Cigrüm 584508 |
+| Tığyolöl rethuzvıt | Tiğyolöl rethuzvit |
+| HOKGERTİMPIK 281694 Rölvöyrotçöl 12.08.2020 | HOKGERTIMPIK 281694 Rölvöyrotçöl 12.08.2020 |
+| dıroğ 111117 gansek Ti | diroğ 111117 gansek Ti |
+| VİNPÜFER | VINPÜFER |
+| Venhış Sışno vülkuyfe HUZCIM | Venhiş Sişno vülkuyfe HUZCIM |
+| CİFIŞOR veşsağmem | CIFIŞOR veşsağmem |
+| sıygüğ HÜĞHÜZNO KIMMİTMEBİK ŞEŞTALZIR | siygüg HÜGHÜZNO KIMMITMEBIK ŞEŞTALZIR |
+
+### Notlar
+
+- Sayfalar temiz (tarama bozulması eklenmedi).
+- Sayfalar sentetiktir: kelimeler uydurmadır. Sözlük bilgisi kullanan motorlar (Tesseract) gerçek metinde biraz daha iyi sonuç verebilir.
+- Kurulum boyutları yaklaşıktır. Linux'ta Tesseract için yalnızca program dosyası ve dil verisi sayılır, paylaşılan kütüphaneleri sayılmaz; Windows'ta Tesseract programı ve kütüphaneleri ayrıca onlarca MB yer kaplar. RapidOCR sayısına çalışma kütüphaneleri (onnxruntime, OpenCV) dahildir.
+- Saniye/sayfa: tam sayfa okuma süresi, 300 dpi A4, bu bilgisayarda.
+
+## OCR motor karşılaştırması: 5 sentetik sayfa (tohum 3)
+
+| Motor | Tam doğru % | Karakter hatası % | Türkçe harf hatası % | Saniye/sayfa | Metin katmanı hizası % | Kurulum MB |
+|---|---|---|---|---|---|---|
+| tesseract-tur (sistem) | 96.0 | 0.1 | 1.1 | 12.40 | 99.2 | 4.4 |
+| tesseract-tur_fast | 96.0 | 0.1 | 1.1 | 1.56 | 99.2 | 4.4 |
+| tesseract-tur_standard | 88.0 | 0.5 | 2.3 | 1.91 | 99.2 | 17.9 |
+| tesseract-tur_best | 90.0 | 0.4 | 1.7 | 1.68 | 99.2 | 7.1 |
+| rapidocr-v5-latin | 40.0 | 5.0 | 25.6 | 1.29 | 100.0 | 174.8 |
+| rapidocr-v6-multi | kullanılamıyor: Model indirilemedi: multi_PP-OCRv6_rec_small.onnx (<urlopen error Tunnel connection failed: 403 Forbidden>) | | | | | - |
+
+Alan sayısı: 50.
+
+### Hatalı okumalar: tesseract-tur (sistem)
+
+| Doğrusu | Okunan |
+|---|---|
+| Tonçeygukdol tor Rütçöğdıl | Tonçeygukdol tor Rütçöğdil |
+| golpo Hil tirpin Goğpayüğbıl | golpo Hil tirpin Goğpayüğbil |
+
+### Hatalı okumalar: tesseract-tur_fast
+
+| Doğrusu | Okunan |
+|---|---|
+| Tonçeygukdol tor Rütçöğdıl | Tonçeygukdol tor Rütçöğdil |
+| golpo Hil tirpin Goğpayüğbıl | golpo Hil tirpin Goğpayüğbil |
+
+### Hatalı okumalar: tesseract-tur_standard
+
+| Doğrusu | Okunan |
+|---|---|
+| 474340 baknuşter Rıtnelçuşo | 474340 baknuşter Ritnelçuşo |
+| 990336 tö fıkşe | 990336 tö fikşe |
+| Tonçeygukdol tor Rütçöğdıl | Tonçeygukdol tor Rütçöğdil |
+| 25.08.2011 Culrelgu Gutpıksürşük | 25.08.2011 Culrelgu Gutpiıksürşük |
+| 510669 Hokguşnalhak cışlutir | 210669 Hokguşnalhak cışlutir |
+| golpo Hil tirpin Goğpayüğbıl | golpo Hil tirpin Goğpayüğbil |
+
+### Hatalı okumalar: tesseract-tur_best
+
+| Doğrusu | Okunan |
+|---|---|
+| 990336 tö fıkşe | 990336 tö fikşe |
+| Tonçeygukdol tor Rütçöğdıl | Tonçeygukdol tor Rütçöğdil |
+| 25.08.2011 Culrelgu Gutpıksürşük | 25.08.2011 Culrelgu Gutpiıksürşük |
+| 510669 Hokguşnalhak cışlutir | 210669 Hokguşnalhak cışlutir |
+| golpo Hil tirpin Goğpayüğbıl | golpo Hil tirpin Goğpayüğbil |
+
+### Hatalı okumalar: rapidocr-v5-latin
+
+| Doğrusu | Okunan |
+|---|---|
+| zezbülyirtüş 21.03.2023 | zezbülyirtüs 21.03.2023 |
+| Mulvot buzzınük Tazcaklül | Mulvot buzzinük Tazcaklül |
+| Dazfotkornım nöm Çöyhül | Dazfotkornim nöm Çöyhül |
+| Pış şömsoşzu 01.08.2029 | PIs şömsoşzu 01.08.2029 |
+| Nıkçöşroklik | Nikçöşroklik |
+| POŞEYVUM ZAĞ | POŞEYVUM ZAG |
+| 01.06.1997 120697 ZOCİYET çinküz | 01.06.1997 120697 ZOCIYET cinküz |
+| sışzün | sişzün |
+| forför SORMALTUR tıştiğzağ 993593 | forför SORMALTUR tiştiğzağ 993593 |
+| 474340 baknuşter Rıtnelçuşo | 474340 baknuşter Ritnelçuşo |
+| 990336 tö fıkşe | 990336 tö fkşe |
+| Tonçeygukdol tor Rütçöğdıl | Tonçeygukdol tor Rütçöğdil |
+| fışhızgilpo RÖTZOMTOMTAZ Kün Vivü | fişhizgilpo RÖTZOMTOMTAZ Kün Vivü |
+| çayçör Kükdaşçiyguğ 893172 | çayçör Kükdaşciyguğ 893172 |
+| 25.08.2011 Culrelgu Gutpıksürşük | 25.08.2011 Culrelgu Gutpiksürşük |
+
+### Notlar
+
 - Sayfalar sentetiktir: kelimeler uydurmadır. Sözlük bilgisi kullanan motorlar (Tesseract) gerçek metinde biraz daha iyi sonuç verebilir.
 - Kurulum boyutları yaklaşıktır. Linux'ta Tesseract için yalnızca program dosyası ve dil verisi sayılır, paylaşılan kütüphaneleri sayılmaz; Windows'ta Tesseract programı ve kütüphaneleri ayrıca onlarca MB yer kaplar. RapidOCR sayısına çalışma kütüphaneleri (onnxruntime, OpenCV) dahildir.
 - Saniye/sayfa: tam sayfa okuma süresi, 300 dpi A4, bu bilgisayarda.

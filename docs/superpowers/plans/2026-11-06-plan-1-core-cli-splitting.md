@@ -1,21 +1,25 @@
-# Plan 1: Splitting Engine Implementation Plan
+# Plan 1: Core and CLI for Jobs and Splitting. Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the processing code (no UI) for the following:
-- turn scanned batch PDFs into a saved job
-- find QR separator pages and empty pages
-- calculate document cuts from QR pages, manual cuts and "every N pages" filters
+**Goal:** Build the core and the `evrakci` command-line tool for jobs and splitting:
+- create saved jobs from scanned batches
+- find QR pages and empty pages
+- apply filters, cuts and page edits
+- show the resulting documents
 - write one PDF per document
 
-A small command-line tool lets the owner try it before the timeline screen exists.
+The CLI is a full, permanent entry point (CLI-first). The window comes later and calls the same
+core.
 
 **Architecture:**
 - Everything lives in `src/evrakci/pipeline/` and never imports Qt.
 - A `Job` is plain data (batches, per-page analysis, the user's edits) saved as JSON in the job's
   own folder.
-- `compute_documents(job)` is a pure function that turns a job into a list of documents. The
-  timeline screen (Plan 2) and export (Plan 5) will both call it.
+- `compute_documents(job)` is a pure function that turns a job into a list of documents.
+- Every edit is a method on `Job`, so the CLI now and the window later use exactly the same
+  operations.
+- The CLI (`src/evrakci/cli/`) only parses arguments, calls the core, and prints Turkish output.
 
 **Tech Stack:** Python 3.11+, pikepdf (MPL-2.0), pypdfium2 (Apache-2.0/BSD-3), Pillow (HPND),
 segno (BSD-3, QR generation), zxing-cpp (Apache-2.0, QR reading), platformdirs (MIT), pytest, ruff.
@@ -25,11 +29,12 @@ rules, and 10)
 
 ### Roadmap (one plan per part of the spec; each ends with working software)
 
-1. **Splitting engine** (this plan)
-2. Timeline editor screen, after the owner reviews mockups
-3. OCR engine test (Tesseract vs RapidOCR) and the OCR layer
-4. Template creator, and reading variables
-5. Review table and export (named PDFs, PDF/A-2b, `index.xlsx`)
+1. **Core and CLI: jobs and splitting** (this plan)
+2. Core and CLI: OCR engine test (Tesseract vs RapidOCR) and OCR
+3. Core and CLI: templates and reading variables
+4. Core and CLI: review and export (named PDFs, PDF/A-2b, `index.xlsx`)
+5. The window (`evrakci-arayuz`): timeline, template creator and review, after the owner reviews
+   mockups
 6. Windows installer
 
 ## Global Constraints
@@ -50,6 +55,11 @@ rules, and 10)
   - A filter never counts across a cut. Counting restarts at 1 after any cut.
   - Leftover pages become a shorter document flagged `"leftover"`.
 - Wherever no filter applies, everything between two cuts is one document.
+- CLI commands, help text and messages are in Turkish. Page numbers in the CLI are **1-based
+  positions in the full scan order**. QR pages and deleted pages keep their numbers, so the
+  numbers always match the paper pile.
+- CLI exit codes: `0` for success, `2` for a user error (a bad argument, an unknown job, a page
+  out of range, an unreadable PDF), with the Turkish message on stderr.
 - `ruff check .` and `pytest -q` pass before every commit.
 
 ## Review Focus
@@ -68,6 +78,9 @@ test in the task that owns that code:
 5. **Reordering batches, or adding the same file twice:** page identities stay unique per batch,
    and filters stay on their own pages after a reorder. Turkish letters in folder paths
    (`Gökçe Şahin`) work. Tests in Tasks 4 and 6.
+
+Also covered: an unknown job id, or a page number outside the job, gives a Turkish error and
+exit code 2, never a Python traceback. Tests in Tasks 7 and 8.
 
 ---
 
@@ -245,6 +258,21 @@ git commit -m "feat: detect QR separator and empty pages"
       if `every_n < 1`
     - `rotate(pid: str, degrees: int) -> None`: adds, modulo 360; raises `ValueError` unless a
       multiple of 90
+    - `page_at(position: int) -> str`: the page id at a 1-based position in `ordered_page_ids()`;
+      raises `IndexError` if out of range
+    - `position_of(pid: str) -> int`: the inverse of `page_at`
+    - `add_cut(pid: str) -> None`:
+      - on a QR page with a removed cut, restores that cut (discards it from `removed_cuts`)
+      - otherwise adds a manual cut before `pid`
+    - `remove_cut(pid: str) -> None`:
+      - removes a manual cut before `pid`, or
+      - on a QR page, adds it to `removed_cuts`
+      - otherwise raises `ValueError`
+    - `delete_page(pid: str)`, `undelete_page(pid: str)`
+    - `restore_empty(pid: str)`: adds to `restored`
+    - `unrestore_empty(pid: str)`: discards from `restored`
+
+    Every method that takes a `pid` raises `KeyError` for an unknown page.
   - `JOB_FORMAT_VERSION = 1`, `job_to_dict(job: Job) -> dict`, `job_from_dict(data: dict) -> Job`
     (sets become sorted lists; `job_from_dict` raises `ValueError` on an unknown version)
 - Produces, in `tests/fakes.py`: `job_from_kinds(spec: dict[str, str]) -> Job`
@@ -264,6 +292,17 @@ def test_round_trip():
     job.drop_empty = True
     job.manual_cuts.add("a/3"); job.rotate("a/0", 90); job.apply_filter(["a/0", "a/3"], 2)
     assert job_from_dict(json.loads(json.dumps(job_to_dict(job)))) == job
+
+def test_positions_and_cut_edits():
+    job = job_from_kinds({"a": "pq", "b": "pp"})
+    assert job.page_at(3) == "b/0" and job.position_of("b/1") == 4
+    with pytest.raises(IndexError): job.page_at(5)
+    job.remove_cut("a/1"); assert job.removed_cuts == {"a/1"}
+    job.add_cut("a/1"); assert job.removed_cuts == set()
+    job.add_cut("b/1"); assert job.manual_cuts == {"b/1"}
+    job.remove_cut("b/1"); assert job.manual_cuts == set()
+    with pytest.raises(ValueError): job.remove_cut("b/0")
+    with pytest.raises(KeyError): job.delete_page("z/0")
 
 def test_bad_inputs():
     job = job_from_kinds({"a": "p"})
@@ -288,7 +327,7 @@ Expected: FAIL with `ModuleNotFoundError`
 - [ ] **Step 4: Run the tests**
 
 Run: `pytest tests/test_job.py -v && ruff check .`
-Expected: 3 passed
+Expected: 4 passed
 
 - [ ] **Step 5: Commit**
 
@@ -424,7 +463,7 @@ git commit -m "feat: calculate document cuts from QR pages, manual cuts and filt
     - writes `out_dir/{stem}_001.pdf`, `_002.pdf`, ... and creates `out_dir` if needed
     - returns the paths in document order
     - writes nothing for an empty list
-  - Plan 5 replaces the numbered names with template names. Plan 3 adds the text layer.
+  - Plan 4 replaces the numbered names with template names. Plan 2 adds the text layer.
 
 - [ ] **Step 1: Write the failing tests** in `tests/test_writer.py`
 
@@ -490,6 +529,8 @@ git commit -m "feat: write one PDF per document"
     - `save(job: Job) -> None`
     - `load(job_id: str) -> Job`
     - `list_jobs() -> list[Job]`, newest first
+    - `delete(job_id: str) -> None`: removes the job folder
+    - `load` and `delete` raise `KeyError` for an unknown id
     - `batch_file(job: Job, batch: Batch) -> Path`
     - `batch_files(job: Job) -> dict[str, Path]`
   - Layout: `root/<job.id>/job.json` and `root/<job.id>/batches/<batch.id>.pdf`.
@@ -511,6 +552,9 @@ def test_create_save_load(tmp_path):
     assert store.load(job.id) == job
     assert [j.id for j in store.list_jobs()] == [job.id]
     assert store.batch_file(job, job.batches[0]).exists()
+    store.delete(job.id)
+    assert store.list_jobs() == []
+    with pytest.raises(KeyError): store.load(job.id)
 
 def test_bad_batch_leaves_no_job(tmp_path):                       # Review Focus 3
     good = make_pdf(tmp_path / "ok.pdf", [text_page()])
@@ -544,84 +588,202 @@ git commit -m "feat: save and load jobs in the app data folder"
 
 ---
 
-### Task 7: Command-line tool `evrakci-ayir`
-
-This lets the owner try the engine on real scans on their own PC before Plan 2 exists. It is not a
-staff feature.
+### Task 7: CLI skeleton, job commands and separator sheets
 
 **Files:**
-- Create: `src/evrakci/cli.py`
+- Create: `src/evrakci/cli/__init__.py` (exports `main`)
+- Create: `src/evrakci/cli/main.py` (parser, global options, error handling)
+- Create: `src/evrakci/cli/jobs.py` (the `is` command handlers)
 - Modify: `pyproject.toml`
-  - add `[project.scripts] evrakci-ayir = "evrakci.cli:main"`
-  - add `evrakci-ayirac = "evrakci.cli:separator_main"`
-- Test: `tests/test_cli.py`
+  - `[project.scripts] evrakci = "evrakci.cli:main"`
+  - rename the GUI script to `[project.gui-scripts] evrakci-arayuz = "evrakci.app:main"`
+- Test: `tests/test_cli_jobs.py`
 
 **Interfaces:**
-- Consumes: `JobStore` (Task 6), `compute_documents` (Task 4), `write_documents` (Task 5),
-  `make_separator_pdf` (Task 1)
+- Consumes: `JobStore`, `default_root` (Task 6); `compute_documents` (Task 4);
+  `make_separator_pdf` (Task 1); `BatchError` (Task 2)
 - Produces:
   - `main(argv: Sequence[str] | None = None) -> int`
-    - arguments: `PDF [PDF ...] --cikti DIR [--filtre BAS-SON:N ...] [--bos-sayfalari-at]`
-    - `BAS-SON` are 1-based positions in the combined scan order (QR pages included), so the
-      numbers match the order of the paper pile
-    - it creates the job in a temporary `JobStore`, applies the options, writes the documents and
-      prints one Turkish line per file: `belge_001.pdf: sayfa 1, 2`
-    - returns `0`
-    - a bad `--filtre`, or a `BatchError`, prints a Turkish error to stderr and returns `2`
-  - `separator_main(argv: Sequence[str] | None = None) -> int`
-    - arguments: `CIKTI.pdf [--adet N]`
-    - writes a separator PDF with N sheets (default 10)
+  - Global option `--kok DIR`: the job store root, defaulting to `default_root()`. Tests always
+    pass it.
+  - Commands (`ID` is a job id):
 
-- [ ] **Step 1: Write the failing tests** in `tests/test_cli.py`
+| Command | Does | Prints (stdout) |
+|---|---|---|
+| `evrakci ayirac CIKTI.pdf [--adet N]` | writes N separator sheets (default 10) | `Ayıraç dosyası yazıldı: {path} ({N} yaprak)` |
+| `evrakci is olustur AD PDF [PDF ...]` | creates a job, showing analysis progress on stderr | the new job id alone on the last line |
+| `evrakci is listele` | lists jobs | one line per job: `{id}  {name}  {page count} sayfa` |
+| `evrakci is ekle ID PDF` | adds a batch | `{batch id} eklendi ({n} sayfa)` |
+| `evrakci is goster ID [--json]` | shows pages and documents | see below |
+| `evrakci is sil ID` | deletes a job | `İş silindi: {id}` |
+
+  - `is goster` text output:
+    - a header line: `{name} ({id})`
+    - one line per document: `{n}. belge: sayfa {positions, comma-separated}`, with
+      `  [eksik sayfa]` added when the document is flagged `"leftover"`
+    - a last line: `QR sayfaları: {positions}` (or `QR sayfaları: yok` if there are none)
+  - `is goster --json` prints `{"job": job_to_dict(job), "documents": [{"positions": [...],
+    "flags": [...]}, ...]}`.
+  - Errors exit with code 2 and print one Turkish line to stderr:
+    - unknown job: `İş bulunamadı: {id}`
+    - an unreadable PDF: the `BatchError` message
+
+- [ ] **Step 1: Write the failing tests** in `tests/test_cli_jobs.py`. A helper runs the CLI:
+  `run = lambda *a: main(["--kok", str(root), *a])`.
 
 ```python
-def test_split_with_filter(tmp_path, capsys):
-    pdf = make_pdf(tmp_path / "t.pdf", [text_page()] * 4 + [qr_page()] + [text_page()] * 3)
-    code = main([str(pdf), "--cikti", str(tmp_path / "out"), "--filtre", "1-4:2"])
-    assert code == 0
-    assert sorted(p.name for p in (tmp_path / "out").iterdir()) == [
-        "belge_001.pdf", "belge_002.pdf", "belge_003.pdf"]
-    assert "belge_001.pdf: sayfa 1, 2" in capsys.readouterr().out
+def test_create_show_list_delete(tmp_path, capsys):
+    root = tmp_path / "kok"
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()] * 2 + [qr_page()] + [text_page()] * 3)
+    assert main(["--kok", str(root), "is", "olustur", "Seçim", str(pdf)]) == 0
+    job_id = capsys.readouterr().out.strip().splitlines()[-1]
+    assert main(["--kok", str(root), "is", "goster", job_id]) == 0
+    out = capsys.readouterr().out
+    assert "1. belge: sayfa 1, 2" in out and "2. belge: sayfa 4, 5, 6" in out
+    assert "QR sayfaları: 3" in out
+    assert main(["--kok", str(root), "is", "goster", job_id, "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["documents"][1]["positions"] == [4, 5, 6]
+    assert main(["--kok", str(root), "is", "sil", job_id]) == 0
+    assert main(["--kok", str(root), "is", "goster", job_id]) == 2
+    assert "İş bulunamadı" in capsys.readouterr().err
 
-def test_bad_filter(tmp_path):
-    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
-    assert main([str(pdf), "--cikti", str(tmp_path / "o"), "--filtre", "abc"]) == 2
+def test_add_batch_and_list(tmp_path, capsys): ...
+    # create a job with one 2-page PDF, then `is ekle` a 1-page PDF:
+    # stdout contains "b2 eklendi (1 sayfa)"; `is listele` contains "3 sayfa"
+
+def test_unreadable_pdf(tmp_path, capsys):
+    bad = tmp_path / "bozuk.pdf"; bad.write_bytes(b"nope")
+    assert main(["--kok", str(tmp_path / "k"), "is", "olustur", "x", str(bad)]) == 2
+    assert "PDF açılamadı" in capsys.readouterr().err
 
 def test_separator_command(tmp_path):
-    assert separator_main([str(tmp_path / "a.pdf"), "--adet", "2"]) == 0
+    assert main(["ayirac", str(tmp_path / "a.pdf"), "--adet", "2"]) == 0
     assert len(pikepdf.open(tmp_path / "a.pdf").pages) == 4
 ```
 
+  Write `test_add_batch_and_list` in full from the comment.
+
 - [ ] **Step 2: Run the tests to make sure they fail**
 
-Run: `pytest tests/test_cli.py -v`
-Expected: FAIL with `ModuleNotFoundError`
+Run: `pytest tests/test_cli_jobs.py -v`
+Expected: FAIL with `ModuleNotFoundError: No module named 'evrakci.cli'`
 
-- [ ] **Step 3: Implement `cli.py`** with `argparse`. Turkish help text. The printed page numbers
-  are 1-based positions in the combined scan order.
+- [ ] **Step 3: Implement** with `argparse` subparsers, using Turkish `help=` text throughout.
+  - `main` catches `KeyError` on job lookup, `BatchError`, `IndexError` and `ValueError`, prints
+    the Turkish message and returns 2.
+  - Positions come from `Job.position_of`.
+
+- [ ] **Step 4: Run the tests**
+
+Run: `pip install -e ".[dev]" && pytest tests/test_cli_jobs.py -v && ruff check .`
+Expected: 4 passed. `evrakci --help` lists `ayirac` and `is`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/evrakci/cli pyproject.toml tests/test_cli_jobs.py
+git commit -m "feat: evrakci CLI with job and separator commands"
+```
+
+---
+
+### Task 8: CLI editing and export commands
+
+**Files:**
+- Modify: `src/evrakci/cli/jobs.py`, `src/evrakci/cli/main.py`
+- Test: `tests/test_cli_edit.py`
+
+**Interfaces:**
+- Consumes: the `Job` edit methods (Task 3), `JobStore.save` and `batch_files` (Task 6),
+  `compute_documents` (Task 4), `write_documents` (Task 5)
+- Produces: these commands. Each one loads the job, makes one edit, saves, and prints one Turkish
+  confirmation line. `SAYFA` is a 1-based position.
+
+| Command | Calls |
+|---|---|
+| `evrakci is filtre ID BAS-SON N` | `apply_filter` on positions BAS..SON (inclusive), every N |
+| `evrakci is kes ID SAYFA [--kaldir]` | `add_cut` / `remove_cut` |
+| `evrakci is sayfa ID SAYFA (--sil \| --geri-al \| --dondur DERECE \| --bos-geri-al)` | `delete_page` / `undelete_page` / `rotate` / `restore_empty` |
+| `evrakci is bos-sayfalar ID (ac \| kapat)` | sets `drop_empty` |
+| `evrakci is disa-aktar ID --cikti DIR` | `compute_documents`, then `write_documents`. Prints `{file}: sayfa {positions}` per file, then `{n} belge yazıldı.` |
+
+  - In this plan, `is disa-aktar` writes numbered files. Plan 4 adds template names, PDF/A and
+    `index.xlsx` to the same command.
+  - Errors exit with code 2 and print one Turkish line to stderr:
+    - a malformed `BAS-SON`: `Geçersiz aralık: {value}`
+    - a page out of range: `Sayfa yok: {n}`
+    - removing a cut that doesn't exist: `Bu sayfada kesim yok: {n}`
+
+- [ ] **Step 1: Write the failing tests** in `tests/test_cli_edit.py`. Each test creates a job
+  through `main([... "is", "olustur", ...])` as in Task 7.
+
+```python
+def test_filter_cut_and_export(tmp_path, capsys):
+    # pages: 1-4 text, 5 QR, 6-8 text
+    ...
+    assert run("is", "filtre", job_id, "1-4", "2") == 0
+    assert run("is", "kes", job_id, "8") == 0
+    assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out")) == 0
+    out = capsys.readouterr().out
+    assert "belge_001.pdf: sayfa 1, 2" in out and "belge_004.pdf: sayfa 8" in out
+    assert "4 belge yazıldı." in out
+    assert len(list((tmp_path / "out").glob("*.pdf"))) == 4
+
+def test_drop_empty_and_page_edits(tmp_path, capsys):
+    # pages: text, empty, text
+    ...
+    assert run("is", "bos-sayfalar", job_id, "ac") == 0
+    assert run("is", "sayfa", job_id, "1", "--sil") == 0
+    run("is", "goster", job_id)
+    assert "1. belge: sayfa 3" in capsys.readouterr().out
+    assert run("is", "sayfa", job_id, "2", "--bos-geri-al") == 0
+    run("is", "goster", job_id)
+    assert "1. belge: sayfa 2, 3" in capsys.readouterr().out
+
+def test_user_errors(tmp_path, capsys):
+    # 2-page job
+    ...
+    assert run("is", "filtre", job_id, "abc", "2") == 2
+    assert run("is", "kes", job_id, "9") == 2
+    assert run("is", "kes", job_id, "2", "--kaldir") == 2
+    err = capsys.readouterr().err
+    assert "Geçersiz aralık: abc" in err and "Sayfa yok: 9" in err
+    assert "Bu sayfada kesim yok: 2" in err
+```
+
+  Fill in the `...` setup lines as described in each comment.
+
+- [ ] **Step 2: Run the tests to make sure they fail**
+
+Run: `pytest tests/test_cli_edit.py -v`
+Expected: FAIL (the commands don't exist yet; argparse exits with code 2 and `invalid choice`)
+
+- [ ] **Step 3: Implement the commands** with the signatures and messages above.
 
 - [ ] **Step 4: Run the whole suite**
 
-Run: `pip install -e ".[dev]" && pytest -q && ruff check .`
+Run: `pytest -q && ruff check .`
 Expected: all tests pass, ruff clean
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/evrakci/cli.py pyproject.toml tests/test_cli.py
-git commit -m "feat: evrakci-ayir and evrakci-ayirac command-line tools"
+git add src/evrakci/cli tests/test_cli_edit.py
+git commit -m "feat: CLI commands for filters, cuts, page edits and export"
 ```
 
 ---
 
-### Task 8: Bring the docs in line with the design
+### Task 9: Bring the docs in line with the design
 
 **Files:**
 - Modify: `README.md` and `README.tr.md`
   - "How it works" now reads: batches → QR pages and filters → timeline → OCR → templates →
     review → export.
   - Remove the makbuz/fatura framing; Evrakçı is an all-round quality-of-life toolbox.
-  - Add the two commands from Task 7 under Development.
+  - Add a short "Komut satırı" (command line) section with an example session: `ayirac`,
+    `is olustur`, `is filtre`, `is goster`, `is disa-aktar`.
+  - Say that the window opens with `evrakci-arayuz`.
 - Modify: `docs/architecture.md`
   - match spec sections 3–7
   - list the pipeline modules from this plan
@@ -633,9 +795,7 @@ git commit -m "feat: evrakci-ayir and evrakci-ayirac command-line tools"
 - Modify: `docs/dependency-licenses.md`: add segno (BSD-3), zxing-cpp (Apache-2.0), platformdirs
   (MIT), Pillow (HPND); mark Ghostscript as "not used"
 - Modify: `samples/synthetic/README.md`: replace makbuz/fatura wording with "synthetic documents";
-  point to `tests/fakes.py` and `evrakci-ayirac`
-- Modify: `docs/superpowers/specs/2026-11-06-scan-and-split-design.md`: change line 4 to
-  `Status: approved by owner, 2026-11-06`
+  point to `tests/fakes.py` and `evrakci ayirac`
 
 - [ ] **Step 1: Make the edits above.**
 

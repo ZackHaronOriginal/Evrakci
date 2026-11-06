@@ -1,7 +1,7 @@
 # Evrakçı, first module: Tara ve Ayır (scan and split). Design
 
 Date: 2026-11-06
-Status: draft for owner approval
+Status: approved by owner, 2026-11-06 (revised the same day: CLI-first)
 
 ## Words used in this document
 
@@ -36,6 +36,22 @@ problem. This document covers only the **first module**.
   chamber. Users create all of that themselves.
 - **Reusable.** The building blocks (jobs, the page timeline, templates and variables, the OCR
   engine) are meant to be reused by later modules (Section 9).
+
+### Two entry points: command line and window
+
+- All processing lives in one **core** (`src/evrakci/pipeline/`). It has no UI code.
+- The **command-line tool** (`evrakci`) is a full entry point. It can do everything: create jobs,
+  add batches, apply filters, cut, run OCR, manage templates, review values and export. It is
+  built **first**, and every feature reaches the CLI before the window.
+- The **window** (the PySide6 app) is built afterwards as a second entry point. It calls the same
+  core code, so the CLI and the window always behave the same.
+- Anything done in the CLI can be scripted, for example automatically processing a folder the
+  copier saves scans to.
+- Exception: **drawing** template boxes is visual. In the CLI, boxes are given as numbers or by
+  editing the template file. Comfortable template making happens in the window.
+- CLI commands, help and messages are in Turkish, like the window. `evrakci <command>` runs the
+  CLI. A separate program, `evrakci-arayuz`, opens the window, and the installer's desktop shortcut
+  points to it.
 
 ### Who uses it
 
@@ -370,6 +386,8 @@ block them:
 
 **Decided by the owner:**
 - Desktop app with Python and Qt (approach A).
+- CLI first. The command-line tool is a full entry point built before the window, and the window
+  is a second entry point over the same core.
 - QR pages only mark cuts. Staff put them before and after documents that need fencing off.
 - QR pages and filters are equally important, and the mix varies by job.
 - Filters are only applied to what the user selects. Nothing is applied by default.
@@ -404,13 +422,13 @@ block them:
 - the exact OCR interface
 - how drawn boxes are stored and matched to scanned pages
 - installer tooling
-- the order of work inside this module. Suggested order:
-  1. splitting engine
-  2. timeline editor
-  3. OCR engine test and OCR
-  4. template creator and naming
-  5. review and export
-  6. installer
+- the order of work inside this module, which the owner set as CLI first:
+  1. core and CLI: jobs and splitting
+  2. core and CLI: OCR engine test and OCR
+  3. core and CLI: templates and reading variables
+  4. core and CLI: review and export
+  5. the window: timeline, template creator and review table (mockups first)
+  6. Windows installer
 
 Also: rewrite the README and `docs/architecture.md` to match this design. They currently lead with
 makbuz and fatura.

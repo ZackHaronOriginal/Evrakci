@@ -35,7 +35,34 @@ def record_values(
     """Store values together with what they were read from."""
     first = document.page_ids[0]
     job.values[first] = values
+    job.read_errors.pop(first, None)
     job.value_sources[first] = ValueSource(tuple(document.page_ids), template_id)
+
+
+def record_read_error(job: Job, document: Document, template_id: str, message: str) -> None:
+    """Remember that reading this exact document failed, and why."""
+    first = document.page_ids[0]
+    job.values.pop(first, None)
+    job.read_errors[first] = message
+    job.value_sources[first] = ValueSource(tuple(document.page_ids), template_id)
+
+
+def _source_matches(job: Job, document: Document) -> bool:
+    source = job.value_sources.get(document.page_ids[0])
+    template_id, _ = document_template(job, document)
+    return (
+        source is not None
+        and source.page_ids == tuple(document.page_ids)
+        and source.template_id == template_id
+    )
+
+
+def current_read_error(job: Job, document: Document) -> str | None:
+    """A reading error, only if it belongs to exactly this document and template."""
+    first = document.page_ids[0]
+    if first in job.read_errors and _source_matches(job, document):
+        return job.read_errors[first]
+    return None
 
 
 def current_values(job: Job, document: Document) -> dict[str, VariableValue] | None:

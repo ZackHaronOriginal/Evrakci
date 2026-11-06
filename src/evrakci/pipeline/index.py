@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from openpyxl import Workbook
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
@@ -27,6 +28,7 @@ _MAX_WIDTH = 60
 
 def _set_text(cell, text: str | None) -> None:
     """Always plain text: OCR'd values starting with = + - @ must never become formulas."""
+    text = ILLEGAL_CHARACTERS_RE.sub("", text or "")  # control characters break Excel files
     if not text:
         return
     cell.value = text

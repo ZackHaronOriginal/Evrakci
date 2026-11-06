@@ -10,6 +10,7 @@ import pikepdf
 
 from evrakci.pipeline.cuts import Document
 from evrakci.pipeline.job import parse_page_id
+from evrakci.pipeline.naming import name_key
 
 
 def write_documents(
@@ -28,6 +29,9 @@ def write_documents(
         return []
     out_dir = Path(out_dir)
     names = list(names) if names else [f"{stem}_{n:03d}" for n in range(1, len(documents) + 1)]
+    keys = [name_key(n) for n in names]
+    if len(set(keys)) != len(keys):
+        raise ValueError("Aynı dosya adı iki kez yazılamaz.")  # one file would overwrite another
     # Never mix with an earlier export: any old PDF or index would look like part of this one.
     if out_dir.is_dir():
         old = sorted(out_dir.glob("*.pdf")) + sorted(out_dir.glob("index.xlsx"))
@@ -43,9 +47,7 @@ def write_documents(
                 for pid in document.page_ids:
                     batch_id, index = parse_page_id(pid)
                     if batch_id not in sources:
-                        sources[batch_id] = stack.enter_context(
-                            pikepdf.open(batch_files[batch_id])
-                        )
+                        sources[batch_id] = stack.enter_context(pikepdf.open(batch_files[batch_id]))
                     output.pages.append(sources[batch_id].pages[index])
                     extra = rotations.get(pid, 0)
                     if extra:

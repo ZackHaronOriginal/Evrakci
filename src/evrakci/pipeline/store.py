@@ -132,16 +132,38 @@ class JobStore:
         self.save(job)
         path.unlink(missing_ok=True)
 
-    def delete_older_than(self, days: int, now: float | None = None) -> list[str]:
-        """Delete jobs whose job.json was last changed more than `days` days ago."""
+    def delete_older_than(
+        self,
+        days: int,
+        now: float | None = None,
+        on_error: Callable[[str], None] | None = None,
+    ) -> list[str]:
+        """Delete Evrakçı jobs whose job.json was last changed more than `days` days ago.
+
+        Only real job folders are touched: not links, and only when job.json is a readable
+        Evrakçı job whose id matches its folder. Anything else is left alone.
+        """
         if not self.root.is_dir():
             return []
         limit = (time.time() if now is None else now) - days * 86400
         deleted = []
-        for path in sorted(self.root.glob("*/job.json")):
-            if path.stat().st_mtime < limit:
-                shutil.rmtree(path.parent)
-                deleted.append(path.parent.name)
+        for folder in sorted(self.root.iterdir()):
+            path = folder / "job.json"
+            try:
+                if folder.is_symlink() or not folder.is_dir() or not path.is_file():
+                    continue
+                if path.stat().st_mtime >= limit:
+                    continue
+                if self.load(folder.name).id != folder.name:
+                    continue
+            except (JobFileError, KeyError, OSError):
+                continue
+            try:
+                shutil.rmtree(folder)
+                deleted.append(folder.name)
+            except OSError as error:
+                if on_error:
+                    on_error(f"{folder.name}: {error}")
         return deleted
 
     def delete(self, job_id: str) -> None:

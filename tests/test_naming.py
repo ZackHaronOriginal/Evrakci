@@ -53,3 +53,47 @@ def test_unique_names_case_insensitive():
         "Örnek (3)",
         "Başka",
     ]
+
+
+def test_junk_required_value_is_never_silent():
+    name, checks = build_name(
+        "{firma}_{tarih}", {"firma": ok("***"), "tarih": ok("2024")}, {"firma"}
+    )
+    assert name is None and checks == ["zorunlu değer dosya adına uygun değil: firma"]
+    name, checks = build_name("{a}_{b}", {"a": ok(".."), "b": ok("x")}, set())
+    assert name == "x" and checks == ["dosya adına uygun değil: a"]
+
+
+def test_unique_names_never_duplicates():
+    names = unique_names(["a", "a", "a (2)", "A (2)"])
+    assert len({n.casefold() for n in names}) == 4
+
+
+def test_unique_names_turkish_i():
+    names = unique_names(["KAYIŞ", "Kayış", "ışık", "IŞIK", "İz", "iz"])
+    keys = [n.upper().casefold() for n in names]
+    assert len(set(keys)) == 6
+
+
+def test_cut_dropping_required_value():
+    long = "x" * 119
+    name, checks = build_name("{a}_{b}", {"a": ok(long), "b": ok("ÖNEMLİ")}, {"b"})
+    assert name is None and checks == ["zorunlu değer dosya adına sığmadı: b"]
+
+
+def test_more_reserved_names():
+    for reserved in ("CONIN$", "conout$", "COM¹", "lpt³"):
+        assert safe_filename(reserved).endswith("_")
+
+
+def test_fit_names_to_path_limit(tmp_path):
+    from evrakci.pipeline.naming import fit_names
+
+    folder = tmp_path / ("ç" * 150)
+    names = fit_names(["Ş" * 120, "kısa"], folder)
+    budget = 250 - len(str(folder.resolve())) - len(" (99).pdf.gecici") - 1
+    assert all(len(n) <= budget for n in names) and names[1] == "kısa"
+    import pytest
+
+    with pytest.raises(ValueError):
+        fit_names(["a"], tmp_path / ("y" * 260))

@@ -108,3 +108,85 @@ def test_ayar_goster_and_bad_value(tmp_path, monkeypatch, capsys):
     assert "Saklama: sakla" in capsys.readouterr().out
     assert main(["ayar", "saklama", "bazen"]) == 2
     assert "Geçersiz saklama" in capsys.readouterr().err
+
+
+def test_retention_only_deletes_real_jobs(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("eski", [pdf])
+    stranger = tmp_path / "jobs" / "baska"
+    stranger.mkdir()
+    (stranger / "job.json").write_text("{}", encoding="utf-8")
+    (stranger / "onemli.docx").write_bytes(b"x")
+    real_target = tmp_path / "hedef"
+    real_target.mkdir()
+    (real_target / "job.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "jobs" / "baglanti").symlink_to(real_target, target_is_directory=True)
+    old = time.time() - 50 * 86400
+    for path in (
+        tmp_path / "jobs" / job.id / "job.json",
+        stranger / "job.json",
+        real_target / "job.json",
+    ):
+        os.utime(path, (old, old))
+    errors = []
+    assert store.delete_older_than(7, on_error=errors.append) == [job.id]
+    assert (stranger / "onemli.docx").exists() and real_target.exists()
+
+
+def test_export_marks_job_as_used(tmp_path, monkeypatch):
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(tmp_path / "ayarlar.json"))
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("İş", [pdf])
+    path = tmp_path / "jobs" / job.id / "job.json"
+    old = time.time() - 50 * 86400
+    os.utime(path, (old, old))
+    assert (
+        cli(
+            tmp_path,
+            "is",
+            "disa-aktar",
+            job.id,
+            "--cikti",
+            str(tmp_path / "o"),
+            "--metin-katmani-yok",
+        )
+        == 0
+    )
+    assert path.stat().st_mtime > time.time() - 600
+
+
+def test_delete_after_export_keeps_job_needing_checks(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(tmp_path / "ayarlar.json"))
+    assert main(["ayar", "saklama", "disa-aktarinca-sil"]) == 0
+
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page(), text_page(), text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("İş", [pdf])
+    job.apply_filter(job.ordered_page_ids(), 2)  # leaves a short last document
+    store.save(job)
+    capsys.readouterr()
+    assert (
+        cli(
+            tmp_path,
+            "is",
+            "disa-aktar",
+            job.id,
+            "--cikti",
+            str(tmp_path / "o"),
+            "--metin-katmani-yok",
+        )
+        == 0
+    )
+    assert "İş saklandı" in capsys.readouterr().out
+    assert [j.id for j in store.list_jobs()] == [job.id]
+
+
+def test_bad_settings_file_falls_back_to_keep(tmp_path, monkeypatch, capsys):
+    settings = tmp_path / "ayarlar.json"
+    settings.write_text("{bozuk", encoding="utf-8")
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(settings))
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    assert cli(tmp_path, "is", "olustur", "İş", str(pdf)) == 0
+    assert "Ayar dosyası okunamadı" in capsys.readouterr().err

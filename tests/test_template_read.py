@@ -51,10 +51,12 @@ def template(*sections, required=False):
 def test_first_confident_variant_wins():
     small = Section(1, (10.0, 10.0, 50.0, 20.0))
     wide = Section(1, (10.0, 10.0, 110.0, 20.0))
-    engine = SizeEngine({
-        (px(50) - px(10), px(20) - px(10)): ("ÖRNEK", 0.40),
-        (px(110) - px(10), px(20) - px(10)): ("Örnek Ltd.", 0.93),
-    })
+    engine = SizeEngine(
+        {
+            (px(50) - px(10), px(20) - px(10)): ("ÖRNEK", 0.40),
+            (px(110) - px(10), px(20) - px(10)): ("Örnek Ltd.", 0.93),
+        }
+    )
     value = read_by_name(template(small, wide), 1, blank, engine)["Ünvan"]
     assert value.value == "Örnek Ltd." and value.section == 1 and not value.flagged
     assert [r.text for r in value.readings] == ["ÖRNEK", "Örnek Ltd."]
@@ -71,10 +73,12 @@ def test_stops_at_first_confident():
 def test_none_confident_flagged_with_suggestion():
     a = Section(1, (10.0, 10.0, 50.0, 20.0))
     b = Section(1, (10.0, 10.0, 110.0, 20.0))
-    engine = SizeEngine({
-        (px(50) - px(10), px(20) - px(10)): ("Ornek", 0.30),
-        (px(110) - px(10), px(20) - px(10)): ("Örnek", 0.55),
-    })
+    engine = SizeEngine(
+        {
+            (px(50) - px(10), px(20) - px(10)): ("Ornek", 0.30),
+            (px(110) - px(10), px(20) - px(10)): ("Örnek", 0.55),
+        }
+    )
     value = read_by_name(template(a, b), 1, blank, engine)["Ünvan"]
     assert value.flagged and value.value == "" and value.suggestion == "Örnek"
     assert value.section is None and len(value.readings) == 2

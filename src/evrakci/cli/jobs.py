@@ -12,18 +12,21 @@ from evrakci.cli.errors import UserError
 from evrakci.pipeline.cuts import (
     Document,
     compute_documents,
+    current_read_error,
     current_values,
     document_template,
+    record_read_error,
     record_values,
 )
 from evrakci.pipeline.export import plan_export
 from evrakci.pipeline.index import write_index
 from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
+from evrakci.pipeline.naming import fit_names, unique_names
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
 from evrakci.pipeline.render import render_page
-from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, load_settings
+from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsError, load_settings
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.model import Template, TemplateError
 from evrakci.pipeline.templates.read import read_document
@@ -60,11 +63,24 @@ def finish_progress_line() -> None:
         _progress_line_open = False
 
 
+def _settings() -> Settings:
+    """The settings, or the safe default (keep everything) if the file can't be read."""
+    try:
+        return load_settings()
+    except SettingsError as error:
+        print(f"{error}. Varsayılan kullanılıyor: sakla.", file=sys.stderr)
+        return Settings()
+
+
 def apply_retention(store: JobStore) -> None:
     """Delete jobs past the day limit, if the retention setting has one."""
-    days = load_settings().retention_days
+    days = _settings().retention_days
     if days:
-        for job_id in store.delete_older_than(days):
+
+        def failed(message: str) -> None:
+            print(f"Silinemedi: {message}", file=sys.stderr)
+
+        for job_id in store.delete_older_than(days, on_error=failed):
             print(f"Saklama süresi doldu, silindi: {job_id}", file=sys.stderr)
 
 
@@ -77,6 +93,7 @@ def create(args: argparse.Namespace, store: JobStore) -> int:
 
 def list_jobs(args: argparse.Namespace, store: JobStore) -> int:
     apply_retention(store)
+
     def unreadable(job_id: str) -> None:
         print(f"Okunamayan iş: {job_id}", file=sys.stderr)
 
@@ -105,8 +122,9 @@ def _check_marks(job: Job, document: Document) -> list[str]:
     if "mixed_templates" in document.flags:
         marks.append("karışık şablon")
     first = document.page_ids[0]
-    if first in job.read_errors:
-        marks.append(job.read_errors[first])
+    error = current_read_error(job, document)
+    if error:
+        marks.append(error)
     values = current_values(job, document)
     if values is None and document_template(job, document)[0] and first in job.values:
         marks.append("yeniden okunmalı")
@@ -253,7 +271,14 @@ def _job_templates(args: argparse.Namespace, job: Job) -> dict[str, Template | N
 
 def export(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
+    store.save(job)  # marks the job as in use, so the day limit never removes it mid-export
     items = plan_export(job, _job_templates(args, job))
+    try:
+        fitted = unique_names(fit_names([i.name for i in items], Path(args.cikti)))
+    except ValueError as error:
+        raise UserError(str(error)) from None
+    for item, name in zip(items, fitted, strict=True):
+        item.name = name
     with_layer = not args.metin_katmani_yok
     if with_layer and items:
         reason = default_engine().available()
@@ -306,12 +331,21 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
     needing = sum(1 for item in items if item.checks)
     listing = ""
     if paths:
-        write_index(items, job, Path(args.cikti) / "index.xlsx")
+        try:
+            write_index(items, job, Path(args.cikti) / "index.xlsx")
+        except Exception as error:  # the PDFs are safe; say clearly what is missing
+            raise UserError(f"PDF'ler yazıldı ama index.xlsx yazılamadı: {error}") from None
         listing = " Liste: index.xlsx"
     print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.{listing}")
-    if load_settings().retention == DELETE_AFTER_EXPORT:
-        store.delete(job.id)  # only reached when every file and the index were written
-        print(f"İş silindi (saklama ayarı): {job.id}")
+    if _settings().retention == DELETE_AFTER_EXPORT:
+        if needing:
+            print(
+                f"İş saklandı: {needing} belge kontrol gerektiriyor; "
+                "düzeltip yeniden dışa aktarabilirsiniz."
+            )
+        else:
+            store.delete(job.id)  # only reached when every file and the index were written
+            print(f"İş silindi (saklama ayarı): {job.id}")
     return 0
 
 
@@ -374,7 +408,6 @@ def _read_one(args, store, job, document, template_id, templates, engine) -> str
     """Read one document; problems are recorded on it and never stop the run."""
     from evrakci.cli.templates import template_store
 
-    first = document.page_ids[0]
     if template_id not in templates:
         try:
             templates[template_id] = template_store(args).load(template_id)
@@ -384,17 +417,15 @@ def _read_one(args, store, job, document, template_id, templates, engine) -> str
             templates[template_id] = str(error)
     template = templates[template_id]
     if isinstance(template, str):
-        job.read_errors[first] = template
-        job.values.pop(first, None)
+        record_read_error(job, document, template_id, template)
         return f": {template}"
     try:
         values = read_document(
             template, len(document.page_ids), _document_pages(store, job, document), engine
         )
     except (EngineUnavailable, OSError) as error:
-        job.read_errors[first] = str(error)
+        record_read_error(job, document, template_id, str(error))
         return f": {error}"
-    job.read_errors.pop(first, None)
     previous = current_values(job, document) or {}
     for key, old in previous.items():
         if old.edited and key in values:

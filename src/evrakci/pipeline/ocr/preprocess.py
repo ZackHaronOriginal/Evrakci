@@ -69,9 +69,7 @@ def prepare_region(image: Image.Image) -> Image.Image:
     """Straighten a crop if it is visibly skewed, then make it black and white."""
     angle = estimate_skew(image)
     if abs(angle) >= _MIN_CORRECTION:
-        image = image.convert("L").rotate(
-            -angle, resample=Image.Resampling.BICUBIC, fillcolor=255
-        )
+        image = image.convert("L").rotate(-angle, resample=Image.Resampling.BICUBIC, fillcolor=255)
     return binarize(image)
 
 

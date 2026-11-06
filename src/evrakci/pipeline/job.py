@@ -73,9 +73,7 @@ class Job:
 
     def ordered_page_ids(self) -> list[str]:
         return [
-            page_id(batch.id, index)
-            for batch in self.batches
-            for index in range(batch.page_count)
+            page_id(batch.id, index) for batch in self.batches for index in range(batch.page_count)
         ]
 
     def _check(self, pid: str) -> str:
@@ -180,8 +178,7 @@ def job_to_dict(job: Job) -> dict:
         "id": job.id,
         "name": job.name,
         "batches": [
-            {"id": b.id, "file_name": b.file_name, "page_count": b.page_count}
-            for b in job.batches
+            {"id": b.id, "file_name": b.file_name, "page_count": b.page_count} for b in job.batches
         ],
         "pages": {
             pid: {"ink_ratio": info.ink_ratio, "is_separator": info.is_separator}
@@ -193,9 +190,7 @@ def job_to_dict(job: Job) -> dict:
         "rotations": dict(sorted(job.rotations.items())),
         "manual_cuts": sorted(job.manual_cuts),
         "removed_cuts": sorted(job.removed_cuts),
-        "filters": [
-            {"page_ids": sorted(f.page_ids), "every_n": f.every_n} for f in job.filters
-        ],
+        "filters": [{"page_ids": sorted(f.page_ids), "every_n": f.every_n} for f in job.filters],
         "templates": [
             {"template_id": t.template_id, "page_ids": sorted(t.page_ids)} for t in job.templates
         ],
@@ -249,8 +244,7 @@ def job_from_dict(data: dict) -> Job:
         name=data["name"],
         batches=[Batch(b["id"], b["file_name"], b["page_count"]) for b in data["batches"]],
         pages={
-            pid: PageInfo(p["ink_ratio"], p["is_separator"])
-            for pid, p in data["pages"].items()
+            pid: PageInfo(p["ink_ratio"], p["is_separator"]) for pid, p in data["pages"].items()
         },
         drop_empty=data["drop_empty"],
         deleted=set(data["deleted"]),

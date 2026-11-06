@@ -23,10 +23,20 @@ def test_create_edit_show(tmp_path, capsys):
     assert run("degisken-ekle", tid, "Firma Ünvanı", "--zorunlu") == 0
     assert run("degisken-ekle", tid, "Kayıt No") == 0
     assert run("bolum-ekle", tid, "Firma Ünvanı", "--sayfa", "1", "--kutu", "20,30,150,40") == 0
-    assert run(
-        "bolum-ekle", tid, "Firma Ünvanı", "--sayfa", "1", "--kutu", "20,40,150,55",
-        "--ornek", "uzun-unvan.pdf",
-    ) == 0
+    assert (
+        run(
+            "bolum-ekle",
+            tid,
+            "Firma Ünvanı",
+            "--sayfa",
+            "1",
+            "--kutu",
+            "20,40,150,55",
+            "--ornek",
+            "uzun-unvan.pdf",
+        )
+        == 0
+    )
     assert run("bolum-ekle", tid, "Kayıt No", "--sayfa", "son", "--kutu", "10,10,60,18") == 0
     assert run("bolum-tasi", tid, "Firma Ünvanı", "2", "1") == 0
     assert run("dosya-adi", tid, "{Kayıt No}_{Firma Ünvanı}") == 0

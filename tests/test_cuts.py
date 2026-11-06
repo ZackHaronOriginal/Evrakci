@@ -9,8 +9,7 @@ def ids(docs):
 
 def test_qr_fences_and_is_dropped():
     job = job_from_kinds({"a": "ppqpppqpp"})
-    assert ids(compute_documents(job)) == [
-        ["a/0", "a/1"], ["a/3", "a/4", "a/5"], ["a/7", "a/8"]]
+    assert ids(compute_documents(job)) == [["a/0", "a/1"], ["a/3", "a/4", "a/5"], ["a/7", "a/8"]]
 
 
 def test_empty_pages_never_cut():
@@ -35,7 +34,12 @@ def test_filter_restarts_after_qr_and_manual_cut():
     job.apply_filter(job.ordered_page_ids(), 2)
     job.manual_cuts.add("a/8")
     assert ids(compute_documents(job)) == [
-        ["a/0", "a/1"], ["a/2", "a/3"], ["a/5", "a/6"], ["a/7"], ["a/8", "a/9"]]
+        ["a/0", "a/1"],
+        ["a/2", "a/3"],
+        ["a/5", "a/6"],
+        ["a/7"],
+        ["a/8", "a/9"],
+    ]
 
 
 def test_last_filter_wins():

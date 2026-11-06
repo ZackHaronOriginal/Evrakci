@@ -69,9 +69,7 @@ def count_pages(path: Path) -> int:
         pdf.close()
 
 
-def analyze_pdf(
-    path: Path, progress: Callable[[int, int], None] | None = None
-) -> list[PageInfo]:
+def analyze_pdf(path: Path, progress: Callable[[int, int], None] | None = None) -> list[PageInfo]:
     path = Path(path)
     pdf = _open(path)
     try:

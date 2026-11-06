@@ -50,8 +50,9 @@ def test_page_with_existing_text_kept(tmp_path):
     with pikepdf.open(src, allow_overwriting_input=True) as pdf:
         page = pikepdf.Page(pdf.pages[1])
         font = pdf.make_indirect(
-            pikepdf.Dictionary(Type=pikepdf.Name.Font, Subtype=pikepdf.Name.Type1,
-                               BaseFont=pikepdf.Name.Helvetica)
+            pikepdf.Dictionary(
+                Type=pikepdf.Name.Font, Subtype=pikepdf.Name.Type1, BaseFont=pikepdf.Name.Helvetica
+            )
         )
         name = page.add_resource(font, pikepdf.Name.Font, prefix="F")
         text = f"BT {name} 12 Tf 50 50 Td (Dijital metin) Tj ET".encode()

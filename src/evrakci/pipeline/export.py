@@ -5,7 +5,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from evrakci.pipeline.cuts import Document, compute_documents, current_values, document_template
+from evrakci.pipeline.cuts import (
+    Document,
+    compute_documents,
+    current_read_error,
+    current_values,
+    document_template,
+)
 from evrakci.pipeline.job import Job
 from evrakci.pipeline.naming import build_name, unique_names
 from evrakci.pipeline.templates.model import Template
@@ -34,9 +40,9 @@ def plan_export(job: Job, templates: Mapping[str, Template | None]) -> list[Expo
             item.checks.append("eksik sayfa")
         if "mixed_templates" in document.flags:
             item.checks.append("karışık şablon")
-        first = document.page_ids[0]
-        if first in job.read_errors:
-            item.checks.append(job.read_errors[first])
+        error = current_read_error(job, document)
+        if error:
+            item.checks.append(error)
         template_id, _ = document_template(job, document)
         if template_id is not None:
             _apply_template(item, job, document, templates.get(template_id))
@@ -76,5 +82,9 @@ def _apply_template(item: ExportItem, job: Job, document: Document, template) ->
         ):
             checks.append(f"okunamadı: {variable.name}")
     item.checks.extend(checks)
+    if not template.filename_pattern.strip():
+        item.checks.append("dosya adı kalıbı yok")
+    elif name == "":
+        item.checks.append("dosya adı boş kaldı")
     if name:
         item.name = name

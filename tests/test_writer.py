@@ -63,3 +63,11 @@ def test_conflict_on_any_target_or_index(tmp_path):
     with pytest.raises(FileExistsError, match="index.xlsx"):
         write_documents([Document(("a/0",))], {"a": a}, {}, out, names=["Örnek"])
     assert sorted(p.name for p in out.iterdir()) == ["index.xlsx"]
+
+
+def test_writer_refuses_duplicate_names(tmp_path):
+    a = make_pdf(tmp_path / "a.pdf", [text_page(), text_page()])
+    docs = [Document(("a/0",)), Document(("a/1",))]
+    with pytest.raises(ValueError):
+        write_documents(docs, {"a": a}, {}, tmp_path / "out", names=["x", "X"])
+    assert not (tmp_path / "out").exists()

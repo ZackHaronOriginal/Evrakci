@@ -64,6 +64,34 @@ def test_leftover_mixed_and_read_error_reported():
     job = job_from_kinds({"a": "ppp"})
     job.apply_template(["a/0"], "t1")
     job.apply_template(["a/1", "a/2"], "t2")
-    job.read_errors["a/0"] = "Tesseract hata verdi"
+    from evrakci.pipeline.cuts import record_read_error
+
+    [doc] = compute_documents(job)
+    record_read_error(job, doc, "t1", "Tesseract hata verdi")
     [item] = plan_export(job, {"t1": make_template(), "t2": make_template()})
     assert "karışık şablon" in item.checks and "Tesseract hata verdi" in item.checks
+
+
+def test_empty_pattern_and_empty_name_are_marked():
+    t = make_template()
+    t.set_pattern("")
+    job = job_from_kinds({"a": "p"})
+    job.apply_template(["a/0"], "t1")
+    [doc] = compute_documents(job)
+    k_no, k_unvan, k_not = (v.key for v in t.variables)
+    record_values(job, doc, "t1", {k_no: ok("1"), k_unvan: ok("x"), k_not: ok("y")})
+    [item] = plan_export(job, {"t1": t})
+    assert item.name == "belge_001" and "dosya adı kalıbı yok" in item.checks
+
+
+def test_read_error_follows_its_document():
+    job = job_from_kinds({"a": "pp"})
+    job.apply_template(["a/0", "a/1"], "t1")
+    from evrakci.pipeline.cuts import record_read_error
+
+    [doc] = compute_documents(job)
+    record_read_error(job, doc, "t1", "Tesseract hata verdi")
+    assert "Tesseract hata verdi" in plan_export(job, {"t1": make_template()})[0].checks
+    job.manual_cuts.add("a/1")
+    first, _ = plan_export(job, {"t1": make_template()})
+    assert "Tesseract hata verdi" not in first.checks

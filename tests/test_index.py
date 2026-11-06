@@ -78,3 +78,11 @@ def test_turkish_headers_and_values(tmp_path):
     write_index(rows, job, path)
     sheet = openpyxl.load_workbook(path)["Belgeler"]
     assert sheet.cell(row=2, column=9).value == "Örnek Şti."
+
+
+def test_control_characters_do_not_break_the_index(tmp_path):
+    job, rows = items()
+    rows[0].values["Ünvan"] = "Örnek\x01Şti"
+    write_index(rows, job, tmp_path / "index.xlsx")
+    sheet = openpyxl.load_workbook(tmp_path / "index.xlsx")["Belgeler"]
+    assert sheet.cell(row=2, column=9).value == "ÖrnekŞti"

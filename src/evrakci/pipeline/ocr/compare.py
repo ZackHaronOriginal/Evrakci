@@ -100,8 +100,10 @@ def install_sizes() -> dict[str, int]:
     binary = find_tesseract()
     tessdata = system_tessdata()
     if binary is not None:
-        base = _tree_size(binary.parent) if binary.parent.name == "Tesseract-OCR" else _tree_size(
-            binary
+        base = (
+            _tree_size(binary.parent)
+            if binary.parent.name == "Tesseract-OCR"
+            else _tree_size(binary)
         )
         if tessdata is not None:
             sizes["tesseract-tur (sistem)"] = base + _tree_size(tessdata / "tur.traineddata")

@@ -108,7 +108,7 @@ def test_rotated_letter_page_box(tmp_path):
     entry["beklenen"] = "Örnek Kayıt 2026"
     boxes = _boxes(tmp_path, [entry])
     assert _run(tmp_path, [pdf], boxes) == 0
-    assert "| tesseract-tur | " in (tmp_path / "r.md").read_text(encoding="utf-8")
+    assert "| tesseract-tur (sistem) | " in (tmp_path / "r.md").read_text(encoding="utf-8")
     assert "1/1" in (tmp_path / "r.md").read_text(encoding="utf-8")
 
 

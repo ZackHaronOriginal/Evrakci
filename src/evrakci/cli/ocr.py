@@ -19,11 +19,12 @@ from evrakci.pipeline.ocr.preprocess import prepare_page, prepare_region
 from evrakci.pipeline.ocr.rapid import RapidOcrEngine
 from evrakci.pipeline.ocr.synthetic import make_pages
 from evrakci.pipeline.ocr.tesseract import (
+    TESSDATA_VARIANTS,
     TUR_BEST_URL,
     TesseractEngine,
     prepare_tessdata,
-    tessdata_best_dir,
-    verify_tur_best,
+    tessdata_dir,
+    verify_tessdata,
 )
 from evrakci.pipeline.ocr.textlayer import add_text_layer
 
@@ -47,8 +48,11 @@ _SYNTHETIC_NOTES = [
 
 def all_engines() -> list[OcrEngine]:
     return [
-        TesseractEngine("tur", name="tesseract-tur"),
-        TesseractEngine("tur", tessdata_dir=tessdata_best_dir(), name="tesseract-tur_best"),
+        TesseractEngine("tur", name="tesseract-tur (sistem)"),
+        *(
+            TesseractEngine("tur", tessdata_dir=tessdata_dir(v), name=f"tesseract-tur_{v}")
+            for v in ("fast", "standard", "best")
+        ),
         RapidOcrEngine(),
         RapidOcrEngine("multi_PP-OCRv6_rec_small", "PP-OCRv6", name="rapidocr-v6-multi"),
     ]
@@ -224,31 +228,35 @@ def download_models(args: argparse.Namespace, store) -> int:
         except (EngineUnavailable, ImportError, KeyError) as error:
             failed = True
             print(f"{key}: hata: {error}")
-    folder = data_dir_for_tur_best()
-    target = folder / "tur.traineddata"
-    if verify_tur_best(folder):
-        prepare_tessdata(folder)
-        print(f"tur_best: hazır ({target})")
-    else:
-        folder.mkdir(parents=True, exist_ok=True)
-        partial = target.with_name(target.name + ".part")
-        try:
-            with urllib.request.urlopen(_TUR_BEST_URL, timeout=120) as response:
-                partial.write_bytes(response.read())
-            partial.replace(target)
-            if not verify_tur_best(folder):
-                raise OSError("indirilen dosya doğrulanamadı")
-            prepare_tessdata(folder)
-            print(f"tur_best: indirildi ({target})")
-        except OSError as error:
-            partial.unlink(missing_ok=True)
-            failed = True
-            print(f"tur_best: hata: {error}")
+    for variant in ("fast", "standard", "best"):
+        failed |= not _download_tessdata(variant)
     return 1 if failed else 0
 
 
-def data_dir_for_tur_best() -> Path:
-    return tessdata_best_dir()
+def _download_tessdata(variant: str) -> bool:
+    folder = tessdata_dir(variant)
+    target = folder / "tur.traineddata"
+    label = f"tur_{variant}"
+    if verify_tessdata(variant, folder):
+        prepare_tessdata(folder)
+        print(f"{label}: hazır ({target})")
+        return True
+    folder.mkdir(parents=True, exist_ok=True)
+    partial = target.with_name(target.name + ".part")
+    url = _TUR_BEST_URL if variant == "best" else TESSDATA_VARIANTS[variant].url
+    try:
+        with urllib.request.urlopen(url, timeout=120) as response:
+            partial.write_bytes(response.read())
+        partial.replace(target)
+        if not verify_tessdata(variant, folder):
+            raise OSError("indirilen dosya doğrulanamadı")
+        prepare_tessdata(folder)
+        print(f"{label}: indirildi ({target})")
+        return True
+    except OSError as error:
+        partial.unlink(missing_ok=True)
+        print(f"{label}: hata: {error}")
+        return False
 
 
 def ocr_file(args: argparse.Namespace, store) -> int:

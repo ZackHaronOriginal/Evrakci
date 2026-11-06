@@ -10,10 +10,10 @@ from pathlib import Path
 
 from evrakci.pipeline.ocr.engine import EngineUnavailable, OcrEngine
 from evrakci.pipeline.ocr.metrics import box_hit, cer, exact, turkish_char_errors
-from evrakci.pipeline.ocr.models import data_dir, model_dir
+from evrakci.pipeline.ocr.models import model_dir
 from evrakci.pipeline.ocr.preprocess import prepare_page, prepare_region
 from evrakci.pipeline.ocr.synthetic import SyntheticPage
-from evrakci.pipeline.ocr.tesseract import find_tesseract, system_tessdata
+from evrakci.pipeline.ocr.tesseract import find_tesseract, system_tessdata, tessdata_dir
 
 _SAMPLE_LIMIT = 15
 
@@ -104,10 +104,11 @@ def install_sizes() -> dict[str, int]:
             binary
         )
         if tessdata is not None:
-            sizes["tesseract-tur"] = base + _tree_size(tessdata / "tur.traineddata")
-        best = data_dir() / "tessdata_best" / "tur.traineddata"
-        if best.is_file():
-            sizes["tesseract-tur_best"] = base + _tree_size(best)
+            sizes["tesseract-tur (sistem)"] = base + _tree_size(tessdata / "tur.traineddata")
+        for variant in ("fast", "standard", "best"):
+            data = tessdata_dir(variant) / "tur.traineddata"
+            if data.is_file():
+                sizes[f"tesseract-tur_{variant}"] = base + _tree_size(data)
     runtime = [_package_dir(m) for m in ("onnxruntime", "rapidocr", "cv2")]
     if all(runtime):
         base = sum(_tree_size(path) for path in runtime if path)

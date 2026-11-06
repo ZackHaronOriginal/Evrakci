@@ -71,3 +71,30 @@ def test_default_engine_uses_default_tessdata(tmp_path, monkeypatch):
     monkeypatch.setenv("EVRAKCI_TESSDATA_BEST", str(tmp_path / "none"))
     engine = default_engine()
     assert engine.lang == "tur" and engine.tessdata_dir is None
+
+
+def test_official_variants_have_pinned_checksums():
+    from evrakci.pipeline.ocr.tesseract import TESSDATA_VARIANTS
+
+    assert set(TESSDATA_VARIANTS) == {"fast", "standard", "best"}
+    for variant in TESSDATA_VARIANTS.values():
+        assert len(variant.sha256) == 64 and variant.url.startswith(
+            "https://raw.githubusercontent.com/tesseract-ocr/"
+        )
+
+
+def test_variant_dir_and_verification(tmp_path, monkeypatch):
+    from evrakci.pipeline.ocr.tesseract import tessdata_dir, verify_tessdata
+
+    monkeypatch.setenv("EVRAKCI_TESSDATA_FAST", str(tmp_path))
+    assert tessdata_dir("fast") == tmp_path
+    (tmp_path / "tur.traineddata").write_bytes(b"x")
+    assert verify_tessdata("fast") is False and not (tmp_path / "tur.traineddata").exists()
+
+
+def test_comparison_lists_all_official_variants():
+    from evrakci.cli.ocr import all_engines
+
+    names = [engine.name for engine in all_engines()]
+    for name in ("tesseract-tur_fast", "tesseract-tur_standard", "tesseract-tur_best"):
+        assert name in names

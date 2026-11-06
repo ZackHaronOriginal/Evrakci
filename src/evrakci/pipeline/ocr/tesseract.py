@@ -16,9 +16,32 @@ from PIL import Image
 from evrakci.pipeline.ocr.engine import EngineUnavailable, Reading, Word, nfc, reading_from_words
 from evrakci.pipeline.ocr.models import data_dir
 
-# tessdata_best/tur.traineddata (unchanged upstream since 2017).
-TUR_BEST_SHA256 = "e0c3338dc17503dc7d335a507c9ae01b2b46cfd07561171e1e1ac55d85e8e438"
-TUR_BEST_URL = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/main/tur.traineddata"
+
+@dataclass(frozen=True)
+class TessDataVariant:
+    url: str
+    sha256: str
+
+
+_RAW = "https://raw.githubusercontent.com/tesseract-ocr"
+# The three official Turkish data files from the Tesseract project (unchanged upstream for years).
+# Linux packages and many installers ship "fast" as plain "tur".
+TESSDATA_VARIANTS = {
+    "fast": TessDataVariant(
+        f"{_RAW}/tessdata_fast/main/tur.traineddata",
+        "7393381111e1152420fc4092cb44eef4237580d21b92bf30d7d221aad192c6b7",
+    ),
+    "standard": TessDataVariant(
+        f"{_RAW}/tessdata/main/tur.traineddata",
+        "489b9504e80d7184ed1ac9a1976647884ee71149da231ff3c2c1dc15370f2f3d",
+    ),
+    "best": TessDataVariant(
+        f"{_RAW}/tessdata_best/main/tur.traineddata",
+        "e0c3338dc17503dc7d335a507c9ae01b2b46cfd07561171e1e1ac55d85e8e438",
+    ),
+}
+TUR_BEST_SHA256 = TESSDATA_VARIANTS["best"].sha256
+TUR_BEST_URL = TESSDATA_VARIANTS["best"].url
 
 _WINDOWS_PATHS = [
     Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe"),
@@ -26,20 +49,29 @@ _WINDOWS_PATHS = [
 ]
 
 
-def tessdata_best_dir() -> Path:
-    configured = os.environ.get("EVRAKCI_TESSDATA_BEST")
-    return Path(configured) if configured else data_dir() / "tessdata_best"
+def tessdata_dir(variant: str) -> Path:
+    """Where a variant's data lives: EVRAKCI_TESSDATA_<VARIANT>, or the app data folder."""
+    configured = os.environ.get(f"EVRAKCI_TESSDATA_{variant.upper()}")
+    return Path(configured) if configured else data_dir() / f"tessdata_{variant}"
 
 
-def verify_tur_best(folder: Path) -> bool:
-    """True if `folder` holds a correct tur.traineddata. A wrong file is deleted."""
-    path = folder / "tur.traineddata"
+def verify_tessdata(variant: str, folder: Path | None = None) -> bool:
+    """True if the folder holds the correct tur.traineddata. A wrong file is deleted."""
+    path = (folder or tessdata_dir(variant)) / "tur.traineddata"
     if not path.is_file():
         return False
-    if hashlib.sha256(path.read_bytes()).hexdigest() == TUR_BEST_SHA256:
+    if hashlib.sha256(path.read_bytes()).hexdigest() == TESSDATA_VARIANTS[variant].sha256:
         return True
     path.unlink()
     return False
+
+
+def tessdata_best_dir() -> Path:
+    return tessdata_dir("best")
+
+
+def verify_tur_best(folder: Path) -> bool:
+    return verify_tessdata("best", folder)
 
 
 def system_tessdata() -> Path | None:

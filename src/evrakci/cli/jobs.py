@@ -16,6 +16,7 @@ from evrakci.pipeline.cuts import (
     document_template,
     record_values,
 )
+from evrakci.pipeline.export import plan_export
 from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
@@ -224,21 +225,41 @@ def _layer_note(pdfa: bool, note: str | None) -> str:
     return " (PDF/A-2b)" if pdfa else f" (normal PDF: {note})"
 
 
+def _job_templates(args: argparse.Namespace, job: Job) -> dict[str, Template | None]:
+    from evrakci.cli.templates import template_store
+
+    store_ = template_store(args)
+    found: dict[str, Template | None] = {}
+    for application in job.templates:
+        if application.template_id not in found:
+            try:
+                found[application.template_id] = store_.load(application.template_id)
+            except (KeyError, TemplateError):
+                found[application.template_id] = None
+    return found
+
+
 def export(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
-    documents = compute_documents(job)
+    items = plan_export(job, _job_templates(args, job))
     with_layer = not args.metin_katmani_yok
-    if with_layer and documents:
+    if with_layer and items:
         reason = default_engine().available()
         if reason:
             raise UserError(
                 f"{reason}. Metin katmanı olmadan yazmak için --metin-katmani-yok kullanın."
             )
     try:
-        paths = write_documents(documents, store.batch_files(job), job.rotations, args.cikti)
-    except FileExistsError:
+        paths = write_documents(
+            [i.document for i in items],
+            store.batch_files(job),
+            job.rotations,
+            args.cikti,
+            names=[i.name for i in items],
+        )
+    except FileExistsError as error:
         raise UserError(
-            f"Çıktı klasöründe önceki dışa aktarımdan dosyalar var: {args.cikti}. "
+            f"Çıktı klasöründe önceki bir dışa aktarımdan dosya var ({error}): {args.cikti}. "
             "Lütfen boş bir klasör seçin."
         ) from None
     notes = {}
@@ -246,7 +267,7 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
         tessdata = default_tessdata()
         label = "tur_best" if tessdata.folder else "sistem (tur)"
         print(f"Türkçe veri: {label}")
-        for number, path in enumerate(paths, start=1):
+        for number, (path, item) in enumerate(zip(paths, items, strict=True), start=1):
             print(f"\rMetin katmanı: {number}/{len(paths)} belge", end="", file=sys.stderr)
             # The original stays in place until the layered copy is complete.
             layered = path.with_name(path.name + ".gecici")
@@ -261,12 +282,17 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
                 ) from None
             finally:
                 layered.unlink(missing_ok=True)
+            item.pdfa = result.pdfa
+            if not result.pdfa and result.note:
+                item.checks.append(f"PDF/A değil: {result.note}")
             notes[path] = _layer_note(result.pdfa, result.note)
         print(file=sys.stderr)
-    for path, document in zip(paths, documents, strict=True):
-        positions = [job.position_of(pid) for pid in document.page_ids]
-        print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}")
-    print(f"{len(paths)} belge yazıldı.")
+    for path, item in zip(paths, items, strict=True):
+        positions = [job.position_of(pid) for pid in item.document.page_ids]
+        checks = f" [kontrol: {', '.join(item.checks)}]" if item.checks else ""
+        print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}{checks}")
+    needing = sum(1 for item in items if item.checks)
+    print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.")
     return 0
 
 

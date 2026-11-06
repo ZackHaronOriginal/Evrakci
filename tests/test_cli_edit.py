@@ -27,7 +27,7 @@ def test_filter_cut_and_export(tmp_path, capsys):
     assert run(*export) == 0
     out = capsys.readouterr().out
     assert "belge_001.pdf: sayfa 1, 2" in out and "belge_004.pdf: sayfa 8" in out
-    assert "4 belge yazıldı." in out
+    assert "4 belge yazıldı, 0 belge kontrol gerektiriyor." in out
     assert len(list((tmp_path / "out").glob("*.pdf"))) == 4
 
 
@@ -129,7 +129,7 @@ def test_export_adds_text_layer(tmp_path, capsys):
     run, job_id = setup_job(tmp_path, capsys, [page, qr_page(), page])
     assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out")) == 0
     out = capsys.readouterr().out
-    assert "belge_001.pdf: sayfa 1 (PDF/A-2b)" in out and "2 belge yazıldı." in out
+    assert "belge_001.pdf: sayfa 1 (PDF/A-2b)" in out and "2 belge yazıldı" in out
     for name in ("belge_001.pdf", "belge_002.pdf"):
         with pikepdf.open(tmp_path / "out" / name) as pdf:
             assert pdf.open_metadata().pdfa_status == "2B"
@@ -191,3 +191,38 @@ def test_export_names_turkish_data_once(tmp_path, capsys, monkeypatch):
     run, job_id = setup_job(tmp_path, capsys, [text_page(), qr_page(), text_page()])
     assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out")) == 0
     assert "Türkçe veri: " in capsys.readouterr().out and len(calls) == 1
+
+
+@needs_tesseract
+def test_cli_export_with_template_names(tmp_path, capsys):
+    from fakes import a4_300
+
+    from evrakci.cli import main
+
+    roots = ["--kok", str(tmp_path / "isler"), "--sablon-kok", str(tmp_path / "sablonlar")]
+
+    def go(*args):
+        return main([*roots, *args])
+
+    def last():
+        return capsys.readouterr().out.strip().splitlines()[-1]
+
+    go("sablon", "olustur", "Deneme")
+    tid = last()
+    go("sablon", "degisken-ekle", tid, "Ünvan", "--zorunlu")
+    go("sablon", "bolum-ekle", tid, "Ünvan", "--sayfa", "1", "--kutu", "15,25,170,37")
+    go("sablon", "dosya-adi", tid, "{Ünvan}")
+    go("sablon", "esik", tid, "0.6")
+    pages = [a4_300([("Örnek Şirketi", (20, 28))]), a4_300([("Çağrı Ticaret", (20, 28))])]
+    go("is", "olustur", "İş", str(make_pdf(tmp_path / "t.pdf", pages, dpi=300)))
+    job = last()
+    go("is", "kes", job, "2")
+    go("is", "sablon-uygula", job, "1-2", tid)
+    go("is", "oku", job)
+    capsys.readouterr()
+    assert go("is", "disa-aktar", job, "--cikti", str(tmp_path / "out")) == 0
+    out = capsys.readouterr().out
+    assert "Örnek Şirketi.pdf: sayfa 1 (PDF/A-2b)" in out
+    assert "2 belge yazıldı, 0 belge kontrol gerektiriyor." in out
+    names = sorted(p.name for p in (tmp_path / "out").glob("*.pdf"))
+    assert names == ["Çağrı Ticaret.pdf", "Örnek Şirketi.pdf"]

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from evrakci.pipeline.job import FilterApplication, Job
+from evrakci.pipeline.job import FilterApplication, Job, ValueSource
+from evrakci.pipeline.templates.values import VariableValue
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,33 @@ def document_template(job: Job, document: Document) -> tuple[str | None, bool]:
     template_of = _template_of(job)
     found = {template_of.get(pid) for pid in document.page_ids}
     return template_of.get(document.page_ids[0]), len(found) > 1
+
+
+def record_values(
+    job: Job, document: Document, template_id: str, values: dict[str, VariableValue]
+) -> None:
+    """Store values together with what they were read from."""
+    first = document.page_ids[0]
+    job.values[first] = values
+    job.value_sources[first] = ValueSource(tuple(document.page_ids), template_id)
+
+
+def current_values(job: Job, document: Document) -> dict[str, VariableValue] | None:
+    """The stored values, only if they were read from exactly this document and template.
+
+    After the cuts or the template change, old values must not be used for naming.
+    """
+    first = document.page_ids[0]
+    source = job.value_sources.get(first)
+    template_id, _ = document_template(job, document)
+    if (
+        first not in job.values
+        or source is None
+        or source.page_ids != tuple(document.page_ids)
+        or source.template_id != template_id
+    ):
+        return None
+    return job.values[first]
 
 
 def compute_documents(job: Job) -> list[Document]:

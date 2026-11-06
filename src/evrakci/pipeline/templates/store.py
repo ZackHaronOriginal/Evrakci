@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -24,16 +25,21 @@ def default_template_root() -> Path:
 
 def _write(path: Path, template: Template) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(
-        json.dumps(template_to_dict(template), ensure_ascii=False, indent=1), encoding="utf-8"
-    )
-    os.replace(temporary, path)
+    text = json.dumps(template_to_dict(template), ensure_ascii=False, indent=1)
+    handle, temporary = tempfile.mkstemp(dir=path.parent, prefix=".sablon-", suffix=".tmp")
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as out:
+            out.write(text)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
 
 
 def _read(path: Path, label: str) -> Template:
     try:
-        return template_from_dict(json.loads(path.read_text(encoding="utf-8")))
+        # utf-8-sig: files re-saved in Windows Notepad start with a byte-order mark.
+        return template_from_dict(json.loads(path.read_text(encoding="utf-8-sig")))
     except (OSError, ValueError) as error:  # TemplateError is a ValueError too
         raise TemplateError(f"Şablon dosyası okunamadı: {label} ({error})") from error
 
@@ -88,8 +94,7 @@ class TemplateStore:
         if not path.is_file():
             raise TemplateError(f"Dosya bulunamadı: {path.name}")
         template = _read(path, path.name)
-        if self._path(template.id).is_file():
-            template.id = uuid.uuid4().hex[:10]
+        template.id = uuid.uuid4().hex[:10]  # never trust an id (or path) from a file
         names = {t.name for t in self.list()}
         if template.name in names:
             number = 2

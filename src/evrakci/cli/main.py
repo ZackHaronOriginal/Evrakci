@@ -11,6 +11,7 @@ from evrakci import __version__
 from evrakci.cli import jobs, ocr, templates
 from evrakci.cli.errors import UserError
 from evrakci.pipeline.analyze import BatchError
+from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.separator import make_separator_pdf
 from evrakci.pipeline.store import JobFileError, JobStore, default_root
 
@@ -63,7 +64,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     store = JobStore(args.kok if args.kok else default_root())
     try:
         return args.handler(args, store)
-    except (UserError, BatchError, JobFileError) as error:
+    except (UserError, BatchError, JobFileError, EngineUnavailable) as error:
         jobs.finish_progress_line()
         print(str(error), file=sys.stderr)
         return 2

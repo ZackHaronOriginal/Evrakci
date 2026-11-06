@@ -216,10 +216,11 @@ def import_template(args, _jobs) -> int:
     return 0
 
 
-def describe_values(values: dict, indent: str = "") -> list[str]:
+def describe_values(values: dict, names: dict[str, str], indent: str = "") -> list[str]:
     """Human-readable lines for read values: the chosen reading, then every variant."""
     lines = []
-    for name, value in values.items():
+    for key, value in values.items():
+        name = names.get(key, key)
         if value.flagged:
             hint = f' (öneri: "{value.suggestion}")' if value.suggestion else ""
             lines.append(f"{indent}{name}: OKUNAMADI{hint}")
@@ -255,7 +256,7 @@ def test_template(args, _jobs) -> int:
         template, page_count, lambda index: render_page(args.ornek, index), engine
     )
     print(f"{template.name}: {args.ornek.name} ({page_count} sayfa)")
-    for line in describe_values(values):
+    for line in describe_values(values, template.names_by_key()):
         print(line)
     return 0
 

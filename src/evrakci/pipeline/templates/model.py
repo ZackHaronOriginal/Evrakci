@@ -5,7 +5,11 @@ The code knows no fields, types or document kinds. Everything here is made by th
 
 from __future__ import annotations
 
+import hashlib
+import math
 import re
+import unicodedata
+import uuid
 from dataclasses import dataclass, field
 
 TEMPLATE_FORMAT = "evrakci-sablon"
@@ -19,8 +23,12 @@ class TemplateError(ValueError):
     """A mistake in a template. The message is shown to staff (Turkish)."""
 
 
+def _nfc(text: str) -> str:
+    return unicodedata.normalize("NFC", text)
+
+
 def validate_name(name: str) -> str:
-    cleaned = name.strip()
+    cleaned = _nfc(name).strip()
     if not cleaned:
         raise TemplateError("Değişken adı boş olamaz.")
     if "{" in cleaned or "}" in cleaned:
@@ -30,6 +38,7 @@ def validate_name(name: str) -> str:
 
 def pattern_names(pattern: str) -> list[str]:
     """Variable names used in a file-name pattern, in order."""
+    pattern = _nfc(pattern)
     names = _PLACEHOLDER.findall(pattern)
     if "{" in _PLACEHOLDER.sub("", pattern) or "}" in _PLACEHOLDER.sub("", pattern):
         raise TemplateError(f"Dosya adı kalıbında eşleşmeyen süslü parantez: {pattern}")
@@ -52,11 +61,21 @@ class Section:
             raise TemplateError(f"Geçersiz kutu: {list(self.box_mm)}")
 
 
+def new_key() -> str:
+    return uuid.uuid4().hex[:8]
+
+
+def stable_key(name: str) -> str:
+    """A key for variables saved before keys existed: the same name gives the same key."""
+    return hashlib.sha1(name.encode("utf-8")).hexdigest()[:8]
+
+
 @dataclass
 class Variable:
     name: str
     sections: list[Section] = field(default_factory=list)
     required: bool = False
+    key: str = field(default_factory=new_key)  # permanent; renaming changes only the name
 
 
 @dataclass
@@ -69,29 +88,35 @@ class Template:
     keywords: list[str] = field(default_factory=list)  # reserved for template guessing later
 
     def variable(self, name: str) -> Variable:
+        name = _nfc(name).strip()
         for variable in self.variables:
             if variable.name == name:
                 return variable
         raise TemplateError(f"Değişken yok: {name}")
 
+    def names_by_key(self) -> dict[str, str]:
+        return {v.key: v.name for v in self.variables}
+
     def _has(self, name: str) -> bool:
         return any(v.name == name for v in self.variables)
 
-    def add_variable(self, name: str, required: bool = False) -> Variable:
+    def add_variable(self, name: str, required: bool = False, key: str | None = None) -> Variable:
         name = validate_name(name)
         if self._has(name):
             raise TemplateError(f"Bu adla bir değişken zaten var: {name}")
-        variable = Variable(name, required=required)
+        variable = Variable(name, required=required, key=key or new_key())
         self.variables.append(variable)
         return variable
 
     def remove_variable(self, name: str) -> None:
-        self.variables.remove(self.variable(name))
-        self.filename_pattern = self.filename_pattern.replace(f"{{{name}}}", "")
+        variable = self.variable(name)
+        self.variables.remove(variable)
+        # Separators left around the gap are tidied when file names are built.
+        self.filename_pattern = self.filename_pattern.replace(f"{{{variable.name}}}", "")
 
     def rename_variable(self, old: str, new: str) -> None:
         variable = self.variable(old)
-        new = validate_name(new)
+        old, new = variable.name, validate_name(new)
         if new != old and self._has(new):
             raise TemplateError(f"Bu adla bir değişken zaten var: {new}")
         variable.name = new
@@ -122,10 +147,10 @@ class Template:
         unknown = [n for n in pattern_names(pattern) if not self._has(n)]
         if unknown:
             raise TemplateError(f"Kalıpta bilinmeyen değişken: {', '.join(unknown)}")
-        self.filename_pattern = pattern
+        self.filename_pattern = _nfc(pattern)
 
     def set_min_confidence(self, value: float) -> None:
-        if not 0 < value <= 1:
+        if math.isnan(value) or not 0 < value <= 1:
             raise TemplateError("Güven eşiği 0 ile 1 arasında olmalı (örn. 0.7).")
         self.min_confidence = value
 
@@ -141,6 +166,7 @@ def template_to_dict(template: Template) -> dict:
         "keywords": list(template.keywords),
         "variables": [
             {
+                "key": v.key,
                 "name": v.name,
                 "required": v.required,
                 "sections": [
@@ -157,21 +183,28 @@ def template_from_dict(data: dict) -> Template:
     if data.get("format") != TEMPLATE_FORMAT or data.get("version") != TEMPLATE_FORMAT_VERSION:
         raise TemplateError("Bu dosya bir Evrakçı şablonu değil veya sürümü desteklenmiyor.")
     try:
+        name = str(data["name"]).strip()
+        if not name:
+            raise TemplateError("Şablon adı boş olamaz.")
+        # Everything goes through the same checks as the editor.
         template = Template(
-            id=str(data["id"]),
-            name=str(data["name"]),
-            filename_pattern=str(data.get("filename_pattern", "")),
-            min_confidence=float(data.get("min_confidence", DEFAULT_MIN_CONFIDENCE)),
-            keywords=[str(k) for k in data.get("keywords", [])],
+            id=str(data["id"]), name=name, keywords=[str(k) for k in data.get("keywords", [])]
         )
+        template.set_min_confidence(float(data.get("min_confidence", DEFAULT_MIN_CONFIDENCE)))
         for item in data["variables"]:
-            variable = template.add_variable(item["name"], bool(item.get("required", False)))
+            variable = template.add_variable(
+                item["name"],
+                bool(item.get("required", False)),
+                key=str(item.get("key") or stable_key(validate_name(item["name"]))),
+            )
             for s in item.get("sections", []):
                 box = tuple(float(v) for v in s["box_mm"])
                 if len(box) != 4:
                     raise TemplateError(f"Geçersiz kutu: {s['box_mm']}")
                 variable.sections.append(Section(int(s["page"]), box, s.get("example")))
-        pattern_names(template.filename_pattern)
+        if len({v.key for v in template.variables}) != len(template.variables):
+            raise TemplateError("Şablonda aynı anahtarlı iki değişken var.")
+        template.set_pattern(str(data.get("filename_pattern", "")))
     except (KeyError, TypeError) as error:
         raise TemplateError(f"Şablon dosyası eksik veya bozuk ({error}).") from error
     return template

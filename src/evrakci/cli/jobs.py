@@ -9,7 +9,13 @@ import sys
 from pathlib import Path
 
 from evrakci.cli.errors import UserError
-from evrakci.pipeline.cuts import Document, compute_documents, document_template
+from evrakci.pipeline.cuts import (
+    Document,
+    compute_documents,
+    current_values,
+    document_template,
+    record_values,
+)
 from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
@@ -88,7 +94,10 @@ def _check_marks(job: Job, document: Document) -> list[str]:
     first = document.page_ids[0]
     if first in job.read_errors:
         marks.append(job.read_errors[first])
-    if any(v.flagged for v in job.values.get(first, {}).values()):
+    values = current_values(job, document)
+    if values is None and document_template(job, document)[0] and first in job.values:
+        marks.append("yeniden okunmalı")
+    if values and any(v.flagged for v in values.values()):
         marks.append("okunamayan değer")
     return marks
 
@@ -286,7 +295,6 @@ def _document_pages(store: JobStore, job: Job, document: Document):
 
 
 def read_values(args: argparse.Namespace, store: JobStore) -> int:
-    from evrakci.cli.templates import template_store
 
     job = load_job(store, args.id)
     engine = default_engine()
@@ -301,38 +309,56 @@ def read_values(args: argparse.Namespace, store: JobStore) -> int:
     ]
     work = [item for item in work if item[2] is not None]
     if args.sadece_eksik:
-        work = [item for item in work if item[1].page_ids[0] not in job.values]
-    for done, (number, document, template_id) in enumerate(work, start=1):
-        print(f"\rOkunuyor: {done}/{len(work)} belge", end="", file=sys.stderr, flush=True)
-        first = document.page_ids[0]
-        if template_id not in templates:
-            try:
-                templates[template_id] = template_store(args).load(template_id)
-            except (KeyError, TemplateError):
-                templates[template_id] = None
-        template = templates[template_id]
-        if template is None:
-            job.read_errors[first] = f"Şablon bulunamadı: {template_id}"
-            job.values.pop(first, None)
-            print(f"{number}. belge: Şablon bulunamadı: {template_id}")
-            continue
-        job.read_errors.pop(first, None)
+        work = [item for item in work if current_values(job, item[1]) is None]
+    try:
+        for done, (number, document, template_id) in enumerate(work, start=1):
+            print(f"\rOkunuyor: {done}/{len(work)} belge", end="", file=sys.stderr, flush=True)
+            line = _read_one(args, store, job, document, template_id, templates, engine)
+            print(f"{number}. belge{line}")
+            if done % 10 == 0:
+                store.save(job)  # keep progress if the run is stopped
+    finally:
+        if work:
+            print(file=sys.stderr)
+        store.save(job)
+    print(f"{len(work)} belge okundu.")
+    return 0
+
+
+def _read_one(args, store, job, document, template_id, templates, engine) -> str:
+    """Read one document; problems are recorded on it and never stop the run."""
+    from evrakci.cli.templates import template_store
+
+    first = document.page_ids[0]
+    if template_id not in templates:
+        try:
+            templates[template_id] = template_store(args).load(template_id)
+        except KeyError:
+            templates[template_id] = f"Şablon bulunamadı: {template_id}"
+        except TemplateError as error:
+            templates[template_id] = str(error)
+    template = templates[template_id]
+    if isinstance(template, str):
+        job.read_errors[first] = template
+        job.values.pop(first, None)
+        return f": {template}"
+    try:
         values = read_document(
             template, len(document.page_ids), _document_pages(store, job, document), engine
         )
-        previous = job.values.get(first, {})
-        for name, old in previous.items():
-            if old.edited and name in values:
-                values[name] = old  # the user's correction wins over a new reading
-        job.values[first] = values
-        summary = ", ".join(f"{n}={v.value or '?'}" for n, v in values.items())
-        mark = " [kontrol]" if any(v.flagged for v in values.values()) else ""
-        print(f"{number}. belge ({template.name}): {summary}{mark}")
-    if work:
-        print(file=sys.stderr)
-    store.save(job)
-    print(f"{len(work)} belge okundu.")
-    return 0
+    except (EngineUnavailable, OSError) as error:
+        job.read_errors[first] = str(error)
+        return f": {error}"
+    job.read_errors.pop(first, None)
+    previous = current_values(job, document) or {}
+    for key, old in previous.items():
+        if old.edited and key in values:
+            values[key] = old  # the user's correction wins over a new reading
+    record_values(job, document, template.id, values)
+    names = template.names_by_key()
+    summary = ", ".join(f"{names[k]}={v.value or '?'}" for k, v in values.items())
+    mark = " [kontrol]" if any(v.flagged for v in values.values()) else ""
+    return f" ({template.name}): {summary}{mark}"
 
 
 def move_batch(args: argparse.Namespace, store: JobStore) -> int:

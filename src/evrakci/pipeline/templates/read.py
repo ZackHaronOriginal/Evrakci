@@ -8,7 +8,6 @@ empty, and every reading is kept so the reviewer can choose.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 
 from PIL import Image
 
@@ -16,28 +15,12 @@ from evrakci.pipeline.ocr.engine import OcrEngine
 from evrakci.pipeline.ocr.metrics import normalize
 from evrakci.pipeline.render import mm_box_to_pixels
 from evrakci.pipeline.templates.model import Section, Template
+from evrakci.pipeline.templates.values import SectionReading, VariableValue
+
+__all__ = ["NO_PAGE", "OUTSIDE", "SectionReading", "VariableValue", "read_document"]
 
 NO_PAGE = "sayfa yok"
 OUTSIDE = "kutu sayfa dışında"
-
-
-@dataclass(frozen=True)
-class SectionReading:
-    section: int
-    text: str
-    confidence: float
-    problem: str | None = None
-
-
-@dataclass(frozen=True)
-class VariableValue:
-    value: str
-    confidence: float
-    section: int | None
-    flagged: bool
-    suggestion: str = ""
-    readings: tuple[SectionReading, ...] = ()
-    edited: bool = False
 
 
 def _page_index(section: Section, page_count: int) -> int | None:
@@ -59,6 +42,7 @@ def read_document(
         return images[index]
 
     values = {}
+    # Values are keyed by each variable's permanent key, so renaming never loses them.
     for variable in template.variables:
         readings: list[SectionReading] = []
         chosen: SectionReading | None = None
@@ -79,14 +63,12 @@ def read_document(
                 chosen = reading
                 break
         if chosen is not None:
-            values[variable.name] = VariableValue(
+            values[variable.key] = VariableValue(
                 chosen.text, chosen.confidence, chosen.section, False, "", tuple(readings)
             )
         else:
-            best = max(
-                (r for r in readings if r.text), key=lambda r: r.confidence, default=None
-            )
-            values[variable.name] = VariableValue(
+            best = max((r for r in readings if r.text), key=lambda r: r.confidence, default=None)
+            values[variable.key] = VariableValue(
                 "", 0.0, None, True, best.text if best else "", tuple(readings)
             )
     return values

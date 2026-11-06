@@ -86,3 +86,23 @@ def test_threshold_and_unknown_format():
         t.set_min_confidence(0)
     with pytest.raises(TemplateError):
         template_from_dict({"format": "baska", "version": 1})
+
+
+def test_rename_keeps_key_and_nfc_names():
+    t = sample()
+    key = t.variable("Ünvan").key
+    t.rename_variable("Ünvan", "Firma")
+    assert t.variable("Firma").key == key and len(key) >= 8
+    t.add_variable("Ücret")  # "Ücret" typed as U + combining diaeresis
+    assert t.variable("Ücret").name == "Ücret"
+    t.set_pattern("{Ücret}")
+    assert t.filename_pattern == "{Ücret}"
+
+
+def test_old_files_without_keys_get_stable_keys():
+    data = template_to_dict(sample())
+    for variable in data["variables"]:
+        variable.pop("key")
+    assert [v.key for v in template_from_dict(data).variables] == [
+        v.key for v in template_from_dict(data).variables
+    ]

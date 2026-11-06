@@ -52,3 +52,48 @@ def test_corrupt_file_reported(tmp_path):
     assert [t.id for t in store.list(on_error=seen.append)] == [good.id] and seen == [bad.id]
     with pytest.raises(TemplateError):
         store.import_file(tmp_path / "s" / f"{bad.id}.json")
+
+
+def test_import_never_trusts_file_id(tmp_path):
+    import json
+
+    store = TemplateStore(tmp_path / "s")
+    t = store.create("Örnek")
+    path = tmp_path / "e.json"
+    store.export(t.id, path)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["id"] = "../kacak"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    imported = store.import_file(path)
+    assert imported.id != "../kacak" and len(imported.id) == 10
+    assert not (tmp_path / "kacak.json").exists()
+
+
+def test_import_checks_like_the_editor(tmp_path):
+    import json
+
+    store = TemplateStore(tmp_path / "s")
+    t = store.create("Örnek")
+    t.add_variable("Ünvan")
+    store.save(t)
+    path = tmp_path / "e.json"
+    store.export(t.id, path)
+    base = json.loads(path.read_text(encoding="utf-8"))
+    for change in (
+        {"min_confidence": 0},
+        {"min_confidence": 5.0},
+        {"min_confidence": float("nan")},
+        {"filename_pattern": "{Yok}"},
+    ):
+        path.write_text(json.dumps({**base, **change}), encoding="utf-8")
+        with pytest.raises(TemplateError):
+            store.import_file(path)
+
+
+def test_bom_accepted(tmp_path):
+    store = TemplateStore(tmp_path / "s")
+    t = store.create("Örnek")
+    path = tmp_path / "e.json"
+    store.export(t.id, path)
+    path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
+    assert store.import_file(path).name == "Örnek (2)"

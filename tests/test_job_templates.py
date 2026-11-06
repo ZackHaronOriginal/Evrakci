@@ -62,3 +62,21 @@ def test_remove_batch_clears_template_data():
     job.remove_batch("b")
     assert job.templates[0].page_ids == frozenset({"a/0"})
     assert job.values == {} and job.read_errors == {}
+
+
+def test_values_go_stale_when_cuts_or_template_change():
+    from evrakci.pipeline.cuts import current_values, record_values
+
+    job = job_from_kinds({"a": "pppp"})
+    job.apply_template(job.ordered_page_ids(), "t1")
+    [doc] = compute_documents(job)
+    record_values(job, doc, "t1", {"k1": VariableValue("Örnek", 0.9, 0, False)})
+    assert current_values(job, doc)["k1"].value == "Örnek"
+    job.manual_cuts.add("a/2")
+    first, _ = compute_documents(job)
+    assert current_values(job, first) is None
+    job.manual_cuts.clear()
+    job.apply_template(job.ordered_page_ids(), "t2")
+    [doc] = compute_documents(job)
+    assert current_values(job, doc) is None
+    assert job_from_dict(job_to_dict(job)).value_sources == job.value_sources

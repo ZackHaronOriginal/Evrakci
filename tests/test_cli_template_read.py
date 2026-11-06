@@ -57,9 +57,11 @@ def test_apply_and_read_with_variants(tmp_path, capsys):
     assert run("is", "oku", job) == 0
     out = capsys.readouterr().out
     assert "Firma Ünvanı=Örnek Şirketi" in out and "Firma Ünvanı=Çağrı Ticaret" in out
+    run("sablon", "goster", tid, "--json")
+    key = json.loads(capsys.readouterr().out)["variables"][0]["key"]
     run("is", "goster", job, "--json")
     data = json.loads(capsys.readouterr().out)
-    second = data["job"]["values"]["b2/0"]["Firma Ünvanı"]
+    second = data["job"]["values"]["b2/0"][key]
     assert second["section"] == 1 and second["value"] == "Çağrı Ticaret"
 
 
@@ -98,3 +100,51 @@ def test_mixed_templates_flagged(tmp_path, capsys):
     capsys.readouterr()
     run("is", "goster", job)
     assert "[kontrol: karışık şablon]" in capsys.readouterr().out
+
+
+@needs_tesseract
+def test_rename_after_reading_keeps_values(tmp_path, capsys):
+    run, last_line, tid = setup(tmp_path, capsys)
+    scan = make_pdf(tmp_path / "t.pdf", [layout_a("Örnek Şirketi", "1")], dpi=300)
+    run("is", "olustur", "İş", str(scan))
+    job = last_line()
+    run("is", "sablon-uygula", job, "1-1", tid)
+    run("is", "oku", job)
+    run("sablon", "degisken-adlandir", tid, "Firma Ünvanı", "Ünvan")
+    capsys.readouterr()
+    run("sablon", "goster", tid, "--json")
+    key = json.loads(capsys.readouterr().out)["variables"][0]["key"]
+    run("is", "goster", job, "--json")
+    stored = json.loads(capsys.readouterr().out)["job"]["values"]["b1/0"]
+    assert stored[key]["value"] == "Örnek Şirketi"
+
+
+def test_oku_keeps_going_when_a_document_fails(tmp_path, capsys, monkeypatch):
+    from evrakci.cli import jobs
+    from evrakci.pipeline.ocr.engine import EngineUnavailable, Reading
+
+    calls = []
+
+    class Flaky:
+        def available(self):
+            return None
+
+        def read_region(self, image):
+            calls.append(1)
+            if len(calls) == 1:
+                raise EngineUnavailable("Tesseract hata verdi")
+            return Reading("Örnek", 0.95)
+
+    run, last_line, tid = setup(tmp_path, capsys)
+    monkeypatch.setattr(jobs, "default_engine", lambda: Flaky())
+    scan = make_pdf(tmp_path / "t.pdf", [layout_a("x", "1"), layout_a("y", "2")])
+    run("is", "olustur", "İş", str(scan))
+    job = last_line()
+    run("is", "kes", job, "2")
+    run("is", "sablon-uygula", job, "1-2", tid)
+    capsys.readouterr()
+    assert run("is", "oku", job) == 0
+    out = capsys.readouterr().out
+    assert "1. belge: Tesseract hata verdi" in out and "2. belge (Deneme Belgesi)" in out
+    run("is", "goster", job)
+    assert "[kontrol: Tesseract hata verdi]" in capsys.readouterr().out

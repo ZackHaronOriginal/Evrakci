@@ -10,6 +10,9 @@ from pathlib import Path
 from evrakci.cli.errors import UserError
 from evrakci.pipeline.cuts import compute_documents
 from evrakci.pipeline.job import Job, job_to_dict
+from evrakci.pipeline.ocr.engine import EngineUnavailable
+from evrakci.pipeline.ocr.tesseract import default_engine
+from evrakci.pipeline.ocr.textlayer import add_text_layer
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.writer import write_documents
 
@@ -180,9 +183,20 @@ def empty_pages(args: argparse.Namespace, store: JobStore) -> int:
     return 0
 
 
+def _layer_note(pdfa: bool, note: str | None) -> str:
+    return " (PDF/A-2b)" if pdfa else f" (normal PDF: {note})"
+
+
 def export(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
     documents = compute_documents(job)
+    with_layer = not args.metin_katmani_yok
+    if with_layer and documents:
+        reason = default_engine().available()
+        if reason:
+            raise UserError(
+                f"{reason}. Metin katmanı olmadan yazmak için --metin-katmani-yok kullanın."
+            )
     try:
         paths = write_documents(documents, store.batch_files(job), job.rotations, args.cikti)
     except FileExistsError:
@@ -190,9 +204,25 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
             f"Çıktı klasöründe önceki dışa aktarımdan dosyalar var: {args.cikti}. "
             "Lütfen boş bir klasör seçin."
         ) from None
+    notes = {}
+    if with_layer:
+        for number, path in enumerate(paths, start=1):
+            print(f"\rMetin katmanı: {number}/{len(paths)} belge", end="", file=sys.stderr)
+            temporary = path.with_name(path.name + ".gecici")  # never looks like a document
+            path.replace(temporary)
+            try:
+                result = add_text_layer(temporary, path)
+            except EngineUnavailable as error:
+                temporary.replace(path)
+                print(file=sys.stderr)
+                raise UserError(f"{path.name}: {error}") from None
+            temporary.unlink()
+            notes[path] = _layer_note(result.pdfa, result.note)
+        if paths:
+            print(file=sys.stderr)
     for path, document in zip(paths, documents, strict=True):
         positions = [job.position_of(pid) for pid in document.page_ids]
-        print(f"{path.name}: sayfa {positions_text(positions)}")
+        print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}")
     print(f"{len(paths)} belge yazıldı.")
     return 0
 
@@ -289,4 +319,9 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p = job_commands.add_parser("disa-aktar", help="her belgeyi ayrı PDF olarak yazar")
     p.add_argument("id", help="iş numarası")
     p.add_argument("--cikti", type=Path, required=True, help="çıktı klasörü")
+    p.add_argument(
+        "--metin-katmani-yok",
+        action="store_true",
+        help="aranabilir metin katmanı ve PDF/A olmadan yaz",
+    )
     p.set_defaults(handler=export)

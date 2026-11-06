@@ -25,6 +25,7 @@ from evrakci.pipeline.ocr.tesseract import (
     tessdata_best_dir,
     verify_tur_best,
 )
+from evrakci.pipeline.ocr.textlayer import add_text_layer
 
 _DPI = 300
 _TUR_BEST_URL = TUR_BEST_URL
@@ -250,7 +251,25 @@ def data_dir_for_tur_best() -> Path:
     return tessdata_best_dir()
 
 
+def ocr_file(args: argparse.Namespace, store) -> int:
+    if not args.giris.is_file():
+        raise UserError(f"Dosya bulunamadı: {args.giris.name}")
+    try:
+        result = add_text_layer(args.giris, args.cikti, pdfa=not args.pdf)
+    except EngineUnavailable as error:
+        raise UserError(str(error)) from None
+    kind = "PDF/A-2b" if result.pdfa else f"normal PDF: {result.note}" if result.note else "PDF"
+    print(f"Metin katmanı eklendi: {args.cikti.name} ({kind})")
+    return 0
+
+
 def add_commands(commands: argparse._SubParsersAction) -> None:
+    p = commands.add_parser("ocr", help="bir PDF'e aranabilir Türkçe metin katmanı ekler")
+    p.add_argument("giris", type=Path, metavar="GIRIS.pdf", help="taranmış PDF")
+    p.add_argument("cikti", type=Path, metavar="CIKTI.pdf", help="yazılacak PDF")
+    p.add_argument("--pdf", action="store_true", help="PDF/A yerine normal PDF yaz")
+    p.set_defaults(handler=ocr_file)
+
     p = commands.add_parser("ocr-karsilastir", help="OCR motorlarını karşılaştırır, rapor yazar")
     p.add_argument("pdf", type=Path, nargs="*", help="gerçek taramalar (PDF)")
     p.add_argument("--sentetik", type=int, default=0, metavar="N", help="N sentetik sayfa kullan")

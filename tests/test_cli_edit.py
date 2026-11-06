@@ -1,5 +1,6 @@
 import json
 
+from conftest import needs_tesseract
 from fakes import empty_page, make_pdf, qr_page, text_page
 
 from evrakci.cli import main
@@ -22,7 +23,8 @@ def test_filter_cut_and_export(tmp_path, capsys):
     run, job_id = setup_job(tmp_path, capsys, pages)
     assert run("is", "filtre", job_id, "1-4", "2") == 0
     assert run("is", "kes", job_id, "8") == 0
-    assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out")) == 0
+    export = ["is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out"), "--metin-katmani-yok"]
+    assert run(*export) == 0
     out = capsys.readouterr().out
     assert "belge_001.pdf: sayfa 1, 2" in out and "belge_004.pdf: sayfa 8" in out
     assert "4 belge yazıldı." in out
@@ -61,8 +63,8 @@ def test_missing_file_is_turkish_error(tmp_path, capsys):
 def test_export_twice_to_same_folder(tmp_path, capsys):
     run, job_id = setup_job(tmp_path, capsys, [text_page()])
     out = str(tmp_path / "out")
-    assert run("is", "disa-aktar", job_id, "--cikti", out) == 0
-    assert run("is", "disa-aktar", job_id, "--cikti", out) == 2
+    assert run("is", "disa-aktar", job_id, "--cikti", out, "--metin-katmani-yok") == 0
+    assert run("is", "disa-aktar", job_id, "--cikti", out, "--metin-katmani-yok") == 2
     assert "boş bir klasör" in capsys.readouterr().err
 
 
@@ -116,3 +118,33 @@ def test_error_starts_on_its_own_line(tmp_path, capsys, monkeypatch):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page(), text_page()])
     assert main(["--kok", str(tmp_path / "k"), "is", "olustur", "x", str(pdf)]) == 2
     assert "\nSayfa 2 okunamadı: t.pdf" in capsys.readouterr().err
+
+
+@needs_tesseract
+def test_export_adds_text_layer(tmp_path, capsys):
+    import pikepdf
+    from fakes import a4_with, page_text, render_line
+
+    page = a4_with(render_line("Örnek Kayıt 2026", 30), (20, 30))
+    run, job_id = setup_job(tmp_path, capsys, [page, qr_page(), page])
+    assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out")) == 0
+    out = capsys.readouterr().out
+    assert "belge_001.pdf: sayfa 1 (PDF/A-2b)" in out and "2 belge yazıldı." in out
+    for name in ("belge_001.pdf", "belge_002.pdf"):
+        with pikepdf.open(tmp_path / "out" / name) as pdf:
+            assert pdf.open_metadata().pdfa_status == "2B"
+        assert "Örnek" in page_text(tmp_path / "out" / name, 0)
+
+
+def test_export_without_tesseract(tmp_path, capsys, monkeypatch):
+    from evrakci.cli import jobs
+
+    class Missing:
+        def available(self):
+            return "Tesseract programı bulunamadı"
+
+    run, job_id = setup_job(tmp_path, capsys, [text_page()])
+    monkeypatch.setattr(jobs, "default_engine", lambda: Missing())
+    assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out")) == 2
+    assert "--metin-katmani-yok" in capsys.readouterr().err
+    assert not (tmp_path / "out").exists()

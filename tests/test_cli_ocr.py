@@ -154,3 +154,20 @@ def test_download_exit_code_on_errors(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("EVRAKCI_TESSDATA_BEST", str(tmp_path / "d"))
     assert main(["ocr-modelleri-indir"]) == 1
     assert "hata" in capsys.readouterr().out
+
+
+@needs_tesseract
+def test_ocr_command(tmp_path, capsys):
+    import pikepdf
+
+    src = make_pdf(tmp_path / "g.pdf", [a4_with(render_line("Örnek Kayıt 2026", 30), (20, 30))])
+    out = tmp_path / "c.pdf"
+    assert main(["ocr", str(src), str(out)]) == 0
+    assert "Metin katmanı eklendi: c.pdf (PDF/A-2b)" in capsys.readouterr().out
+    with pikepdf.open(out) as pdf:
+        assert pdf.open_metadata().pdfa_status == "2B"
+
+
+def test_ocr_command_missing_input(tmp_path, capsys):
+    assert main(["ocr", str(tmp_path / "yok.pdf"), str(tmp_path / "c.pdf")]) == 2
+    assert "Dosya bulunamadı: yok.pdf" in capsys.readouterr().err

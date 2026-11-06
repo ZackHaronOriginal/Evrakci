@@ -199,9 +199,15 @@ The exact look is open, and mockups will be reviewed with the owner before build
   the engine**. Until then, the other work goes ahead on Tesseract behind the engine interface, so
   nothing waits on the spike. Working target: 800 pages OCR'd in under about 30 minutes on a
   typical office PC, with progress shown and cancel available.
-- **PDF/A (my call):** the default output is a plain searchable PDF. PDF/A is an optional setting,
-  available only when Ghostscript is installed. This keeps a Ghostscript-free commercial build
-  possible (see dependency-licenses.md).
+- **PDF/A without Ghostscript:** OCRmyPDF 17.13+ can produce PDF/A-1b/2b/3b on its own, using
+  `--pdfa-backend internal` and `pikepdf[pdfa]` (MPL-2.0), and validates the result itself.
+  Ghostscript (AGPL) is therefore **not bundled and never called**.
+  - Default output: **PDF/A-2b**.
+  - If a file fails PDF/A validation, the app saves it as a plain searchable PDF and marks this
+    in the index. It never silently falls back to Ghostscript.
+  - Not available without Ghostscript: CMYK or grey colour conversion, and PDF/A image
+    re-compression. Neither is needed here.
+  - Source: OCRmyPDF v17.13.0 release notes. To be confirmed in the OCR spike.
 
 ### 6.2 Templates and variables (chamber-made, no training)
 
@@ -317,7 +323,7 @@ Evrakçı is an all-round QOL toolbox. These are listed so the first module does
 - auto-save and resume of jobs, with several saved jobs
 - how rules, cuts and types interact (4.6)
 - the owner picks the OCR engine after the spike, and other work goes ahead on Tesseract until then
-- plain PDF by default, with PDF/A optional
+- PDF/A-2b by default through OCRmyPDF's internal backend (no Ghostscript), with a plain PDF if validation fails
 
 **Left to the builder:**
 - QR payload format and decoding library (license-checked)

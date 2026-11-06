@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import time
 import uuid
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -130,6 +131,18 @@ class JobStore:
         job.remove_batch(batch_id)
         self.save(job)
         path.unlink(missing_ok=True)
+
+    def delete_older_than(self, days: int, now: float | None = None) -> list[str]:
+        """Delete jobs whose job.json was last changed more than `days` days ago."""
+        if not self.root.is_dir():
+            return []
+        limit = (time.time() if now is None else now) - days * 86400
+        deleted = []
+        for path in sorted(self.root.glob("*/job.json")):
+            if path.stat().st_mtime < limit:
+                shutil.rmtree(path.parent)
+                deleted.append(path.parent.name)
+        return deleted
 
     def delete(self, job_id: str) -> None:
         if not self._job_file(job_id).is_file():

@@ -23,6 +23,7 @@ from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
 from evrakci.pipeline.render import render_page
+from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, load_settings
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.model import Template, TemplateError
 from evrakci.pipeline.templates.read import read_document
@@ -59,13 +60,23 @@ def finish_progress_line() -> None:
         _progress_line_open = False
 
 
+def apply_retention(store: JobStore) -> None:
+    """Delete jobs past the day limit, if the retention setting has one."""
+    days = load_settings().retention_days
+    if days:
+        for job_id in store.delete_older_than(days):
+            print(f"Saklama süresi doldu, silindi: {job_id}", file=sys.stderr)
+
+
 def create(args: argparse.Namespace, store: JobStore) -> int:
+    apply_retention(store)
     job = store.create_job(args.ad, args.pdf, progress=_progress)
     print(job.id)
     return 0
 
 
 def list_jobs(args: argparse.Namespace, store: JobStore) -> int:
+    apply_retention(store)
     def unreadable(job_id: str) -> None:
         print(f"Okunamayan iş: {job_id}", file=sys.stderr)
 
@@ -298,6 +309,9 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
         write_index(items, job, Path(args.cikti) / "index.xlsx")
         listing = " Liste: index.xlsx"
     print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.{listing}")
+    if load_settings().retention == DELETE_AFTER_EXPORT:
+        store.delete(job.id)  # only reached when every file and the index were written
+        print(f"İş silindi (saklama ayarı): {job.id}")
     return 0
 
 

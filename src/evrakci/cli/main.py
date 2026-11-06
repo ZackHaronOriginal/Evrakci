@@ -13,6 +13,13 @@ from evrakci.cli.errors import UserError
 from evrakci.pipeline.analyze import BatchError
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.separator import make_separator_pdf
+from evrakci.pipeline.settings import (
+    Settings,
+    SettingsError,
+    load_settings,
+    save_settings,
+    settings_path,
+)
 from evrakci.pipeline.store import JobFileError, JobStore, default_root
 
 
@@ -21,6 +28,27 @@ def _separator(args: argparse.Namespace, store: JobStore) -> int:
         raise UserError("Adet en az 1 olmalı.")
     path = make_separator_pdf(args.cikti, sheets=args.adet)
     print(f"Ayıraç dosyası yazıldı: {path} ({args.adet} yaprak)")
+    return 0
+
+
+def _show_settings(args: argparse.Namespace, store: JobStore) -> int:
+    settings = load_settings()
+    print(f"Saklama: {settings.retention}")
+    print(f"Ayar dosyası: {settings_path()}")
+    return 0
+
+
+def _set_retention(args: argparse.Namespace, store: JobStore) -> int:
+    try:
+        settings = Settings(args.deger)
+    except SettingsError as error:
+        raise UserError(str(error)) from None
+    save_settings(settings)
+    meaning = {
+        "sakla": "işler hiçbir zaman kendiliğinden silinmez",
+        "disa-aktarinca-sil": "iş, tüm dosyalar dışa aktarılınca silinir",
+    }.get(settings.retention, f"{settings.retention} günden eski işler silinir")
+    print(f"Saklama: {settings.retention} ({meaning})")
     return 0
 
 
@@ -49,6 +77,14 @@ def build_parser() -> argparse.ArgumentParser:
     separator.add_argument("--adet", type=int, default=10, help="yaprak sayısı (varsayılan 10)")
     separator.set_defaults(handler=_separator)
 
+    settings = commands.add_parser("ayar", help="uygulama ayarları")
+    settings_commands = settings.add_subparsers(dest="ayar_komutu", required=True, metavar="KOMUT")
+    p = settings_commands.add_parser("goster", help="ayarları gösterir")
+    p.set_defaults(handler=_show_settings)
+    p = settings_commands.add_parser("saklama", help="iş dosyalarının ne kadar saklanacağı")
+    p.add_argument("deger", metavar="sakla|disa-aktarinca-sil|GUN", help="saklama ayarı")
+    p.set_defaults(handler=_set_retention)
+
     jobs.add_commands(commands)
     ocr.add_commands(commands)
     templates.add_commands(commands)
@@ -64,7 +100,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     store = JobStore(args.kok if args.kok else default_root())
     try:
         return args.handler(args, store)
-    except (UserError, BatchError, JobFileError, EngineUnavailable) as error:
+    except (UserError, BatchError, JobFileError, EngineUnavailable, SettingsError) as error:
         jobs.finish_progress_line()
         print(str(error), file=sys.stderr)
         return 2

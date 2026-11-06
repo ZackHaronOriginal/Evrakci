@@ -61,6 +61,14 @@ This repository is public. **Do not commit real documents or anything containing
 member data**, not even "just for testing". Use synthetic documents in `samples/synthetic/`.
 Real scans belong in `data/`, which is git-ignored.
 
+## Install (Windows)
+
+The installer is built automatically by GitHub Actions ("Windows installer" workflow):
+open the latest successful run and download the **Evrakci-Kurulum** artifact. It installs
+the window (`evrakci-arayuz`), the command line (`evrakci`), Tesseract and the official
+Turkish OCR data — nothing else to install. Job data stays in your user folder and is kept
+when you uninstall. Licences of bundled components: `licenses\NOTICE.txt` in the install folder.
+
 ## Development
 
 ```bash

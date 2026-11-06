@@ -26,6 +26,15 @@ library, and tools run as separate programs.
 | Ghostscript | **AGPL-3.0** | **Not used.** OCRmyPDF 17.13+ makes PDF/A without it (`--pdfa-backend internal`) | Not bundled and never called |
 | qpdf | Apache-2.0 | Via pikepdf | ✅ |
 
+## Build tools and bundled programs (Windows installer)
+
+| Component | License | How it is used | OK for commercial/closed builds? |
+|---|---|---|---|
+| cx_Freeze | PSF-2.0 | Build tool; its small runtime stubs ship in the folder build | ✅ |
+| Inno Setup | BSD-style (Inno Setup License) | Build tool for the installer | ✅ Keep its copyright notice |
+| Tesseract for Windows (UB Mannheim build) | Apache-2.0 | Bundled external program in `tesseract\` | ✅ |
+| Licence texts for all bundled parts | — | `licenses\` in the install folder, listed in `NOTICE.txt` | — |
+
 ## Avoid
 
 - **PyQt6 / PyQt5**: GPL unless you buy a commercial license.

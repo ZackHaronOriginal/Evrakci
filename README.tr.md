@@ -62,6 +62,14 @@ Bu depo herkese açıktır. **Gerçek belgeleri veya üye bilgisi içeren hiçbi
 eklemeyin.** "Sadece test için" bile olsa. `samples/synthetic/` içindeki sahte belgeleri kullanın.
 Gerçek taramalar git tarafından yok sayılan `data/` klasöründe durmalıdır.
 
+## Kurulum (Windows)
+
+Kurulum dosyası GitHub Actions'ta otomatik üretilir ("Windows installer" iş akışı): son başarılı
+çalıştırmayı açıp **Evrakci-Kurulum** dosyasını indirin. Pencereyi (`evrakci-arayuz`), komut satırını
+(`evrakci`), Tesseract'ı ve resmi Türkçe OCR verisini kurar; başka bir şey kurmanız gerekmez. İş
+verileri kullanıcı klasörünüzde durur ve kaldırırken silinmez. Paketlenen bileşenlerin lisansları:
+kurulum klasöründe `licenses\NOTICE.txt`.
+
 ## Geliştirme
 
 ```bash

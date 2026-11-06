@@ -81,7 +81,9 @@ def render_line(text: str, size: int = 40) -> Image.Image:
     """One line of text on white, like a cropped field."""
     from PIL import ImageFont
 
-    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", size)
+    from evrakci.pipeline.ocr.synthetic import find_font
+
+    font = ImageFont.truetype(str(find_font()), size)  # DejaVu on Linux, Arial on Windows
     left, top, right, bottom = font.getbbox(text)
     image = Image.new("L", (right - left + 40, bottom - top + 40), 255)
     ImageDraw.Draw(image).text((20 - left, 20 - top), text, fill=0, font=font)

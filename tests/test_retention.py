@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 
 import pytest
@@ -110,6 +111,7 @@ def test_ayar_goster_and_bad_value(tmp_path, monkeypatch, capsys):
     assert "Geçersiz saklama" in capsys.readouterr().err
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need admin rights on Windows")
 def test_retention_only_deletes_real_jobs(tmp_path):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     store = JobStore(tmp_path / "jobs")

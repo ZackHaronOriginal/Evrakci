@@ -15,6 +15,7 @@ from ocrmypdf import exceptions
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import (
     TessData,
+    ascii_safe_dir,
     default_tessdata,
     find_tesseract,
     prepare_tessdata,
@@ -46,7 +47,7 @@ def _tessdata_prefix(folder: Path | None):
     with _ENV_LOCK:
         previous = {name: os.environ.get(name) for name in ("TESSDATA_PREFIX", "PATH")}
         if folder is not None:
-            os.environ["TESSDATA_PREFIX"] = str(folder)
+            os.environ["TESSDATA_PREFIX"] = str(ascii_safe_dir(folder))
         binary = find_tesseract()
         if binary is not None:
             os.environ["PATH"] = os.pathsep.join([str(binary.parent), previous["PATH"] or ""])

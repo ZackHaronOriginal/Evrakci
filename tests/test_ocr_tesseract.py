@@ -117,3 +117,30 @@ def test_system_tessdata_ignores_prefix(tmp_path, monkeypatch):
     real = system_tessdata()
     monkeypatch.setenv("TESSDATA_PREFIX", str(tmp_path))
     assert system_tessdata() == real
+
+
+def test_ascii_safe_folder_rules(tmp_path):
+    from evrakci.pipeline.ocr.tesseract import ascii_safe_dir
+
+    plain = tmp_path / "veri"
+    plain.mkdir()
+    assert ascii_safe_dir(plain, windows=True) == plain  # already ASCII: unchanged
+    turkish = tmp_path / "Şükrü"
+    turkish.mkdir()
+    (turkish / "tur.traineddata").write_bytes(b"x")
+    assert ascii_safe_dir(turkish, windows=False) == turkish  # only Windows needs this
+    short = tmp_path / "SUKRU~1"
+    assert ascii_safe_dir(turkish, windows=True, short_path=lambda p: short) == short
+    copy_root = tmp_path / "ProgramData"
+    copied = ascii_safe_dir(turkish, windows=True, short_path=lambda p: p, copy_root=copy_root)
+    assert str(copied).isascii() and (copied / "tur.traineddata").read_bytes() == b"x"
+
+
+def test_iss_installs_to_ascii_folder():
+    from pathlib import Path
+
+    iss = (Path(__file__).resolve().parents[1] / "packaging" / "evrakci.iss").read_text(
+        encoding="utf-8-sig"
+    )
+    line = next(line for line in iss.splitlines() if line.startswith("DefaultDirName="))
+    assert line.isascii()

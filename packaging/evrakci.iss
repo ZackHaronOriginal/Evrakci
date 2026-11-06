@@ -11,7 +11,8 @@ AppName=Evrakçı
 AppVersion={#AppVersion}
 AppPublisher=Evrakçı
 AppPublisherURL=https://github.com/ZackHaronOriginal/Evrakci
-DefaultDirName={autopf}\Evrakçı
+; ASCII folder: Windows Tesseract cannot open data under non-ASCII paths.
+DefaultDirName={autopf}\Evrakci
 DefaultGroupName=Evrakçı
 LicenseFile=licenses\AGPL-3.0.txt
 OutputDir=..\dist

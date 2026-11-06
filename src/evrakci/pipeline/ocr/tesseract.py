@@ -89,6 +89,42 @@ def verify_tur_best(folder: Path) -> bool:
     return verify_tessdata("best", folder)
 
 
+def _windows_short_path(path: Path) -> Path:
+    """Windows' 8.3 short form of a path (ASCII when short names are enabled)."""
+    import ctypes
+
+    buffer = ctypes.create_unicode_buffer(32768)
+    if ctypes.windll.kernel32.GetShortPathNameW(str(path), buffer, len(buffer)):  # type: ignore[attr-defined]
+        return Path(buffer.value)
+    return path
+
+
+def ascii_safe_dir(
+    folder: Path,
+    windows: bool | None = None,
+    short_path=None,
+    copy_root: Path | None = None,
+) -> Path:
+    """A path to `folder` that Windows Tesseract can open.
+
+    Tesseract on Windows fails on data folders with non-ASCII letters (C:\\Users\\Şükrü\\...).
+    Try the short 8.3 path; if that is still not ASCII, use a copy under an ASCII folder.
+    """
+    folder = Path(folder)
+    windows = os.name == "nt" if windows is None else windows
+    if not windows or str(folder).isascii():
+        return folder
+    short = (short_path or _windows_short_path)(folder)
+    if str(short).isascii():
+        return short
+    root = copy_root or Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Evrakci"
+    digest = hashlib.sha256(str(folder).encode("utf-8")).hexdigest()[:10]
+    target = root / f"tessdata-{digest}"
+    if not target.is_dir():
+        shutil.copytree(folder, target)
+    return target
+
+
 def system_tessdata() -> Path | None:
     """The language data folder of the installed Tesseract."""
     binary = find_tesseract()
@@ -189,7 +225,7 @@ class TesseractEngine:
         image.save(buffer, format="PNG")
         command = [str(find_tesseract()), "stdin", "stdout", "-l", self.lang, "--psm", str(psm)]
         if self.tessdata_dir is not None:
-            command += ["--tessdata-dir", str(self.tessdata_dir)]
+            command += ["--tessdata-dir", str(ascii_safe_dir(self.tessdata_dir))]
         command += ["-c", "tessedit_create_tsv=1"]  # works without the "tsv" config file
         result = subprocess.run(command, input=buffer.getvalue(), capture_output=True, check=False)
         if result.returncode != 0:

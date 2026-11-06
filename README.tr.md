@@ -94,6 +94,25 @@ ve bu çıktıda belirtilir. `--metin-katmani-yok` metin katmanını atlar. Tek 
 Sayfa numaraları her zaman taranan destenin sırasıyla aynıdır. Tüm komutlar için:
 `evrakci --help` ve `evrakci is --help`.
 
+### Şablonlar
+
+Şablonu siz yaparsınız: değişkenlere kendiniz ad verin, sonra her birinin sayfadaki yerini
+işaretleyin (sol üst köşeden milimetre). Aynı türden başka örnek belgelerden ek kutular (varyant)
+ekleyebilirsiniz; sırayla denenir, ilk güvenilir okuma kullanılır.
+
+```bash
+evrakci sablon olustur "Seçim Yetki Belgesi"                      # şablon numarasını yazar
+evrakci sablon degisken-ekle <sablon> "Firma Ünvanı" --zorunlu
+evrakci sablon bolum-ekle <sablon> "Firma Ünvanı" --sayfa 1 --kutu 20,40,150,50
+evrakci sablon bolum-ekle <sablon> "Firma Ünvanı" --sayfa 1 --kutu 20,40,150,62 --ornek uzun.pdf
+evrakci sablon dosya-adi <sablon> "{Firma Ünvanı}"
+evrakci sablon test <sablon> ornek.pdf                            # her kutunun ne okuduğunu gör
+evrakci is sablon-uygula <no> 1-40 <sablon>
+evrakci is oku <no>                                               # şablonlu tüm belgeleri oku
+```
+
+Şablonlar `sablon disa-aktar` / `sablon ice-aktar` ile başka bilgisayarlara taşınabilir.
+
 OCR için gerekli sistem programı (sonraki adımlar): Türkçe dil paketiyle (`tur`) Tesseract.
 
 ## Katkıda bulunma

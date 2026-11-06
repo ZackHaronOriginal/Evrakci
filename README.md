@@ -92,6 +92,25 @@ See [docs/ocr-motor-karsilastirma.md](docs/ocr-motor-karsilastirma.md) for the e
 Page numbers always match the order of the scanned pile. `evrakci --help` and
 `evrakci is --help` list every command.
 
+### Templates (şablonlar)
+
+A template is made by you: name your own variables, then mark where each one is on the page
+(millimetres from the top-left). Add more boxes (variants) from other example documents of the
+same kind; they are tried in order and the first confident reading wins.
+
+```bash
+evrakci sablon olustur "Seçim Yetki Belgesi"                      # prints the template id
+evrakci sablon degisken-ekle <sablon> "Firma Ünvanı" --zorunlu
+evrakci sablon bolum-ekle <sablon> "Firma Ünvanı" --sayfa 1 --kutu 20,40,150,50
+evrakci sablon bolum-ekle <sablon> "Firma Ünvanı" --sayfa 1 --kutu 20,40,150,62 --ornek uzun.pdf
+evrakci sablon dosya-adi <sablon> "{Firma Ünvanı}"
+evrakci sablon test <sablon> ornek.pdf                            # see what each box reads
+evrakci is sablon-uygula <id> 1-40 <sablon>
+evrakci is oku <id>                                               # read every templated document
+```
+
+Templates can be shared between PCs with `sablon disa-aktar` / `sablon ice-aktar`.
+
 System dependencies for OCR (later steps): Tesseract with the Turkish language pack (`tur`).
 
 ## Contributing

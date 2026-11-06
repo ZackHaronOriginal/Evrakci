@@ -37,7 +37,10 @@ def create(args: argparse.Namespace, store: JobStore) -> int:
 
 
 def list_jobs(args: argparse.Namespace, store: JobStore) -> int:
-    for job in store.list_jobs():
+    def unreadable(job_id: str) -> None:
+        print(f"Okunamayan iş: {job_id}", file=sys.stderr)
+
+    for job in store.list_jobs(on_error=unreadable):
         print(f"{job.id}  {job.name}  {len(job.pages)} sayfa")
     return 0
 
@@ -160,11 +163,40 @@ def empty_pages(args: argparse.Namespace, store: JobStore) -> int:
 def export(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
     documents = compute_documents(job)
-    paths = write_documents(documents, store.batch_files(job), job.rotations, args.cikti)
+    try:
+        paths = write_documents(documents, store.batch_files(job), job.rotations, args.cikti)
+    except FileExistsError:
+        raise UserError(
+            f"Çıktı klasöründe önceki dışa aktarımdan dosyalar var: {args.cikti}. "
+            "Lütfen boş bir klasör seçin."
+        ) from None
     for path, document in zip(paths, documents, strict=True):
         positions = [job.position_of(pid) for pid in document.page_ids]
         print(f"{path.name}: sayfa {positions_text(positions)}")
     print(f"{len(paths)} belge yazıldı.")
+    return 0
+
+
+def move_batch(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    try:
+        job.move_batch(args.parti, args.sira - 1)
+    except KeyError:
+        raise UserError(f"Parti bulunamadı: {args.parti}") from None
+    except IndexError:
+        raise UserError(f"Geçersiz sıra: {args.sira}") from None
+    store.save(job)
+    print(f"{args.parti} {args.sira}. sıraya taşındı")
+    return 0
+
+
+def remove_batch(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    try:
+        store.remove_batch(job, args.parti)
+    except KeyError:
+        raise UserError(f"Parti bulunamadı: {args.parti}") from None
+    print(f"{args.parti} işten çıkarıldı")
     return 0
 
 
@@ -184,6 +216,17 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument("id", help="iş numarası")
     p.add_argument("pdf", type=Path, help="eklenecek PDF")
     p.set_defaults(handler=add)
+
+    p = job_commands.add_parser("parti-tasi", help="bir partinin sırasını değiştirir")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("parti", help="parti, örn. b2")
+    p.add_argument("sira", type=int, metavar="SIRA", help="yeni sıra (1'den başlar)")
+    p.set_defaults(handler=move_batch)
+
+    p = job_commands.add_parser("parti-sil", help="bir partiyi işten çıkarır")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("parti", help="parti, örn. b2")
+    p.set_defaults(handler=remove_batch)
 
     p = job_commands.add_parser("goster", help="belgeleri ve QR sayfalarını gösterir")
     p.add_argument("id", help="iş numarası")

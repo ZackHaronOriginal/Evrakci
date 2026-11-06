@@ -1,4 +1,5 @@
 import pikepdf
+import pytest
 from fakes import make_pdf, text_page
 
 from evrakci.pipeline.cuts import Document
@@ -33,3 +34,11 @@ def test_rotation_adds_to_existing(tmp_path):
 
 def test_nothing_to_write(tmp_path):
     assert write_documents([], {}, {}, tmp_path / "out") == []
+
+
+def test_refuses_folder_with_old_export(tmp_path):
+    a = make_pdf(tmp_path / "a.pdf", [text_page()])
+    out = tmp_path / "out"
+    write_documents([Document(("a/0",))], {"a": a}, {}, out)
+    with pytest.raises(FileExistsError):
+        write_documents([Document(("a/0",))], {"a": a}, {}, out)

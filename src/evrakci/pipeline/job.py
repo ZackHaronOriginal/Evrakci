@@ -101,6 +101,31 @@ class Job:
         else:
             raise ValueError(f"no cut at {pid}")
 
+    def move_batch(self, batch_id: str, index: int) -> None:
+        batch = self.get_batch(batch_id)
+        if not 0 <= index < len(self.batches):
+            raise IndexError(index)
+        self.batches.remove(batch)
+        self.batches.insert(index, batch)
+
+    def remove_batch(self, batch_id: str) -> None:
+        batch = self.get_batch(batch_id)
+        self.batches.remove(batch)
+        gone = {page_id(batch.id, i) for i in range(batch.page_count)}
+        for pid in gone:
+            self.pages.pop(pid, None)
+            self.rotations.pop(pid, None)
+        for edits in (self.deleted, self.restored, self.manual_cuts, self.removed_cuts):
+            edits -= gone
+        kept = [FilterApplication(f.page_ids - gone, f.every_n) for f in self.filters]
+        self.filters = [f for f in kept if f.page_ids]
+
+    def get_batch(self, batch_id: str) -> Batch:
+        for batch in self.batches:
+            if batch.id == batch_id:
+                return batch
+        raise KeyError(batch_id)
+
     def delete_page(self, pid: str) -> None:
         self.deleted.add(self._check(pid))
 

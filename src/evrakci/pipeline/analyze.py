@@ -51,6 +51,8 @@ def analyze_pdf(
     path: Path, progress: Callable[[int, int], None] | None = None
 ) -> list[PageInfo]:
     path = Path(path)
+    if not path.is_file():
+        raise BatchError(f"Dosya bulunamadı: {path.name}")
     try:
         pdf = pdfium.PdfDocument(str(path))
     except pdfium.PdfiumError as error:

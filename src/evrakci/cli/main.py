@@ -12,7 +12,7 @@ from evrakci.cli import jobs
 from evrakci.cli.errors import UserError
 from evrakci.pipeline.analyze import BatchError
 from evrakci.pipeline.separator import make_separator_pdf
-from evrakci.pipeline.store import JobStore, default_root
+from evrakci.pipeline.store import JobFileError, JobStore, default_root
 
 
 def _separator(args: argparse.Namespace, store: JobStore) -> int:
@@ -55,6 +55,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     store = JobStore(args.kok if args.kok else default_root())
     try:
         return args.handler(args, store)
-    except (UserError, BatchError) as error:
+    except (UserError, BatchError, JobFileError) as error:
         print(str(error), file=sys.stderr)
+        return 2
+    except OSError as error:
+        name = Path(error.filename).name if error.filename else ""
+        print(f"Dosyaya erişilemedi: {name} ({error.strerror})", file=sys.stderr)
         return 2

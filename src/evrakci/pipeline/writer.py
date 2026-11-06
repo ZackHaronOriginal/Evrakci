@@ -23,6 +23,10 @@ def write_documents(
     if not documents:
         return []
     out_dir = Path(out_dir)
+    # Never mix with an earlier export: stale files would look like real documents.
+    old = sorted(out_dir.glob(f"{stem}_*.pdf")) if out_dir.is_dir() else []
+    if old:
+        raise FileExistsError(str(out_dir))
     out_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     with ExitStack() as stack:

@@ -48,3 +48,20 @@ def test_bad_inputs():
         job.rotate("a/0", 45)
     with pytest.raises(ValueError):
         job_from_dict({**job_to_dict(job), "version": 99})
+
+
+def test_move_and_remove_batch():
+    job = job_from_kinds({"a": "pp", "b": "pq", "c": "p"})
+    job.move_batch("c", 0)
+    assert [b.id for b in job.batches] == ["c", "a", "b"]
+    job.manual_cuts.add("b/0")
+    job.apply_filter(["a/0", "b/0"], 2)
+    job.rotate("b/0", 90)
+    job.remove_batch("b")
+    assert [b.id for b in job.batches] == ["c", "a"]
+    assert "b/0" not in job.pages and job.manual_cuts == set() and job.rotations == {}
+    assert job.filters[0].page_ids == frozenset({"a/0"})
+    with pytest.raises(KeyError):
+        job.remove_batch("zz")
+    with pytest.raises(IndexError):
+        job.move_batch("a", 5)

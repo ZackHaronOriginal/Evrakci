@@ -64,3 +64,17 @@ def test_filter_follows_pages_after_batch_reorder():
     job.apply_filter(["a/0", "a/1", "a/2", "a/3"], 2)
     job.batches.reverse()
     assert ids(compute_documents(job)) == [["b/0", "b/1"], ["a/0", "a/1"], ["a/2", "a/3"]]
+
+
+def test_cut_survives_deleting_its_page():
+    job = job_from_kinds({"a": "pppp"})
+    job.manual_cuts.add("a/2")
+    job.deleted.add("a/2")
+    assert ids(compute_documents(job)) == [["a/0", "a/1"], ["a/3"]]
+
+
+def test_cut_survives_dropping_its_empty_page():
+    job = job_from_kinds({"a": "ppep"})
+    job.manual_cuts.add("a/2")
+    job.drop_empty = True
+    assert ids(compute_documents(job)) == [["a/0", "a/1"], ["a/3"]]

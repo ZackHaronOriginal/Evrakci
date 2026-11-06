@@ -17,6 +17,10 @@ from evrakci.pipeline.job import Batch, Job, job_from_dict, job_to_dict, page_id
 Progress = Callable[[int, int], None]
 
 
+class JobFileError(Exception):
+    """A saved job file that cannot be read. The message is shown to staff (Turkish)."""
+
+
 def default_root() -> Path:
     return platformdirs.user_data_path("Evrakci", appauthor=False) / "jobs"
 
@@ -94,14 +98,32 @@ class JobStore:
         path = self._job_file(job_id)
         if not path.is_file():
             raise KeyError(job_id)
-        return job_from_dict(json.loads(path.read_text(encoding="utf-8")))
+        try:
+            return job_from_dict(json.loads(path.read_text(encoding="utf-8")))
+        except (ValueError, KeyError, TypeError, OSError) as error:
+            raise JobFileError(f"İş dosyası okunamadı: {job_id}") from error
 
-    def list_jobs(self) -> list[Job]:
+    def list_jobs(self, on_error: Callable[[str], None] | None = None) -> list[Job]:
+        """Readable jobs, most recently edited first. Unreadable ones go to `on_error`."""
         if not self.root.is_dir():
             return []
         files = [p for p in self.root.glob("*/job.json") if p.is_file()]
         files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-        return [self.load(p.parent.name) for p in files]
+        jobs = []
+        for path in files:
+            try:
+                jobs.append(self.load(path.parent.name))
+            except JobFileError:
+                if on_error:
+                    on_error(path.parent.name)
+        return jobs
+
+    def remove_batch(self, job: Job, batch_id: str) -> None:
+        batch = job.get_batch(batch_id)
+        path = self.batch_file(job, batch)
+        job.remove_batch(batch_id)
+        self.save(job)
+        path.unlink(missing_ok=True)
 
     def delete(self, job_id: str) -> None:
         if not self._job_file(job_id).is_file():

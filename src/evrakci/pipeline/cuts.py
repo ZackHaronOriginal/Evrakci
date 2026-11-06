@@ -40,18 +40,23 @@ def compute_documents(job: Job) -> list[Document]:
         documents.append(Document(tuple(current), flags))
         current.clear()
 
+    # A manual cut on a page that is left out still cuts before the next kept page.
+    cut_pending = False
     for pid in job.ordered_page_ids():
+        cut_pending = cut_pending or pid in job.manual_cuts
         if pid in job.deleted:
             continue
         info = job.pages[pid]
         if info.is_separator:
             if pid not in job.removed_cuts:
                 close()
+            cut_pending = False
             continue
         if job.drop_empty and info.is_empty and pid not in job.restored:
             continue
-        if pid in job.manual_cuts:
+        if cut_pending:
             close()
+            cut_pending = False
         application = filter_of.get(pid)
         if application is not current_filter:
             close()

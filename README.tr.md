@@ -113,6 +113,24 @@ evrakci is oku <no>                                               # şablonlu t�
 
 Şablonlar `sablon disa-aktar` / `sablon ice-aktar` ile başka bilgisayarlara taşınabilir.
 
+### Kontrol ve dışa aktarma
+
+```bash
+evrakci is degerler <no> --kontrol              # yalnızca kontrol gereken belgeler
+evrakci is deger <no> 3 "Firma Ünvanı" "Örnek Ticaret Ltd. Şti."   # değeri düzelt
+evrakci is deger <no> 5 "Kayıt No" --oneri      # OCR'ın önerisini kabul et
+evrakci is disa-aktar <no> --cikti cikti        # adlandırılmış PDF'ler + index.xlsx
+```
+
+- Dosya adları şablonun kalıbından oluşur. Windows'un kabul etmediği karakterler çıkarılır, Türkçe
+  harfler korunur, çakışan adlara ` (2)`, ` (3)` eklenir.
+- Eksik veya emin olunamayan **zorunlu** değer dosya adına asla girmez: o belge `belge_NNN.pdf`
+  olarak yazılır ve işaretlenir.
+- `index.xlsx` her dosyayı sayfaları, şablonu, değerleri, PDF/A durumu ve kontrol nedenleriyle listeler.
+- Dışa aktarma boş bir klasör ister; önceki dışa aktarımın dosyaları karışmaz.
+- Saklama: `evrakci ayar saklama sakla` (varsayılan, hiçbir şey silinmez), `disa-aktarinca-sil`
+  (tam dışa aktarımdan sonra iş silinir) veya gün sayısı (örn. `30`).
+
 OCR için gerekli sistem programı (sonraki adımlar): Türkçe dil paketiyle (`tur`) Tesseract.
 
 ## Katkıda bulunma

@@ -39,14 +39,18 @@ argument and a core product promise.
 | `templates/model.py` | Templates: user-named variables, sections (page + mm box), file-name pattern, threshold |
 | `templates/store.py` | One UTF-8 JSON file per template; import/export |
 | `templates/read.py` | Reads a document's variables: variants in the user's order, first confident wins, otherwise flagged with every reading kept |
+| `review.py` | Fixing values: the user's corrections win over later readings |
+| `naming.py` | Safe Windows file names from patterns; clash numbering |
+| `export.py` | Export plan: each document's name, values and "needs check" reasons |
+| `index.py` | `index.xlsx` (every cell as text, so OCR'd `=…` never becomes a formula) |
+| `settings.py` | App settings (retention) in `<app data>/settings.json` |
 | `ocr/engine.py` | The OCR engine interface (`read_page`, `read_region`) |
 | `ocr/tesseract.py` | Tesseract engine; the three official Turkish data files with pinned checksums; `default_engine()` (tur_best when installed) |
 | `ocr/rapid.py`, `ocr/models.py` | RapidOCR engine (optional extra) with checksum-verified models |
 | `ocr/textlayer.py` | Searchable text layer via OCRmyPDF, PDF/A-2b with the internal backend, plain-PDF fallback |
 | `ocr/synthetic.py`, `ocr/metrics.py`, `ocr/compare.py`, `ocr/preprocess.py` | The engine comparison (`evrakci ocr-karsilastir`) |
 
-Coming next (see the roadmap in `docs/superpowers/plans/`): review and export (named PDFs,
-`index.xlsx`), then the window and the installer.
+Coming next (see the roadmap in `docs/superpowers/plans/`): the window and the installer.
 
 ## Splitting rules
 

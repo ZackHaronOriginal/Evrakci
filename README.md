@@ -111,6 +111,25 @@ evrakci is oku <id>                                               # read every t
 
 Templates can be shared between PCs with `sablon disa-aktar` / `sablon ice-aktar`.
 
+### Review and export
+
+```bash
+evrakci is degerler <id> --kontrol              # only documents that need a look
+evrakci is deger <id> 3 "Firma Ünvanı" "Örnek Ticaret Ltd. Şti."   # fix a value
+evrakci is deger <id> 5 "Kayıt No" --oneri      # accept what OCR suggested
+evrakci is disa-aktar <id> --cikti cikti        # named PDFs + index.xlsx
+```
+
+- Files are named from the template's pattern. Characters Windows forbids are removed, Turkish
+  letters are kept, and clashing names get ` (2)`, ` (3)`.
+- A missing or unsure **required** value is never put in a file name: that document is written
+  as `belge_NNN.pdf` and marked.
+- `index.xlsx` lists every file with its pages, template, values, PDF/A status and the reasons it
+  needs a check.
+- Export needs an empty folder, so files from an earlier export never mix in.
+- Retention: `evrakci ayar saklama sakla` (default, never delete), `disa-aktarinca-sil` (delete
+  the job after a full export), or a number of days (e.g. `30`).
+
 System dependencies for OCR (later steps): Tesseract with the Turkish language pack (`tur`).
 
 ## Contributing

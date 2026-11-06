@@ -18,21 +18,27 @@ def write_documents(
     rotations: Mapping[str, int],
     out_dir: Path,
     stem: str = "belge",
+    names: Sequence[str] | None = None,
 ) -> list[Path]:
-    """Write `out_dir/{stem}_001.pdf`, `_002.pdf`, ... and return their paths in order."""
+    """Write one PDF per document and return their paths in order.
+
+    Files are named `names[i].pdf`, or `{stem}_001.pdf`, `_002.pdf`, ... by default.
+    """
     if not documents:
         return []
     out_dir = Path(out_dir)
-    # Never mix with an earlier export: stale files would look like real documents.
-    old = sorted(out_dir.glob(f"{stem}_*.pdf")) if out_dir.is_dir() else []
-    if old:
-        raise FileExistsError(str(out_dir))
+    names = list(names) if names else [f"{stem}_{n:03d}" for n in range(1, len(documents) + 1)]
+    # Never mix with an earlier export: any old PDF or index would look like part of this one.
+    if out_dir.is_dir():
+        old = sorted(out_dir.glob("*.pdf")) + sorted(out_dir.glob("index.xlsx"))
+        if old:
+            raise FileExistsError(old[0].name)
     out_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     with ExitStack() as stack:
         sources: dict[str, pikepdf.Pdf] = {}
         for number, document in enumerate(documents, start=1):
-            target = out_dir / f"{stem}_{number:03d}.pdf"
+            target = out_dir / f"{names[number - 1]}.pdf"
             with pikepdf.new() as output:
                 for pid in document.page_ids:
                     batch_id, index = parse_page_id(pid)

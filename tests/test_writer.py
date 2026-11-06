@@ -42,3 +42,24 @@ def test_refuses_folder_with_old_export(tmp_path):
     write_documents([Document(("a/0",))], {"a": a}, {}, out)
     with pytest.raises(FileExistsError):
         write_documents([Document(("a/0",))], {"a": a}, {}, out)
+
+
+def test_custom_names(tmp_path):
+    a = make_pdf(tmp_path / "a.pdf", [text_page(), text_page()])
+    docs = [Document(("a/0",)), Document(("a/1",))]
+    out = write_documents(docs, {"a": a}, {}, tmp_path / "out", names=["Örnek Şti", "belge_002"])
+    assert [p.name for p in out] == ["Örnek Şti.pdf", "belge_002.pdf"]
+
+
+def test_conflict_on_any_target_or_index(tmp_path):
+    a = make_pdf(tmp_path / "a.pdf", [text_page()])
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "Örnek.pdf").write_bytes(b"x")
+    with pytest.raises(FileExistsError, match="Örnek.pdf"):
+        write_documents([Document(("a/0",))], {"a": a}, {}, out, names=["Örnek"])
+    (out / "Örnek.pdf").unlink()
+    (out / "index.xlsx").write_bytes(b"x")
+    with pytest.raises(FileExistsError, match="index.xlsx"):
+        write_documents([Document(("a/0",))], {"a": a}, {}, out, names=["Örnek"])
+    assert sorted(p.name for p in out.iterdir()) == ["index.xlsx"]

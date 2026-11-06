@@ -9,12 +9,15 @@ import sys
 from pathlib import Path
 
 from evrakci.cli.errors import UserError
-from evrakci.pipeline.cuts import compute_documents
-from evrakci.pipeline.job import Job, job_to_dict
+from evrakci.pipeline.cuts import Document, compute_documents, document_template
+from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
+from evrakci.pipeline.render import render_page
 from evrakci.pipeline.store import JobStore
+from evrakci.pipeline.templates.model import Template, TemplateError
+from evrakci.pipeline.templates.read import read_document
 from evrakci.pipeline.writer import write_documents
 
 
@@ -70,6 +73,26 @@ def add(args: argparse.Namespace, store: JobStore) -> int:
     return 0
 
 
+def _template_names(args: argparse.Namespace) -> dict[str, str]:
+    from evrakci.cli.templates import template_store
+
+    return {t.id: t.name for t in template_store(args).list()}
+
+
+def _check_marks(job: Job, document: Document) -> list[str]:
+    marks = []
+    if "leftover" in document.flags:
+        marks.append("eksik sayfa")
+    if "mixed_templates" in document.flags:
+        marks.append("karışık şablon")
+    first = document.page_ids[0]
+    if first in job.read_errors:
+        marks.append(job.read_errors[first])
+    if any(v.flagged for v in job.values.get(first, {}).values()):
+        marks.append("okunamayan değer")
+    return marks
+
+
 def show(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
     documents = compute_documents(job)
@@ -85,11 +108,15 @@ def show(args: argparse.Namespace, store: JobStore) -> int:
         print(json.dumps(payload, ensure_ascii=False, indent=1))
         return 0
     print(f"{job.name} ({job.id})")
+    names = _template_names(args) if job.templates else {}
     for number, (positions, document) in enumerate(
         zip(doc_positions, documents, strict=True), start=1
     ):
-        mark = "  [eksik sayfa]" if "leftover" in document.flags else ""
-        print(f"{number}. belge: sayfa {positions_text(positions)}{mark}")
+        template_id, _ = document_template(job, document)
+        template = f" ({names.get(template_id, template_id)})" if template_id else ""
+        marks = _check_marks(job, document)
+        mark = f"  [kontrol: {', '.join(marks)}]" if marks else ""
+        print(f"{number}. belge{template}: sayfa {positions_text(positions)}{mark}")
     qr = [job.position_of(pid) for pid in job.ordered_page_ids() if job.pages[pid].is_separator]
     print(f"QR sayfaları: {positions_text(qr) if qr else 'yok'}")
     return 0
@@ -234,6 +261,80 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
     return 0
 
 
+def apply_template(args: argparse.Namespace, store: JobStore) -> int:
+    from evrakci.cli.templates import load_template, template_store
+
+    job = load_job(store, args.id)
+    start, end = parse_range(args.aralik)
+    template = load_template(template_store(args), args.sablon)
+    page_ids = [page_id_at(job, position) for position in range(start, end + 1)]
+    job.apply_template(page_ids, template.id)
+    store.save(job)
+    print(f"Şablon uygulandı: sayfa {start}-{end}, {template.name}")
+    return 0
+
+
+def _document_pages(store: JobStore, job: Job, document: Document):
+    files = store.batch_files(job)
+
+    def page_image(index: int):
+        pid = document.page_ids[index]
+        batch_id, page_index = parse_page_id(pid)
+        return render_page(files[batch_id], page_index, job.rotations.get(pid, 0))
+
+    return page_image
+
+
+def read_values(args: argparse.Namespace, store: JobStore) -> int:
+    from evrakci.cli.templates import template_store
+
+    job = load_job(store, args.id)
+    engine = default_engine()
+    reason = engine.available()
+    if reason:
+        raise UserError(reason)
+    templates: dict[str, Template | None] = {}
+    documents = compute_documents(job)
+    work = [
+        (number, document, document_template(job, document)[0])
+        for number, document in enumerate(documents, start=1)
+    ]
+    work = [item for item in work if item[2] is not None]
+    if args.sadece_eksik:
+        work = [item for item in work if item[1].page_ids[0] not in job.values]
+    for done, (number, document, template_id) in enumerate(work, start=1):
+        print(f"\rOkunuyor: {done}/{len(work)} belge", end="", file=sys.stderr, flush=True)
+        first = document.page_ids[0]
+        if template_id not in templates:
+            try:
+                templates[template_id] = template_store(args).load(template_id)
+            except (KeyError, TemplateError):
+                templates[template_id] = None
+        template = templates[template_id]
+        if template is None:
+            job.read_errors[first] = f"Şablon bulunamadı: {template_id}"
+            job.values.pop(first, None)
+            print(f"{number}. belge: Şablon bulunamadı: {template_id}")
+            continue
+        job.read_errors.pop(first, None)
+        values = read_document(
+            template, len(document.page_ids), _document_pages(store, job, document), engine
+        )
+        previous = job.values.get(first, {})
+        for name, old in previous.items():
+            if old.edited and name in values:
+                values[name] = old  # the user's correction wins over a new reading
+        job.values[first] = values
+        summary = ", ".join(f"{n}={v.value or '?'}" for n, v in values.items())
+        mark = " [kontrol]" if any(v.flagged for v in values.values()) else ""
+        print(f"{number}. belge ({template.name}): {summary}{mark}")
+    if work:
+        print(file=sys.stderr)
+    store.save(job)
+    print(f"{len(work)} belge okundu.")
+    return 0
+
+
 def move_batch(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
     try:
@@ -322,6 +423,19 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument("id", help="iş numarası")
     p.add_argument("durum", choices=["ac", "kapat"], help="ac veya kapat")
     p.set_defaults(handler=empty_pages)
+
+    p = job_commands.add_parser("sablon-uygula", help="seçili sayfalara şablon uygular")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("aralik", metavar="BAS-SON", help="sayfa aralığı, örn. 1-40")
+    p.add_argument("sablon", metavar="SABLON", help="şablon numarası")
+    p.set_defaults(handler=apply_template)
+
+    p = job_commands.add_parser("oku", help="şablonlu belgelerdeki değişkenleri okur")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument(
+        "--sadece-eksik", action="store_true", help="yalnızca henüz okunmamış belgeleri oku"
+    )
+    p.set_defaults(handler=read_values)
 
     p = job_commands.add_parser("disa-aktar", help="her belgeyi ayrı PDF olarak yazar")
     p.add_argument("id", help="iş numarası")

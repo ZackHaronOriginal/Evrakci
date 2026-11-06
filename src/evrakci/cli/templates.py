@@ -6,13 +6,18 @@ import argparse
 import json
 from pathlib import Path
 
+import pypdfium2 as pdfium
+
 from evrakci.cli.errors import UserError
+from evrakci.pipeline.ocr.tesseract import default_engine
+from evrakci.pipeline.render import render_page
 from evrakci.pipeline.templates.model import (
     Section,
     Template,
     TemplateError,
     template_to_dict,
 )
+from evrakci.pipeline.templates.read import read_document
 from evrakci.pipeline.templates.store import TemplateStore, default_template_root
 
 
@@ -211,6 +216,50 @@ def import_template(args, _jobs) -> int:
     return 0
 
 
+def describe_values(values: dict, indent: str = "") -> list[str]:
+    """Human-readable lines for read values: the chosen reading, then every variant."""
+    lines = []
+    for name, value in values.items():
+        if value.flagged:
+            hint = f' (öneri: "{value.suggestion}")' if value.suggestion else ""
+            lines.append(f"{indent}{name}: OKUNAMADI{hint}")
+        else:
+            lines.append(
+                f'{indent}{name}: "{value.value}" (bölüm {value.section + 1}, '
+                f"güven %{round(value.confidence * 100)})"
+            )
+        for reading in value.readings:
+            problem = f" [{reading.problem}]" if reading.problem else ""
+            lines.append(
+                f'{indent}    {reading.section + 1}. bölüm: "{reading.text}" '
+                f"(güven %{round(reading.confidence * 100)}){problem}"
+            )
+    return lines
+
+
+def test_template(args, _jobs) -> int:
+    template = load_template(template_store(args), args.id)
+    if not args.ornek.is_file():
+        raise UserError(f"Dosya bulunamadı: {args.ornek}")
+    engine = default_engine()
+    reason = engine.available()
+    if reason:
+        raise UserError(reason)
+    try:
+        pdf = pdfium.PdfDocument(str(args.ornek))
+        page_count = len(pdf)
+        pdf.close()
+    except pdfium.PdfiumError:
+        raise UserError(f"PDF açılamadı: {args.ornek.name}") from None
+    values = read_document(
+        template, page_count, lambda index: render_page(args.ornek, index), engine
+    )
+    print(f"{template.name}: {args.ornek.name} ({page_count} sayfa)")
+    for line in describe_values(values):
+        print(line)
+    return 0
+
+
 def add_commands(commands: argparse._SubParsersAction) -> None:
     parser = commands.add_parser("sablon", help="şablon oluşturur ve düzenler")
     sub = parser.add_subparsers(dest="sablon_komutu", required=True, metavar="KOMUT")
@@ -296,3 +345,10 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     )
     command("disa-aktar", export, "şablonu dosyaya aktarır", tid, (("dosya",), {"type": Path}))
     command("ice-aktar", import_template, "şablonu dosyadan alır", (("dosya",), {"type": Path}))
+    command(
+        "test",
+        test_template,
+        "şablonu bir örnek belgede dener",
+        tid,
+        (("ornek",), {"type": Path, "metavar": "ORNEK.pdf"}),
+    )

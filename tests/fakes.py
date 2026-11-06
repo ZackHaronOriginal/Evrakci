@@ -46,10 +46,18 @@ def qr_page(scale: float = 1.0, angle: float = 0.0) -> Image.Image:
     return image
 
 
-def make_pdf(path: Path, pages: list[Image.Image]) -> Path:
+def make_pdf(path: Path, pages: list[Image.Image], dpi: int = DPI) -> Path:
     path = Path(path)
-    pages[0].save(path, save_all=True, append_images=pages[1:], resolution=DPI)
+    pages[0].save(path, save_all=True, append_images=pages[1:], resolution=dpi)
     return path
+
+
+def a4_300(lines: list[tuple[str, tuple[float, float]]]) -> Image.Image:
+    """A 300 dpi A4 page with text lines placed at (x, y) millimetres."""
+    page = Image.new("L", (2480, 3508), 255)
+    for text, (x_mm, y_mm) in lines:
+        page.paste(render_line(text, 60), (round(x_mm / 25.4 * 300), round(y_mm / 25.4 * 300)))
+    return page
 
 
 _KINDS = {

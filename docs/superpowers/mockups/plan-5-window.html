@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Evrakçı pencere taslakları</title>
+<style>
+  :root {
+    --bg: #eef0f3; --panel: #ffffff; --line: #d5d9e0; --text: #1f2430; --muted: #4f5663;
+    --accent: #2f6fde; --qr: #2f6fde; --filter: #b8680a; --manual: #d43c3c;
+    --doc-a: #e8f0ff; --doc-b: #fff4e2; --sel: rgba(47,111,222,.18); --warn: #fff4cc;
+    --font: "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #c9ced6; font-family: var(--font); color: var(--text); font-size: 13px; }
+  .board { width: 1280px; height: 800px; margin: 24px auto; background: var(--bg); border: 1px solid #9aa3af;
+           box-shadow: 0 6px 24px rgba(0,0,0,.18); display: flex; flex-direction: column; overflow: hidden; }
+  .titlebar { height: 30px; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center;
+              padding: 0 12px; font-size: 12px; color: var(--muted); }
+  .tabs { display: flex; gap: 2px; padding: 6px 10px 0; background: #fff; border-bottom: 1px solid var(--line); }
+  .tab { padding: 7px 16px; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; color: var(--muted); }
+  .tab.on { background: var(--bg); border-color: var(--line); color: var(--text); font-weight: 600; }
+  .toolbar { display: flex; gap: 6px; align-items: center; padding: 8px 10px; background: #fff; border-bottom: 1px solid var(--line); }
+  .btn { padding: 5px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fafbfc; white-space: nowrap; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .main { flex: 1; display: flex; min-height: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+  h3 { margin: 0 0 8px; font-size: 13px; }
+  .muted { color: var(--muted); }
+  /* timeline */
+  .timeline { margin: 10px; padding: 10px 10px 4px; overflow: hidden; }
+  .lane { display: flex; align-items: flex-end; gap: 0; height: 150px; position: relative; }
+  .doc { display: flex; gap: 6px; padding: 18px 6px 6px; border-radius: 6px; position: relative; height: 100%; }
+  .doc.a { background: var(--doc-a); } .doc.b { background: var(--doc-b); }
+  .doc .label { position: absolute; top: 2px; left: 8px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .page { width: 70px; height: 98px; background: #fff; border: 1px solid #c3c8d1; border-radius: 2px; position: relative;
+          box-shadow: 0 1px 2px rgba(0,0,0,.08); align-self: flex-end; }
+  .page::before { content: ""; position: absolute; left: 9px; right: 9px; top: 14px; height: 52px;
+                  background: repeating-linear-gradient(#cfd5de 0 3px, transparent 3px 9px); }
+  .page .n { position: absolute; bottom: -18px; width: 100%; text-align: center; font-size: 11px; color: #3d4350; }
+  .page.sel { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .page.dropped { opacity: .35; }
+  .page.dropped::before { background: none; }
+  .page.qrpage::before { background: none; }
+  .page.qrpage::after { content: ""; position: absolute; left: 20px; top: 30px; width: 30px; height: 30px;
+                        background: conic-gradient(#222 25%, #fff 0 50%, #222 0 75%, #fff 0) 0 0/10px 10px; }
+  .cut { width: 16px; align-self: stretch; display: flex; justify-content: center; position: relative; }
+  .cut i { display: block; width: 4px; height: 100%; border-radius: 2px; }
+  .cut.qr i { background: var(--qr); }
+  .cut.filter i { background: repeating-linear-gradient(var(--filter) 0 6px, transparent 6px 10px); width: 3px; }
+  .cut.manual i { background: var(--manual); }
+  .cut b { position: absolute; top: -2px; font-size: 10px; font-weight: 700; padding: 0 3px; border-radius: 3px; color: #fff; }
+  .cut.qr b { background: var(--qr); } .cut.manual b { background: var(--manual); }
+  .bands { display: flex; height: 20px; margin-top: 22px; gap: 0; font-size: 11px; }
+  .band { padding: 2px 8px; border-radius: 4px; color: #fff; white-space: nowrap; overflow: hidden; }
+  .scroll { height: 8px; margin: 8px 0 2px; background: #e4e7ec; border-radius: 4px; position: relative; }
+  .scroll::after { content: ""; position: absolute; left: 6%; width: 9%; top: 0; bottom: 0; background: #9aa3af; border-radius: 4px; }
+  .legend { display: flex; gap: 16px; align-items: center; font-size: 12px; color: var(--muted); padding: 2px 2px 6px; }
+  .sw { display: inline-block; width: 18px; height: 4px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+  .lower { flex: 1; display: flex; gap: 10px; padding: 0 10px 10px; min-height: 0; }
+  .preview { flex: 1.25; padding: 10px; display: flex; flex-direction: column; }
+  .sheet { flex: 1; background: #fff; border: 1px solid #c3c8d1; margin: 0 auto; aspect-ratio: 210/297; position: relative; }
+  .sheet .txt { position: absolute; left: 10%; right: 18%; height: 7px; background: #cfd5de; border-radius: 2px; }
+  .info { flex: 1; padding: 12px; overflow: hidden; }
+  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px 10px; margin-bottom: 12px; }
+  .kv div:nth-child(odd) { color: var(--muted); }
+  .flag { background: var(--warn); border: 1px solid #ecd27a; border-radius: 4px; padding: 6px 8px; margin: 6px 0; }
+  /* template creator */
+  .vars { width: 300px; margin: 10px 0 10px 10px; padding: 10px; overflow: hidden; }
+  .var { border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+  .var .head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .variant { display: flex; justify-content: space-between; align-items: center; padding: 5px 6px; margin-top: 6px;
+             background: #f6f7f9; border-radius: 4px; font-size: 12px; }
+  .grip { color: #6b7280; margin-right: 6px; letter-spacing: -2px; }
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #e8f0ff; border: 1px solid #c7d7f7; margin: 2px; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 8px; background: #ffe8e8; color: #8a1c1c; font-weight: 500; }
+  .canvas { flex: 1; margin: 10px; padding: 10px; display: flex; flex-direction: column; min-width: 0; }
+  .docpage { flex: 1; background: #fff; border: 1px solid #c3c8d1; margin: 0 auto; aspect-ratio: 210/297; position: relative; }
+  .box { position: absolute; border: 2px solid; border-radius: 2px; }
+  .box span { position: absolute; top: -18px; left: -2px; font-size: 11px; color: #fff; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+  .box.ghost { border-style: dashed; opacity: .75; }
+  .test { width: 280px; margin: 10px 10px 10px 0; padding: 10px; overflow: hidden; }
+  .reading { border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin-bottom: 8px; font-size: 12px; }
+  .reading .val { font-size: 14px; font-weight: 600; margin: 2px 0; }
+  .conf { height: 5px; border-radius: 3px; background: #e4e7ec; overflow: hidden; margin-top: 4px; }
+  .conf i { display: block; height: 100%; }
+  .pattern { margin: 0 10px 10px; padding: 10px; display: flex; gap: 10px; align-items: center; }
+  .pattern .field { flex: 1; border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; background: #fff; }
+  /* review table */
+  .tablewrap { flex: 1.6; margin: 10px; padding: 0; overflow: hidden; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; white-space: nowrap; }
+  th { background: #f6f7f9; font-weight: 600; position: sticky; top: 0; }
+  tr.selrow td { background: var(--sel); }
+  td.warn { background: var(--warn); }
+  td.edited { color: #11733a; }
+  .side { flex: 1; margin: 10px 10px 10px 0; padding: 10px; display: flex; flex-direction: column; }
+  .caption { text-align: center; color: #4b5563; font-size: 14px; margin: 18px 0 -10px; }
+</style>
+</head>
+<body>
+
+<!-- 1. Timeline editor -->
+<p class="caption"><b>1. Kontrol: zaman çizgisi</b> (video düzenleyici gibi: sayfaları seç, filtre ve şablon uygula)</p>
+<div class="board" id="timeline">
+  <div class="titlebar">Evrakçı · Seçim 2026 (812 sayfa, 3 parti)</div>
+  <div class="tabs"><div class="tab">Yükle</div><div class="tab on">Kontrol</div><div class="tab">Şablonlar</div><div class="tab">Değerler</div><div class="tab">Dışa Aktar</div><div class="tab">Rehber</div></div>
+  <div class="toolbar">
+    <span class="btn">↶ Geri al</span><span class="btn">↷ Yinele</span><span class="sep"></span>
+    <span class="btn primary">Filtre: her N sayfa…</span><span class="btn primary">Şablon uygula…</span><span class="sep"></span>
+    <span class="btn">✂ Kesim ekle</span><span class="btn">Kesimi kaldır</span><span class="btn">⟳ Döndür</span><span class="btn">Sil</span><span class="sep"></span>
+    <label class="btn"><input type="checkbox" checked> Boş sayfaları at</label>
+    <span class="hint" style="margin-left:auto">Seçim: sayfa 5–9 (5 sayfa) · Shift+tıkla / sürükle</span>
+  </div>
+  <div class="panel timeline">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--qr)"></span>QR kesimi</span>
+      <span><span class="sw" style="background:repeating-linear-gradient(90deg,var(--filter) 0 6px,transparent 6px 10px)"></span>Filtre kesimi</span>
+      <span><span class="sw" style="background:var(--manual)"></span>Elle kesim</span>
+      <span><span class="sw" style="background:#cfd5de;opacity:.5"></span>Atılan boş sayfa</span>
+      <span style="margin-left:auto">Küçük resimler kaydırdıkça yüklenir · 812 sayfada akıcı</span>
+    </div>
+    <div class="lane">
+      <div class="doc a"><span class="label">1. belge · Seçim Yetki Belgesi</span><div class="page"><span class="n">1</span></div><div class="page"><span class="n">2</span></div></div>
+      <div class="cut filter"><i></i></div>
+      <div class="doc b"><span class="label">2. belge</span><div class="page"><span class="n">3</span></div><div class="page"><span class="n">4</span></div></div>
+      <div class="cut qr"><i></i><b>QR</b></div>
+      <div class="page qrpage" style="margin:0 2px"><span class="n">5</span></div>
+      <div class="cut qr"><i></i></div>
+      <div class="doc a"><span class="label">3. belge · 4 sayfa (QR ile çevrili)</span><div class="page sel"><span class="n">6</span></div><div class="page sel"><span class="n">7</span></div><div class="page sel"><span class="n">8</span></div><div class="page dropped sel"><span class="n">9</span></div><div class="page"><span class="n">10</span></div></div>
+      <div class="cut manual"><i></i><b>✂</b></div>
+      <div class="doc b"><span class="label">4. belge ⚠</span><div class="page"><span class="n">11</span></div><div class="page"><span class="n">12</span></div></div>
+      <div class="cut filter"><i></i></div>
+      <div class="doc a"><span class="label">5. belge</span><div class="page"><span class="n">13</span></div></div>
+    </div>
+    <div class="bands">
+      <div class="band" style="background:#2f62c4;width:318px">Filtre: her 2 sayfa · Seçim Yetki Belgesi</div>
+      <div class="band" style="background:#5d6676;width:470px;margin-left:8px">Şablon: Seçim Yetki Belgesi</div>
+    </div>
+    <div class="scroll"></div>
+  </div>
+  <div class="lower">
+    <div class="panel preview"><h3>Sayfa 7 <span class="muted">(3. belge, 2/4)</span></h3>
+      <div class="sheet"><div class="txt" style="top:8%"></div><div class="txt" style="top:12%;right:40%"></div><div class="txt" style="top:22%"></div><div class="txt" style="top:26%"></div><div class="txt" style="top:30%;right:30%"></div><div class="txt" style="top:44%"></div><div class="txt" style="top:48%;right:50%"></div></div>
+    </div>
+    <div class="panel info"><h3>3. belge</h3>
+      <div class="kv"><div>Sayfalar</div><div>6, 7, 8, 10 (9 boş, atıldı)</div><div>Kesim</div><div>QR (önce) · Elle kesim (sonra)</div><div>Şablon</div><div>Seçim Yetki Belgesi</div><div>Dosya adı</div><div>123456_Örnek Ticaret Ltd. Şti.pdf</div></div>
+      <h3>4. belge</h3>
+      <div class="flag">⚠ Eksik sayfa: filtre 2 sayfa bekliyordu, kesimden önce 1 sayfa kaldı.</div>
+      <div class="flag">⚠ Firma Ünvanı okunamadı (öneri: "Çağrı Ticaret"). <u>Değerler</u> sekmesinde düzeltin.</div>
+      <p class="muted">Her işlem geri alınabilir. İş kendiliğinden kaydedilir.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Template creator -->
+<p class="caption"><b>2. Şablon oluşturucu</b> (değişkenleri siz adlandırın, kutuları çizin, başka örneklerden varyant ekleyin)</p>
+<div class="board" id="template">
+  <div class="titlebar">Evrakçı · Şablon: Seçim Yetki Belgesi</div>
+  <div class="tabs"><div class="tab">Yükle</div><div class="tab">Kontrol</div><div class="tab on">Şablonlar</div><div class="tab">Değerler</div><div class="tab">Dışa Aktar</div><div class="tab">Rehber</div></div>
+  <div class="toolbar">
+    <span class="btn">Örnek belge aç…</span><span class="btn primary">+ Başka örnek belgeden varyant ekle…</span><span class="sep"></span>
+    <span class="btn">Dışa aktar</span><span class="btn">İçe aktar</span><span class="sep"></span>
+    <span class="hint">Örnek: ornek-1.pdf · sayfa 1/2 · Kutu çizmek için sürükleyin</span>
+    <span class="btn" style="margin-left:auto">Güven eşiği: %70</span>
+  </div>
+  <div class="main">
+    <div class="panel vars"><h3>Değişkenler <span class="btn" style="float:right;padding:1px 8px">+ Ekle</span></h3>
+      <div class="var"><div class="head"><span><span class="dot" style="background:#2f6fde"></span>Firma Ünvanı</span><span class="tag">zorunlu</span></div>
+        <div class="variant"><span><span class="grip">⋮⋮</span>1. sayfa 1 · 20,40 → 150,50 mm</span><span class="muted">ornek-1.pdf</span></div>
+        <div class="variant"><span><span class="grip">⋮⋮</span>2. sayfa 1 · 20,40 → 150,62 mm</span><span class="muted">uzun-unvan.pdf</span></div>
+        <div class="muted" style="font-size:11px;margin-top:4px">Sırayla denenir; ilk güvenilir okuma kullanılır. Sürükleyerek sıralayın.</div></div>
+      <div class="var"><div class="head"><span><span class="dot" style="background:#18a058"></span>Kayıt No</span><span class="tag">zorunlu</span></div>
+        <div class="variant"><span><span class="grip">⋮⋮</span>1. sayfa 1 · 120,22 → 190,30 mm</span><span class="muted">ornek-1.pdf</span></div></div>
+      <div class="var"><div class="head"><span><span class="dot" style="background:#b8609a"></span>Şirket Türü</span><span class="muted" style="font-size:11px">isteğe bağlı</span></div>
+        <div class="variant"><span><span class="grip">⋮⋮</span>1. son sayfa · 20,250 → 90,258 mm</span><span class="muted">ornek-1.pdf</span></div></div>
+      <p class="muted" style="font-size:11px">Hazır alan yok: her değişkeni siz adlandırırsınız.</p>
+    </div>
+    <div class="panel canvas"><h3>ornek-1.pdf <span class="muted">— sayfa 1</span></h3>
+      <div class="docpage">
+        <div class="sheet" style="position:absolute;inset:0;border:none">
+          <div class="txt" style="top:7%;left:62%;right:10%"></div>
+          <div class="txt" style="top:14%;right:30%"></div><div class="txt" style="top:16.5%;right:52%"></div>
+          <div class="txt" style="top:26%"></div><div class="txt" style="top:29%"></div><div class="txt" style="top:32%;right:40%"></div>
+          <div class="txt" style="top:44%"></div><div class="txt" style="top:47%;right:35%"></div>
+        </div>
+        <div class="box" style="left:9.5%;top:13.2%;width:62%;height:3.8%;border-color:#2f6fde"><span style="background:#2f6fde">Firma Ünvanı · 1</span></div>
+        <div class="box ghost" style="left:9.5%;top:13.2%;width:62%;height:7.2%;border-color:#2f6fde"><span style="background:#2f6fde;top:auto;bottom:-18px">varyant 2 (uzun-unvan.pdf)</span></div>
+        <div class="box" style="left:57%;top:6.2%;width:33.5%;height:3%;border-color:#18a058"><span style="background:#18a058">Kayıt No</span></div>
+      </div>
+    </div>
+    <div class="panel test"><h3>Bu kutular ne okuyor?</h3>
+      <div class="reading"><div class="muted">Firma Ünvanı · bölüm 1</div><div class="val">Örnek Ticaret Ltd. Şti.</div><div class="conf"><i style="width:93%;background:#18a058"></i></div><div class="muted">güven %93 · kullanılacak</div></div>
+      <div class="reading"><div class="muted">Kayıt No · bölüm 1</div><div class="val">123456</div><div class="conf"><i style="width:96%;background:#18a058"></i></div><div class="muted">güven %96</div></div>
+      <div class="reading"><div class="muted">Şirket Türü · bölüm 1</div><div class="val">—</div><div class="conf"><i style="width:0"></i></div><div class="muted">kutu çizilmedi</div></div>
+      <span class="btn">Bu işin belgelerinde dene…</span>
+    </div>
+  </div>
+  <div class="panel pattern"><b>Dosya adı:</b>
+    <div class="field"><span class="chip">{Kayıt No}</span> _ <span class="chip">{Firma Ünvanı}</span></div>
+    <span class="muted">Örnek: 123456_Örnek Ticaret Ltd. Şti.pdf</span><span class="btn primary">Kaydet</span>
+  </div>
+</div>
+
+<!-- 3. Review table -->
+<p class="caption"><b>3. Değerler: kontrol tablosu</b> (belirsiz değerler sarı, tıklayınca sayfa ve kutu görünür)</p>
+<div class="board" id="review">
+  <div class="titlebar">Evrakçı · Seçim 2026</div>
+  <div class="tabs"><div class="tab">Yükle</div><div class="tab">Kontrol</div><div class="tab">Şablonlar</div><div class="tab on">Değerler</div><div class="tab">Dışa Aktar</div><div class="tab">Rehber</div></div>
+  <div class="toolbar">
+    <span class="btn primary">Değerleri oku</span><span class="btn">Yalnızca eksikleri oku</span><span class="sep"></span>
+    <label class="btn"><input type="checkbox" checked> Yalnızca kontrol gerekenler (3)</label>
+    <span class="hint" style="margin-left:auto">Hücreye çift tıklayıp düzeltin · Enter: öneriyi kabul et</span>
+  </div>
+  <div class="main">
+    <div class="panel tablewrap">
+      <table>
+        <tr><th>#</th><th>Şablon</th><th>Firma Ünvanı</th><th>Kayıt No</th><th>Şirket Türü</th><th>Dosya adı</th><th>Kontrol</th></tr>
+        <tr><td>4</td><td>Seçim Yetki B.</td><td class="warn">? öneri: Çağrı Ticaret</td><td>654321</td><td>Ltd. Şti.</td><td class="muted">belge_004.pdf</td><td>zorunlu değer eksik</td></tr>
+        <tr class="selrow"><td>17</td><td>Seçim Yetki B.</td><td>Deniz Gıda A.Ş.</td><td class="warn">? öneri: 77812</td><td>A.Ş.</td><td class="muted">belge_017.pdf</td><td>zorunlu değer eksik</td></tr>
+        <tr><td>23</td><td>Seçim Yetki B.</td><td class="edited">Kuzey İnşaat ✓</td><td>440021</td><td class="warn">? okunamadı</td><td>440021_Kuzey İnşaat.pdf</td><td>okunamadı: Şirket Türü</td></tr>
+        <tr><td colspan="7" class="muted" style="text-align:center">… 97 belge sorunsuz (filtre kapalıyken görünür)</td></tr>
+      </table>
+    </div>
+    <div class="panel side"><h3>17. belge · sayfa 33 <span class="muted">— Kayıt No</span></h3>
+      <div class="sheet" style="flex:1;max-height:520px">
+        <div class="txt" style="top:7%;left:62%;right:10%"></div><div class="txt" style="top:14%;right:30%"></div><div class="txt" style="top:26%"></div><div class="txt" style="top:29%"></div>
+        <div class="box" style="left:57%;top:6%;width:33.5%;height:3.2%;border-color:#b8680a"><span style="background:#a55c08">Kayıt No · bölüm 1: "77812" %58</span></div>
+      </div>
+      <div style="margin-top:8px"><span class="btn primary">Öneriyi kabul et (77812)</span> <span class="btn">Elle yaz…</span> <span class="btn">Yeni varyant çiz…</span></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

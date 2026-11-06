@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from evrakci import __version__
-from evrakci.cli import jobs, ocr
+from evrakci.cli import jobs, ocr, templates
 from evrakci.cli.errors import UserError
 from evrakci.pipeline.analyze import BatchError
 from evrakci.pipeline.separator import make_separator_pdf
@@ -35,6 +35,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="işlerin saklandığı klasör (varsayılan: uygulama veri klasörü)",
     )
+    parser.add_argument(
+        "--sablon-kok",
+        type=Path,
+        default=None,
+        help="şablonların saklandığı klasör (varsayılan: uygulama veri klasörü)",
+    )
     commands = parser.add_subparsers(dest="komut", required=True, metavar="KOMUT")
 
     separator = commands.add_parser("ayirac", help="QR ayıraç sayfası PDF'i yazar")
@@ -44,6 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     jobs.add_commands(commands)
     ocr.add_commands(commands)
+    templates.add_commands(commands)
     return parser
 
 

@@ -92,6 +92,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    from multiprocessing import freeze_support
+
+    freeze_support()  # OCRmyPDF's worker processes in the frozen Windows app
     parser = build_parser()
     try:
         args = parser.parse_args(argv)

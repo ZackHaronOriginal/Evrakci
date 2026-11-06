@@ -6,6 +6,9 @@ from evrakci.ui.main_window import MainWindow
 
 
 def main() -> int:
+    from multiprocessing import freeze_support
+
+    freeze_support()  # OCRmyPDF's worker processes in the frozen Windows app
     app = QApplication(sys.argv)
     app.setApplicationName("Evrakçı")
     window = MainWindow()

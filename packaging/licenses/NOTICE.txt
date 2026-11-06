@@ -1,0 +1,30 @@
+Evrakçı — bundled components and their licences
+================================================
+
+Evrakçı itself is licensed under the GNU Affero General Public License v3.0 or later
+(AGPL-3.0.txt). Source: https://github.com/ZackHaronOriginal/Evrakci
+
+This installation is a folder build: every library below is a separate, replaceable file.
+
+Component                         Licence                        Source
+--------------------------------  -----------------------------  ------------------------------------------
+Qt 6 / PySide6 / Shiboken6        LGPL-3.0 (LGPL-3.0.txt,        https://code.qt.io  https://pypi.org/project/PySide6
+                                  GPL-3.0.txt)                   The Qt libraries (Qt6*.dll, PySide6 folder) can
+                                                                 be replaced with your own compatible build.
+Tesseract OCR (Windows build)     Apache-2.0 (Apache-2.0.txt)    https://github.com/tesseract-ocr/tesseract
+                                                                 https://github.com/UB-Mannheim/tesseract
+Tesseract Turkish data (tur_best) Apache-2.0                     https://github.com/tesseract-ocr/tessdata_best
+OCRmyPDF                          MPL-2.0                        https://github.com/ocrmypdf/OCRmyPDF
+pikepdf / qpdf                    MPL-2.0 / Apache-2.0           https://github.com/pikepdf/pikepdf
+pypdfium2 / PDFium                Apache-2.0 / BSD-3-Clause      https://github.com/pypdfium2-team/pypdfium2
+Pillow                            HPND                           https://github.com/python-pillow/Pillow
+openpyxl                          MIT                            https://foss.heptapod.net/openpyxl/openpyxl
+segno                             BSD-3-Clause                   https://github.com/heuer/segno
+zxing-cpp                         Apache-2.0                     https://github.com/zxing-cpp/zxing-cpp
+platformdirs                      MIT                            https://github.com/platformdirs/platformdirs
+jsonschema, referencing,          MIT                            (via pikepdf[pdfa])
+fonttools, rpds-py, attrs
+cx_Freeze (runtime stubs)         PSF-2.0                        https://github.com/marcelotduarte/cx_Freeze
+Python                            PSF-2.0                        https://www.python.org
+
+Ghostscript, PyMuPDF and PyQt are not used and not included.

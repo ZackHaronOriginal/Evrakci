@@ -19,3 +19,17 @@ def test_boxes_inside_page_and_contain_ink():
         crop = page.image.crop(field.box)
         assert crop.getextrema()[0] < 100  # some dark text inside
     assert len(page.words) >= len(page.fields)
+
+
+def test_degrade_does_not_change_page_content():
+    clean = make_pages(6, seed=4, degrade=False)
+    scanned = make_pages(6, seed=4, degrade=True)
+    texts = [[f.text for f in p.fields] for p in clean]
+    assert texts == [[f.text for f in p.fields] for p in scanned]
+
+
+def test_skew_option():
+    from evrakci.pipeline.ocr.preprocess import estimate_skew
+
+    page = make_pages(1, seed=4, degrade=True, max_skew=3.0, skew=2.5)[0]
+    assert abs(estimate_skew(page.image) - 2.5) < 0.4

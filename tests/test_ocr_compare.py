@@ -54,3 +54,44 @@ def test_report_has_table(fake_pages):
     results = compare_synthetic([PerfectEngine(fake_pages)], fake_pages)
     text = render_report(results, {"mükemmel": 5 * 1024 * 1024}, "Başlık", ["not"])
     assert "| Motor |" in text and "100.0" in text and "not" in text and "5.0" in text
+
+
+class Exploding:
+    name = "patlayan"
+
+    def available(self):
+        return None
+
+    def read_page(self, image):
+        from evrakci.pipeline.ocr.engine import EngineUnavailable
+
+        raise EngineUnavailable("çöktü")
+
+    read_region = read_page
+
+
+def test_other_engines_still_run(fake_pages):
+    results = compare_synthetic([Unavailable(), Exploding(), PerfectEngine(fake_pages)], fake_pages)
+    assert [r.unavailable for r in results] == ["yok", "çöktü", None]
+    assert results[2].exact == results[2].fields > 0
+    assert f"Alan sayısı: {results[2].fields}." in render_report(results, {}, "T", [])
+
+
+def test_pipe_in_reading_escaped(fake_pages):
+    from evrakci.pipeline.ocr.compare import EngineResult
+
+    r = EngineResult("x", fields=1, samples=[("a|b", "c|d")])
+    text = render_report([r], {}, "T", [])
+    assert "a\\|b" in text and "c\\|d" in text
+
+
+def test_preprocessing_applied_to_all_engines(fake_pages):
+    seen = []
+
+    class Spy(PerfectEngine):
+        def read_region(self, image):
+            seen.append(set(image.tobytes()) <= {0, 255})
+            return super().read_region(image)
+
+    compare_synthetic([Spy(fake_pages)], fake_pages, preprocess=True)
+    assert seen and all(seen)

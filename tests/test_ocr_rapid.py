@@ -54,3 +54,13 @@ def test_reading_order_groups_lines():
         ("c", (0, 60, 50, 100), 1.0),
     ]
     assert [t for t, _, _ in _reading_order(lines)] == ["a", "b", "c"]
+
+
+@needs_rapidocr
+def test_no_info_logging():
+    import logging
+
+    from evrakci.pipeline.ocr.rapid import RapidOcrEngine
+
+    RapidOcrEngine(download=False).read_region(render_line("Kayıt"))
+    assert logging.getLogger("RapidOCR").getEffectiveLevel() >= logging.WARNING

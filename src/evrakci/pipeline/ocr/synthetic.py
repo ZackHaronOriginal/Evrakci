@@ -103,13 +103,22 @@ def _rotate_box(box: Box, angle: float, size: tuple[int, int]) -> Box:
 
 
 def make_pages(
-    count: int, seed: int = 0, dpi: int = 300, degrade: bool = True
+    count: int,
+    seed: int = 0,
+    dpi: int = 300,
+    degrade: bool = True,
+    max_skew: float = 0.7,
+    skew: float | None = None,
 ) -> list[SyntheticPage]:
+    """Pages are the same for a seed whether or not they are degraded.
+
+    `skew` fixes the rotation; otherwise it is random within `max_skew` degrees.
+    """
     rng = random.Random(seed)
     width, height = round(210 / 25.4 * dpi), round(297 / 25.4 * dpi)
     mm = dpi / 25.4
     pages = []
-    for _ in range(count):
+    for index in range(count):
         image = Image.new("L", (width, height), 255)
         draw = ImageDraw.Draw(image)
         page = SyntheticPage(image)
@@ -129,20 +138,21 @@ def make_pages(
             cursor = x
             for part in text.split(" "):
                 wl, wt, wr, wb = draw.textbbox((cursor, y), part, font=font)
-                page.words.append(TruthBox(part, (wl, wt, wr, wb)))
+                page.words.append(TruthBox(part, (round(wl), wt, round(wr), wb)))
                 cursor += draw.textlength(part + " ", font=font)
             y = bottom + round(rng.uniform(8, 18) * mm)
             if y > height - 30 * mm:
                 break
         if degrade:
-            page = _degrade(page, rng)
+            scan_rng = random.Random(f"{seed}-{index}")  # never touches the content rng
+            angle = skew if skew is not None else scan_rng.uniform(-max_skew, max_skew)
+            page = _degrade(page, angle)
         pages.append(page)
     return pages
 
 
-def _degrade(page: SyntheticPage, rng: random.Random) -> SyntheticPage:
-    """Make a clean page look scanned: slight skew, noise, blur and JPEG artefacts."""
-    angle = rng.uniform(-0.7, 0.7)
+def _degrade(page: SyntheticPage, angle: float) -> SyntheticPage:
+    """Make a clean page look scanned: skew, noise, blur and JPEG artefacts."""
     size = page.image.size
     image = page.image.rotate(angle, resample=Image.Resampling.BICUBIC, fillcolor=255)
     image = _add_noise(image, sigma=8.0)

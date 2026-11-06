@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from PIL import Image
 
 from evrakci.pipeline.ocr.engine import EngineUnavailable, Reading, Word, nfc
@@ -98,8 +100,11 @@ class RapidOcrEngine:
         model_type = self.rec_key.rsplit("_", 1)[-1]
         if model_type in {item.value for item in ModelType}:
             params["Rec.model_type"] = ModelType(model_type)
+        # RapidOCR logs every model load and every empty crop; keep the CLI output clean.
+        logging.getLogger("RapidOCR").setLevel(logging.ERROR)
         try:
             self._engine = RapidOCR(params=params)
+            logging.getLogger("RapidOCR").setLevel(logging.ERROR)
         except Exception as error:  # RapidOCR raises plain exceptions on bad setups
             raise EngineUnavailable(f"RapidOCR başlatılamadı: {error}") from error
 

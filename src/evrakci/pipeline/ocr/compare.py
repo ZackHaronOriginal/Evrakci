@@ -12,6 +12,7 @@ from pathlib import Path
 from evrakci.pipeline.ocr.engine import EngineUnavailable, OcrEngine
 from evrakci.pipeline.ocr.metrics import box_hit, cer, exact, turkish_char_errors
 from evrakci.pipeline.ocr.models import data_dir, model_dir
+from evrakci.pipeline.ocr.preprocess import prepare_page, prepare_region
 from evrakci.pipeline.ocr.synthetic import SyntheticPage
 from evrakci.pipeline.ocr.tesseract import find_tesseract
 
@@ -34,26 +35,30 @@ class EngineResult:
 
 
 def compare_synthetic(
-    engines: Sequence[OcrEngine], pages: Sequence[SyntheticPage]
+    engines: Sequence[OcrEngine], pages: Sequence[SyntheticPage], preprocess: bool = False
 ) -> list[EngineResult]:
+    """Score each engine on the same pages. `preprocess` cleans every crop and page first."""
     results = []
     for engine in engines:
         result = EngineResult(engine.name, unavailable=engine.available())
         if result.unavailable is None:
             try:
-                _score(engine, pages, result)
+                _score(engine, pages, result, preprocess)
             except EngineUnavailable as error:
                 result = EngineResult(engine.name, unavailable=str(error))
         results.append(result)
     return results
 
 
-def _score(engine: OcrEngine, pages: Sequence[SyntheticPage], result: EngineResult) -> None:
+def _score(
+    engine: OcrEngine, pages: Sequence[SyntheticPage], result: EngineResult, preprocess: bool
+) -> None:
     error_sum = 0.0
     seconds = 0.0
     for page in pages:
         for truth in page.fields:
-            reading = engine.read_region(page.image.crop(truth.box))
+            crop = page.image.crop(truth.box)
+            reading = engine.read_region(prepare_region(crop) if preprocess else crop)
             result.fields += 1
             if exact(truth.text, reading.text):
                 result.exact += 1
@@ -63,8 +68,9 @@ def _score(engine: OcrEngine, pages: Sequence[SyntheticPage], result: EngineResu
             wrong, total = turkish_char_errors(truth.text, reading.text)
             result.tr_wrong += wrong
             result.tr_total += total
+        image = prepare_page(page.image) if preprocess else page.image
         started = time.perf_counter()
-        words = engine.read_page(page.image)
+        words = engine.read_page(image)
         seconds += time.perf_counter() - started
         result.words += len(page.words)
         result.aligned += sum(
@@ -128,6 +134,11 @@ def install_sizes() -> dict[str, int]:
     return sizes
 
 
+def cell(text: str) -> str:
+    """Text safe inside a Markdown table cell."""
+    return text.replace("|", "\\|").replace("\n", " ")
+
+
 def _percent(part: float, whole: float) -> str:
     return f"{100 * part / whole:.1f}" if whole else "-"
 
@@ -144,19 +155,20 @@ def render_report(
     for r in results:
         size = f"{sizes[r.name] / 1024 / 1024:.1f}" if r.name in sizes else "-"
         if r.unavailable:
-            lines.append(f"| {r.name} | kullanılamıyor: {r.unavailable} | | | | | {size} |")
+            lines.append(f"| {r.name} | kullanılamıyor: {cell(r.unavailable)} | | | | | {size} |")
             continue
         lines.append(
             f"| {r.name} | {_percent(r.exact, r.fields)} | {100 * r.cer:.1f} "
             f"| {_percent(r.tr_wrong, r.tr_total)} | {r.page_seconds:.2f} "
             f"| {_percent(r.aligned, r.words)} | {size} |"
         )
-    lines += ["", f"Alan sayısı: {results[0].fields if results else 0}.", ""]
+    fields = max((r.fields for r in results), default=0)
+    lines += ["", f"Alan sayısı: {fields}.", ""]
     for r in results:
         if r.unavailable or not r.samples:
             continue
         lines += [f"## Hatalı okumalar: {r.name}", "", "| Doğrusu | Okunan |", "|---|---|"]
-        lines += [f"| {truth} | {read or '(boş)'} |" for truth, read in r.samples]
+        lines += [f"| {cell(truth)} | {cell(read) or '(boş)'} |" for truth, read in r.samples]
         lines.append("")
     if notes:
         lines += ["## Notlar", ""] + [f"- {note}" for note in notes] + [""]

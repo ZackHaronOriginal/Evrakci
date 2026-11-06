@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import os
 import shutil
@@ -12,11 +13,32 @@ from pathlib import Path
 from PIL import Image
 
 from evrakci.pipeline.ocr.engine import EngineUnavailable, Reading, Word, nfc, reading_from_words
+from evrakci.pipeline.ocr.models import data_dir
+
+# tessdata_best/tur.traineddata (unchanged upstream since 2017).
+TUR_BEST_SHA256 = "e0c3338dc17503dc7d335a507c9ae01b2b46cfd07561171e1e1ac55d85e8e438"
+TUR_BEST_URL = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/main/tur.traineddata"
 
 _WINDOWS_PATHS = [
     Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe"),
     Path(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"),
 ]
+
+
+def tessdata_best_dir() -> Path:
+    configured = os.environ.get("EVRAKCI_TESSDATA_BEST")
+    return Path(configured) if configured else data_dir() / "tessdata_best"
+
+
+def verify_tur_best(folder: Path) -> bool:
+    """True if `folder` holds a correct tur.traineddata. A wrong file is deleted."""
+    path = folder / "tur.traineddata"
+    if not path.is_file():
+        return False
+    if hashlib.sha256(path.read_bytes()).hexdigest() == TUR_BEST_SHA256:
+        return True
+    path.unlink()
+    return False
 
 
 def find_tesseract() -> Path | None:

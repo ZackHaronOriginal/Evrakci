@@ -85,3 +85,17 @@ def a4_with(image: Image.Image, at_mm: tuple[float, float]) -> Image.Image:
     page = Image.new("L", A4, 255)
     page.paste(image, (round(at_mm[0] / 25.4 * DPI), round(at_mm[1] / 25.4 * DPI)))
     return page
+
+
+def page_text(path: Path, index: int) -> str:
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(str(path))
+    try:
+        page = pdf[index]
+        try:
+            return page.get_textpage().get_text_range()
+        finally:
+            page.close()
+    finally:
+        pdf.close()

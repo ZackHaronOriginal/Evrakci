@@ -7,10 +7,10 @@ license = "AGPL-3.0-or-later"
 requires-python = ">=3.11"
 dependencies = [
     "PySide6>=6.7",      # LGPL-3.0: do not statically link or merge into a single binary
-    "pikepdf>=9.0",      # MPL-2.0
+    "pikepdf[pdfa]>=10.15", # MPL-2.0; [pdfa] adds MIT validators (no Ghostscript needed)
     "pypdfium2>=4.30",   # Apache-2.0 / BSD-3-Clause
     "openpyxl>=3.1",     # MIT
-    "ocrmypdf>=16.0",    # MPL-2.0 (calls Tesseract and Ghostscript as external programs)
+    "ocrmypdf>=17.13",   # MPL-2.0; calls Tesseract; PDF/A via its internal backend, never Ghostscript
     "pillow>=10",        # HPND (permissive)
     "segno>=1.6",        # BSD-3-Clause: QR code generation
     "zxing-cpp>=2.2",    # Apache-2.0: QR code reading

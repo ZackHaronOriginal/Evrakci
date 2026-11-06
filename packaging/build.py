@@ -19,10 +19,24 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(HERE))
 
 from evrakci.pipeline.ocr.tesseract import TESSDATA_VARIANTS  # noqa: E402
 
 STAGE = HERE / "stage"
+# Top-level packages in the build; their dependencies are followed automatically.
+BUNDLED = [
+    "evrakci",
+    "ocrmypdf",
+    "pikepdf",
+    "pypdfium2",
+    "zxing-cpp",
+    "segno",
+    "openpyxl",
+    "platformdirs",
+    "PySide6",
+    "cx_Freeze",
+]
 
 
 def fail(message: str) -> None:
@@ -44,6 +58,9 @@ def stage_inputs(tesseract: Path | None, tur_best: Path | None, check_only: bool
     shutil.rmtree(STAGE, ignore_errors=True)
     STAGE.mkdir()
     shutil.copytree(HERE / "licenses", STAGE / "licenses")
+    from collect_licenses import collect
+
+    collect(STAGE / "licenses", BUNDLED)
     if tesseract is not None:
         shutil.copytree(tesseract, STAGE / "tesseract")
     if tur_best is not None:

@@ -36,6 +36,13 @@ Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "desktopicon"; Description: "Masaüstüne kısayol oluştur"; GroupDescription: "Kısayollar:"
 Name: "addtopath"; Description: "evrakci komutunu komut satırına ekle (PATH)"; GroupDescription: "Komut satırı:"; Flags: unchecked
 
+[InstallDelete]
+; Upgrades start from clean program folders so files from an older build never linger.
+Type: filesandordirs; Name: "{app}\lib"
+Type: filesandordirs; Name: "{app}\tesseract"
+Type: filesandordirs; Name: "{app}\tessdata_best"
+Type: filesandordirs; Name: "{app}\licenses"
+
 [Files]
 Source: "*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
@@ -46,20 +53,59 @@ Name: "{group}\Evrakçı'yı kaldır"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Evrakçı"; Filename: "{app}\evrakci-arayuz.exe"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Tasks: addtopath; Check: NeedsAddPath(ExpandConstant('{app}'))
+; HKA = HKCU for a per-user install, HKLM for an all-users install.
+Root: HKA; Subkey: "{code:EnvironmentKey}"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Tasks: addtopath; Check: NeedsAddPath(ExpandConstant('{app}'))
+
+[UninstallDelete]
+; Only the ASCII-path cache of OCR data (see ascii_safe_dir); job data in the user folder is kept.
+Type: filesandordirs; Name: "{commonappdata}\Evrakci"
 
 [Run]
 Filename: "{app}\evrakci-arayuz.exe"; Description: "Evrakçı'yı başlat"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function EnvironmentKey(Param: string): string;
+begin
+  if IsAdminInstallMode then
+    Result := 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment'
+  else
+    Result := 'Environment';
+end;
+
+function RootKey: Integer;
+begin
+  if IsAdminInstallMode then
+    Result := HKEY_LOCAL_MACHINE
+  else
+    Result := HKEY_CURRENT_USER;
+end;
+
 function NeedsAddPath(Folder: string): Boolean;
 var
   Current: string;
 begin
-  if not RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', Current) then
+  if not RegQueryStringValue(RootKey, EnvironmentKey(''), 'Path', Current) then
   begin
     Result := True;
     exit;
   end;
   Result := Pos(';' + Uppercase(Folder) + ';', ';' + Uppercase(Current) + ';') = 0;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Current, Folder: string;
+  Position: Integer;
+begin
+  if CurUninstallStep <> usPostUninstall then
+    exit;
+  if not RegQueryStringValue(RootKey, EnvironmentKey(''), 'Path', Current) then
+    exit;
+  Folder := ';' + ExpandConstant('{app}');
+  Position := Pos(Uppercase(Folder), Uppercase(Current));
+  if Position > 0 then
+  begin
+    Delete(Current, Position, Length(Folder));
+    RegWriteExpandStringValue(RootKey, EnvironmentKey(''), 'Path', Current);
+  end;
 end;

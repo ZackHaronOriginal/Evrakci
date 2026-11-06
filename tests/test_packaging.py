@@ -93,3 +93,50 @@ def test_iss_output_and_privileges():
     iss = (ROOT / "packaging" / "evrakci.iss").read_text(encoding="utf-8-sig")
     assert "OutputDir={#SourcePath}..\\dist" in iss  # repo-level dist\, where CI uploads from
     assert "PrivilegesRequired=lowest" in iss  # per-user by default; matches the HKCU PATH entry
+
+
+def test_iss_removes_old_files_and_cleans_path():
+    iss = (ROOT / "packaging" / "evrakci.iss").read_text(encoding="utf-8-sig")
+    assert "[InstallDelete]" in iss
+    for folder in ("lib", "tesseract", "tessdata_best", "licenses"):
+        assert f'Name: "{{app}}\\{folder}"' in iss
+    assert "CurUninstallStepChanged" in iss and "HKA" in iss
+    assert "[UninstallDelete]" in iss and "{commonappdata}\\Evrakci" in iss
+
+
+def test_dll_closure():
+    sys.path.insert(0, str(ROOT / "packaging"))
+    from stage_tesseract import dll_closure
+
+    imports = {
+        "tesseract.exe": ["libtesseract-5.dll", "KERNEL32.dll"],
+        "libtesseract-5.dll": ["libleptonica-6.dll", "libstdc++-6.dll"],
+        "libleptonica-6.dll": ["libpng16-16.dll"],
+        "libpng16-16.dll": [],
+        "libstdc++-6.dll": [],
+        "libpango-1.0-0.dll": ["libglib-2.0-0.dll"],
+    }
+    found = dll_closure("tesseract.exe", lambda name: imports.get(name, []), set(imports))
+    assert found == {
+        "libtesseract-5.dll",
+        "libleptonica-6.dll",
+        "libpng16-16.dll",
+        "libstdc++-6.dll",
+    }
+
+
+def test_notice_covers_more_components():
+    notice = (ROOT / "packaging" / "licenses" / "NOTICE.txt").read_text(encoding="utf-8")
+    for component in ("img2pdf", "cryptography", "cffi", "leptonica", "LGPL-2.1"):
+        assert component in notice
+    assert (ROOT / "packaging" / "licenses" / "LGPL-2.1.txt").is_file()
+
+
+def test_collect_licenses_writes_versions(tmp_path):
+    sys.path.insert(0, str(ROOT / "packaging"))
+    from collect_licenses import collect
+
+    collect(tmp_path, ["pikepdf", "openpyxl"])
+    versions = (tmp_path / "VERSIONS.txt").read_text(encoding="utf-8")
+    assert "pikepdf==" in versions and "openpyxl==" in versions
+    assert any((tmp_path / "python").rglob("*"))

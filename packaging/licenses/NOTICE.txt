@@ -27,4 +27,21 @@ fonttools, rpds-py, attrs
 cx_Freeze (runtime stubs)         PSF-2.0                        https://github.com/marcelotduarte/cx_Freeze
 Python                            PSF-2.0                        https://www.python.org
 
+img2pdf, fpdf2 (via OCRmyPDF)    LGPL-3.0 (LGPL-3.0.txt)        https://gitlab.mister-muffin.de/josch/img2pdf
+                                                                 https://github.com/py-pdf/fpdf2
+cryptography                      Apache-2.0 OR BSD-3-Clause     https://github.com/pyca/cryptography
+cffi                              MIT-0                          https://github.com/python-cffi/cffi
+Tesseract's own libraries         leptonica: BSD-2-Clause;        tesseract\doc\ holds the licence texts that
+(tesseract\*.dll)                 others under their own          came with the Windows Tesseract build; some of
+                                  licences, incl. LGPL-2.1        these DLLs are LGPL-2.1 (LGPL-2.1.txt). Each is a
+                                  (LGPL-2.1.txt)                  separate, replaceable file.
+
+Exact versions of every bundled Python package and their licence files:
+  licenses\VERSIONS.txt and licenses\python\<package>\
+
+Qt / PySide6 source (LGPL): the exact PySide6 version is listed in VERSIONS.txt. Its source is
+available from https://download.qt.io/official_releases/QtForPython/ and https://pypi.org/project/PySide6/
+(source distribution), and on written request from the Evrakçı maintainer for at least three years.
+To use your own Qt build, replace the files in lib\PySide6\ with a compatible build.
+
 Ghostscript, PyMuPDF and PyQt are not used and not included.

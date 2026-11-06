@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import tempfile
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from ocrmypdf import exceptions
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import (
     TessData,
+    ascii_copy_root,
     ascii_safe_dir,
     default_tessdata,
     find_tesseract,
@@ -37,6 +39,22 @@ class TextLayerResult:
     note: str | None = None
 
 
+def ascii_temp_dir(
+    windows: bool | None = None, current: str | None = None, root: Path | None = None
+) -> Path | None:
+    """An ASCII temp folder when the user's temp folder has non-ASCII letters (Windows only).
+
+    OCRmyPDF passes temp file paths to Tesseract, which cannot open non-ASCII paths on Windows.
+    """
+    windows = os.name == "nt" if windows is None else windows
+    current = tempfile.gettempdir() if current is None else current
+    if not windows or current.isascii():
+        return None
+    folder = (root or ascii_copy_root()) / "tmp"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
 @contextmanager
 def _tessdata_prefix(folder: Path | None):
     """For one call: point Tesseract at its data, and put the Tesseract we found first on PATH.
@@ -45,7 +63,13 @@ def _tessdata_prefix(folder: Path | None):
     is never on PATH. Both variables are process-wide, so changes are made under a lock.
     """
     with _ENV_LOCK:
-        previous = {name: os.environ.get(name) for name in ("TESSDATA_PREFIX", "PATH")}
+        names = ("TESSDATA_PREFIX", "PATH", "TEMP", "TMP")
+        previous = {name: os.environ.get(name) for name in names}
+        previous_tempdir = tempfile.tempdir
+        temp = ascii_temp_dir()
+        if temp is not None:
+            os.environ["TEMP"] = os.environ["TMP"] = str(temp)
+            tempfile.tempdir = str(temp)
         if folder is not None:
             os.environ["TESSDATA_PREFIX"] = str(ascii_safe_dir(folder))
         binary = find_tesseract()
@@ -54,6 +78,7 @@ def _tessdata_prefix(folder: Path | None):
         try:
             yield
         finally:
+            tempfile.tempdir = previous_tempdir
             for name, value in previous.items():
                 if value is None:
                     os.environ.pop(name, None)

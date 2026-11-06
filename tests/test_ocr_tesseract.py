@@ -144,3 +144,56 @@ def test_iss_installs_to_ascii_folder():
     )
     line = next(line for line in iss.splitlines() if line.startswith("DefaultDirName="))
     assert line.isascii()
+
+
+def test_ascii_copy_is_atomic_and_follows_content(tmp_path):
+    from evrakci.pipeline.ocr.tesseract import ascii_safe_dir
+
+    source = tmp_path / "Şükrü"
+    source.mkdir()
+    (source / "tur.traineddata").write_bytes(b"one")
+    root = tmp_path / "kok"
+    (root / "tessdata-yarim.tmp").mkdir(parents=True)  # a copy that was cut off earlier
+    first = ascii_safe_dir(source, windows=True, short_path=lambda p: p, copy_root=root)
+    assert (first / "tur.traineddata").read_bytes() == b"one"
+    assert ascii_safe_dir(source, windows=True, short_path=lambda p: p, copy_root=root) == first
+    (source / "tur.traineddata").write_bytes(b"two")  # data downloaded again
+    second = ascii_safe_dir(source, windows=True, short_path=lambda p: p, copy_root=root)
+    assert second != first and (second / "tur.traineddata").read_bytes() == b"two"
+    assert not any(
+        p.name.endswith(".tmp") and p != root / "tessdata-yarim.tmp" for p in root.iterdir()
+    )
+
+
+def test_ascii_copy_root_override(tmp_path, monkeypatch):
+    from evrakci.pipeline.ocr.tesseract import ascii_copy_root
+
+    monkeypatch.setenv("EVRAKCI_ASCII_KOK", str(tmp_path / "x"))
+    assert ascii_copy_root() == tmp_path / "x"
+
+
+def test_ascii_temp_dir(tmp_path):
+    from evrakci.pipeline.ocr.textlayer import ascii_temp_dir
+
+    assert ascii_temp_dir(windows=False, current=str(tmp_path / "Şükrü")) is None
+    assert ascii_temp_dir(windows=True, current=str(tmp_path)) is None
+    chosen = ascii_temp_dir(windows=True, current=str(tmp_path / "Şükrü"), root=tmp_path / "kok")
+    assert str(chosen).isascii() and chosen.is_dir()
+
+
+def test_bundled_hash_cached(tmp_path, monkeypatch):
+    from evrakci.pipeline.ocr import tesseract
+
+    path = tmp_path / "tur.traineddata"
+    path.write_bytes(b"abc")
+    calls = []
+    real = tesseract.hashlib.sha256
+
+    def counting(data=b""):
+        calls.append(1)
+        return real(data)
+
+    monkeypatch.setattr(tesseract.hashlib, "sha256", counting)
+    tesseract._file_matches(path, "x")
+    tesseract._file_matches(path, "x")
+    assert len(calls) == 1

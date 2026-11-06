@@ -8,6 +8,7 @@ import io
 import os
 import shutil
 import subprocess
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -49,8 +50,23 @@ _WINDOWS_PATHS = [
 ]
 
 
+_HASHES: dict[tuple[str, int, int], str] = {}
+
+
+def _file_hash(path: Path) -> str | None:
+    """SHA-256 of a file, remembered until the file changes (data files are several MB)."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    key = (str(path), stat.st_size, stat.st_mtime_ns)
+    if key not in _HASHES:
+        _HASHES[key] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return _HASHES[key]
+
+
 def _file_matches(path: Path, sha256: str) -> bool:
-    return path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == sha256
+    return path.is_file() and _file_hash(path) == sha256
 
 
 def tessdata_dir(variant: str) -> Path:
@@ -117,12 +133,33 @@ def ascii_safe_dir(
     short = (short_path or _windows_short_path)(folder)
     if str(short).isascii():
         return short
-    root = copy_root or Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Evrakci"
-    digest = hashlib.sha256(str(folder).encode("utf-8")).hexdigest()[:10]
+    root = copy_root or ascii_copy_root()
+    # Named after the data itself, so a new download never reuses an old copy.
+    content = _file_hash(folder / "tur.traineddata")
+    digest = (content or hashlib.sha256(str(folder).encode("utf-8")).hexdigest())[:12]
     target = root / f"tessdata-{digest}"
-    if not target.is_dir():
-        shutil.copytree(folder, target)
+    if target.is_dir():
+        return target
+    # Copy beside the target, then rename: a half-finished copy is never handed out.
+    root.mkdir(parents=True, exist_ok=True)
+    partial = root / f"tessdata-{digest}-{uuid.uuid4().hex[:8]}.tmp"
+    try:
+        shutil.copytree(folder, partial)
+        os.rename(partial, target)
+    except OSError:
+        if not target.is_dir():
+            raise
+    finally:
+        shutil.rmtree(partial, ignore_errors=True)
     return target
+
+
+def ascii_copy_root() -> Path:
+    """Where ASCII-path copies go: EVRAKCI_ASCII_KOK, or ProgramData/Evrakci."""
+    configured = os.environ.get("EVRAKCI_ASCII_KOK")
+    if configured:
+        return Path(configured)
+    return Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Evrakci"
 
 
 def system_tessdata() -> Path | None:

@@ -183,20 +183,44 @@ The exact look is open, and mockups will be reviewed with the owner before build
 
 ### 6.1 OCR engine
 
-- **Tesseract** (Turkish `tur` data) through OCRmyPDF is the baseline. The owner has used it
-  before.
-- **Baidu's PaddleOCR** (PP-OCRv5, and possibly PaddleOCR-VL) is a candidate. Before committing to
-  an engine, a **spike** compares the two on synthetic Turkish documents (and, locally only, on a
-  few real ones the owner supplies) on four things:
-  - Turkish accuracy (ç ğ ı İ ö ş ü, numbers)
-  - speed on CPU
-  - install size and complexity on Windows
-  - license
+Research (November 2026, web only; key claims still to be checked in the spike):
+
+- **Tesseract 5** (`tur` / `tur_best`) through OCRmyPDF is the **baseline**. It officially supports
+  Turkish and is easy to install on Windows. It gives word boxes and a searchable PDF directly, and
+  the owner has used it before.
+- **RapidOCR**, which runs Baidu's PP-OCRv5 Latin models on ONNX Runtime, is the **main
+  challenger**.
+  - pip-only, with no Paddle framework.
+  - Small: about 90 MB of models.
+  - CPU-friendly and Apache-2.0.
+  - PaddleOCR was strongest overall in the only Turkish benchmark found (OCRTurk, SIGTURK 2026,
+    which did not test Tesseract).
+  - Must be checked: its character list includes ı İ ş ğ ç ö ü.
+- **Full PaddleOCR (PP-OCRv5)** runs the same models with a much heavier install. It is only
+  considered if it clearly beats RapidOCR.
+- **PaddleOCR-VL** (a 0.9B AI model) gives no reliable word boxes for reading inside a drawn box,
+  and is likely far too slow on office CPUs. It is moved to the optional local-AI idea in
+  Section 9.
+- Ruled out:
+  - **Surya**: its weights can't be used commercially.
+  - **EasyOCR** and **docTR**: they need PyTorch, are slow on CPU, and show no Turkish evidence.
+  - **MinerU**: AGPL.
+  - **Large AI OCR models**: too slow, and no word boxes.
+
+**Spike:** compare Tesseract and RapidOCR (and full PaddleOCR only if needed) on:
+- synthetic Turkish pages, plus a few real pages the owner runs locally (never committed)
+- field-level exact-match rate, read **inside drawn boxes** (what the app actually does)
+- Turkish-character error rate (ı/i, İ/I, ş, ğ, ç, ö, ü) on its own, plus overall error rate
+- Tesseract tested fairly, with deskew/binarize and a suitable page-segmentation mode
+- seconds per page on a typical office PC (20-page batch)
+- install size and Windows setup effort
+- whether the searchable text layer lines up with the page image
+
 - The pipeline talks to OCR through a small engine interface, so the engine can be swapped
   without touching the rest.
 - Output: every exported PDF gets a text layer, so it is searchable and text can be copied.
-- **Engine choice (my call):** the spike ends with a short comparison report, and **the owner picks
-  the engine**. Until then, the other work goes ahead on Tesseract behind the engine interface, so
+- **Engine choice:** the spike ends with a short comparison report, and **the owner picks the
+  engine**. Until then, the other work goes ahead on Tesseract behind the engine interface, so
   nothing waits on the spike. Working target: 800 pages OCR'd in under about 30 minutes on a
   typical office PC, with progress shown and cancel available.
 - **PDF/A without Ghostscript:** OCRmyPDF 17.13+ can produce PDF/A-1b/2b/3b on its own, using
@@ -292,7 +316,7 @@ Evrakçı is an all-round QOL toolbox. These are listed so the first module does
 - A wider PDF editing toolkit.
 - Sharing templates between PCs over the network.
 - Automatic type detection for mixed piles.
-- Optional local AI (for example PaddleOCR-VL) to fill fields that rules and templates miss, on
+- Optional local AI (for example PaddleOCR-VL or similar small document models) to fill fields that rules and templates miss, on
   PCs strong enough to run it.
 - More quality-of-life features the owner will bring.
 

@@ -1,0 +1,36 @@
+[project]
+name = "evrakci"
+version = "0.0.1"
+description = "Local-first desktop app for scanning, splitting and sorting chamber paperwork"
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6>=6.7",      # LGPL-3.0: do not statically link or merge into a single binary
+    "pikepdf>=9.0",      # MPL-2.0
+    "pypdfium2>=4.30",   # Apache-2.0 / BSD-3-Clause
+    "openpyxl>=3.1",     # MIT
+    "ocrmypdf>=16.0",    # MPL-2.0 (calls Tesseract and Ghostscript as external programs)
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.gui-scripts]
+evrakci = "evrakci.app:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,37 @@
+# --- Real documents: NEVER commit ---
+data/
+uploads/
+exports/
+*.pdf
+*.tif
+*.tiff
+*.jpg
+*.jpeg
+*.png
+*.xlsx
+*.csv
+# Synthetic fixtures are allowed explicitly
+!samples/synthetic/**
+!docs/images/**
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+
+# Env / OS
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

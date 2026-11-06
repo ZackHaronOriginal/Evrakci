@@ -15,12 +15,15 @@ AppPublisherURL=https://github.com/ZackHaronOriginal/Evrakci
 DefaultDirName={autopf}\Evrakci
 DefaultGroupName=Evrakçı
 LicenseFile=licenses\AGPL-3.0.txt
-OutputDir=..\dist
+; {#SourcePath} is this script's folder (packaging\); output goes to the repo's dist\.
+OutputDir={#SourcePath}..\dist
 OutputBaseFilename=Evrakci-Kurulum-{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; Per-user install by default (no admin prompt); the dialog allows installing for all users.
+PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ChangesEnvironment=yes
 UninstallDisplayIcon={app}\evrakci-arayuz.exe

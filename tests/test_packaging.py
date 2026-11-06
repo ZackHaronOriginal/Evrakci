@@ -87,3 +87,9 @@ def test_smoke_script_makes_and_checks_a_pdf(tmp_path):
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "Duman testi geçti" in result.stdout
+
+
+def test_iss_output_and_privileges():
+    iss = (ROOT / "packaging" / "evrakci.iss").read_text(encoding="utf-8-sig")
+    assert "OutputDir={#SourcePath}..\\dist" in iss  # repo-level dist\, where CI uploads from
+    assert "PrivilegesRequired=lowest" in iss  # per-user by default; matches the HKCU PATH entry

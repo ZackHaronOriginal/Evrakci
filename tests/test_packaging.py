@@ -55,3 +55,34 @@ def test_build_check_mode_accepts_good_inputs(tmp_path):
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_iss_has_required_settings():
+    iss = (ROOT / "packaging" / "evrakci.iss").read_text(encoding="utf-8-sig")
+    assert "AppId={{" in iss and "LicenseFile=" in iss
+    assert "Languages\\Turkish.isl" in iss
+    assert "evrakci-arayuz.exe" in iss and "{autodesktop}" in iss
+    lowered = iss.lower()
+    assert "userappdata" not in lowered and "localappdata" not in lowered  # job data is kept
+
+
+def test_smoke_script_makes_and_checks_a_pdf(tmp_path):
+    from evrakci.pipeline.ocr.tesseract import find_tesseract
+
+    if find_tesseract() is None:
+        pytest.skip("Tesseract kurulu değil")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "packaging" / "smoke_test.py"),
+            "--komut",
+            sys.executable,
+            "--modul",
+            "--klasor",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Duman testi geçti" in result.stdout

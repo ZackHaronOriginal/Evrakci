@@ -39,3 +39,5 @@ Thumbs.db
 # Packaging
 packaging/stage/
 build/
+packaging/tesseract-bundle/
+dist/

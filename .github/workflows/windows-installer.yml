@@ -1,0 +1,80 @@
+name: Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+    branches: ["claude/intelligent-fermi-6e3g7l"]
+    paths:
+      - "packaging/**"
+      - "src/**"
+      - "pyproject.toml"
+      - ".github/workflows/windows-installer.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Evrakçı and cx_Freeze
+        run: pip install -e ".[dev]" "cx_Freeze>=8"
+
+      - name: Install Tesseract and Inno Setup (build machine only)
+        run: choco install tesseract innosetup -y --no-progress
+
+      - name: Tests
+        shell: bash
+        run: |
+          export PATH="/c/Program Files/Tesseract-OCR:$PATH"
+          ruff check .
+          pytest -q
+
+      - name: Stage Tesseract (program and configs, no language data)
+        shell: pwsh
+        run: |
+          $src = "C:\Program Files\Tesseract-OCR"
+          $dst = "packaging\tesseract-bundle"
+          Copy-Item $src $dst -Recurse
+          Get-ChildItem "$dst\tessdata" -Filter *.traineddata | Remove-Item
+          Get-ChildItem $dst | Select-Object Name, Length
+
+      - name: Download and verify tur_best
+        shell: pwsh
+        run: |
+          $url = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/main/tur.traineddata"
+          Invoke-WebRequest $url -OutFile tur.traineddata
+          $hash = (Get-FileHash tur.traineddata -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne "e0c3338dc17503dc7d335a507c9ae01b2b46cfd07561171e1e1ac55d85e8e438") {
+            throw "tur_best checksum mismatch: $hash"
+          }
+
+      - name: Freeze (folder build)
+        run: python packaging/build.py --tesseract packaging/tesseract-bundle --tur-best tur.traineddata
+
+      - name: Smoke test the built app
+        shell: pwsh
+        run: |
+          $env:EVRAKCI_TESSERACT = ""
+          python packaging/smoke_test.py --komut build\evrakci\evrakci.exe --klasor "$env:RUNNER_TEMP\duman"
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $version = python -c "import evrakci; print(evrakci.__version__)"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" packaging\evrakci.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Evrakci-Kurulum
+          path: dist/*.exe
+          if-no-files-found: error

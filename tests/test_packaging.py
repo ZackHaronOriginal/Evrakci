@@ -67,10 +67,11 @@ def test_iss_has_required_settings():
 
 
 def test_smoke_script_makes_and_checks_a_pdf(tmp_path):
-    from evrakci.pipeline.ocr.tesseract import find_tesseract
+    from evrakci.pipeline.ocr.tesseract import default_engine
 
-    if find_tesseract() is None:
-        pytest.skip("Tesseract kurulu değil")
+    reason = default_engine().available()
+    if reason:
+        pytest.skip(reason)
     result = subprocess.run(
         [
             sys.executable,

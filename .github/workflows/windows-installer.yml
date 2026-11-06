@@ -32,6 +32,17 @@ jobs:
       - name: Install Tesseract and Inno Setup (build machine only)
         run: choco install tesseract innosetup -y --no-progress
 
+      - name: Turkish data for the test run (verified)
+        shell: pwsh
+        run: |
+          $url = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/tur.traineddata"
+          $dest = "C:\Program Files\Tesseract-OCR\tessdata\tur.traineddata"
+          Invoke-WebRequest $url -OutFile $dest
+          $hash = (Get-FileHash $dest -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne "7393381111e1152420fc4092cb44eef4237580d21b92bf30d7d221aad192c6b7") {
+            throw "tur_fast checksum mismatch: $hash"
+          }
+
       - name: Tests
         shell: bash
         run: |

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import sys
 import urllib.request
 from dataclasses import dataclass
 from importlib import resources
@@ -24,6 +25,16 @@ class ModelFile:
     url: str
     sha256: str
     file_name: str
+
+
+def app_dir() -> Path | None:
+    """The installed app's own folder (where bundled tools live), or None when not frozen."""
+    configured = os.environ.get("EVRAKCI_UYGULAMA_KLASORU")
+    if configured:
+        return Path(configured)
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return None
 
 
 def data_dir() -> Path:

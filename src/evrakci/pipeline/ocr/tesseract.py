@@ -14,7 +14,7 @@ from pathlib import Path
 from PIL import Image
 
 from evrakci.pipeline.ocr.engine import EngineUnavailable, Reading, Word, nfc, reading_from_words
-from evrakci.pipeline.ocr.models import data_dir
+from evrakci.pipeline.ocr.models import app_dir, data_dir
 
 
 @dataclass(frozen=True)
@@ -49,10 +49,25 @@ _WINDOWS_PATHS = [
 ]
 
 
+def _file_matches(path: Path, sha256: str) -> bool:
+    return path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == sha256
+
+
 def tessdata_dir(variant: str) -> Path:
-    """Where a variant's data lives: EVRAKCI_TESSDATA_<VARIANT>, or the app data folder."""
+    """Where a variant's data lives.
+
+    Order: EVRAKCI_TESSDATA_<VARIANT>, then the copy bundled with the installed app (only if it
+    verifies; bundled files are never deleted), then the app data folder.
+    """
     configured = os.environ.get(f"EVRAKCI_TESSDATA_{variant.upper()}")
-    return Path(configured) if configured else data_dir() / f"tessdata_{variant}"
+    if configured:
+        return Path(configured)
+    bundle = app_dir()
+    if bundle is not None:
+        bundled = bundle / f"tessdata_{variant}"
+        if _file_matches(bundled / "tur.traineddata", TESSDATA_VARIANTS[variant].sha256):
+            return bundled
+    return data_dir() / f"tessdata_{variant}"
 
 
 def verify_tessdata(variant: str, folder: Path | None = None) -> bool:
@@ -119,9 +134,15 @@ def default_tessdata() -> TessData:
 
 
 def find_tesseract() -> Path | None:
+    """EVRAKCI_TESSERACT, then the copy bundled with the app, then PATH, then usual folders."""
     configured = os.environ.get("EVRAKCI_TESSERACT")
     if configured and Path(configured).is_file():
         return Path(configured)
+    bundle = app_dir()
+    if bundle is not None:
+        name = "tesseract.exe" if os.name == "nt" else "tesseract"
+        if (bundle / "tesseract" / name).is_file():
+            return bundle / "tesseract" / name
     found = shutil.which("tesseract")
     if found:
         return Path(found)

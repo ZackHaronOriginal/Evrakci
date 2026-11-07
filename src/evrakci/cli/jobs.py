@@ -16,7 +16,6 @@ from evrakci.pipeline.cuts import (
     current_values,
     document_template,
     record_read_error,
-    record_values,
 )
 from evrakci.pipeline.export import plan_export
 from evrakci.pipeline.index import write_index
@@ -26,6 +25,7 @@ from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
 from evrakci.pipeline.render import render_page
+from evrakci.pipeline.review import store_reading
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsError, load_settings
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.model import Template, TemplateError
@@ -426,11 +426,8 @@ def _read_one(args, store, job, document, template_id, templates, engine) -> str
     except (EngineUnavailable, OSError) as error:
         record_read_error(job, document, template_id, str(error))
         return f": {error}"
-    previous = current_values(job, document) or {}
-    for key, old in previous.items():
-        if old.edited and key in values:
-            values[key] = old  # the user's correction wins over a new reading
-    record_values(job, document, template.id, values)
+    store_reading(job, document, template.id, values)
+    values = current_values(job, document)
     names = template.names_by_key()
     summary = ", ".join(f"{names[k]}={v.value or '?'}" for k, v in values.items())
     mark = " [kontrol]" if any(v.flagged for v in values.values()) else ""

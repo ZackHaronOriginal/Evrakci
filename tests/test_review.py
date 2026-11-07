@@ -34,3 +34,18 @@ def test_no_current_values():
     [doc] = compute_documents(job)
     with pytest.raises(KeyError):
         set_value(job, doc, "k1", "x")
+
+
+def test_store_reading_keeps_the_users_corrections():
+    from evrakci.pipeline.review import store_reading
+
+    job = job_from_kinds({"a": "pp"})
+    job.apply_template(job.ordered_page_ids(), "t1")
+    [doc] = compute_documents(job)
+    record_values(job, doc, "t1", values())
+    set_value(job, doc, "k1", "Elle yazıldı")
+    fresh = {"k1": VariableValue("Yeni", 0.95, 0, False), "k2": VariableValue("777", 0.9, 0, False)}
+    store_reading(job, doc, "t1", fresh)
+    got = current_values(job, doc)
+    assert got["k1"].value == "Elle yazıldı" and got["k1"].edited
+    assert got["k2"].value == "777"

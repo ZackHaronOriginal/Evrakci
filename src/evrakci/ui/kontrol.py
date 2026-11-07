@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QItemSelectionModel, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QKeySequence, QPainter, QPen, QShortcut
 from PySide6.QtWidgets import (
     QComboBox,
@@ -131,6 +131,8 @@ class SidePanel(QFrame):
         layout.addWidget(self.merge_button)
         layout.addStretch(1)
         self.document = 0
+        self.notice.hide()
+        self.values_button.hide()
 
     def show_document(self, number: int, info: dict) -> None:
         self.document = number
@@ -199,6 +201,9 @@ class KontrolScreen(QWidget):
         self.timeline.horizontalScrollBar().valueChanged.connect(self._scrolled)
         controller.job_changed.connect(self._job_changed)
         self._shortcuts()
+        if self.model.rowCount():  # focus the first page without selecting it
+            self.timeline.selectionModel().setCurrentIndex(
+                self.model.index(0), QItemSelectionModel.SelectionFlag.NoUpdate)
         self._job_changed()
 
     # Building

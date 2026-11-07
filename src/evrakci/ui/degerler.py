@@ -222,10 +222,12 @@ class DegerlerScreen(QWidget):
         hidden = len(rows) - len(shown)
         self.note.setText(f"Filtre açık: {hidden} belge gizli." if hidden else "")
         numbers = [item.number for item, _ in shown]
-        self.heading.setText(
-            f"Belge {numbers[0]} — Belge {numbers[-1]} · {checks} kontrol" if numbers else
-            "Gösterilecek belge yok"
-        )
+        if not numbers:
+            self.heading.setText("Gösterilecek belge yok")
+        elif numbers[0] == numbers[-1]:
+            self.heading.setText(f"Belge {numbers[0]} · {checks} kontrol")
+        else:
+            self.heading.setText(f"Belge {numbers[0]} — Belge {numbers[-1]} · {checks} kontrol")
         self.table.resizeColumnsToContents()
         self._filling = False
 

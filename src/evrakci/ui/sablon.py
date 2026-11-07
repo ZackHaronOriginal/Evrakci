@@ -6,7 +6,16 @@ from collections.abc import Callable
 
 from PIL import Image
 from PySide6.QtCore import QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QKeySequence, QPen, QPixmap, QShortcut, QUndoCommand, QUndoStack
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QKeySequence,
+    QPen,
+    QPixmap,
+    QShortcut,
+    QUndoCommand,
+    QUndoStack,
+)
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -113,9 +122,12 @@ class PageCanvas(QGraphicsView):
             if dashed:
                 pen.setStyle(Qt.PenStyle.DashLine)
             scene.addRect(QRectF(x0, y0, x1 - x0, y1 - y0), pen)
-            text = scene.addText(label)
+            font = QFont(theme.FONT_FAMILY)
+            font.setPixelSize(20)  # scene pixels; about 13 px on screen at the usual zoom
+            font.setBold(True)
+            text = scene.addText(label, font)
             text.setDefaultTextColor(QColor(colour))
-            text.setPos(x0, max(0, y0 - 22))
+            text.setPos(x0, max(0, y0 - 30))
 
     def _snap(self, point: QPointF) -> QPointF:
         step = self._px(1)  # 1 mm
@@ -248,9 +260,9 @@ class SablonScreen(QWidget):
         self.required.toggled.connect(self._required_toggled)
         layout.addWidget(self.required)
         moves = QHBoxLayout()
-        self.section_up_button = key_button("Önce dene", "Alt+↑")
+        self.section_up_button = key_button("Yukarı", "Alt+↑")
         self.section_up_button.clicked.connect(lambda: self.move_selected_section(-1))
-        self.section_down_button = key_button("Sonra dene", "Alt+↓")
+        self.section_down_button = key_button("Aşağı", "Alt+↓")
         self.section_down_button.clicked.connect(lambda: self.move_selected_section(1))
         moves.addWidget(self.section_up_button)
         moves.addWidget(self.section_down_button)
@@ -329,6 +341,8 @@ class SablonScreen(QWidget):
                 self.templates.setCurrentItem(item)
         self.templates.blockSignals(False)
         self._refresh_examples()
+        if self.template is None and self.templates.count():
+            self.templates.setCurrentRow(0)
 
     def new_template(self) -> None:
         name, ok = QInputDialog.getText(self, "Yeni şablon", "Şablonun adı:")

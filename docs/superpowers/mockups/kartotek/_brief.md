@@ -1,0 +1,11 @@
+# Brief for each Kartotek screen mockup
+
+You are drawing ONE screen of Evrakçı's desktop window as a static HTML mockup, in the owner-approved "Kartotek" (office card-index cabinet) look. The finished app will be built in PySide6/Qt, so every control must be a standard one (buttons, tabs, inputs, selects, checkboxes, tables, lists, splitters, progress bars). The world lends only palette, type, density and its signature (manila guide tabs, orange signal riders for "kontrol", a thin red index rule under headings, groups separated by rules not boxes).
+
+Folder: /home/user/Evrakci/docs/superpowers/mockups/kartotek/
+- READ FIRST: `kontrol.html` (the finished reference screen; copy its header, nav tabs, status-bar structure exactly, with your tab marked `on`), `kartotek.css` (shared tokens and components: USE them, do not redefine colours; put only screen-specific layout in a small <style>), `_data.md` (the ONLY data to use; keep numbers consistent), `_icons.html` (the icon sprite; put the literal line `<!--ICONS-->` right after <body> and it will be inlined; use `<svg class="i"><use href="#name"/></svg>`). Look at `kontrol.png`.
+- Also read /home/user/Evrakci/PRODUCT.md and /home/user/Evrakci/.impeccable/surfaces/docs-superpowers-mockups-plan-5-window-html.md (direction contract).
+- Canvas 1366×768, no scrolling. Turkish UI text. Body text ≥15px, nothing under 13px. WCAG AA contrast. Keyboard shortcut kbd shown on frequent actions. Meaning never by colour alone. Icons only from the sprite (add new <symbol>s ONLY to your own file if you truly need one, same stroke style). No emoji, no unicode glyphs as icons, no eyebrow labels above headings, no gradient text, no thick coloured side borders, no nested cards.
+- Show one realistic state worth seeing (described in your task).
+
+When done: run `python3 /tmp/claude-0/-home-user-Evrakci/488170b7-6f04-5a33-8bf1-8bc687733e49/scratchpad/inline.py <yourfile>.html` then `node /tmp/claude-0/-home-user-Evrakci/488170b7-6f04-5a33-8bf1-8bc687733e49/scratchpad/shotk.js <name-without-.html>` (writes <name>.png next to it and prints overflow warnings). LOOK at the PNG, fix overlap/clipping/overflow/misalignment, re-render (max 3 rounds). Edit only your own file. Report "done" and two lines on what the screen shows.

@@ -255,16 +255,24 @@ class YukleScreen(QWidget):
         if self.task is not None:
             return
         self.task = Task(work)
+        self._on_done = on_done
         self.task.signals.progress.connect(self._progress)
-        self.task.signals.done.connect(lambda result: self._finish("", on_done, result))
-        self.task.signals.failed.connect(
-            lambda message: self._finish(f"Yapılamadı: {message}", None, None))
-        self.task.signals.cancelled.connect(
-            lambda: self._finish("İptal edildi; hiçbir şey değişmedi.", None, None))
+        self.task.signals.done.connect(self._done)
+        self.task.signals.failed.connect(self._failed)
+        self.task.signals.cancelled.connect(self._cancelled)
         self.progress_label.setText(text)
         self.progress.setRange(0, 0)
         self._set_busy(True)
         start(self.task)
+
+    def _done(self, result) -> None:
+        self._finish("", self._on_done, result)
+
+    def _failed(self, message: str) -> None:
+        self._finish(f"Yapılamadı: {message}", None, None)
+
+    def _cancelled(self) -> None:
+        self._finish("İptal edildi; hiçbir şey değişmedi.", None, None)
 
     def _progress(self, done: int, total: int) -> None:
         self.progress.setRange(0, max(total, 1))

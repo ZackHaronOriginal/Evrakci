@@ -29,6 +29,15 @@
         ],
         "createdAt": "2026-11-07T17:24:57.852Z",
         "reason": "Claude: throwaway decision sketches; flagged elements are CSS-drawn paper pages and tiny pictogram squares"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "docs/superpowers/mockups/kartotek/*"
+        ],
+        "createdAt": "2026-11-07T23:07:40.810Z",
+        "reason": "Claude: flagged items are key-cap chips and page-number pills sized like native Qt shortcut hints; CSS-drawn paper sheets"
       }
     ]
   }

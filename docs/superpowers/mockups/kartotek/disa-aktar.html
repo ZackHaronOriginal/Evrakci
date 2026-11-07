@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Evrakçı · Dışa Aktar</title>
+<link rel="stylesheet" href="kartotek.css">
+<style>
+.main { display: flex; height: 658px; }
+.set { width: 420px; flex: none; background: var(--card); border-right: 1px solid var(--rule); padding: 16px 24px 0; }
+.res { flex: 1; min-width: 0; padding: 16px 24px 0; }
+.fld { padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.fld > label.l { display: block; font-weight: 700; margin-bottom: 6px; }
+.pick { gap: 8px; } .pick input.txt { flex: 1; min-width: 0; }
+.okline { gap: 6px; margin-top: 6px; font-size: var(--t-m); }
+.chk { gap: 10px; align-items: flex-start; }
+.chk .cb { margin-top: 2px; }
+.chk + .chk { margin-top: 10px; }
+.chk small { display: block; font-size: var(--t-m); color: var(--ink-2); }
+.sel { gap: 12px; } .sel .l { font-weight: 700; }
+.selbox { position: relative; display: inline-flex; align-items: center; width: 150px; }
+.selbox select.txt { width: 100%; appearance: none; -webkit-appearance: none; padding-right: 30px; }
+.selbox svg { position: absolute; right: 8px; pointer-events: none; color: var(--ink-2); }
+.pre { padding: 12px 0 0; }
+.pre h3 { margin: 0 0 6px; font-size: var(--t); }
+.pre ul { list-style: none; margin: 0; padding: 0; }
+.pre li { display: flex; align-items: center; gap: 8px; height: 30px; }
+.pre li b { margin-left: auto; font-size: var(--t-l); }
+.pre li .rider.static { height: 22px; }
+.pre .note { margin: 6px 0 0; font-size: var(--t-m); color: var(--ink-2); }
+.go { margin-top: 14px; gap: 10px; }
+.go .hint { font-size: var(--t-m); color: var(--ink-2); }
+.prog { padding: 14px 0 12px; border-bottom: 1px solid var(--rule); }
+.prog .top { gap: 12px; }
+.prog .top .pct { margin-left: auto; color: var(--ink-2); }
+.bar { height: 14px; margin-top: 10px; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 49.83%; background: var(--shell); }
+.res table.list { margin-top: 14px; }
+.res table.list td.fn { font-family: var(--mono); font-size: var(--t-m); }
+.res table.list tr.k td { background: var(--check-wash); }
+.res table.list tr.k td.fn { color: #5a2a00; font-weight: 700; }
+.res table.list tr.n td { height: 56px; }
+.res table.list .info { display: flex; align-items: center; gap: 6px; font-family: var(--font); font-size: var(--t-m); color: var(--ink-2); margin-top: 2px; }
+.res table.list .info svg { width: 16px; height: 16px; color: var(--qr); }
+th .sort { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); }
+th .sort svg { width: 13px; height: 13px; }
+.res table.list .st, .res table.list .rider { vertical-align: middle; }
+.go .btn.pri:disabled { background: var(--shell-3); border-color: var(--shell-3); color: #fff; }
+.cnt { margin-top: 8px; font-size: var(--t-m); color: var(--ink-2); }
+.after { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--rule); gap: 10px; }
+.after .hint { font-size: var(--t-m); color: var(--ink-2); gap: 6px; }
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+<symbol id="redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></symbol>
+<symbol id="funnel" viewBox="0 0 24 24"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></symbol>
+<symbol id="sc" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/></symbol>
+<symbol id="qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3h-3z"/></symbol>
+<symbol id="tpl" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+<symbol id="rot" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></symbol>
+<symbol id="del" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+<symbol id="warn" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/></symbol>
+<symbol id="ok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+<symbol id="no" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+<symbol id="save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></symbol>
+<symbol id="open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></symbol>
+<symbol id="merge" viewBox="0 0 24 24"><path d="M6 4v5a6 6 0 0 0 6 6h6M15 12l3 3-3 3M6 20v-3"/></symbol>
+<symbol id="blank" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z" stroke-dasharray="3 2.5"/></symbol>
+<symbol id="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="chl" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="box" viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+<symbol id="drop" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 19h16"/></symbol>
+<symbol id="print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-8h16v8h-3M7 14h10v7H7z"/></symbol>
+<symbol id="sheet" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7"/></symbol>
+<symbol id="grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+</defs></svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></symbol>
+<symbol id="chd" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+</defs></svg>
+<header class="app row"><b>Evrakçı</b><span class="job">Kasım 2026 – Faaliyet belgeleri · 3 parti · 812 sayfa</span><span class="saved row"><svg class="i"><use href="#save"/></svg>Kaydedildi 14:32</span></header>
+<nav class="tabs"><a>Yükle<span>Ctrl+1</span></a><a>Kontrol<span>Ctrl+2</span></a><a>Şablonlar<span>Ctrl+3</span></a><a>Değerler<span>Ctrl+4</span></a><a class="on">Dışa Aktar<span>Ctrl+5</span></a><a>Rehber<span>F1</span></a></nav>
+<div class="main">
+  <section class="set">
+    <div class="gw row"><h1>Dışa aktar</h1><span class="sub">287 belge · 812 sayfa</span></div>
+    <div class="fld">
+      <label class="l" for="hk">Hedef klasör</label>
+      <div class="pick row"><input class="txt" id="hk" value="D:\Oda\Arşiv\2026-11 Faaliyet"><button class="btn"><svg class="i"><use href="#folder"/></svg>Seç…</button></div>
+      <div class="okline row st ok"><svg class="i"><use href="#ok"/></svg>Klasör boş</div>
+    </div>
+    <div class="fld">
+      <label class="chk row"><span class="cb on"><svg class="i"><use href="#check"/></svg></span><span>Aranabilir metin katmanı ekle<small>OCR, PDF/A</small></span></label>
+      <label class="chk row"><span class="cb on"><svg class="i"><use href="#check"/></svg></span><span>index.xlsx yaz<small>Her dosya bir satır: adı, sayfaları, değerleri</small></span></label>
+    </div>
+    <div class="fld sel row"><label class="l" for="sk">İşi sakla</label>
+      <span class="selbox"><select class="txt" id="sk"><option>90 gün</option></select><svg class="i"><use href="#chd"/></svg></span></div>
+    <div class="pre">
+      <h3>Yazılmadan önce</h3>
+      <ul>
+        <li><svg class="i"><use href="#file"/></svg>Yazılacak belge<b>287</b></li>
+        <li><span class="st ok"><svg class="i"><use href="#ok"/></svg></span>Tamam<b>281</b></li>
+        <li><span class="rider static"><svg class="i"><use href="#warn"/></svg>Kontrol</span>işaretli<b>6</b></li>
+      </ul>
+      <p class="note">Kontrol gerekenler adında <b>[kontrol]</b> ile yazılır, index.xlsx'te işaretlenir. Hiçbiri sessizce geçmez.</p>
+    </div>
+    <div class="go row"><button class="btn pri" disabled><svg class="i"><use href="#drop"/></svg>Dışa aktar<kbd>Ctrl+E</kbd></button>
+      <span class="hint row" style="gap:6px"><svg class="i"><use href="#lock"/></svg>Yazma sürerken kilitli</span></div>
+  </section>
+  <section class="res">
+    <div class="gw row"><h1>Yazılan dosyalar</h1><span class="sub">D:\Oda\Arşiv\2026-11 Faaliyet</span></div>
+    <div class="prog">
+      <div class="top row"><b>Yazılıyor: 143 / 287</b><span>· metin katmanı ekleniyor</span><span class="pct">%50 · yaklaşık 4 dk kaldı</span>
+        <button class="btn"><svg class="i"><use href="#no"/></svg>İptal<kbd>Esc</kbd></button></div>
+      <div class="bar" role="progressbar" aria-valuenow="143" aria-valuemax="287"><i></i></div>
+    </div>
+    <table class="list"><thead><tr><th>Dosya</th><th>Sayfalar</th><th>Şablon</th><th><span class="sort">Durum<svg class="i"><use href="#down"/></svg></span></th></tr></thead><tbody>
+      <tr class="k"><td class="fn">51408_Belge_023_[kontrol].pdf</td><td>117–118</td><td>Faaliyet Belgesi</td><td><span class="rider static"><svg class="i"><use href="#warn"/></svg>Kontrol · Firma_Adi okunamadı</span></td></tr>
+      <tr class="k"><td class="fn">Belge_131_[kontrol].pdf</td><td>602–603</td><td>Faaliyet Belgesi</td><td><span class="rider static"><svg class="i"><use href="#warn"/></svg>Kontrol · Sicil_No okunamadı</span></td></tr>
+      <tr class="n"><td class="fn">48226_Dogan_Tekstil_Ltd.pdf<span class="info"><svg class="i"><use href="#info"/></svg>PDF/A doğrulanamadı; normal PDF yazıldı</span></td><td>218</td><td>Faaliyet Belgesi</td><td><span class="st ok"><svg class="i"><use href="#ok"/></svg>Yazıldı · not var</span></td></tr>
+      <tr><td class="fn">48197_Ege_Kalip_San_Ltd.pdf</td><td>209–212</td><td>Faaliyet Belgesi</td><td><span class="st ok"><svg class="i"><use href="#ok"/></svg>Yazıldı</span></td></tr>
+      <tr><td class="fn">48213_Akcay_Tekstil_San_ve_Tic_Ltd_Sti.pdf</td><td>214–216</td><td>Kapasite Raporu</td><td><span class="st ok"><svg class="i"><use href="#ok"/></svg>Yazıldı</span></td></tr>
+      <tr><td class="fn">27744_Ozen_Mobilya_Ltd_Sti.pdf</td><td>455–457</td><td>Kapasite Raporu</td><td><span class="st ok"><svg class="i"><use href="#ok"/></svg>Yazıldı</span></td></tr>
+      <tr><td class="fn">Belge_043.pdf</td><td>219–220</td><td style="color:var(--ink-2)">Şablon yok</td><td><span class="st ok"><svg class="i"><use href="#ok"/></svg>Yazıldı</span></td></tr>
+    </tbody></table>
+    <div class="cnt">143 dosya yazıldı · işaretliler üstte · liste kaydırılır</div>
+    <div class="after row"><button class="btn" disabled><svg class="i"><use href="#sheet"/></svg>index.xlsx'i aç</button><button class="btn" disabled><svg class="i"><use href="#folder"/></svg>Klasörü aç</button>
+      <span class="hint row"><svg class="i"><use href="#clock"/></svg>Yazma bitince açılır</span></div>
+  </section>
+</div>
+<footer class="status row"><span>287 belge</span><span class="dot">·</span><span>143 yazıldı</span><span class="dot">·</span><span>14 boş sayfa atlandı</span><span class="dot">·</span><span class="warn row"><svg class="i"><use href="#warn"/></svg>6 belge [kontrol] ile yazılacak</span>
+  <span class="k row"><span><b>Esc</b> iptal</span><span><b>Ctrl+E</b> dışa aktar</span><span><b>Ctrl+2</b> kontrole dön</span></span></footer>
+</body></html>

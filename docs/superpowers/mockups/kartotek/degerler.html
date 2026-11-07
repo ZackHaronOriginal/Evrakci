@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Evrakçı · Değerler</title>
+<link rel="stylesheet" href="kartotek.css">
+<style>
+.tool label.row { gap: 8px; white-space: nowrap; font-weight: 600; }
+.srch { position: relative; }
+.srch svg { position: absolute; left: 9px; top: 8px; color: var(--ink-2); }
+.srch input { width: 236px; padding-left: 34px; color: var(--ink-2); }
+.prog { height: 46px; background: var(--card); padding: 0 16px; gap: 14px; border-bottom: 1px solid var(--rule); font-size: var(--t-m); white-space: nowrap; }
+.prog b { font-size: var(--t); }
+.bar { width: 320px; height: 14px; border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--paper); overflow: hidden; flex: none; }
+.bar i { display: block; height: 100%; width: 73.87%; background: var(--shell); }
+.prog .eta { color: var(--ink-2); }
+.prog .btn { height: 30px; margin-left: auto; }
+.main { display: flex; height: 560px; }
+.tl { flex: 1; padding: 14px 24px 0; min-width: 0; }
+table.list { margin-top: 14px; table-layout: fixed; }
+table.list th { padding: 0 8px 6px; }
+table.list td { padding: 0 8px; height: 40px; overflow: hidden; text-overflow: ellipsis; }
+table.list th.sort { color: var(--ink); }
+table.list th.sort svg { margin-left: 5px; vertical-align: 1px; }
+table.list td.ck svg.i { width: 16px; height: 16px; vertical-align: -3px; margin-right: 5px; color: var(--check-ink); }
+table.list td.ck i { font-style: normal; font-weight: 600; }
+.elle { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 0 5px; height: 20px; border: 1px solid var(--rule-strong); border-radius: 3px; font-size: var(--t-s); font-weight: 600; color: var(--ink-2); vertical-align: 1px; }
+.elle svg.i { width: 13px; height: 13px; }
+.dim { color: var(--ink-2); }
+tr.grp td { height: 46px; color: var(--ink-2); border-bottom: 1px dashed var(--rule-strong); white-space: normal; }
+tr.grp td .row { gap: 8px; }
+.note { margin-top: 12px; gap: 8px; color: var(--ink-2); font-size: var(--t-m); }
+.note b { color: var(--ink); }
+aside.side { width: 380px; flex: none; padding: 14px 20px; }
+.crop { margin-top: 10px; background: var(--paper); border: 1px solid #b8c1bb; border-radius: 2px; box-shadow: 0 1px 2px rgba(29,42,35,.12); padding: 10px 14px 12px; color: #2b2b2b; position: relative; }
+.crop .cap { position: absolute; top: 6px; right: 8px; font: 600 var(--t-s)/1 var(--font); color: var(--ink-2); }
+.ln { height: 5px; background: #d9ddd9; margin: 0 0 6px; }
+.docl { font-size: 17px; margin: 20px 0 6px; display: flex; align-items: center; gap: 8px; }
+.vb { position: relative; display: inline-block; padding: 1px 6px; border: 2px solid var(--v1); border-radius: 2px; letter-spacing: .04em; }
+.vb.d { border-style: dashed; }
+.vb .lb { position: absolute; left: -2px; bottom: calc(100% + 2px); font: 700 var(--t-s)/1 var(--font); background: var(--v1); color: #fff; padding: 3px 6px; border-radius: 3px 3px 3px 0; white-space: nowrap; letter-spacing: 0; }
+.blur { filter: blur(1.2px); opacity: .5; }
+.div { margin: 8px 0 4px; border-top: 1.5px dashed var(--rule-strong); padding-top: 4px; font: 600 var(--t-s)/1.2 var(--font); color: var(--ink-2); }
+.stampw { display: flex; justify-content: flex-end; align-items: flex-end; gap: 10px; padding: 0 8px 0 0; }
+.stampw .lb2 { font: 700 var(--t-s)/1 var(--font); background: var(--v1); color: #fff; padding: 3px 6px; border-radius: 3px; margin-bottom: 12px; }
+.stamp { transform: rotate(-4deg); border: 2px solid #4b5d7a; outline: 1px solid #4b5d7a; outline-offset: 2px; color: #3c4e6b; padding: 4px 10px; text-align: center; font-weight: 700; letter-spacing: .12em; font-size: 14px; line-height: 1.3; }
+.stamp .vb { font-size: 18px; letter-spacing: .06em; margin-top: 3px; }
+.read { margin-top: 10px; }
+.read .l { color: var(--ink-2); font-size: var(--t-m); }
+.read .o { gap: 8px; margin-top: 2px; }
+.sug { font: 700 28px/1.1 var(--mono); letter-spacing: .04em; margin: 0 0 10px; }
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+<symbol id="redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></symbol>
+<symbol id="funnel" viewBox="0 0 24 24"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></symbol>
+<symbol id="sc" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/></symbol>
+<symbol id="qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3h-3z"/></symbol>
+<symbol id="tpl" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+<symbol id="rot" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></symbol>
+<symbol id="del" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+<symbol id="warn" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/></symbol>
+<symbol id="ok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+<symbol id="no" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+<symbol id="save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></symbol>
+<symbol id="open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></symbol>
+<symbol id="merge" viewBox="0 0 24 24"><path d="M6 4v5a6 6 0 0 0 6 6h6M15 12l3 3-3 3M6 20v-3"/></symbol>
+<symbol id="blank" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z" stroke-dasharray="3 2.5"/></symbol>
+<symbol id="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="chl" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="box" viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+<symbol id="drop" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 19h16"/></symbol>
+<symbol id="print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-8h16v8h-3M7 14h10v7H7z"/></symbol>
+<symbol id="sheet" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7"/></symbol>
+<symbol id="grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+</defs></svg>
+<header class="app row"><b>Evrakçı</b><span class="job">Kasım 2026 – Faaliyet belgeleri · 3 parti · 812 sayfa</span><span class="saved row"><svg class="i"><use href="#save"/></svg>Kaydedildi 14:32</span></header>
+<nav class="tabs"><a>Yükle<span>Ctrl+1</span></a><a>Kontrol<span>Ctrl+2</span></a><a>Şablonlar<span>Ctrl+3</span></a><a class="on">Değerler<span>Ctrl+4</span></a><a>Dışa Aktar<span>Ctrl+5</span></a><a>Rehber<span>F1</span></a></nav>
+<div class="tool row">
+  <label class="row"><span class="cb on"><svg class="i"><use href="#check"/></svg></span>Yalnızca kontrol gerekenler (6)</label>
+  <span class="sep"></span>
+  <select class="txt"><option>Şablon: hepsi</option></select>
+  <span class="srch"><svg class="i"><use href="#search"/></svg><input class="txt" placeholder="Ara: firma, sicil no…"></span>
+  <span class="spacer"></span>
+  <button class="btn"><svg class="i"><use href="#play"/></svg>Yalnızca eksikleri oku</button>
+  <button class="btn" disabled><svg class="i"><use href="#play"/></svg>Değerleri oku</button>
+</div>
+<div class="prog row">
+  <b>Okunuyor: 212 / 287 belge</b>
+  <span class="bar" role="progressbar" aria-valuenow="212" aria-valuemax="287"><i></i></span>
+  <span class="eta">yaklaşık 2 dk kaldı · elle yazdıklarınız korunur</span>
+  <button class="btn">İptal<kbd>Esc</kbd></button>
+</div>
+<div class="main">
+  <section class="tl">
+    <div class="gw row"><h1>Belge 17 — Belge 131</h1><span class="sub">6 kontrol</span></div>
+    <table class="list"><colgroup><col style="width:54px"><col style="width:90px"><col style="width:136px"><col style="width:148px"><col><col style="width:124px"><col style="width:100px"></colgroup>
+      <thead><tr><th class="sort">Belge<svg width="10" height="8" viewBox="0 0 10 8" aria-label="artan"><path d="M5 1 9 7H1z" fill="currentColor"/></svg></th><th>Sayfalar</th><th>Şablon</th><th>Sicil_No</th><th>Firma_Adi</th><th>Tarih</th><th>Durum</th></tr></thead><tbody>
+      <tr><td>17</td><td>88–90</td><td>Kapasite Raporu</td><td class="ck"><svg class="i"><use href="#warn"/></svg>3O771</td><td>Yıldız Gıda Paz. A.Ş.</td><td>28.10.2026</td><td><span class="rider static"><svg class="i"><use href="#warn"/></svg>Kontrol</span></td></tr>
+      <tr><td>23</td><td>117–118</td><td>Faaliyet Belgesi</td><td>51408</td><td class="ck"><svg class="i"><use href="#warn"/></svg><i>boş · zorunlu</i></td><td class="dim">—</td><td><span class="rider static"><svg class="i"><use href="#warn"/></svg>Kontrol</span></td></tr>
+      <tr class="cur"><td><b>41</b></td><td>214–216</td><td>Kapasite Raporu</td><td class="ck focus"><svg class="i"><use href="#warn"/></svg>48Z13</td><td>Akçay Tekstil San. ve Tic. Ltd. Şti.</td><td>03.11.2026</td><td><span class="rider static"><svg class="i"><use href="#warn"/></svg>Kontrol</span></td></tr>
+      <tr><td>58</td><td>301–302</td><td>Faaliyet Belgesi</td><td>62190<span class="elle" title="Elle düzeltildi"><svg class="i"><use href="#pen"/></svg>elle</span></td><td class="ck"><svg class="i"><use href="#warn"/></svg>Kuzey Lojist1k</td><td class="dim">—</td><td><span class="rider static"><svg class="i"><use href="#warn"/></svg>Kontrol</span></td></tr>
+      <tr><td>96</td><td>455–457</td><td>Kapasite Raporu</td><td>27744</td><td>Özen Mobilya Ltd. Şti.</td><td class="ck"><svg class="i"><use href="#warn"/></svg>31.11.2026</td><td><span class="rider static"><svg class="i"><use href="#warn"/></svg>Kontrol</span></td></tr>
+      <tr><td>131</td><td>602–603</td><td>Faaliyet Belgesi</td><td class="ck"><svg class="i"><use href="#warn"/></svg><i>boş · zorunlu</i></td><td>Ilgaz Tarım Ürünleri</td><td class="dim">—</td><td><span class="rider static"><svg class="i"><use href="#warn"/></svg>Kontrol</span></td></tr>
+      <tr class="grp"><td colspan="7"><span class="row"><svg class="i"><use href="#clock"/></svg>75 belge henüz okunmadı; okundukça kontrol gerekenler buraya eklenir</span></td></tr>
+    </tbody></table>
+    <div class="note row"><svg class="i"><use href="#funnel"/></svg><span><b>Filtre açık:</b> kontrol gerekmeyen 206 belge gizli</span></div>
+  </section>
+  <aside class="side">
+    <h2>Belge 41 · Sicil_No</h2><div class="meta">Kapasite Raporu · Sayfa 214–216 · Sicil_No emin değil</div>
+    <div class="crop">
+      <span class="cap">Sayfa 214</span>
+      <div class="ln" style="width:52%;margin-top:4px"></div><div class="ln" style="width:70%"></div>
+      <div class="docl">Oda Sicil No: <span class="vb"><span class="lb">Bölüm 1 · %38</span>48<span class="blur">2</span>13</span></div>
+      <div class="ln" style="width:78%"></div><div class="ln" style="width:60%"></div>
+      <div class="div">Aynı sayfanın altı:</div>
+      <div class="stampw"><span class="lb2">Varyant 2 · %93</span><div class="stamp">ODA KAYIT<br><span class="vb d">48213</span></div></div>
+    </div>
+    <div class="read">
+      <div class="o row"><span class="l">Okunan:</span><code class="bad">48Z13</code><span class="l">(Bölüm 1, %38)</span></div>
+      <div class="l" style="margin-top:4px">Öneri, Varyant 2'den (%93):</div>
+      <div class="sug">48213</div>
+    </div>
+    <div class="acts">
+      <button class="btn pri focus"><span><svg class="i"><use href="#check"/></svg>Öneriyi kabul et</span><kbd>Enter</kbd></button>
+      <button class="btn"><span><svg class="i"><use href="#pen"/></svg>Elle yaz</span><kbd>F2</kbd></button>
+      <button class="btn"><span><svg class="i"><use href="#box"/></svg>Yeni varyant çiz</span><kbd>V</kbd></button>
+    </div>
+  </aside>
+</div>
+<footer class="status row"><span>287 belge</span><span class="dot">·</span><span>212 okundu</span><span class="dot">·</span><span>75 okunmadı</span><span class="dot">·</span><span class="warn row"><svg class="i"><use href="#warn"/></svg>6 belge kontrol bekliyor</span>
+  <span class="k row"><span><b>Enter</b> öneriyi kabul et</span><span><b>F2</b> elle yaz</span><span><b>N</b> sonraki kontrol</span></span></footer>
+</body></html>

@@ -44,7 +44,7 @@ Last checked 2026-11-07: **231 tests pass**, `ruff check .` is clean.
    - Terminal Sarısı
    - Pul Katalog
    - Windows standardı
-3. The metro-line ("Hat Haritası") mockups of all three screens are in `docs/superpowers/mockups/`.
+3. The owner chose **Kartotek**; all six screens are in `docs/superpowers/mockups/kartotek/`.
 
 After the owner picks a direction, all six screens are drawn in it for approval, and only then is
 the window built.

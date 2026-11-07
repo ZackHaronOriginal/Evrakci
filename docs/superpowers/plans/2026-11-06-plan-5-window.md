@@ -3,7 +3,7 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 > **Status: waiting for the owner's approval of the mockups**
-> (`docs/superpowers/mockups/plan-5-*.png`). Nothing in this plan is built before that approval.
+> (`docs/superpowers/mockups/kartotek/*.png`, the Kartotek look the owner chose on 2026-11-07). Nothing in this plan is built before that approval.
 > If the owner asks for changes, this plan is revised first.
 
 **Goal:** A PySide6 window over the same core as the CLI, with these tabs:
@@ -40,19 +40,21 @@ It must stay smooth with 800+ pages, and undo/redo every edit.
 
 - `src/evrakci/pipeline/` stays free of Qt. All UI text is Turkish.
 - **No logic duplicated from the core.** The UI only calls core functions.
-- **Look:** follows `DESIGN.md` and the approved mockups (`docs/superpowers/mockups/plan-5-*.png`).
+- **Look:** follows `DESIGN.md` and the approved mockups (`docs/superpowers/mockups/kartotek/*.png`, the Kartotek look the owner chose on 2026-11-07).
   Colours and sizes come from one token table (`src/evrakci/ui/theme.py`), so looks can be made
   configurable later.
-- Cut types look different, and the same everywhere (shape first, colour repeats it):
-  - QR cut: filled blue disc on a solid line
-  - filter cut: dashed orange ring on a dashed line
-  - manual cut: red square with scissors on a solid line
-  - dropped empty page: faded, dashed edge, labelled "boş"
-- "Kontrol" is always signage yellow with a warning icon and text, never colour alone.
-- The Kontrol screen has a route map of the whole job above the timeline: one tick per document,
-  a yellow diamond per document that needs a check, and a frame for the visible part (click to jump).
+- Cut types look different, and the same everywhere (position and pictogram first, colour repeats it):
+  - each document starts with a manila guide tab above its pages
+  - QR cut: tab on the left with a QR pictogram, solid blue line
+  - filter cut: tab in the centre with a funnel and a dashed orange edge and line
+  - manual cut: tab on the right with scissors, solid red line
+  - dropped empty page: dashed sheet labelled "boş"
+- "Kontrol" is always an orange signal rider with a warning icon and text, never colour alone.
+- The Kontrol screen has a whole-job strip above the timeline: one hairline per page, an orange
+  rider per document that needs a check, and a bracket for the visible part (click to jump). The
+  timeline heading names the first and last document in view ("Belge 40 — Belge 43").
 - Every edit can be undone (Ctrl+Z / Ctrl+Y), and the job is saved after each edit.
-- Shortcuts: Ctrl+1…6 tabs; N / Shift+N next / previous kontrol; F filter, K cut, T template,
+- Shortcuts: Ctrl+1…5 tabs and F1 for Rehber; N / Shift+N next / previous kontrol; F filter, K cut, T template,
   B draw box, Enter accept suggestion, F2 type a value, V draw a new variant.
 - Long work shows progress, can be cancelled, and never freezes the window.
 - Colour contrast meets WCAG AA. Body text is 15 px and the smallest text is 13 px.
@@ -102,8 +104,8 @@ It must stay smooth with 800+ pages, and undo/redo every edit.
   - `src/evrakci/ui/timeline.py`: `TimelineModel` (a `QAbstractListModel` of pages, with roles
     for the document band, cut type before the page, dropped, flags and template name),
     `TimelineDelegate` and `TimelineView` (horizontal, range selection)
-  - `src/evrakci/ui/kontrol.py`: the screen, with the toolbar, route map, lanes (Belge, Sayfa,
-    Şablon, Değerler) and side panel from mockup 1
+  - `src/evrakci/ui/kontrol.py`: the screen, with the toolbar, whole-job strip, guide-tab
+    timeline, document table and side panel from `kartotek/kontrol.png`
 - Tests:
   - the cut type before each page (QR, filter or manual) matches `compute_documents`
   - selecting pages 5–9 then "Filtre: her N sayfa" calls `apply_filter` with those ids

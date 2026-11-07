@@ -39,7 +39,7 @@ ol.secs li.cur { background: var(--row-cur); box-shadow: inset 0 0 0 2px var(--f
 .ctr select.txt { width: 196px; font-weight: 600; }
 .btn.tog { background: var(--row-cur); border-color: var(--ink-2); box-shadow: inset 0 1px 2px rgba(29,42,35,.18); }
 .stage { flex: 1; position: relative; overflow: hidden; background: #dfe5e1; }
-.cv { --mm: 1.72px; position: absolute; left: 180px; top: 26px; width: calc(210 * var(--mm)); height: calc(297 * var(--mm)); }
+.cv { --mm: 1.62px; position: absolute; left: 124px; top: 28px; width: calc(210 * var(--mm)); height: calc(297 * var(--mm)); }
 .rul-t { position: absolute; left: 0; right: 0; top: -20px; height: 18px; border-bottom: 1px solid var(--rule-strong);
   background: linear-gradient(90deg, var(--rule-strong) 0 1px, transparent 1px) 0 100% / calc(10 * var(--mm)) 6px repeat-x; }
 .rul-l { position: absolute; top: 0; bottom: 0; left: -26px; width: 24px; border-right: 1px solid var(--rule-strong);
@@ -63,9 +63,9 @@ ol.secs li.cur { background: var(--row-cur); box-shadow: inset 0 0 0 2px var(--f
 .bar { position: absolute; left: calc(var(--x) * var(--mm)); top: calc(var(--y) * var(--mm)); width: calc(var(--w) * var(--mm)); height: 5px; background: #d5dbd7; border-radius: 1px; }
 .tbl { position: absolute; left: calc(14 * var(--mm)); top: calc(112 * var(--mm)); width: calc(182 * var(--mm)); height: calc(84 * var(--mm)); border: 1px solid #b9c0bb;
   background: linear-gradient(#b9c0bb 0 1px, transparent 1px) 0 calc(12 * var(--mm)) / 100% calc(12 * var(--mm)), linear-gradient(90deg, transparent calc(70 * var(--mm)), #b9c0bb 0 1px, transparent 0) , linear-gradient(90deg, transparent calc(126 * var(--mm)), #b9c0bb 0 1px, transparent 0); }
-.stamp { position: absolute; left: calc(150 * var(--mm)); top: calc(247 * var(--mm)); width: calc(44 * var(--mm)); height: calc(29 * var(--mm)); border: 2px solid #3a5a96; outline: 1px solid #3a5a96; outline-offset: -5px; color: #2f4f8c; text-align: center; font-weight: 700; }
-.stamp .s1 { position: absolute; left: 0; right: 0; top: calc(4 * var(--mm)); font-size: var(--t-s); letter-spacing: .08em; line-height: 1; }
-.stamp .s2 { position: absolute; left: 0; right: 0; top: calc(16 * var(--mm)); font-size: var(--t-l); letter-spacing: .1em; line-height: 1; font-family: var(--mono); }
+.stamp { position: absolute; left: calc(142 * var(--mm)); top: calc(246 * var(--mm)); width: calc(54 * var(--mm)); height: calc(31 * var(--mm)); border: 2px solid #3a5a96; outline: 1px solid #3a5a96; outline-offset: -5px; color: #2f4f8c; text-align: center; font-weight: 700; }
+.stamp .s1 { position: absolute; left: 0; right: 0; top: calc(5 * var(--mm)); font-size: var(--t-s); letter-spacing: .02em; line-height: 1; }
+.stamp .s2 { position: absolute; left: 0; right: 0; top: calc(16.6 * var(--mm)); font-size: var(--t); line-height: 1; font-family: var(--mono); }
 
 /* Boxes */
 .bx { position: absolute; z-index: 2; left: calc(var(--x) * var(--mm)); top: calc(var(--y) * var(--mm)); width: calc(var(--w) * var(--mm)); height: calc(var(--h) * var(--mm)); border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 9%, transparent); }
@@ -73,11 +73,13 @@ ol.secs li.cur { background: var(--row-cur); box-shadow: inset 0 0 0 2px var(--f
 .bx.l .lb { left: auto; right: calc(100% + 4px); bottom: auto; top: -2px; border-radius: 3px; }
 .bx.ghost { border-color: color-mix(in srgb, var(--c) 45%, transparent); background: none; }
 .bx.ghost .lb { background: var(--paper); color: var(--ink-2); border: 1px solid var(--rule-strong); font-weight: 600; }
-.bx.ghost .lb b { color: var(--c); }
+.bx.ghost .lb { color: var(--c); }
+.bx .in { position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--t-s); color: var(--ink-2); font-weight: 600; white-space: nowrap; }
+.bx.below .lb { bottom: auto; top: calc(100% + 2px); border-radius: 0 3px 3px 3px; }
 .bx.draw { border-style: dashed; background: color-mix(in srgb, var(--c) 12%, transparent); box-shadow: 0 0 0 1px rgba(255,255,255,.8); }
 .bx.draw .h { position: absolute; width: 8px; height: 8px; background: var(--paper); border: 1.5px solid var(--c); }
-.ro { position: absolute; z-index: 3; left: calc(190 * var(--mm)); top: calc(272 * var(--mm)); background: var(--ink); color: #fff; font-size: var(--t-s); font-weight: 700; line-height: 1; padding: 4px 6px; border-radius: 3px; white-space: nowrap; }
-.snap { position: absolute; right: -150px; top: 0; width: 136px; font-size: var(--t-m); color: var(--ink-2); line-height: 1.35; }
+.ro { position: absolute; z-index: 3; left: calc(187 * var(--mm)); top: calc(273 * var(--mm)); background: var(--ink); color: #fff; font-size: var(--t-s); font-weight: 700; line-height: 1; padding: 4px 6px; border-radius: 3px; white-space: nowrap; }
+.snap { position: absolute; left: calc(100% + 26px); top: 0; width: 180px; font-size: var(--t-m); color: var(--ink-2); line-height: 1.35; }
 .snap b { color: var(--ink); display: block; }
 
 .fn { height: 52px; background: var(--card); border-top: 1px solid var(--rule); padding: 0 16px; gap: 6px; font-size: var(--t-m); white-space: nowrap; }
@@ -177,15 +179,14 @@ aside.side .acts { margin-top: auto; }
     <div class="stage">
       <div class="cv">
         <div class="rul-t"><b style="left:0">0</b><b style="left:calc(50 * var(--mm))">50</b><b style="left:calc(100 * var(--mm))">100</b><b style="left:calc(150 * var(--mm))">150</b><b style="left:calc(200 * var(--mm))">200</b>
-          <span class="ext" style="left:calc(156 * var(--mm));width:calc(32 * var(--mm))"></span></div>
+          <span class="ext" style="left:calc(153 * var(--mm));width:calc(32 * var(--mm))"></span></div>
         <div class="rul-l"><b style="top:calc(50 * var(--mm))">50</b><b style="top:calc(100 * var(--mm))">100</b><b style="top:calc(150 * var(--mm))">150</b><b style="top:calc(200 * var(--mm))">200</b><b style="top:calc(250 * var(--mm))">250</b>
           <span class="ext" style="top:calc(262 * var(--mm));height:calc(9 * var(--mm))"></span></div>
         <div class="pg">
-          <span class="m t ttl" style="--x:105;--y:13">KAPASİTE RAPORU</span>
-          <span class="bar" style="--x:62;--y:25;--w:86"></span>
-          <span class="m t" style="--x:112;--y:33">Rapor No:</span><span class="m t" style="--x:150;--y:33;font-weight:700">2026/1102</span>
-          <span class="m t" style="--x:112;--y:43">Tarih:</span><span class="m t" style="--x:150;--y:43;font-weight:700">31.11.2026</span>
-          <span class="m t" style="--x:14;--y:64">Firma:</span><span class="m t" style="--x:46;--y:64;font-weight:700">Özen Mobilya Ltd. Şti.</span>
+          <span class="m t ttl" style="--x:105;--y:7">KAPASİTE RAPORU</span>
+                    <span class="m t" style="--x:112;--y:30.5">Rapor No:</span><span class="m t" style="--x:152;--y:30.5;font-weight:700">2026/1102</span>
+          <span class="m t" style="--x:112;--y:43.5">Tarih:</span><span class="m t" style="--x:152;--y:43.5;font-weight:700">31.11.2026</span>
+          <span class="m t" style="--x:14;--y:62.5">Firma:</span><span class="m t" style="--x:46;--y:62.5;font-weight:700">Özen Mobilya Ltd. Şti.</span>
           <span class="bar" style="--x:14;--y:78;--w:150"></span><span class="bar" style="--x:14;--y:85;--w:120"></span><span class="bar" style="--x:14;--y:92;--w:136"></span>
           <span class="bar" style="--x:14;--y:104;--w:52;background:#bfc7c2"></span>
           <div class="tbl"></div>
@@ -193,16 +194,15 @@ aside.side .acts { margin-top: auto; }
           <span class="bar" style="--x:14;--y:236;--w:46"></span><span class="bar" style="--x:14;--y:262;--w:52;height:1px;background:#8f9c94"></span>
           <div class="stamp"><span class="s1">ODA KAYIT</span><span class="s2">27744</span></div>
           <div class="grid"></div>
-          <div class="bx" style="--c:var(--v4);--x:148;--y:30;--w:44;--h:8"><span class="lb">Rapor_No</span></div>
-          <div class="bx l" style="--c:var(--v3);--x:148;--y:40;--w:44;--h:8"><span class="lb">Rapor_Tarihi</span></div>
-          <div class="bx ghost" style="--c:var(--v1);--x:14;--y:44;--w:46;--h:8"><span class="lb"><b>Sicil_No · Bölüm 1</b> (bu örnekte yok)</span></div>
-          <div class="bx" style="--c:var(--v2);--x:44;--y:61;--w:96;--h:9"><span class="lb">Firma_Adi</span></div>
-          <div class="bx draw l" style="--c:var(--v1);--x:156;--y:262;--w:32;--h:9"><span class="lb">Sicil_No · Varyant 2</span>
-            <i class="h" style="left:-5px;top:-5px"></i><i class="h" style="right:-5px;top:-5px"></i><i class="h" style="left:-5px;bottom:-5px"></i><i class="h" style="right:-5px;bottom:-5px"></i>
-            <i class="h" style="left:calc(50% - 4px);top:-5px"></i><i class="h" style="left:calc(50% - 4px);bottom:-5px"></i></div>
-          <span class="ro">32 × 9 mm</span>
+          <div class="bx" style="--c:var(--v4);--x:149;--y:28;--w:47;--h:10"><span class="lb">Rapor_No</span></div>
+          <div class="bx below" style="--c:var(--v3);--x:149;--y:41;--w:47;--h:10"><span class="lb">Rapor_Tarihi</span></div>
+          <div class="bx ghost" style="--c:var(--v1);--x:14;--y:28;--w:70;--h:10"><span class="lb">Sicil_No · Bölüm 1</span><span class="in">(bu örnekte yok)</span></div>
+          <div class="bx" style="--c:var(--v2);--x:44;--y:60;--w:96;--h:10"><span class="lb">Firma_Adi</span></div>
+          <div class="bx draw l" style="--c:var(--v1);--x:153;--y:262;--w:32;--h:9"><span class="lb">Sicil_No · Varyant 2</span>
+            <i class="h" style="left:-5px;top:-5px"></i><i class="h" style="right:-5px;top:-5px"></i><i class="h" style="left:-5px;bottom:-5px"></i><i class="h" style="right:-5px;bottom:-5px"></i></div>
         </div>
-        <div class="snap"><b>Izgaraya oturur</b>1 mm adım<br>Konum: 156, 262 mm<br>Shift: serbest çiz</div>
+        <span class="ro">32 × 9 mm</span>
+        <div class="snap"><b>Izgaraya oturur</b>1 mm adım<br>Konum: 153, 262 mm<br>Shift: serbest çiz</div>
       </div>
     </div>
     <div class="fn row"><b>Dosya adı:</b>

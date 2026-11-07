@@ -11,25 +11,25 @@ header{height:44px;background:var(--shell);color:var(--on-shell);padding:0 24px;
 header b{font-size:17px}header .job{color:var(--on-shell-2)}header .saved{margin-left:auto;color:var(--on-shell-2);gap:6px}
 nav{height:42px;background:var(--shell);padding:0 16px;gap:2px;align-items:flex-end;border-top:1px solid var(--shell-2)}
 nav a{color:var(--on-shell-2);padding:9px 18px 10px;font-weight:600;text-decoration:none;border-radius:6px 6px 0 0}
-nav a span{font-weight:400;font-size:13px;margin-left:6px;opacity:.85}
+nav a span{font-weight:400;font-size:13px;margin-left:6px}
 nav a.on{background:var(--card);color:var(--ink)}
-.tool{height:56px;background:var(--card);padding:0 24px;gap:8px;border-bottom:1px solid var(--rule)}
-.btn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 11px;border:1px solid #aab5ae;border-radius:5px;background:#fff;color:var(--ink);font:inherit;font-weight:600;white-space:nowrap}
+.tool{height:56px;background:var(--card);padding:0 16px;gap:6px;border-bottom:1px solid var(--rule)}
+.btn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 9px;border:1px solid #aab5ae;border-radius:5px;background:#fff;color:var(--ink);font:inherit;font-weight:600;white-space:nowrap}
 .btn.ico{width:36px;padding:0;justify-content:center}
 .btn.pri{background:var(--shell);border-color:var(--shell);color:#fff}.btn.pri kbd{background:#5a7566;color:#fff;border-color:#6d8778}
 kbd{font:600 13px/1 inherit;font-family:inherit;padding:3px 5px;border:1px solid #c3cbc5;border-bottom-width:2px;border-radius:4px;background:#f1f3ef;color:var(--ink-2)}
-.sep{width:1px;height:28px;background:var(--rule);margin:0 6px}
+.sep{width:1px;height:28px;background:var(--rule);margin:0 3px}
 .sel{color:var(--ink);white-space:nowrap}.sel b{font-weight:700}
 .num{width:36px;height:32px;border:1px solid #8f9c94;border-radius:4px;text-align:center;font:inherit;font-weight:700;background:#fff}
-.strip{background:var(--card);padding:10px 24px 12px;border-bottom:1px solid var(--rule)}
+.strip{background:var(--card);padding:10px 24px 24px;border-bottom:1px solid var(--rule)}
 .strip .lab{gap:16px;font-size:14px;color:var(--ink-2);margin-bottom:6px}.strip .lab b{color:var(--ink)}
-.track{position:relative;height:30px;margin-top:16px;background:linear-gradient(90deg,#7f8c84 0 1px,transparent 1px) 0 0/calc(100% / 812) 100% repeat-x;border-bottom:1px solid #7f8c84}
-.flag{position:absolute;top:-17px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;font-size:13px;font-weight:700;color:#5a2a00}
+.track{position:relative;height:30px;margin-top:16px;background:linear-gradient(90deg,#9aa69f 0 1px,transparent 1px) 0 0/calc(100% / 812) 100% repeat-x;border-bottom:1px solid #7f8c84}
+.flag{position:absolute;z-index:2;top:-17px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;font-size:13px;font-weight:700;color:#5a2a00}
 .flag i{display:block;width:9px;height:9px;background:var(--sig);border:1px solid #8a3d00;border-radius:2px 2px 0 0;margin-top:1px}.flag u{display:block;width:2px;height:30px;background:var(--sig)}
 .win{position:absolute;top:-4px;bottom:-5px;left:25.86%;width:1.23%;border:2px solid var(--ink);border-radius:2px;background:rgba(63,90,76,.18)}
 .win s{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;text-decoration:none;font-size:13px;font-weight:700;white-space:nowrap}
 .legend{margin-left:auto;gap:6px;color:var(--ink)}
-.main{display:flex;height:620px}
+.main{display:flex;height:608px}
 .tl{flex:1;padding:16px 32px 0;min-width:0}
 .gw{gap:14px;padding-bottom:9px;border-bottom:1px solid var(--red)}
 .gw h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.005em}.gw .sub{color:var(--ink-2)}
@@ -49,8 +49,8 @@ kbd{font:600 13px/1 inherit;font-family:inherit;padding:3px 5px;border:1px solid
 .pg .n{display:block;margin-top:6px;padding:1px 0;border-radius:3px}
 .pg.s .sheet{border:2px solid var(--shell)}.pg.s .n{background:var(--shell);color:#fff}
 .pg.f .sheet{box-shadow:0 0 0 3px var(--card),0 0 0 5px var(--ink)}
-.pg.e .sheet{background-image:none;opacity:.55;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--ink-2);font-size:14px}
-.pg.sep .sheet{background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--qr)}
+.pg.e .sheet{background-image:none;background:#f3f4f1;border-style:dashed;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--ink-2);font-size:14px}
+.pg.ayr .sheet{background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--qr)}
 .qrp{width:46px;height:46px;background:conic-gradient(var(--ink) 25%,#fff 0 50%,var(--ink) 0 75%,#fff 0) 0 0/11.5px 11.5px;outline:3px solid var(--ink);outline-offset:2px}
 .cut{width:26px;align-self:stretch;display:flex;flex-direction:column;align-items:center;padding-top:62px}
 .cut .bd{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--card);border:1.5px solid currentColor}.cut .bd svg{width:15px;height:15px}
@@ -96,7 +96,7 @@ footer .dot{color:var(--on-shell-2)}footer .k{margin-left:auto;color:var(--on-sh
 <nav class="row"><a>Yükle<span>Ctrl+1</span></a><a class="on">Kontrol<span>Ctrl+2</span></a><a>Şablonlar<span>Ctrl+3</span></a><a>Değerler<span>Ctrl+4</span></a><a>Dışa Aktar<span>Ctrl+5</span></a><a>Rehber<span>F1</span></a></nav>
 <div class="tool row">
 <button class="btn"><svg class="i"><use href="#undo"/></svg>Geri al<kbd>Ctrl+Z</kbd></button><button class="btn"><svg class="i"><use href="#redo"/></svg>Yinele<kbd>Ctrl+Y</kbd></button><span class="sep"></span>
-<span class="sel"><b>Sayfa 214–218 seçili</b> · 5 sayfa · Belge 41 ve 42</span><span class="sep"></span>
+<span class="sel"><b>Sayfa 214–218 seçili</b> · 5 sayfa · Belge 41, 42</span><span class="sep"></span>
 <label class="row" style="gap:7px;white-space:nowrap">Her <input class="num" value="3"> sayfada bir belge</label><button class="btn pri"><svg class="i"><use href="#funnel"/></svg>Filtreyi uygula<kbd>F</kbd></button>
 <button class="btn"><svg class="i"><use href="#sc"/></svg>Kesim<kbd>K</kbd></button><button class="btn"><svg class="i"><use href="#tpl"/></svg>Şablon uygula<kbd>T</kbd></button>
 <span class="sep"></span><button class="btn ico" title="Döndür (R)"><svg class="i"><use href="#rot"/></svg></button><button class="btn ico" title="Sil (Del)"><svg class="i"><use href="#del"/></svg></button>
@@ -110,7 +110,7 @@ footer .dot{color:var(--on-shell-2)}footer .k{margin-left:auto;color:var(--on-sh
 <div class="pages">
 <div class="grp"><div class="tabs"></div><div class="edge"></div><div class="ps"><div class="pg"><div class="sheet"></div><span class="n">212</span></div></div></div>
 <div class="cut qr" title="QR kesimi"><span class="bd"><svg class="i"><use href="#qr"/></svg></span><span class="ln"></span></div>
-<div class="grp"><div class="tabs"></div><div style="height:14px"></div><div class="ps"><div class="pg sep"><div class="sheet"><span class="qrp"></span>AYIRAÇ</div><span class="n">213</span></div></div></div>
+<div class="grp"><div class="tabs"></div><div style="height:14px"></div><div class="ps"><div class="pg ayr"><div class="sheet"><span class="qrp"></span>AYIRAÇ</div><span class="n">213</span></div></div></div>
 <div style="width:12px"></div>
 <div class="grp" style="width:292px"><div class="tabs"><div class="tab qr"><span class="rider"><svg class="i"><use href="#warn"/></svg>Kontrol</span><div class="t1" style="margin-top:4px"><svg class="i"><use href="#qr"/></svg>Belge 41 · Kapasite Raporu</div><div class="t2">QR ile başlar · 3 sayfa</div></div></div><div class="edge"></div>
 <div class="ps"><div class="pg s f"><div class="sheet"></div><span class="n">214</span></div><div class="pg s"><div class="sheet"></div><span class="n">215</span></div><div class="pg s"><div class="sheet"></div><span class="n">216</span></div></div></div>

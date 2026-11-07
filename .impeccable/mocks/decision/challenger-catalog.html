@@ -21,12 +21,12 @@ nav a.on{color:#fff;border-bottom-color:#f2f0ea;font-weight:600}
 .sp{flex:1}
 .ov{height:60px;display:flex;align-items:center;gap:20px;padding:0 20px;border-bottom:1px solid var(--line);flex:none}
 .ov .t{font-size:14px;color:var(--mute);width:150px;line-height:1.25}.ov .t b{color:var(--ink);font-weight:600;font-size:15px;display:block}
-.bar{position:relative;width:760px;height:44px}
+.bar{position:relative;width:700px;height:44px}
 .bar .tr{position:absolute;left:0;right:0;top:12px;height:8px;background:repeating-linear-gradient(90deg,#c9c6bc 0 2px,transparent 2px 6px);border-radius:1px}
 .bar .win{position:absolute;top:6px;height:20px;border:2px solid var(--ink);background:rgba(28,28,28,.08)}
 .bar .k{position:absolute;top:8px;width:16px;height:16px;margin-left:-8px;border:2px solid var(--red);border-radius:50% 45% 50% 40%}
 .bar .k span{position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:13px;color:var(--ink)}
-.zoom{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:14px}
+.zoom{margin-left:auto;white-space:nowrap;display:flex;align-items:center;gap:12px;font-size:14px}
 .zoom input{width:120px;accent-color:var(--ink)}.zl{display:flex;gap:12px;color:var(--mute)}.zl b{color:var(--ink)}
 main{flex:1;display:flex;min-height:0}
 .grid{flex:1;padding:12px 16px;display:flex;flex-wrap:wrap;align-content:flex-start;row-gap:6px;overflow:hidden}
@@ -50,8 +50,8 @@ main{flex:1;display:flex;min-height:0}
 .cq{width:14px;height:14px;border-radius:50%;background:var(--blue)}
 .cf{width:16px;height:16px;border-radius:50%;border:2px dashed var(--org)}
 .cm{width:18px;height:18px;background:var(--red);display:grid!important;place-items:center}
-.ring{position:absolute;left:-14px;top:-12px;width:calc(100% + 28px);height:118px;pointer-events:none}
-.ktag{position:absolute;right:-10px;top:-24px;background:var(--red);color:#fff;font:600 13px "IBM Plex Sans";font-style:normal;padding:1px 6px;border-radius:2px;transform:rotate(-3deg)}
+.doc.chk{margin:0 12px}.ring{position:absolute;left:-24px;top:-16px;width:calc(100% + 48px);height:144px;pointer-events:none}
+.ktag{position:absolute;right:-14px;top:-26px;background:var(--red);color:#fff;font:600 13px "IBM Plex Sans";font-style:normal;padding:1px 6px;border-radius:2px;transform:rotate(-3deg)}
 aside{width:384px;flex:none;border-left:1px solid var(--line);background:#faf9f5;padding:18px 20px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
 aside h2{margin:0;font-size:20px;font-weight:600}.meta{color:var(--mute);font-size:14px;margin-top:2px}
 .note{border:2px solid var(--red);border-radius:6px 10px 7px 12px;padding:12px 14px;background:#fff}
@@ -86,10 +86,10 @@ footer .w{color:#fff;font-weight:600}footer .hint{margin-left:auto;color:#c9c6bd
 <div class="ov">
 <div class="t"><b>Tüm iş</b>287 belge · 812 sayfa</div>
 <div class="bar" aria-label="İş genel görünümü"><div class="tr"></div>
-<div class="win" style="left:178px;width:62px" title="Görünen sayfalar 190–259"></div>
-<i class="k" style="left:82px"><span>17</span></i><i class="k" style="left:110px"><span>23</span></i><i class="k" style="left:200px"><span>41</span></i>
-<i class="k" style="left:282px"><span>58</span></i><i class="k" style="left:426px"><span>96</span></i><i class="k" style="left:563px"><span>131</span></i></div>
-<div class="t" style="width:auto"><b style="color:var(--red)">6 kontrol</b>görünen s.190–259</div>
+<div class="win" style="left:164px;width:56px" title="Görünen sayfalar 190–252"></div>
+<i class="k" style="left:76px"><span>17</span></i><i class="k" style="left:101px"><span>23</span></i><i class="k" style="left:184px"><span>41</span></i>
+<i class="k" style="left:259px"><span>58</span></i><i class="k" style="left:392px"><span>96</span></i><i class="k" style="left:519px"><span>131</span></i></div>
+<div class="t" style="width:auto;white-space:nowrap"><b style="color:var(--red)">6 belge kontrol</b>Görünen s.190–252</div>
 <label class="zoom">Pul boyu <input type="range" min="0" max="2" value="0"><span class="zl"><b>Küçük</b><span>Orta</span><span>Büyük</span></span></label>
 </div>
 <main>
@@ -113,9 +113,6 @@ footer .w{color:#fff;font-weight:600}footer .hint{margin-left:auto;color:#c9c6bd
 <div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">49 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>243</span></div><div class="pg"><div class="sh"></div><span>244</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>245</span></div></div></div>
 <div class="gut"><i class="cq" title="QR kesim"></i></div><div class="doc"><div class="cap sepcap">Ayıraç</div><div class="pages"><div class="pg sep"><div class="sh"><b>AYIRAÇ</b><i class="qr"></i></div><span>246</span></div></div></div>
 <div class="gut"></div><div class="doc"><div class="cap">50 · Kapasite Raporu</div><div class="pages"><div class="pg"><div class="sh"></div><span>247</span></div><div class="pg"><div class="sh"></div><span>248</span></div><div class="pg"><div class="sh"></div><span>249</span></div><div class="pg"><div class="sh"></div><span>250</span></div><div class="pg"><div class="sh"></div><span>251</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>252</span></div></div></div>
-<div class="gut"><i class="cm" title="Elle kesim"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="4" cy="4" r="2.2"/><circle cx="4" cy="12" r="2.2"/><path d="M6 5.5 14 13M6 10.5 14 3"/></svg></i></div><div class="doc"><div class="cap">51 · Sicil Gazetesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>253</span></div><div class="pg"><div class="sh"></div><span>254</span></div><div class="pg"><div class="sh"></div><span>255</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>256</span></div></div></div>
-<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">52 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>257</span></div><div class="pg"><div class="sh"></div><span>258</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>259</span></div></div></div>
-<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">53 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>260</span></div><div class="pg"><div class="sh"></div><span>261</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>262</span></div></div></div>
 </section>
 <aside>
 <div><h2>Belge 41 · Kapasite Raporu</h2><div class="meta">Sayfa 214–216 · 3 sayfa · Şablon: Kapasite Raporu</div></div>
@@ -127,7 +124,8 @@ footer .w{color:#fff;font-weight:600}footer .hint{margin-left:auto;color:#c9c6bd
 <li><i class="cf"></i>Sonraki kesim: Filtre her 3 s.</li>
 <li><i class="bk"></i>Boş sayfa: 1 atlandı s.217</li></ul></div>
 <div class="acts"><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>Baştaki kesimi kaldır<kbd>Del</kbd></span>
-<span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>Öncekiyle birleştir<kbd>M</kbd></span></div>
+<span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>Öncekiyle birleştir<kbd>M</kbd></span>
+<span class="btn pri" style="margin-top:6px"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Sonraki kontrol: Belge 58 · s.301<kbd>N</kbd></span></div>
 <div class="leg"><div><i class="cq"></i>QR ayıraç</div><div><i class="cf"></i>Filtre kesimi</div><div><i class="cm" title="Elle kesim"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="4" cy="4" r="2.2"/><circle cx="4" cy="12" r="2.2"/><path d="M6 5.5 14 13M6 10.5 14 3"/></svg></i>Elle kesim</div>
 <div><i class="rg"></i>Kontrol bekliyor</div><div><span class="dn"><s class="done"></s></span>Tamam</div><div><i class="bk" style="width:12px;height:16px;border:1px dashed #5a5a5a"></i>Boş sayfa</div></div>
 </aside>

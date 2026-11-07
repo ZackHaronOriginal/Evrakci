@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.pipeline.ocr.models import data_dir
+from evrakci.pipeline.ocr.models import app_dir, data_dir
 from evrakci.pipeline.separator import make_separator_pdf
 from evrakci.ui.kontrol import index_rule, key_button
 
@@ -24,7 +24,10 @@ from evrakci.ui.kontrol import index_rule, key_button
 def guide_text() -> str:
     """The scanning guide shipped with the app (docs/tarama-rehberi.md)."""
     here = Path(__file__).resolve()
-    for folder in (here.parents[3] / "docs", here.parents[1] / "docs"):
+    bundle = app_dir()  # the installed app ships docs/ next to evrakci-arayuz.exe
+    folders = [bundle / "docs"] if bundle is not None else []
+    folders += [here.parents[3] / "docs"]  # a source checkout
+    for folder in folders:
         path = folder / "tarama-rehberi.md"
         if path.is_file():
             return path.read_text(encoding="utf-8")

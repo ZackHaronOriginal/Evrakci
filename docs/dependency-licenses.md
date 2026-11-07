@@ -26,6 +26,13 @@ library, and tools run as separate programs.
 | Ghostscript | **AGPL-3.0** | **Not used.** OCRmyPDF 17.13+ makes PDF/A without it (`--pdfa-backend internal`) | Not bundled and never called |
 | qpdf | Apache-2.0 | Via pikepdf | ✅ |
 
+## Development only (not shipped)
+
+| Component | License | How it is used |
+|---|---|---|
+| pytest, pytest-qt | MIT | Running the tests, including window tests without a screen |
+| ruff | MIT | Code style checks |
+
 ## Build tools and bundled programs (Windows installer)
 
 | Component | License | How it is used | OK for commercial/closed builds? |

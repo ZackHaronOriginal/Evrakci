@@ -66,3 +66,20 @@ def test_guide_shows_the_scanning_guide_and_prints_separators(qtbot, tmp_path):
     path = screen.write_separators(tmp_path / "ayirac.pdf", 3)
     with pikepdf.open(path) as pdf:
         assert len(pdf.pages) == 6  # each sheet front and back
+
+
+def test_guide_is_found_next_to_the_installed_app(tmp_path, monkeypatch):
+    from evrakci.ui.rehber import guide_text
+
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "tarama-rehberi.md").write_text("# Kurulu rehber", encoding="utf-8")
+    monkeypatch.setenv("EVRAKCI_UYGULAMA_KLASORU", str(tmp_path))
+    assert guide_text() == "# Kurulu rehber"
+
+
+def test_installer_ships_the_guide():
+    from pathlib import Path
+
+    setup = (Path(__file__).resolve().parents[2] / "packaging" / "freeze_setup.py").read_text(
+        encoding="utf-8")
+    assert "tarama-rehberi.md" in setup

@@ -30,8 +30,18 @@ Pile of paper ──► unstaple once ──► feed through the copier in batch
    7. Export       one PDF per document, named from your variables, plus an Excel index
 ```
 
-Steps 1–3 work today from the command line (see below). The rest is being built.
+Every step works from the command line (see below) and in the window (`evrakci-arayuz`).
 Design: [docs/superpowers/specs/2026-11-06-scan-and-split-design.md](docs/superpowers/specs/2026-11-06-scan-and-split-design.md)
+
+## The window
+
+Six tabs, the same core as the command line. Screens shown with invented example data only.
+
+| | |
+|---|---|
+| ![Yükle](docs/screenshots/yukle.png) | ![Kontrol](docs/screenshots/kontrol.png) |
+| ![Şablonlar](docs/screenshots/sablonlar.png) | ![Değerler](docs/screenshots/degerler.png) |
+| ![Dışa Aktar](docs/screenshots/disa-aktar.png) | ![Rehber](docs/screenshots/rehber.png) |
 
 ## Principles
 

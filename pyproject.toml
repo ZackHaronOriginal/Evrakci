@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "pytest-qt>=4.4", "ruff>=0.6"]  # pytest-qt: MIT
 # Optional OCR engine: Apache-2.0 code and models, MIT runtime
 rapidocr = ["rapidocr>=3.4", "onnxruntime>=1.17"]
 

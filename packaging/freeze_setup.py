@@ -34,6 +34,8 @@ UNUSED_QT = [
 ]
 
 include_files = [(str(path), path.name) for path in STAGE.iterdir()] if STAGE.is_dir() else []
+# The Rehber tab shows the scanning guide.
+include_files.append((str(HERE.parent / "docs" / "tarama-rehberi.md"), "docs/tarama-rehberi.md"))
 
 setup(
     name="Evrakci",

@@ -1,0 +1,94 @@
+<title>Evrakçı Window Looks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&display=swap">
+<style>
+  /* Layout: a single reading column of five numbered options, each a large screenshot with its notes beside or under it. */
+  :root {
+    --bg: #eef1f5; --panel: #ffffff; --fg: #17202c; --muted: #4a5568; --rule: #d3d9e2; --accent: #13294b; --mark: #f5c518;
+    --body: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #10161f; --panel: #19212d; --fg: #e6ebf2; --muted: #a7b2c2; --rule: #2c3644; --accent: #9cb8e6; --mark: #f5c518; color-scheme: dark } }
+  :root[data-theme="dark"] { --bg: #10161f; --panel: #19212d; --fg: #e6ebf2; --muted: #a7b2c2; --rule: #2c3644; --accent: #9cb8e6; --mark: #f5c518; color-scheme: dark }
+  body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5;
+         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; }
+  main { max-width: 1180px; margin: 0 auto; display: grid; gap: 40px; }
+  header h1 { font-size: 2rem; margin: 0 0 8px; text-wrap: balance; }
+  header p { margin: 0; max-width: 68ch; color: var(--muted); }
+  .opt { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+  .opt figure { margin: 0; border-bottom: 1px solid var(--rule); }
+  .opt img { display: block; width: 100%; height: auto; }
+  .txt { padding: 18px 22px 22px; display: grid; gap: 10px; }
+  .txt h2 { margin: 0; font-size: 1.45rem; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .num { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--accent); color: var(--bg); font-size: 1.1rem; }
+  .tag { font-size: .85rem; font-weight: 600; padding: 2px 10px; border-radius: 99px; border: 1px solid var(--rule); color: var(--muted); }
+  .tag.roll { background: var(--mark); color: #2b2200; border-color: transparent; }
+  .txt p { margin: 0; max-width: 75ch; }
+  dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; }
+  dt { font-weight: 700; } dd { margin: 0; color: var(--muted); min-width: 0; }
+  .how { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 22px; }
+  .how h2 { margin: 0 0 6px; font-size: 1.2rem; }
+  .how p { margin: 0; color: var(--muted); max-width: 70ch; }
+  @media (max-width: 560px) { dl { grid-template-columns: 1fr; } dd { margin-bottom: 6px; } }
+</style>
+
+<main>
+  <header>
+    <h1>Pick a look for the Evrakçı window</h1>
+    <p>Five directions, each drawn as the same Kontrol screen with the same invented data. The cut types are a QR page, a "her 3 sayfa" filter and a manual cut. Belge 41 needs a check, and pages 214–218 are selected. Click an image to open it at full size.</p>
+  </header>
+
+  <section class="opt">
+    <figure><a href="assigned.png"><img src="assigned.png" alt="Kartotek: green-grey shell, manila index tabs above each document, orange clip on Belge 41"></a></figure>
+    <div class="txt">
+      <h2><span class="num">1</span>Kartotek <span class="tag roll">drawn by the skill's roll</span></h2>
+      <p>An office card-index cabinet. Each document begins with a manila guide tab sticking up above its pages, and the tab's position tells how it was cut: left for QR, centre for filter, right for manual. Documents that need a check get an orange clip.</p>
+      <dl><dt>Good at</dt><dd>Seeing where documents start, and the heading names the span on screen ("Belge 40 — Belge 43"). A table of values sits right under the pages.</dd>
+          <dt>Risk</dt><dd>It can feel a bit "stationery" if the paper look goes too far.</dd></dl>
+    </div>
+  </section>
+
+  <section class="opt">
+    <figure><a href="model-pick.png"><img src="model-pick.png" alt="Hat Haritası: navy header, the whole job as a metro line with yellow diamonds, lanes of pages below"></a></figure>
+    <div class="txt">
+      <h2><span class="num">2</span>Hat Haritası <span class="tag">my pick</span></h2>
+      <p>Metro wayfinding signs. The whole job is one line along the top with a tick per document and a yellow diamond for each check. Below it are lanes for documents, pages, templates and values, lined up like a video editor.</p>
+      <dl><dt>Good at</dt><dd>Never losing your place in 800 pages, with very clear cut markers (filled disc, dashed ring, scissors square).</dd>
+          <dt>Risk</dt><dd>The most familiar of the five; it's the draft you were sent before.</dd></dl>
+    </div>
+  </section>
+
+  <section class="opt">
+    <figure><a href="challenger-airport.png"><img src="challenger-airport.png" alt="Terminal Sarısı: black header, a full-width yellow band naming the next check, big document numbers"></a></figure>
+    <div class="txt">
+      <h2><span class="num">3</span>Terminal Sarısı</h2>
+      <p>Airport signs. A yellow band under the tabs always says what to do next: "Sıradaki kontrol: Belge 41 · Sicil_No emin değil", with "6 kontrol kaldı" and a Sonraki (N) button. Document numbers are large, like gate numbers.</p>
+      <dl><dt>Good at</dt><dd>Working through the checks one by one; it's hard to miss anything.</dd>
+          <dt>Risk</dt><dd>Strong yellow; it only works if yellow means "next check" and nothing else.</dd></dl>
+    </div>
+  </section>
+
+  <section class="opt">
+    <figure><a href="challenger-catalog.png"><img src="challenger-catalog.png" alt="Pul Katalog: a dense grid of small page thumbnails, Belge 41 circled in red pen"></a></figure>
+    <div class="txt">
+      <h2><span class="num">4</span>Pul Katalog</h2>
+      <p>A stamp catalogue. About 60 small pages fit on screen at once, numbered and grouped by document, with documents that need a check circled in red pen. A slider makes the stamps bigger for weaker eyes.</p>
+      <dl><dt>Good at</dt><dd>Scanning a big pile fast and spotting odd splits at a glance.</dd>
+          <dt>Risk</dt><dd>Loses the left-to-right timeline feel, and is dense for long sessions.</dd></dl>
+    </div>
+  </section>
+
+  <section class="opt">
+    <figure><a href="canon.png"><img src="canon.png" alt="Windows standardı: Windows 11 style with a left menu, white cards and blue accent"></a></figure>
+    <div class="txt">
+      <h2><span class="num">5</span>Windows standardı <span class="tag">the familiar option</span></h2>
+      <p>A clean Windows 11 office app: a left menu instead of top tabs, white cards, blue selection and an amber warning style.</p>
+      <dl><dt>Good at</dt><dd>Looking like every other Windows program staff already use; nothing to learn.</dd>
+          <dt>Risk</dt><dd>No character of its own.</dd></dl>
+    </div>
+  </section>
+
+  <section class="how">
+    <h2>How to choose</h2>
+    <p>Reply in the chat with a number, or a mix such as "3, with the timeline from 2". You can also ask for a fresh set, safer or bolder. Once you pick, all six screens (Yükle, Kontrol, Şablonlar, Değerler, Dışa Aktar, Rehber) get drawn in that look for your approval before anything is built.</p>
+  </section>
+</main>

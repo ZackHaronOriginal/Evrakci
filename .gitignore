@@ -41,3 +41,4 @@ packaging/stage/
 build/
 packaging/tesseract-bundle/
 dist/
+!docs/superpowers/mockups/*.png

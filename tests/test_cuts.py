@@ -82,3 +82,25 @@ def test_cut_survives_dropping_its_empty_page():
     job.manual_cuts.add("a/2")
     job.drop_empty = True
     assert ids(compute_documents(job)) == [["a/0", "a/1"], ["a/3"]]
+
+
+def test_cut_kinds_names_what_starts_each_document():
+    from evrakci.pipeline.cuts import compute_documents, cut_kinds
+    from evrakci.pipeline.job import page_id
+
+    from fakes import job_from_kinds
+
+    job = job_from_kinds({"a": "pqpppppp"})
+    job.apply_filter([page_id("a", i) for i in (2, 3, 4, 5)], 2)
+    job.add_cut(page_id("a", 7))
+    docs = compute_documents(job)
+    kinds = cut_kinds(job)
+    assert [kinds[d.page_ids[0]] for d in docs] == ["start", "qr", "filter", "filter", "manual"]
+
+
+def test_cut_kinds_first_document_after_a_leading_qr_page_is_qr():
+    from evrakci.pipeline.cuts import cut_kinds
+
+    from fakes import job_from_kinds
+
+    assert cut_kinds(job_from_kinds({"a": "qpp"})) == {"a/1": "qr"}

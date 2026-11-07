@@ -84,7 +84,21 @@ def current_values(job: Job, document: Document) -> dict[str, VariableValue] | N
 
 
 def compute_documents(job: Job) -> list[Document]:
-    """Cut the job into documents.
+    """Cut the job into documents (see `_split`)."""
+    return [document for document, _ in _split(job)]
+
+
+def cut_kinds(job: Job) -> dict[str, str]:
+    """What starts each document, keyed by its first page id.
+
+    "qr" (a separator page), "manual" (a manual cut), "filter" (a filter group or
+    the edge of a filtered range) or "start" (the first document).
+    """
+    return {document.page_ids[0]: kind for document, kind in _split(job)}
+
+
+def _split(job: Job) -> list[tuple[Document, str]]:
+    """Cut the job into documents, each with what started it.
 
     - A QR page cuts (unless its cut was removed) and never reaches the output.
     - A manual cut cuts before its page.
@@ -99,19 +113,25 @@ def compute_documents(job: Job) -> list[Document]:
             filter_of[pid] = application
 
     template_of = _template_of(job)
-    documents: list[Document] = []
+    documents: list[tuple[Document, str]] = []
     current: list[str] = []
     current_filter: FilterApplication | None = None
+    reason = "start"  # what will have started the next document
 
-    def close() -> None:
+    def close(next_reason: str) -> None:
+        nonlocal reason
         if not current:
+            # The strongest reason since the last document wins.
+            if reason == "filter" or (reason == "start" and next_reason != "filter"):
+                reason = next_reason
             return
         flags = set()
         if current_filter is not None and len(current) < current_filter.every_n:
             flags.add("leftover")
         if len({template_of.get(pid) for pid in current}) > 1:
             flags.add("mixed_templates")
-        documents.append(Document(tuple(current), frozenset(flags)))
+        documents.append((Document(tuple(current), frozenset(flags)), reason))
+        reason = next_reason
         current.clear()
 
     # A manual cut on a page that is left out still cuts before the next kept page.
@@ -123,20 +143,20 @@ def compute_documents(job: Job) -> list[Document]:
         info = job.pages[pid]
         if info.is_separator:
             if pid not in job.removed_cuts:
-                close()
+                close("qr")
             cut_pending = False
             continue
         if job.drop_empty and info.is_empty and pid not in job.restored:
             continue
         if cut_pending:
-            close()
+            close("manual")
             cut_pending = False
         application = filter_of.get(pid)
         if application is not current_filter:
-            close()
+            close("filter")
             current_filter = application
         current.append(pid)
         if application is not None and len(current) == application.every_n:
-            close()
-    close()
+            close("filter")
+    close("filter")
     return documents

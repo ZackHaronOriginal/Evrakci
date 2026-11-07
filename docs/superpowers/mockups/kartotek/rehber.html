@@ -26,7 +26,7 @@
 .prose { max-width: 660px; font-size: 16px; line-height: 1.55; }
 .prose p { margin: 14px 0 0; }
 .prose ul { margin: 10px 0 0; padding: 0; list-style: none; }
-.prose ul li { display: grid; grid-template-columns: 22px 1fr; gap: 0 8px; padding: 9px 0; border-bottom: 1px solid var(--rule); }
+.prose ul li { display: grid; grid-template-columns: 22px 1fr; gap: 0 8px; padding: 6px 0; border-bottom: 1px solid var(--rule); }
 .prose ul li:last-child { border-bottom: 0; }
 .prose ul li svg { margin-top: 3px; color: var(--qr); }
 figure { margin: 14px 0 0; }
@@ -52,10 +52,46 @@ aside .pdf { width: 100%; justify-content: center; margin-top: 12px; height: 38p
 .note { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rule); gap: 8px; align-items: flex-start; font-size: var(--t-m); }
 .note svg { margin-top: 1px; color: var(--qr); }
 </style></head><body>
-<!--ICONS-->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+<symbol id="redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></symbol>
+<symbol id="funnel" viewBox="0 0 24 24"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></symbol>
+<symbol id="sc" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/></symbol>
+<symbol id="qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3h-3z"/></symbol>
+<symbol id="tpl" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+<symbol id="rot" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></symbol>
+<symbol id="del" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+<symbol id="warn" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/></symbol>
+<symbol id="ok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+<symbol id="no" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+<symbol id="save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></symbol>
+<symbol id="open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></symbol>
+<symbol id="merge" viewBox="0 0 24 24"><path d="M6 4v5a6 6 0 0 0 6 6h6M15 12l3 3-3 3M6 20v-3"/></symbol>
+<symbol id="blank" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z" stroke-dasharray="3 2.5"/></symbol>
+<symbol id="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="chl" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="box" viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+<symbol id="drop" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 19h16"/></symbol>
+<symbol id="print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-8h16v8h-3M7 14h10v7H7z"/></symbol>
+<symbol id="sheet" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7"/></symbol>
+<symbol id="grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+</defs></svg>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></symbol>
-<symbol id="qrcode" viewBox="0 0 25 25"><path fill="currentColor" stroke="none" d="QRPATH"/></symbol>
+<symbol id="qrcode" viewBox="0 0 25 25"><path fill="currentColor" stroke="none" d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM8 0h1v1h-1zM9 0h1v1h-1zM10 0h1v1h-1zM11 0h1v1h-1zM12 0h1v1h-1zM14 0h1v1h-1zM15 0h1v1h-1zM18 0h1v1h-1zM19 0h1v1h-1zM20 0h1v1h-1zM21 0h1v1h-1zM22 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM12 1h1v1h-1zM13 1h1v1h-1zM15 1h1v1h-1zM16 1h1v1h-1zM18 1h1v1h-1zM24 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM11 2h1v1h-1zM15 2h1v1h-1zM18 2h1v1h-1zM20 2h1v1h-1zM21 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM13 3h1v1h-1zM14 3h1v1h-1zM18 3h1v1h-1zM20 3h1v1h-1zM21 3h1v1h-1zM22 3h1v1h-1zM24 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM8 4h1v1h-1zM15 4h1v1h-1zM18 4h1v1h-1zM20 4h1v1h-1zM21 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM12 5h1v1h-1zM13 5h1v1h-1zM14 5h1v1h-1zM15 5h1v1h-1zM16 5h1v1h-1zM18 5h1v1h-1zM24 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM19 6h1v1h-1zM20 6h1v1h-1zM21 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM10 7h1v1h-1zM14 7h1v1h-1zM15 7h1v1h-1zM16 7h1v1h-1zM0 8h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM8 8h1v1h-1zM11 8h1v1h-1zM12 8h1v1h-1zM15 8h1v1h-1zM16 8h1v1h-1zM17 8h1v1h-1zM20 8h1v1h-1zM24 8h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM7 9h1v1h-1zM10 9h1v1h-1zM11 9h1v1h-1zM12 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM16 9h1v1h-1zM17 9h1v1h-1zM19 9h1v1h-1zM20 9h1v1h-1zM23 9h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM12 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM0 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM12 11h1v1h-1zM16 11h1v1h-1zM17 11h1v1h-1zM18 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM21 11h1v1h-1zM0 12h1v1h-1zM3 12h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM15 12h1v1h-1zM16 12h1v1h-1zM17 12h1v1h-1zM19 12h1v1h-1zM21 12h1v1h-1zM22 12h1v1h-1zM23 12h1v1h-1zM1 13h1v1h-1zM5 13h1v1h-1zM7 13h1v1h-1zM9 13h1v1h-1zM10 13h1v1h-1zM11 13h1v1h-1zM14 13h1v1h-1zM15 13h1v1h-1zM19 13h1v1h-1zM20 13h1v1h-1zM22 13h1v1h-1zM23 13h1v1h-1zM2 14h1v1h-1zM4 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM13 14h1v1h-1zM14 14h1v1h-1zM15 14h1v1h-1zM16 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM21 14h1v1h-1zM23 14h1v1h-1zM24 14h1v1h-1zM0 15h1v1h-1zM1 15h1v1h-1zM2 15h1v1h-1zM5 15h1v1h-1zM8 15h1v1h-1zM10 15h1v1h-1zM13 15h1v1h-1zM17 15h1v1h-1zM21 15h1v1h-1zM22 15h1v1h-1zM23 15h1v1h-1zM24 15h1v1h-1zM0 16h1v1h-1zM2 16h1v1h-1zM3 16h1v1h-1zM4 16h1v1h-1zM6 16h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM12 16h1v1h-1zM13 16h1v1h-1zM14 16h1v1h-1zM18 16h1v1h-1zM20 16h1v1h-1zM21 16h1v1h-1zM22 16h1v1h-1zM23 16h1v1h-1zM24 16h1v1h-1zM8 17h1v1h-1zM9 17h1v1h-1zM10 17h1v1h-1zM17 17h1v1h-1zM18 17h1v1h-1zM20 17h1v1h-1zM23 17h1v1h-1zM0 18h1v1h-1zM1 18h1v1h-1zM2 18h1v1h-1zM3 18h1v1h-1zM4 18h1v1h-1zM5 18h1v1h-1zM6 18h1v1h-1zM14 18h1v1h-1zM15 18h1v1h-1zM16 18h1v1h-1zM17 18h1v1h-1zM18 18h1v1h-1zM0 19h1v1h-1zM6 19h1v1h-1zM8 19h1v1h-1zM9 19h1v1h-1zM10 19h1v1h-1zM12 19h1v1h-1zM16 19h1v1h-1zM17 19h1v1h-1zM22 19h1v1h-1zM23 19h1v1h-1zM24 19h1v1h-1zM0 20h1v1h-1zM2 20h1v1h-1zM3 20h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM9 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM13 20h1v1h-1zM15 20h1v1h-1zM18 20h1v1h-1zM19 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM0 21h1v1h-1zM2 21h1v1h-1zM3 21h1v1h-1zM4 21h1v1h-1zM6 21h1v1h-1zM11 21h1v1h-1zM14 21h1v1h-1zM15 21h1v1h-1zM17 21h1v1h-1zM18 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM21 21h1v1h-1zM23 21h1v1h-1zM0 22h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM6 22h1v1h-1zM10 22h1v1h-1zM11 22h1v1h-1zM12 22h1v1h-1zM13 22h1v1h-1zM14 22h1v1h-1zM16 22h1v1h-1zM18 22h1v1h-1zM19 22h1v1h-1zM21 22h1v1h-1zM22 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM8 23h1v1h-1zM11 23h1v1h-1zM12 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM16 23h1v1h-1zM17 23h1v1h-1zM20 23h1v1h-1zM22 23h1v1h-1zM24 23h1v1h-1zM0 24h1v1h-1zM1 24h1v1h-1zM2 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM5 24h1v1h-1zM6 24h1v1h-1zM8 24h1v1h-1zM9 24h1v1h-1zM10 24h1v1h-1zM11 24h1v1h-1zM12 24h1v1h-1zM13 24h1v1h-1zM14 24h1v1h-1zM15 24h1v1h-1zM19 24h1v1h-1zM20 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1z"/></symbol>
 </defs></svg>
 <header class="app row"><b>Evrakçı</b><span class="job">Kasım 2026 – Faaliyet belgeleri · 3 parti · 812 sayfa</span><span class="saved row"><svg class="i"><use href="#save"/></svg>Kaydedildi 14:32</span></header>
 <nav class="tabs"><a>Yükle<span>Ctrl+1</span></a><a>Kontrol<span>Ctrl+2</span></a><a>Şablonlar<span>Ctrl+3</span></a><a>Değerler<span>Ctrl+4</span></a><a>Dışa Aktar<span>Ctrl+5</span></a><a class="on">Rehber<span>F1</span></a></nav>
@@ -81,61 +117,58 @@ aside .pdf { width: 100%; justify-content: center; margin-top: 12px; height: 38p
       <figure>
         <svg class="ill" viewBox="0 0 660 134" role="img" aria-label="Kağıt destesi: her belgenin önünde, kenarından taşan bir QR ayıraç sayfası">
           <g font-family="Atkinson Hyperlegible Next, Segoe UI, sans-serif" font-size="13">
-          <!-- feeder direction -->
-          <text x="0" y="16" fill="#4f5d55">Besleyiciye bu yüz</text>
-          <path d="M8 24v16m-5-5 5 5 5-5" fill="none" stroke="#4f5d55" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
           <!-- stack: y step 7, sheet height 5 -->
           <!-- sep 1 -->
           <g transform="translate(130 10)">
-            <rect x="0" y="0" width="300" height="5" rx="1" fill="#fff" stroke="#1f5fbf" stroke-width="1.4"/>
-            <path d="M300 0h44a4 4 0 0 1 4 4v17a4 4 0 0 1-4 4h-44z" fill="#fff" stroke="#1f5fbf" stroke-width="1.4"/>
-            <use href="#qrcode" x="306" y="4" width="17" height="17" color="#1d2a23"/>
-            <text x="328" y="17" fill="#1f5fbf" font-weight="700" font-size="13">QR</text>
+            <rect x="0" y="0" width="300" height="5" rx="1" stroke-width="1.4" style="fill:var(--paper);stroke:var(--qr)"/>
+            <path d="M300 0h44a4 4 0 0 1 4 4v17a4 4 0 0 1-4 4h-44z" stroke-width="1.4" style="fill:var(--paper);stroke:var(--qr)"/>
+            <use href="#qrcode" x="306" y="4" width="17" height="17" style="color:var(--ink)"/>
+            <text x="328" y="17" font-weight="700" font-size="13" style="fill:var(--qr)">QR</text>
           </g>
-          <g fill="#fff" stroke="#8f9c94" stroke-width="1">
+          <g stroke-width="1" style="fill:var(--paper);stroke:var(--rule-strong)">
             <rect x="126" y="23" width="300" height="5" rx="1"/><rect x="128" y="30" width="300" height="5" rx="1"/><rect x="125" y="37" width="300" height="5" rx="1"/>
           </g>
           <!-- sep 2 -->
           <g transform="translate(130 46)">
-            <rect x="0" y="0" width="300" height="5" rx="1" fill="#fff" stroke="#1f5fbf" stroke-width="1.4"/>
-            <path d="M300 0h44a4 4 0 0 1 4 4v17a4 4 0 0 1-4 4h-44z" fill="#fff" stroke="#1f5fbf" stroke-width="1.4"/>
-            <use href="#qrcode" x="306" y="4" width="17" height="17" color="#1d2a23"/>
-            <text x="328" y="17" fill="#1f5fbf" font-weight="700" font-size="13">QR</text>
+            <rect x="0" y="0" width="300" height="5" rx="1" stroke-width="1.4" style="fill:var(--paper);stroke:var(--qr)"/>
+            <path d="M300 0h44a4 4 0 0 1 4 4v17a4 4 0 0 1-4 4h-44z" stroke-width="1.4" style="fill:var(--paper);stroke:var(--qr)"/>
+            <use href="#qrcode" x="306" y="4" width="17" height="17" style="color:var(--ink)"/>
+            <text x="328" y="17" font-weight="700" font-size="13" style="fill:var(--qr)">QR</text>
           </g>
-          <g fill="#fff" stroke="#8f9c94" stroke-width="1">
+          <g stroke-width="1" style="fill:var(--paper);stroke:var(--rule-strong)">
             <rect x="127" y="59" width="300" height="5" rx="1"/><rect x="129" y="66" width="300" height="5" rx="1"/>
           </g>
           <!-- sep 3 -->
           <g transform="translate(130 75)">
-            <rect x="0" y="0" width="300" height="5" rx="1" fill="#fff" stroke="#1f5fbf" stroke-width="1.4"/>
-            <path d="M300 0h44a4 4 0 0 1 4 4v17a4 4 0 0 1-4 4h-44z" fill="#fff" stroke="#1f5fbf" stroke-width="1.4"/>
-            <use href="#qrcode" x="306" y="4" width="17" height="17" color="#1d2a23"/>
-            <text x="328" y="17" fill="#1f5fbf" font-weight="700" font-size="13">QR</text>
+            <rect x="0" y="0" width="300" height="5" rx="1" stroke-width="1.4" style="fill:var(--paper);stroke:var(--qr)"/>
+            <path d="M300 0h44a4 4 0 0 1 4 4v17a4 4 0 0 1-4 4h-44z" stroke-width="1.4" style="fill:var(--paper);stroke:var(--qr)"/>
+            <use href="#qrcode" x="306" y="4" width="17" height="17" style="color:var(--ink)"/>
+            <text x="328" y="17" font-weight="700" font-size="13" style="fill:var(--qr)">QR</text>
           </g>
-          <g fill="#fff" stroke="#8f9c94" stroke-width="1">
+          <g stroke-width="1" style="fill:var(--paper);stroke:var(--rule-strong)">
             <rect x="126" y="88" width="300" height="5" rx="1"/><rect x="128" y="95" width="300" height="5" rx="1"/><rect x="125" y="102" width="300" height="5" rx="1"/><rect x="127" y="109" width="300" height="5" rx="1"/>
           </g>
           <!-- drawer floor -->
-          <path d="M110 120h360" stroke="#4f5d55" stroke-width="1.6"/>
+          <path d="M110 120h360" stroke-width="1.6" style="stroke:var(--ink-2)"/>
           <!-- left brackets: documents -->
-          <g fill="none" stroke="#4f5d55" stroke-width="1.4">
+          <g fill="none" stroke-width="1.4" style="stroke:var(--ink-2)">
             <path d="M116 22v20M116 58v13M116 87v27"/>
           </g>
-          <g fill="#1d2a23" text-anchor="end">
+          <g text-anchor="end" style="fill:var(--ink)">
             <text x="108" y="37" font-weight="700">Belge 1 · 3 s.</text>
             <text x="108" y="69" font-weight="700">Belge 2 · 2 s.</text>
             <text x="108" y="104" font-weight="700">Belge 3 · 4 s.</text>
           </g>
           <!-- right annotation -->
-          <g fill="#1d2a23">
-            <path d="M486 22 h20 M486 58 h20 M486 87 h20" stroke="#1f5fbf" stroke-width="1.4" stroke-dasharray="3 3"/>
+          <g style="fill:var(--ink)">
+            <path d="M486 22 h20 M486 58 h20 M486 87 h20" stroke-width="1.4" stroke-dasharray="3 3" style="stroke:var(--qr)"/>
             <text x="516" y="27" font-weight="700">Ayıraç: yeni belge</text>
             <text x="516" y="63">çıktıya girmez</text>
             <text x="516" y="92">tekrar kullanılır</text>
           </g>
           </g>
         </svg>
-        <figcaption>Yandan bakış: her belgenin önüne bir ayıraç. Ayıraçlar desteden taşarsa taramadan sonra toplaması kolaylaşır.</figcaption>
+        <figcaption>Yandan bakış: her belgenin önünde bir ayıraç; taşan kenarı sonra toplamayı kolaylaştırır.</figcaption>
       </figure>
       <ul>
         <li><svg class="i"><use href="#print"/></svg><span><b>Bir kez yazdırın, hep kullanın.</b> Taramadan sonra ayıraçları desteden toplayıp bir sonraki iş için saklayın. 20 adet çoğu iş için yeter.</span></li>
@@ -154,7 +187,7 @@ aside .pdf { width: 100%; justify-content: center; margin-top: 12px; height: 38p
     <div class="thcap">Önizleme · gerçek boyut A4</div>
     <div class="qty row"><label for="adet">Kaç adet</label><input id="adet" class="num" value="20"><span class="u">sayfa · 1 PDF</span></div>
     <button class="btn pri pdf"><svg class="i"><use href="#open"/></svg>PDF olarak aç<kbd>Ctrl+P</kbd></button>
-    <div class="note row"><svg class="i"><use href="#info"/></svg><span><b>Ayıraç sayfaları dışa aktarılmaz.</b> PDF, yazıcınızın penceresinde açılır; oradan yazdırın.</span></div>
+    <div class="note row"><svg class="i"><use href="#info"/></svg><span><b>Ayıraç sayfaları dışa aktarılmaz.</b> PDF görüntüleyicide açılır; oradan yazdırın. Tarandıktan sonra desteden toplayın.</span></div>
   </aside>
 </div>
 <footer class="status row"><span class="row" style="gap:6px"><svg class="i"><use href="#book"/></svg>Rehber</span><span class="dot">·</span><span><b>F1</b> her ekrandan açar</span>

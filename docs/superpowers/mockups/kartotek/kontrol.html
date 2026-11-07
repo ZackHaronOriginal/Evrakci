@@ -7,7 +7,7 @@
 .strip .lab b { color: var(--ink); }
 .strip .lab .legend { margin-left: auto; gap: 6px; color: var(--ink); }
 .track { position: relative; height: 24px; margin-top: 18px; border-bottom: 1px solid #7f8c84;
-  background: linear-gradient(90deg, #9aa69f 0 1px, transparent 1px) 0 0 / calc(100% / 812) 100% repeat-x; }
+  background: linear-gradient(90deg, #7f8c84 0 1px, transparent 1px) 0 0 / calc(100% / 812) 100% repeat-x; }
 .flag { position: absolute; z-index: 2; top: -18px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; font-size: var(--t-s); font-weight: 700; color: #5a2a00; line-height: 1; }
 .flag i { display: block; width: 9px; height: 9px; background: var(--rider); border: 1px solid var(--rider-edge); border-radius: 2px 2px 0 0; margin-top: 2px; }
 .flag u { display: block; width: 2px; height: 23px; background: var(--rider); }
@@ -78,20 +78,20 @@ aside.side { width: 340px; flex: none; }
 <symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
 </defs></svg>
 <header class="app row"><b>Evrakçı</b><span class="job">Kasım 2026 – Faaliyet belgeleri · 3 parti · 812 sayfa</span><span class="saved row"><svg class="i"><use href="#save"/></svg>Kaydedildi 14:32</span></header>
-<nav class="tabs"><a>Yükle<span>Ctrl+1</span></a><a class="on">Kontrol<span>Ctrl+2</span></a><a>Şablonlar<span>Ctrl+3</span></a><a>Değerler<span>Ctrl+4</span></a><a>Dışa Aktar<span>Ctrl+5</span></a><a>Rehber<span>F1</span></a></nav>
+<nav class="tabs"><a title="Ctrl+1">Yükle</a><a class="on" title="Ctrl+2">Kontrol</a><a title="Ctrl+3">Şablonlar</a><a title="Ctrl+4">Değerler</a><a title="Ctrl+5">Dışa Aktar</a><a title="F1">Rehber</a></nav>
 <div class="tool row">
   <button class="btn"><svg class="i"><use href="#undo"/></svg>Geri al<kbd>Ctrl+Z</kbd></button>
-  <button class="btn ico" title="Yinele (Ctrl+Y)"><svg class="i"><use href="#redo"/></svg></button>
+  <button class="btn" title="Yinele"><svg class="i"><use href="#redo"/></svg><kbd>Ctrl+Y</kbd></button>
   <span class="sep"></span>
-  <span style="white-space:nowrap"><b>Sayfa 214–218 seçili</b> · Belge 41, 42</span>
+  <span style="white-space:nowrap"><b>214–218 seçili</b> · 5 sayfa</span>
   <span class="sep"></span>
   <label class="row" style="gap:7px;white-space:nowrap">Her <input class="num" value="3"> sayfada bir belge</label>
   <button class="btn pri focus"><svg class="i"><use href="#funnel"/></svg>Filtreyi uygula<kbd>F</kbd></button>
   <button class="btn"><svg class="i"><use href="#sc"/></svg>Kesim<kbd>K</kbd></button>
   <button class="btn"><svg class="i"><use href="#tpl"/></svg>Şablon uygula<kbd>T</kbd></button>
   <span class="sep"></span>
-  <button class="btn ico" title="Döndür (R)"><svg class="i"><use href="#rot"/></svg></button>
-  <button class="btn ico" title="Sil (Del)"><svg class="i"><use href="#del"/></svg></button>
+  <button class="btn" title="Döndür"><svg class="i"><use href="#rot"/></svg><kbd>R</kbd></button>
+  <button class="btn" title="Sil"><svg class="i"><use href="#del"/></svg><kbd>Del</kbd></button>
 </div>
 <div class="strip">
   <div class="lab row"><b>Tüm iş</b><span>812 sayfa · 287 belge · her çizgi bir sayfa · tıklayınca oraya gider</span>
@@ -121,7 +121,7 @@ aside.side { width: 340px; flex: none; }
       <div class="grp fil-g" style="width:168px"><div class="tabs"><div class="tab fil"><div class="t1"><svg class="i"><use href="#funnel"/></svg>Belge 42</div><div class="t2">Faaliyet B. · Filtre 3</div></div></div><div class="edge"></div>
         <div class="ps"><div class="pg s e"><div class="sheet">boş</div><span class="n">217</span></div><div class="pg s"><div class="sheet"></div><span class="n">218</span></div></div></div>
       <div class="cut man" title="Elle kesim"><span class="bd"><svg class="i"><use href="#sc"/></svg></span><span class="ln"></span></div>
-      <div class="grp" style="width:168px"><div class="tabs"><div class="tab man"><div class="t1"><svg class="i"><use href="#sc"/></svg>Belge 43</div><div class="t2">Şablon yok · elle</div></div></div><div class="edge"></div>
+      <div class="grp" style="width:168px"><div class="tabs"><div class="tab man"><div class="t1"><svg class="i"><use href="#sc"/></svg>Belge 43</div><div class="t2">Şablon yok · elle kesim</div></div></div><div class="edge"></div>
         <div class="ps"><div class="pg"><div class="sheet"></div><span class="n">219</span></div><div class="pg"><div class="sheet"></div><span class="n">220</span></div></div></div>
     </div>
     <table class="list"><thead><tr><th>Belge</th><th>Şablon</th><th>Sayfalar</th><th>Sicil_No</th><th>Firma_Adi</th><th>Değerler</th></tr></thead><tbody>
@@ -134,7 +134,7 @@ aside.side { width: 340px; flex: none; }
   <aside class="side">
     <h2>Belge 41 · Kapasite Raporu</h2><div class="meta">Sayfa 214–216 · 3 sayfa · Parti 1</div>
     <div class="notice"><div class="h row"><span class="chip"><svg class="i"><use href="#warn"/></svg></span>Sicil_No emin değil</div>
-      <dl class="kv"><dt>Okunan</dt><dd><code class="bad">48Z13</code></dd><dt>Öneri</dt><dd>48213 · Varyant 2</dd></dl>
+      <dl class="kv"><dt>Okunan</dt><dd><code class="bad">48Z13</code></dd><dt>Öneri</dt><dd>48213 · Varyant 2 · %93</dd></dl>
       <button class="btn pri"><svg class="i"><use href="#open"/></svg>Değerlerde aç<kbd>Ctrl+4</kbd></button></div>
     <h3>Neden burada başlıyor?</h3>
     <dl class="kv"><dt class="row" style="gap:6px"><svg class="i" style="color:var(--qr)"><use href="#qr"/></svg>Önceki kesim</dt><dd>QR ayıraç · s.213</dd>
@@ -144,5 +144,5 @@ aside.side { width: 340px; flex: none; }
   </aside>
 </div>
 <footer class="status row"><span>287 belge</span><span class="dot">·</span><span>812 sayfa</span><span class="dot">·</span><span>14 boş sayfa atlandı</span><span class="dot">·</span><span class="warn row"><svg class="i"><use href="#warn"/></svg>6 belge kontrol bekliyor</span>
-  <span class="k row"><span><b>← →</b> sayfa</span><span><b>Shift</b> seçimi genişlet</span><span><b>N</b> sonraki kontrol</span></span></footer>
+  <span class="k row"><span><b>Ctrl+1…5</b> sekmeler</span><span><b>← →</b> sayfa</span><span><b>Shift</b> seçimi genişlet</span><span><b>N</b> sonraki kontrol</span></span></footer>
 </body></html>

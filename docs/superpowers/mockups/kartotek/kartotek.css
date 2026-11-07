@@ -42,9 +42,7 @@ header.app .job { color: var(--on-shell-2); white-space: nowrap; }
 header.app .saved { margin-left: auto; color: var(--on-shell-2); gap: 6px; white-space: nowrap; }
 nav.tabs { height: 40px; background: var(--shell); padding: 0 12px; gap: 2px; align-items: flex-end; border-top: 1px solid var(--shell-2); display: flex; }
 nav.tabs a { color: var(--on-shell-2); padding: 8px 16px 9px; font-weight: 600; border-radius: 6px 6px 0 0; white-space: nowrap; }
-nav.tabs a span { font-weight: 400; font-size: var(--t-s); margin-left: 6px; }
 nav.tabs a.on { background: var(--card); color: var(--ink); }
-nav.tabs a.on span { color: var(--ink-2); }
 footer.status { position: absolute; left: 0; right: 0; bottom: 0; height: 30px; background: var(--shell); color: var(--on-shell); padding: 0 20px; gap: 10px; font-size: var(--t-m); }
 footer.status .dot { color: var(--on-shell-2); }
 footer.status .k { margin-left: auto; color: var(--on-shell-2); gap: 14px; }
@@ -59,6 +57,7 @@ footer.status .warn { gap: 6px; } footer.status .warn svg { color: #ffb27a; }
 .btn.pri kbd { background: var(--shell-3); color: #fff; border-color: #6d8778; }
 .btn.focus { outline: 3px solid var(--focus); outline-offset: 2px; }
 .btn:disabled { color: #7d8a82; border-color: var(--rule); background: var(--card); }
+/* Key hint inside a button: built in Qt as one custom-painted KeyHintButton (QPushButton subclass). */
 kbd { font: 600 var(--t-s)/1 var(--font); padding: 3px 5px; border: 1px solid #c3cbc5; border-bottom-width: 2px; border-radius: 4px; background: #f1f3ef; color: var(--ink-2); }
 .sep { width: 1px; height: 28px; background: var(--rule); margin: 0 3px; flex: none; }
 input.txt, select.txt { height: 34px; border: 1px solid var(--rule-strong); border-radius: 4px; padding: 0 8px; font: inherit; background: var(--paper); color: var(--ink); }

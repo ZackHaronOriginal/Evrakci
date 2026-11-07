@@ -73,9 +73,9 @@ ol.secs li.cur { background: var(--row-cur); box-shadow: inset 0 0 0 2px var(--f
 .bx.l .lb { left: auto; right: calc(100% + 4px); bottom: auto; top: -2px; border-radius: 3px; }
 .bx.ghost { border-color: color-mix(in srgb, var(--c) 45%, transparent); background: none; }
 .bx.ghost .lb { background: var(--paper); color: var(--ink-2); border: 1px solid var(--rule-strong); font-weight: 600; }
-.bx.ghost .lb { color: var(--c); }
+.bx.ghost .lb { color: var(--c); bottom: calc(100% + 4px); }
 .bx .in { position: absolute; inset: 0; display: grid; place-items: center; font-size: var(--t-s); color: var(--ink-2); font-weight: 600; white-space: nowrap; }
-.bx.below .lb { bottom: auto; top: calc(100% + 2px); border-radius: 0 3px 3px 3px; }
+.bx.below .lb { bottom: auto; top: calc(100% + 4px); border-radius: 0 3px 3px 3px; }
 .bx.draw { border-style: dashed; background: color-mix(in srgb, var(--c) 12%, transparent); box-shadow: 0 0 0 1px rgba(255,255,255,.8); }
 .bx.draw .h { position: absolute; width: 8px; height: 8px; background: var(--paper); border: 1.5px solid var(--c); }
 .ro { position: absolute; z-index: 3; left: calc(187 * var(--mm)); top: calc(273 * var(--mm)); background: var(--ink); color: #fff; font-size: var(--t-s); font-weight: 700; line-height: 1; padding: 4px 6px; border-radius: 3px; white-space: nowrap; }
@@ -143,7 +143,7 @@ aside.side .acts { margin-top: auto; }
 <symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
 </defs></svg>
 <header class="app row"><b>Evrakçı</b><span class="job">Kasım 2026 – Faaliyet belgeleri · 3 parti · 812 sayfa</span><span class="dirty row"><i></i>Kaydedilmemiş değişiklik var</span></header>
-<nav class="tabs"><a>Yükle<span>Ctrl+1</span></a><a>Kontrol<span>Ctrl+2</span></a><a class="on">Şablonlar<span>Ctrl+3</span></a><a>Değerler<span>Ctrl+4</span></a><a>Dışa Aktar<span>Ctrl+5</span></a><a>Rehber<span>F1</span></a></nav>
+<nav class="tabs"><a title="Ctrl+1">Yükle</a><a title="Ctrl+2">Kontrol</a><a class="on" title="Ctrl+3">Şablonlar</a><a title="Ctrl+4">Değerler</a><a title="Ctrl+5">Dışa Aktar</a><a title="F1">Rehber</a></nav>
 <div class="main">
   <section class="lft">
     <div class="hd row"><h2>Şablonlar</h2><button class="btn"><svg class="i"><use href="#plus"/></svg>Yeni</button></div>
@@ -180,10 +180,9 @@ aside.side .acts { margin-top: auto; }
       <div class="cv">
         <div class="rul-t"><b style="left:0">0</b><b style="left:calc(50 * var(--mm))">50</b><b style="left:calc(100 * var(--mm))">100</b><b style="left:calc(150 * var(--mm))">150</b><b style="left:calc(200 * var(--mm))">200</b>
           <span class="ext" style="left:calc(153 * var(--mm));width:calc(32 * var(--mm))"></span></div>
-        <div class="rul-l"><b style="top:calc(50 * var(--mm))">50</b><b style="top:calc(100 * var(--mm))">100</b><b style="top:calc(150 * var(--mm))">150</b><b style="top:calc(200 * var(--mm))">200</b><b style="top:calc(250 * var(--mm))">250</b>
-          <span class="ext" style="top:calc(262 * var(--mm));height:calc(9 * var(--mm))"></span></div>
+        <div class="rul-l"><b style="top:calc(50 * var(--mm))">50</b><b style="top:calc(100 * var(--mm))">100</b><b style="top:calc(150 * var(--mm))">150</b><b style="top:calc(200 * var(--mm))">200</b><b style="top:calc(250 * var(--mm))">250</b></div>
         <div class="pg">
-          <span class="m t ttl" style="--x:105;--y:7">KAPASİTE RAPORU</span>
+          <span class="m t ttl" style="--x:105;--y:3">KAPASİTE RAPORU</span>
                     <span class="m t" style="--x:112;--y:30.5">Rapor No:</span><span class="m t" style="--x:152;--y:30.5;font-weight:700">2026/1102</span>
           <span class="m t" style="--x:112;--y:43.5">Tarih:</span><span class="m t" style="--x:152;--y:43.5;font-weight:700">31.11.2026</span>
           <span class="m t" style="--x:14;--y:62.5">Firma:</span><span class="m t" style="--x:46;--y:62.5;font-weight:700">Özen Mobilya Ltd. Şti.</span>
@@ -194,8 +193,8 @@ aside.side .acts { margin-top: auto; }
           <span class="bar" style="--x:14;--y:236;--w:46"></span><span class="bar" style="--x:14;--y:262;--w:52;height:1px;background:#8f9c94"></span>
           <div class="stamp"><span class="s1">ODA KAYIT</span><span class="s2">27744</span></div>
           <div class="grid"></div>
-          <div class="bx" style="--c:var(--v4);--x:149;--y:28;--w:47;--h:10"><span class="lb">Rapor_No</span></div>
-          <div class="bx below" style="--c:var(--v3);--x:149;--y:41;--w:47;--h:10"><span class="lb">Rapor_Tarihi</span></div>
+          <div class="bx" style="--c:var(--v4);--x:149;--y:28;--w:53;--h:10"><span class="lb">Rapor_No</span></div>
+          <div class="bx below" style="--c:var(--v3);--x:149;--y:41;--w:53;--h:10"><span class="lb">Rapor_Tarihi</span></div>
           <div class="bx ghost" style="--c:var(--v1);--x:14;--y:28;--w:70;--h:10"><span class="lb">Sicil_No · Bölüm 1</span><span class="in">(bu örnekte yok)</span></div>
           <div class="bx" style="--c:var(--v2);--x:44;--y:60;--w:96;--h:10"><span class="lb">Firma_Adi</span></div>
           <div class="bx draw l" style="--c:var(--v1);--x:153;--y:262;--w:32;--h:9"><span class="lb">Sicil_No · Varyant 2</span>

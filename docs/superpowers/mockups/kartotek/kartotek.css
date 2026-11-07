@@ -12,7 +12,7 @@
   --shell: #3f5a4c; --shell-2: #344b3f; --shell-3: #5a7566; --on-shell: #ffffff; --on-shell-2: #cddbd2;
   /* Cards and ground */
   --ground: #e6ebe7; --card: #fbfaf6; --paper: #ffffff; --ink: #1d2a23; --ink-2: #4f5d55;
-  --rule: #c9d1cb; --rule-strong: #8f9c94; --control-edge: #aab5ae;
+  --rule: #c9d1cb; --rule-strong: #74817a; --control-edge: #7f8c84;
   /* Guide cards and the index rule */
   --manila: #e9d9a6; --manila-edge: #b9a66a; --manila-ink: #2b2410; --index-red: #c8372d;
   /* Signal rider = needs a check (always with icon + text) */

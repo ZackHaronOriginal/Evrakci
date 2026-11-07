@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Evrakçı · Şablonlar</title>
+<link rel="stylesheet" href="kartotek.css">
+<style>
+header.app .dirty { margin-left: auto; gap: 7px; white-space: nowrap; color: #fff; font-weight: 600; }
+header.app .dirty i { width: 9px; height: 9px; border-radius: 50%; background: #ffb27a; }
+.main { display: flex; height: 658px; }
+
+/* Left: templates + variables */
+.lft { width: 300px; flex: none; background: var(--card); border-right: 1px solid var(--rule); padding: 14px 16px; display: flex; flex-direction: column; }
+.hd { justify-content: space-between; padding-bottom: 6px; border-bottom: 1px solid var(--index-red); }
+.hd h2 { margin: 0; font-size: var(--t-l); }
+.hd .btn { height: 30px; }
+ul.tl, ul.vl { list-style: none; margin: 0; padding: 0; }
+ul.tl li { height: 40px; gap: 9px; padding: 0 8px; border-bottom: 1px solid var(--rule); }
+ul.tl li .n { margin-left: auto; font-size: var(--t-m); color: var(--ink-2); }
+ul.tl li.cur { background: var(--row-cur); font-weight: 700; box-shadow: inset 0 0 0 2px var(--focus); }
+ul.tl li svg { color: var(--ink-2); }
+.lft .hd2 { margin-top: 18px; }
+ul.vl > li { border-bottom: 1px solid var(--rule); padding: 7px 0 7px 2px; }
+.vn { gap: 8px; font-weight: 700; }
+.sw { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+.req { margin-left: auto; font-size: var(--t-s); font-weight: 600; color: var(--ink-2); border: 1px solid var(--rule-strong); border-radius: 3px; padding: 0 5px; line-height: 19px; }
+.vn .sec { font-weight: 400; color: var(--ink-2); font-size: var(--t-m); }
+ol.secs { list-style: none; margin: 6px 0 0; padding: 0; }
+ol.secs li { height: 34px; gap: 8px; padding: 0 6px; font-size: var(--t-m); border-radius: 4px; }
+ol.secs li .grip { color: var(--ink-2); width: 16px; height: 16px; }
+ol.secs li .ord { width: 18px; font-weight: 700; color: var(--ink-2); }
+ol.secs li.cur { background: var(--row-cur); box-shadow: inset 0 0 0 2px var(--focus); font-weight: 700; }
+.ls { width: 24px; height: 0; border-top: 2.5px solid var(--v1); flex: none; }
+.ls.d { border-top-style: dashed; }
+.lft .hint { margin-top: auto; font-size: var(--t-m); color: var(--ink-2); }
+.lft .hint .btn { margin-top: 8px; width: 100%; justify-content: space-between; }
+.lft .hint .btn span { display: flex; gap: 8px; align-items: center; }
+
+/* Centre: canvas */
+.ctr { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ctr .tool { gap: 8px; }
+.ctr select.txt { width: 196px; font-weight: 600; }
+.btn.tog { background: var(--row-cur); border-color: var(--ink-2); box-shadow: inset 0 1px 2px rgba(29,42,35,.18); }
+.stage { flex: 1; position: relative; overflow: hidden; background: #dfe5e1; }
+.cv { --mm: 1.72px; position: absolute; left: 180px; top: 26px; width: calc(210 * var(--mm)); height: calc(297 * var(--mm)); }
+.rul-t { position: absolute; left: 0; right: 0; top: -20px; height: 18px; border-bottom: 1px solid var(--rule-strong);
+  background: linear-gradient(90deg, var(--rule-strong) 0 1px, transparent 1px) 0 100% / calc(10 * var(--mm)) 6px repeat-x; }
+.rul-l { position: absolute; top: 0; bottom: 0; left: -26px; width: 24px; border-right: 1px solid var(--rule-strong);
+  background: linear-gradient(var(--rule-strong) 0 1px, transparent 1px) 100% 0 / 6px calc(10 * var(--mm)) repeat-y; }
+.rul-t b, .rul-l b { position: absolute; font-size: var(--t-s); font-weight: 400; color: var(--ink-2); line-height: 1; }
+.rul-t b { top: 0; transform: translateX(-50%); }
+.rul-l b { right: 8px; transform: translateY(-50%); }
+.rul-t .ext, .rul-l .ext { position: absolute; background: var(--v1); opacity: .9; }
+.rul-t .ext { bottom: 0; height: 4px; }
+.rul-l .ext { right: 0; width: 4px; }
+.pg { position: absolute; inset: 0; background: var(--paper); border: 1px solid #b8c1bb; box-shadow: 0 1px 3px rgba(29,42,35,.18); overflow: hidden; color: #2a2f2c; }
+.pg .grid { position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(63,90,76,.20) 0 1px, transparent 1px) 0 0 / calc(10 * var(--mm)) 100%,
+    linear-gradient(rgba(63,90,76,.20) 0 1px, transparent 1px) 0 0 / 100% calc(10 * var(--mm)),
+    linear-gradient(90deg, rgba(63,90,76,.09) 0 1px, transparent 1px) 0 0 / calc(5 * var(--mm)) 100%,
+    linear-gradient(rgba(63,90,76,.09) 0 1px, transparent 1px) 0 0 / 100% calc(5 * var(--mm)); }
+.m { position: absolute; left: calc(var(--x) * var(--mm)); top: calc(var(--y) * var(--mm)); }
+.pg .t { font-size: var(--t-s); line-height: 1; white-space: nowrap; }
+.pg .ttl { font-size: var(--t-l); font-weight: 700; letter-spacing: .06em; transform: translateX(-50%); }
+.bar { position: absolute; left: calc(var(--x) * var(--mm)); top: calc(var(--y) * var(--mm)); width: calc(var(--w) * var(--mm)); height: 5px; background: #d5dbd7; border-radius: 1px; }
+.tbl { position: absolute; left: calc(14 * var(--mm)); top: calc(112 * var(--mm)); width: calc(182 * var(--mm)); height: calc(84 * var(--mm)); border: 1px solid #b9c0bb;
+  background: linear-gradient(#b9c0bb 0 1px, transparent 1px) 0 calc(12 * var(--mm)) / 100% calc(12 * var(--mm)), linear-gradient(90deg, transparent calc(70 * var(--mm)), #b9c0bb 0 1px, transparent 0) , linear-gradient(90deg, transparent calc(126 * var(--mm)), #b9c0bb 0 1px, transparent 0); }
+.stamp { position: absolute; left: calc(150 * var(--mm)); top: calc(247 * var(--mm)); width: calc(44 * var(--mm)); height: calc(29 * var(--mm)); border: 2px solid #3a5a96; outline: 1px solid #3a5a96; outline-offset: -5px; color: #2f4f8c; text-align: center; font-weight: 700; }
+.stamp .s1 { position: absolute; left: 0; right: 0; top: calc(4 * var(--mm)); font-size: var(--t-s); letter-spacing: .08em; line-height: 1; }
+.stamp .s2 { position: absolute; left: 0; right: 0; top: calc(16 * var(--mm)); font-size: var(--t-l); letter-spacing: .1em; line-height: 1; font-family: var(--mono); }
+
+/* Boxes */
+.bx { position: absolute; z-index: 2; left: calc(var(--x) * var(--mm)); top: calc(var(--y) * var(--mm)); width: calc(var(--w) * var(--mm)); height: calc(var(--h) * var(--mm)); border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 9%, transparent); }
+.bx .lb { position: absolute; bottom: calc(100% + 2px); left: -2px; background: var(--c); color: #fff; font-size: var(--t-s); font-weight: 700; line-height: 1; padding: 3px 5px; border-radius: 3px 3px 3px 0; white-space: nowrap; }
+.bx.l .lb { left: auto; right: calc(100% + 4px); bottom: auto; top: -2px; border-radius: 3px; }
+.bx.ghost { border-color: color-mix(in srgb, var(--c) 45%, transparent); background: none; }
+.bx.ghost .lb { background: var(--paper); color: var(--ink-2); border: 1px solid var(--rule-strong); font-weight: 600; }
+.bx.ghost .lb b { color: var(--c); }
+.bx.draw { border-style: dashed; background: color-mix(in srgb, var(--c) 12%, transparent); box-shadow: 0 0 0 1px rgba(255,255,255,.8); }
+.bx.draw .h { position: absolute; width: 8px; height: 8px; background: var(--paper); border: 1.5px solid var(--c); }
+.ro { position: absolute; z-index: 3; left: calc(190 * var(--mm)); top: calc(272 * var(--mm)); background: var(--ink); color: #fff; font-size: var(--t-s); font-weight: 700; line-height: 1; padding: 4px 6px; border-radius: 3px; white-space: nowrap; }
+.snap { position: absolute; right: -150px; top: 0; width: 136px; font-size: var(--t-m); color: var(--ink-2); line-height: 1.35; }
+.snap b { color: var(--ink); display: block; }
+
+.fn { height: 52px; background: var(--card); border-top: 1px solid var(--rule); padding: 0 16px; gap: 6px; font-size: var(--t-m); white-space: nowrap; }
+.fn > b { font-size: var(--t); margin-right: 4px; }
+.chipv { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border: 1px solid var(--rule-strong); border-radius: 4px; background: var(--paper); font-weight: 700; font-size: var(--t-m); }
+.lit { font: 700 var(--t)/1 var(--mono); color: var(--ink-2); padding: 0 2px; }
+.fn .ex { margin-left: auto; color: var(--ink-2); }
+.fn .ex code { font: 600 var(--t-m) var(--mono); color: var(--ink); }
+
+/* Right: live read */
+aside.side { width: 340px; flex: none; display: flex; flex-direction: column; }
+ul.rd { list-style: none; margin: 6px 0 0; padding: 0; }
+ul.rd li { padding: 8px 0; border-bottom: 1px solid var(--rule); }
+ul.rd .nm { gap: 7px; font-size: var(--t-m); font-weight: 700; }
+ul.rd .nm .sec { font-weight: 400; color: var(--ink-2); }
+ul.rd .nm .ls { width: 18px; margin-left: 2px; }
+ul.rd .val { justify-content: space-between; margin-top: 3px; gap: 10px; }
+ul.rd .val > span:first-child { font-size: var(--t-l); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+ul.rd .val .e { font-weight: 400; color: var(--ink-2); font-size: var(--t); gap: 6px; }
+ul.rd li.ck { background: var(--check-wash); margin: 0 -20px; padding: 18px 20px 10px; position: relative; border-bottom: 0; }
+ul.rd li.ck .rider { top: -2px; left: 20px; }
+ul.rd li.ck .nm { margin-top: 6px; }
+ul.rd .why { margin-top: 4px; font-size: var(--t-m); color: #5a2a00; }
+aside.side .acts { margin-top: auto; }
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+<symbol id="redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></symbol>
+<symbol id="funnel" viewBox="0 0 24 24"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></symbol>
+<symbol id="sc" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/></symbol>
+<symbol id="qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3h-3z"/></symbol>
+<symbol id="tpl" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+<symbol id="rot" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></symbol>
+<symbol id="del" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+<symbol id="warn" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/></symbol>
+<symbol id="ok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+<symbol id="no" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+<symbol id="save" viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></symbol>
+<symbol id="open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></symbol>
+<symbol id="merge" viewBox="0 0 24 24"><path d="M6 4v5a6 6 0 0 0 6 6h6M15 12l3 3-3 3M6 20v-3"/></symbol>
+<symbol id="blank" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z" stroke-dasharray="3 2.5"/></symbol>
+<symbol id="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="chl" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="box" viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+<symbol id="drop" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 19h16"/></symbol>
+<symbol id="print" viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-8h16v8h-3M7 14h10v7H7z"/></symbol>
+<symbol id="sheet" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7"/></symbol>
+<symbol id="grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+</defs></svg>
+<header class="app row"><b>Evrakçı</b><span class="job">Kasım 2026 – Faaliyet belgeleri · 3 parti · 812 sayfa</span><span class="dirty row"><i></i>Kaydedilmemiş değişiklik var</span></header>
+<nav class="tabs"><a>Yükle<span>Ctrl+1</span></a><a>Kontrol<span>Ctrl+2</span></a><a class="on">Şablonlar<span>Ctrl+3</span></a><a>Değerler<span>Ctrl+4</span></a><a>Dışa Aktar<span>Ctrl+5</span></a><a>Rehber<span>F1</span></a></nav>
+<div class="main">
+  <section class="lft">
+    <div class="hd row"><h2>Şablonlar</h2><button class="btn"><svg class="i"><use href="#plus"/></svg>Yeni</button></div>
+    <ul class="tl">
+      <li class="row cur"><svg class="i"><use href="#tpl"/></svg>Kapasite Raporu<span class="n">4 değişken</span></li>
+      <li class="row"><svg class="i"><use href="#tpl"/></svg>Faaliyet Belgesi<span class="n">3 değişken</span></li>
+      <li class="row"><svg class="i"><use href="#tpl"/></svg>Oda Kayıt Formu<span class="n">5 değişken</span></li>
+    </ul>
+    <div class="hd row hd2"><h2>Değişkenler</h2><button class="btn"><svg class="i"><use href="#plus"/></svg>Ekle</button></div>
+    <ul class="vl">
+      <li><div class="vn row"><span class="sw" style="background:var(--v1)"></span>Sicil_No<span class="req">zorunlu</span></div>
+        <ol class="secs">
+          <li class="row"><svg class="i grip"><use href="#grip"/></svg><span class="ord">1.</span><span class="ls"></span>Bölüm 1 · örnek A</li>
+          <li class="row cur"><svg class="i grip"><use href="#grip"/></svg><span class="ord">2.</span><span class="ls d"></span>Varyant 2 · örnek B</li>
+        </ol></li>
+      <li><div class="vn row"><span class="sw" style="background:var(--v2)"></span>Firma_Adi<span class="sec">Bölüm 1</span><span class="req">zorunlu</span></div></li>
+      <li><div class="vn row"><span class="sw" style="background:var(--v3)"></span>Rapor_Tarihi<span class="sec">Bölüm 1</span></div></li>
+      <li><div class="vn row"><span class="sw" style="background:var(--v4)"></span>Rapor_No<span class="sec">Bölüm 1</span></div></li>
+    </ul>
+    <div class="hint">Bölümler yukarıdan aşağı denenir. Sırayı tutamaktan sürükleyin.
+      <button class="btn"><span><svg class="i"><use href="#plus"/></svg>Sicil_No için yeni varyant</span><kbd>V</kbd></button></div>
+  </section>
+
+  <section class="ctr">
+    <div class="tool row">
+      <button class="btn pri"><svg class="i"><use href="#box"/></svg>Kutu çiz<kbd>B</kbd></button>
+      <span class="sep"></span>
+      <select class="txt"><option>Örnek B · sayfa 455</option></select>
+      <button class="btn"><svg class="i"><use href="#plus"/></svg>Başka örnek ekle</button>
+      <span class="spacer"></span>
+      <button class="btn tog" aria-pressed="true"><span class="cb on"><svg class="i"><use href="#check"/></svg></span><svg class="i"><use href="#grid"/></svg>Mm ızgarası<kbd>G</kbd></button>
+    </div>
+    <div class="stage">
+      <div class="cv">
+        <div class="rul-t"><b style="left:0">0</b><b style="left:calc(50 * var(--mm))">50</b><b style="left:calc(100 * var(--mm))">100</b><b style="left:calc(150 * var(--mm))">150</b><b style="left:calc(200 * var(--mm))">200</b>
+          <span class="ext" style="left:calc(156 * var(--mm));width:calc(32 * var(--mm))"></span></div>
+        <div class="rul-l"><b style="top:calc(50 * var(--mm))">50</b><b style="top:calc(100 * var(--mm))">100</b><b style="top:calc(150 * var(--mm))">150</b><b style="top:calc(200 * var(--mm))">200</b><b style="top:calc(250 * var(--mm))">250</b>
+          <span class="ext" style="top:calc(262 * var(--mm));height:calc(9 * var(--mm))"></span></div>
+        <div class="pg">
+          <span class="m t ttl" style="--x:105;--y:13">KAPASİTE RAPORU</span>
+          <span class="bar" style="--x:62;--y:25;--w:86"></span>
+          <span class="m t" style="--x:112;--y:33">Rapor No:</span><span class="m t" style="--x:150;--y:33;font-weight:700">2026/1102</span>
+          <span class="m t" style="--x:112;--y:43">Tarih:</span><span class="m t" style="--x:150;--y:43;font-weight:700">31.11.2026</span>
+          <span class="m t" style="--x:14;--y:64">Firma:</span><span class="m t" style="--x:46;--y:64;font-weight:700">Özen Mobilya Ltd. Şti.</span>
+          <span class="bar" style="--x:14;--y:78;--w:150"></span><span class="bar" style="--x:14;--y:85;--w:120"></span><span class="bar" style="--x:14;--y:92;--w:136"></span>
+          <span class="bar" style="--x:14;--y:104;--w:52;background:#bfc7c2"></span>
+          <div class="tbl"></div>
+          <span class="bar" style="--x:14;--y:206;--w:170"></span><span class="bar" style="--x:14;--y:213;--w:140"></span>
+          <span class="bar" style="--x:14;--y:236;--w:46"></span><span class="bar" style="--x:14;--y:262;--w:52;height:1px;background:#8f9c94"></span>
+          <div class="stamp"><span class="s1">ODA KAYIT</span><span class="s2">27744</span></div>
+          <div class="grid"></div>
+          <div class="bx" style="--c:var(--v4);--x:148;--y:30;--w:44;--h:8"><span class="lb">Rapor_No</span></div>
+          <div class="bx l" style="--c:var(--v3);--x:148;--y:40;--w:44;--h:8"><span class="lb">Rapor_Tarihi</span></div>
+          <div class="bx ghost" style="--c:var(--v1);--x:14;--y:44;--w:46;--h:8"><span class="lb"><b>Sicil_No · Bölüm 1</b> (bu örnekte yok)</span></div>
+          <div class="bx" style="--c:var(--v2);--x:44;--y:61;--w:96;--h:9"><span class="lb">Firma_Adi</span></div>
+          <div class="bx draw l" style="--c:var(--v1);--x:156;--y:262;--w:32;--h:9"><span class="lb">Sicil_No · Varyant 2</span>
+            <i class="h" style="left:-5px;top:-5px"></i><i class="h" style="right:-5px;top:-5px"></i><i class="h" style="left:-5px;bottom:-5px"></i><i class="h" style="right:-5px;bottom:-5px"></i>
+            <i class="h" style="left:calc(50% - 4px);top:-5px"></i><i class="h" style="left:calc(50% - 4px);bottom:-5px"></i></div>
+          <span class="ro">32 × 9 mm</span>
+        </div>
+        <div class="snap"><b>Izgaraya oturur</b>1 mm adım<br>Konum: 156, 262 mm<br>Shift: serbest çiz</div>
+      </div>
+    </div>
+    <div class="fn row"><b>Dosya adı:</b>
+      <span class="chipv"><span class="sw" style="background:var(--v1);width:11px;height:11px"></span>Sicil_No</span><span class="lit">_</span>
+      <span class="chipv"><span class="sw" style="background:var(--v2);width:11px;height:11px"></span>Firma_Adi</span><span class="lit">.pdf</span>
+      <span class="ex">Bu örnekte: <code>27744_Ozen_Mobilya_Ltd_Sti.pdf</code></span></div>
+  </section>
+
+  <aside class="side">
+    <h2>Bu kutular ne okuyor?</h2><div class="meta">Örnek B · sayfa 455 · çizdikçe yeniden okunur</div>
+    <ul class="rd">
+      <li><div class="nm row"><span class="sw" style="background:var(--v1)"></span>Sicil_No<span class="sec">Bölüm 1</span><span class="ls"></span></div>
+        <div class="val row"><span class="row" style="gap:6px;color:var(--ink-2)"><svg class="i"><use href="#no"/></svg>boş</span><span class="e row"><svg class="i"><use href="#down"/></svg>Varyant 2 denenir</span></div></li>
+      <li><div class="nm row"><span class="sw" style="background:var(--v1)"></span>Sicil_No<span class="sec">Varyant 2</span><span class="ls d"></span></div>
+        <div class="val row"><span>27744</span><span class="st ok"><svg class="i"><use href="#ok"/></svg>%95</span></div></li>
+      <li><div class="nm row"><span class="sw" style="background:var(--v2)"></span>Firma_Adi</div>
+        <div class="val row"><span>Özen Mobilya Ltd. Şti.</span><span class="st ok"><svg class="i"><use href="#ok"/></svg>%92</span></div></li>
+      <li><div class="nm row"><span class="sw" style="background:var(--v4)"></span>Rapor_No</div>
+        <div class="val row"><span>2026/1102</span><span class="st ok"><svg class="i"><use href="#ok"/></svg>%90</span></div></li>
+      <li class="ck"><span class="rider"><svg class="i"><use href="#warn"/></svg>Kontrol</span>
+        <div class="nm row"><span class="sw" style="background:var(--v3)"></span>Rapor_Tarihi</div>
+        <div class="val row"><span><code class="bad">31.11.2026</code></span><span class="st ck"><svg class="i"><use href="#warn"/></svg>%57</span></div>
+        <div class="why">Geçersiz tarih: Kasım 31 gün çekmez.</div></li>
+    </ul>
+    <div class="acts"><button class="btn"><span><svg class="i"><use href="#play"/></svg>Bütün örneklerde dene</span><kbd>Ctrl+T</kbd></button>
+      <button class="btn pri"><span><svg class="i"><use href="#save"/></svg>Şablonu kaydet</span><kbd>Ctrl+S</kbd></button></div>
+  </aside>
+</div>
+<footer class="status row"><span>Kapasite Raporu</span><span class="dot">·</span><span>4 değişken</span><span class="dot">·</span><span>2 örnek</span><span class="dot">·</span><span class="warn row"><svg class="i"><use href="#warn"/></svg>1 değer kontrol ister</span>
+  <span class="k row"><span><b>B</b> kutu çiz</span><span><b>G</b> ızgara</span><span><b>V</b> yeni varyant</span><span><b>Esc</b> çizimi bırak</span></span></footer>
+</body></html>

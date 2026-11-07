@@ -85,10 +85,10 @@ def test_cut_survives_dropping_its_empty_page():
 
 
 def test_cut_kinds_names_what_starts_each_document():
+    from fakes import job_from_kinds
+
     from evrakci.pipeline.cuts import compute_documents, cut_kinds
     from evrakci.pipeline.job import page_id
-
-    from fakes import job_from_kinds
 
     job = job_from_kinds({"a": "pqpppppp"})
     job.apply_filter([page_id("a", i) for i in (2, 3, 4, 5)], 2)
@@ -99,8 +99,8 @@ def test_cut_kinds_names_what_starts_each_document():
 
 
 def test_cut_kinds_first_document_after_a_leading_qr_page_is_qr():
-    from evrakci.pipeline.cuts import cut_kinds
-
     from fakes import job_from_kinds
+
+    from evrakci.pipeline.cuts import cut_kinds
 
     assert cut_kinds(job_from_kinds({"a": "qpp"})) == {"a/1": "qr"}

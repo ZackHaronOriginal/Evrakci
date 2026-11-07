@@ -1,3 +1,7 @@
+import os
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")  # window tests run without a screen
+
 import pytest
 
 from evrakci.pipeline.ocr.tesseract import TesseractEngine

@@ -2,237 +2,623 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<title>Evrakçı pencere taslakları</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evrakçı Pencere Taslakları</title>
 <style>
+  @font-face { font-family: "Atkinson Hyperlegible Next"; font-weight: 400; src: url("fonts/atkinson-hyperlegible-next-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-024F, U+1E00-1EFF; }
+  @font-face { font-family: "Atkinson Hyperlegible Next"; font-weight: 400; src: url("fonts/atkinson-hyperlegible-next-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
+  @font-face { font-family: "Atkinson Hyperlegible Next"; font-weight: 600; src: url("fonts/atkinson-hyperlegible-next-latin-ext-600-normal.woff2") format("woff2"); unicode-range: U+0100-024F, U+1E00-1EFF; }
+  @font-face { font-family: "Atkinson Hyperlegible Next"; font-weight: 600; src: url("fonts/atkinson-hyperlegible-next-latin-600-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
+  @font-face { font-family: "Atkinson Hyperlegible Next"; font-weight: 700; src: url("fonts/atkinson-hyperlegible-next-latin-ext-700-normal.woff2") format("woff2"); unicode-range: U+0100-024F, U+1E00-1EFF; }
+  @font-face { font-family: "Atkinson Hyperlegible Next"; font-weight: 700; src: url("fonts/atkinson-hyperlegible-next-latin-700-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122; }
+
   :root {
-    --bg: #eef0f3; --panel: #ffffff; --line: #d5d9e0; --text: #1f2430; --muted: #4f5663;
-    --accent: #2f6fde; --qr: #2f6fde; --filter: #b8680a; --manual: #d43c3c;
-    --doc-a: #e8f0ff; --doc-b: #fff4e2; --sel: rgba(47,111,222,.18); --warn: #fff4cc;
-    --font: "Segoe UI", system-ui, sans-serif;
+    /* Shell: signage panels */
+    --shell: #13294b;        /* signage navy */
+    --shell-2: #1d3a66;      /* raised panel on navy */
+    --shell-ink: #ffffff;
+    --shell-ink-2: #c6d3e8;  /* secondary text on navy, tinted from it */
+    /* Work surface */
+    --ground: #eef2f7;
+    --panel: #ffffff;
+    --rule: #cdd6e2;
+    --rule-strong: #8d9bb0;
+    --ink: #15202e;
+    --ink-2: #44526a;        /* secondary text, tinted navy */
+    --focus: #0b5cd5;
+    --select: #dce9fb;
+    /* Line colours: cut types (always paired with a shape) */
+    --qr: #1f5fbf;
+    --filter: #b45200;
+    --manual: #b42318;
+    /* Signage yellow: needs a check */
+    --check: #f5c518;
+    --check-soft: #fff4c2;
+    --check-ink: #3d2f00;
+    --ok: #1b7a3d;
+    /* Document bands alternate on the line */
+    --doc-a: #e3ecf8;
+    --doc-b: #f3f6fa;
+    /* Variables in templates: each also carries its name on the box */
+    --v1: #0f7b78; --v2: #6b3fb3; --v3: #9a4a12; --v4: #a3245f;
+    --font: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, sans-serif;
+    --text-s: 14px; --text: 15px; --text-l: 17px; --text-xl: 20px;
+    --radius: 6px;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: #c9ced6; font-family: var(--font); color: var(--text); font-size: 13px; }
-  .board { width: 1280px; height: 800px; margin: 24px auto; background: var(--bg); border: 1px solid #9aa3af;
-           box-shadow: 0 6px 24px rgba(0,0,0,.18); display: flex; flex-direction: column; overflow: hidden; }
-  .titlebar { height: 30px; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center;
-              padding: 0 12px; font-size: 12px; color: var(--muted); }
-  .tabs { display: flex; gap: 2px; padding: 6px 10px 0; background: #fff; border-bottom: 1px solid var(--line); }
-  .tab { padding: 7px 16px; border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; color: var(--muted); }
-  .tab.on { background: var(--bg); border-color: var(--line); color: var(--text); font-weight: 600; }
-  .toolbar { display: flex; gap: 6px; align-items: center; padding: 8px 10px; background: #fff; border-bottom: 1px solid var(--line); }
-  .btn { padding: 5px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fafbfc; white-space: nowrap; }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
-  .hint { color: var(--muted); font-size: 12px; }
+  html, body { background: #3a4456; }
+  body { margin: 0; padding: 32px 16px 48px; font-family: var(--font); color: var(--ink); font-size: var(--text);
+         font-variant-numeric: tabular-nums; }
+  ::selection { background: var(--select); color: var(--ink); }
+  .caption { width: 1366px; max-width: 100%; margin: 0 auto 10px; color: #eef2f7; font-size: var(--text-l); font-weight: 600; }
+  .caption span { font-weight: 400; color: #c6d3e8; font-size: var(--text); margin-left: 10px; }
+  .board { width: 1366px; height: 768px; margin: 0 auto 48px; background: var(--ground); display: flex; flex-direction: column;
+           overflow: hidden; box-shadow: 0 10px 40px rgba(8, 18, 36, .45); }
+  svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Header: signage panel with tabs */
+  .header { background: var(--shell); color: var(--shell-ink); display: flex; align-items: stretch; height: 54px; padding: 0 0 0 18px; flex: none; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: var(--text-xl); padding-right: 22px; }
+  .brand .mark { width: 34px; height: 20px; flex: none; }
+  .job { white-space: nowrap; display: flex; flex-direction: column; justify-content: center; padding: 0 20px; border-left: 1px solid var(--shell-2); margin-right: 8px; }
+  .job b { font-size: var(--text); font-weight: 600; }
+  .job small { font-size: var(--text-s); color: var(--shell-ink-2); }
+  .tabs { display: flex; align-items: flex-end; gap: 4px; }
+  .tab { white-space: nowrap; font-size: var(--text-l); font-weight: 600; color: var(--shell-ink-2); padding: 0 18px; height: 44px; display: flex; align-items: center; gap: 8px;
+         border-radius: var(--radius) var(--radius) 0 0; }
+  .tab kbd { font: inherit; font-size: 13px; font-weight: 600; color: var(--shell-ink-2); border: 1px solid var(--shell-2); border-radius: 4px; padding: 0 5px; }
+  .tab.on { background: var(--ground); color: var(--shell); }
+  .tab.on kbd { color: var(--ink-2); border-color: var(--rule); }
+  .header .right { white-space: nowrap; margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 0 14px; color: var(--shell-ink-2); font-size: var(--text-s); }
+
+  /* Toolbar: standard buttons */
+  .toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--rule); flex: none; }
+  .btn { font: inherit; font-size: var(--text); display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border-radius: var(--radius);
+         border: 1px solid var(--rule-strong); background: var(--panel); color: var(--ink); white-space: nowrap; }
+  .btn kbd { font: inherit; font-size: 13px; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 4px; padding: 0 5px; margin-left: 2px; }
+  .btn.primary { background: var(--shell); border-color: var(--shell); color: #fff; }
+  .btn.primary kbd { color: var(--shell-ink-2); border-color: var(--shell-2); }
+  .btn.icon { padding: 0 9px; }
+  .btn:disabled { color: #8794a8; border-color: var(--rule); }
+  .btn.focus { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .sep { width: 1px; height: 28px; background: var(--rule); margin: 0 4px; }
+  .selinfo { font-weight: 600; padding: 0 6px; }
+  .selinfo small { display: block; font-weight: 400; font-size: var(--text-s); color: var(--ink-2); }
+  .field { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text); }
+  .field input, .field select { font: inherit; height: 36px; border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 0 8px; background: var(--panel); color: var(--ink); }
+  .spacer { flex: 1; }
+
+  /* Route map: the whole job as one line */
+  .route { flex: none; height: 76px; background: var(--panel); border-bottom: 1px solid var(--rule); position: relative; padding: 0 16px; }
+  .route .lbl { position: absolute; left: 16px; top: 8px; font-size: var(--text-s); color: var(--ink-2); }
+  .route .lbl b { color: var(--ink); }
+  .route .keys { position: absolute; right: 16px; top: 8px; display: flex; gap: 16px; font-size: var(--text-s); color: var(--ink-2); align-items: center; }
+  .route svg.map { position: absolute; left: 16px; right: 16px; top: 30px; width: calc(100% - 32px); height: 40px; }
+
+  /* Body split */
   .main { flex: 1; display: flex; min-height: 0; }
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
-  h3 { margin: 0 0 8px; font-size: 13px; }
-  .muted { color: var(--muted); }
-  /* timeline */
-  .timeline { margin: 10px; padding: 10px 10px 4px; overflow: hidden; }
-  .lane { display: flex; align-items: flex-end; gap: 0; height: 150px; position: relative; }
-  .doc { display: flex; gap: 6px; padding: 18px 6px 6px; border-radius: 6px; position: relative; height: 100%; }
-  .doc.a { background: var(--doc-a); } .doc.b { background: var(--doc-b); }
-  .doc .label { position: absolute; top: 2px; left: 8px; font-size: 11px; color: var(--muted); white-space: nowrap; }
-  .page { width: 70px; height: 98px; background: #fff; border: 1px solid #c3c8d1; border-radius: 2px; position: relative;
-          box-shadow: 0 1px 2px rgba(0,0,0,.08); align-self: flex-end; }
-  .page::before { content: ""; position: absolute; left: 9px; right: 9px; top: 14px; height: 52px;
-                  background: repeating-linear-gradient(#cfd5de 0 3px, transparent 3px 9px); }
-  .page .n { position: absolute; bottom: -18px; width: 100%; text-align: center; font-size: 11px; color: #3d4350; }
-  .page.sel { outline: 3px solid var(--accent); outline-offset: 1px; }
-  .page.dropped { opacity: .35; }
-  .page.dropped::before { background: none; }
-  .page.qrpage::before { background: none; }
-  .page.qrpage::after { content: ""; position: absolute; left: 20px; top: 30px; width: 30px; height: 30px;
-                        background: conic-gradient(#222 25%, #fff 0 50%, #222 0 75%, #fff 0) 0 0/10px 10px; }
-  .cut { width: 16px; align-self: stretch; display: flex; justify-content: center; position: relative; }
-  .cut i { display: block; width: 4px; height: 100%; border-radius: 2px; }
-  .cut.qr i { background: var(--qr); }
-  .cut.filter i { background: repeating-linear-gradient(var(--filter) 0 6px, transparent 6px 10px); width: 3px; }
-  .cut.manual i { background: var(--manual); }
-  .cut b { position: absolute; top: -4px; font-size: 11px; font-weight: 700; padding: 1px 5px; border-radius: 3px; color: #fff; }
-  .cut.qr b { background: var(--qr); } .cut.manual b { background: var(--manual); }
-  .bands { display: flex; height: 20px; margin-top: 22px; gap: 0; font-size: 11px; }
-  .band { padding: 3px 10px; border-radius: 4px; color: #fff; white-space: nowrap; overflow: hidden; }
-  .scroll { height: 8px; margin: 8px 0 2px; background: #e4e7ec; border-radius: 4px; position: relative; }
-  .scroll::after { content: ""; position: absolute; left: 6%; width: 9%; top: 0; bottom: 0; background: #9aa3af; border-radius: 4px; }
-  .legend { display: flex; gap: 16px; align-items: center; font-size: 12px; color: var(--muted); padding: 2px 2px 6px; }
-  .sw { display: inline-block; width: 18px; height: 4px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
-  .lower { flex: 1; display: flex; gap: 10px; padding: 0 10px 10px; min-height: 0; }
-  .preview { flex: 1.25; padding: 10px; display: flex; flex-direction: column; }
-  .sheet { flex: 1; background: #fff; border: 1px solid #c3c8d1; margin: 0 auto; aspect-ratio: 210/297; position: relative; }
-  .sheet .txt { position: absolute; left: 10%; right: 18%; height: 7px; background: #cfd5de; border-radius: 2px; }
-  .info { flex: 1; padding: 12px; overflow: hidden; }
-  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px 10px; margin-bottom: 12px; }
-  .kv div:nth-child(odd) { color: var(--muted); }
-  .flag { background: var(--warn); border: 1px solid #ecd27a; border-radius: 4px; padding: 6px 8px; margin: 6px 0; }
-  /* template creator */
-  .vars { width: 300px; margin: 10px 0 10px 10px; padding: 10px; overflow: hidden; }
-  .var { border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin-bottom: 8px; }
-  .var .head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
-  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
-  .variant { display: flex; justify-content: space-between; align-items: center; padding: 5px 6px; margin-top: 6px;
-             background: #f6f7f9; border-radius: 4px; font-size: 12px; }
-  .grip { color: #6b7280; margin-right: 6px; letter-spacing: -2px; }
-  .chip { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #e8f0ff; border: 1px solid #c7d7f7; margin: 2px; }
-  .tag { font-size: 11px; padding: 2px 8px; border-radius: 8px; background: #ffe8e8; color: #8a1c1c; font-weight: 500; }
-  .canvas { flex: 1; margin: 10px; padding: 10px; display: flex; flex-direction: column; min-width: 0; }
-  .docpage { flex: 1; background: #fff; border: 1px solid #c3c8d1; margin: 0 auto; aspect-ratio: 210/297; position: relative; }
+  .work { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .side { width: 324px; flex: none; background: var(--panel); border-left: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0; }
+  .side h2 { font-size: var(--text-l); margin: 0; padding: 14px 18px 4px; }
+  .side .sub { padding: 0 18px 12px; color: var(--ink-2); font-size: var(--text-s); border-bottom: 1px solid var(--rule); }
+  .side section { padding: 12px 18px; border-bottom: 1px solid var(--rule); }
+  .side h3 { margin: 0 0 8px; font-size: var(--text); }
+  dl.kv { margin: 0; display: grid; grid-template-columns: 112px 1fr; gap: 6px 10px; }
+  dl.kv dt { color: var(--ink-2); }
+  dl.kv dd { margin: 0; font-weight: 600; }
+
+  /* Timeline lanes */
+  .lanes { flex: 1; display: grid; grid-template-columns: 96px 1fr; grid-template-rows: 54px 1fr 42px 42px; min-height: 0; background: var(--ground); }
+  .lane-name { font-size: var(--text-s); font-weight: 600; color: var(--ink-2); display: flex; align-items: center; padding-left: 16px; border-bottom: 1px solid var(--rule); background: var(--panel); border-right: 1px solid var(--rule); }
+  .track { position: relative; border-bottom: 1px solid var(--rule); overflow: hidden; }
+  .scrollbar { grid-column: 2; }
+
+  .track > * { position: absolute; }
+  .band { top: 5px; bottom: 5px; overflow: hidden; white-space: nowrap; display: flex; flex-direction: column; justify-content: center; padding: 0 12px; font-size: var(--text-s); border-radius: var(--radius); }
+  .band b { font-size: var(--text); }
+  .band.a { background: var(--doc-a); } .band.b { background: var(--doc-b); border: 1px solid var(--rule); }
+  .band.cur { box-shadow: inset 0 0 0 2px var(--shell); }
+
+    .page { top: 50%; transform: translateY(-58%); width: 108px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .sheet { width: 100px; height: 141px; background: #fff; border: 1px solid var(--rule-strong); border-radius: 2px; position: relative; overflow: hidden;
+           box-shadow: 0 1px 3px rgba(19, 41, 75, .18); }
+  .sheet .hd { position: absolute; left: 12px; top: 12px; width: 52px; height: 8px; background: #5d6a80; border-radius: 1px; }
+  .sheet .ln { position: absolute; left: 12px; height: 4px; background: #b7c1cf; border-radius: 1px; }
+  .sheet .qr { position: absolute; left: 22px; top: 30px; width: 56px; height: 56px; }
+  .sheet .qrt { position: absolute; left: 0; right: 0; top: 94px; text-align: center; font-size: 13px; font-weight: 700; color: var(--ink); }
+  .page .num { font-size: var(--text-s); color: var(--ink-2); }
+  .page .num b { color: var(--ink); }
+  .page.sel .sheet { outline: 3px solid var(--focus); outline-offset: 3px; }
+  .page.sel .num { color: var(--focus); font-weight: 700; }
+  .page.focus .sheet { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--focus); }
+  .page.dropped .sheet { opacity: .4; border-style: dashed; }
+  .page.dropped .num { font-style: italic; }
+  .page.separator .sheet { background: #fbfcfe; }
+  .selwash { position: absolute; top: 0; bottom: 0; background: rgba(11, 92, 213, .08); border-left: 1px solid rgba(11,92,213,.35); border-right: 1px solid rgba(11,92,213,.35); }
+
+  /* Cuts: a gap with a station marker. Shape says the type; colour repeats it. */
+  .cut { top: 0; bottom: 0; width: 40px; }
+  .cut .rail { position: absolute; top: 0; bottom: 0; left: 19px; width: 3px; }
+  .cut.qr .rail { background: var(--qr); }
+  .cut.filter .rail { background: repeating-linear-gradient(to bottom, var(--filter) 0 8px, transparent 8px 13px); }
+  .cut.manual .rail { background: var(--manual); }
+  .cut .marker { position: absolute; top: 46%; left: 6px; width: 29px; height: 29px; display: grid; place-items: center; background: var(--ground); z-index: 1; }
+  .cut .tag { position: absolute; top: calc(46% - 30px); left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid currentColor; border-radius: 4px;
+              font-size: 13px; font-weight: 700; padding: 1px 5px; white-space: nowrap; z-index: 1; }
+  .cut.qr .tag { color: var(--qr); } .cut.filter .tag { color: var(--filter); } .cut.manual .tag { color: var(--manual); }
+  
+    .chip { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-s); padding: 3px 10px; border-radius: 99px; border: 1px solid var(--rule-strong); background: var(--panel); white-space: nowrap; }
+  .chip.check { background: var(--check); border-color: #8a6d00; color: var(--check-ink); font-weight: 700; }
+  .chip.ok { color: var(--ok); border-color: #8cc4a0; }
+  .chip.none { color: var(--ink-2); border-style: dashed; }
+  .slot { top: 0; bottom: 0; display: flex; align-items: center; overflow: hidden; }
+  .lanes .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+  .scroller { height: 14px; background: var(--panel); border-top: 1px solid var(--rule); position: relative; }
+  .scroller i { position: absolute; top: 3px; height: 8px; left: 30%; width: 7%; background: var(--rule-strong); border-radius: 4px; }
+
+  .status { flex: none; height: 30px; background: var(--shell); color: var(--shell-ink-2); display: flex; align-items: center; gap: 22px; padding: 0 16px; font-size: var(--text-s); }
+  .status b { color: #fff; font-weight: 600; }
+  .status .warn { display: inline-flex; align-items: center; gap: 6px; color: #fff; }
+  .status .warn em { font-style: normal; background: var(--check); color: var(--check-ink); font-weight: 700; padding: 0 7px; border-radius: 3px; }
+  .status .kb { margin-left: auto; }
+
+  .notice { display: flex; gap: 10px; align-items: flex-start; background: var(--check-soft); border: 1px solid #c9a200; border-radius: var(--radius); padding: 10px 12px; }
+  .notice p { margin: 0; }
+  .notice small { color: var(--ink-2); display: block; margin-top: 2px; font-size: var(--text-s); }
+  .legend { display: grid; gap: 8px; }
+  .legend div { display: flex; align-items: center; gap: 10px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* Template creator */
+  .tplwrap { flex: 1; display: grid; grid-template-columns: 312px 1fr 356px; min-height: 0; }
+  .list { background: var(--panel); border-right: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0; }
+  .list h2 { font-size: var(--text-l); margin: 0; padding: 14px 16px 8px; display: flex; align-items: center; }
+  .list h2 .btn { margin-left: auto; height: 30px; font-size: var(--text-s); }
+  .tlist { padding: 0 8px 10px; border-bottom: 1px solid var(--rule); }
+  .tlist div { padding: 5px 10px; border-radius: var(--radius); display: flex; justify-content: space-between; }
+  .tlist div small { color: var(--ink-2); font-size: var(--text-s); }
+  .tlist .on { background: var(--select); font-weight: 600; box-shadow: inset 0 0 0 1px #9dbbe8; }
+  .vars { padding: 4px 8px; overflow: hidden; }
+  .var { border: 1px solid var(--rule); border-radius: var(--radius); margin-bottom: 6px; background: var(--panel); }
+  .var.on { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+  .var .vh { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-weight: 600; }
+  .var .vh small { margin-left: auto; font-weight: 400; color: var(--ink-2); font-size: var(--text-s); }
+  .sw { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+  .sec { display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 32px; font-size: var(--text-s); color: var(--ink-2); border-top: 1px solid var(--rule); }
+  .sec .grip { color: var(--rule-strong); }
+  .sec b { color: var(--ink); font-weight: 600; }
+  .sec .ln2 { width: 22px; height: 0; border-top: 2px solid; flex: none; }
+  .sec .ln2.dash { border-top-style: dashed; }
+
+  .canvas { display: flex; flex-direction: column; min-width: 0; }
+  .canvas .stage { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; background: var(--ground); }
+  .a4 { width: 384px; height: 543px; background: #fff; border: 1px solid var(--rule-strong); position: relative; box-shadow: 0 3px 12px rgba(19,41,75,.18); font-size: 9.5px; color: #26303e; }
+  .a4 .t { position: absolute; left: 40px; right: 40px; top: 34px; text-align: center; font-weight: 700; font-size: 13px; letter-spacing: .02em; }
+  .a4 .p { position: absolute; left: 40px; white-space: nowrap; }
+  .a4 .bar { position: absolute; left: 40px; height: 3px; background: #c3cad6; }
   .box { position: absolute; border: 2px solid; border-radius: 2px; }
-  .box span { position: absolute; top: -21px; left: -2px; font-size: 11px; color: #fff; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
-  .box.ghost { border-style: dashed; opacity: .75; }
-  .test { width: 280px; margin: 10px 10px 10px 0; padding: 10px; overflow: hidden; }
-  .reading { border: 1px solid var(--line); border-radius: 6px; padding: 8px; margin-bottom: 8px; font-size: 12px; }
-  .reading .val { font-size: 14px; font-weight: 600; margin: 2px 0; }
-  .conf { height: 5px; border-radius: 3px; background: #e4e7ec; overflow: hidden; margin-top: 4px; }
-  .conf i { display: block; height: 100%; }
-  .pattern { margin: 0 10px 10px; padding: 10px; display: flex; gap: 10px; align-items: center; }
-  .pattern .field { flex: 1; border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; background: #fff; }
-  /* review table */
-  .tablewrap { flex: 1.6; margin: 10px; padding: 0; overflow: hidden; }
-  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
-  th, td { border-bottom: 1px solid var(--line); padding: 7px 8px; text-align: left; white-space: nowrap; }
-  th { background: #f6f7f9; font-weight: 600; position: sticky; top: 0; }
-  tr.selrow td { background: var(--sel); }
-  td.warn { background: var(--warn); }
-  td.edited { color: #11733a; }
-  .side { flex: 1; margin: 10px 10px 10px 0; padding: 10px; display: flex; flex-direction: column; }
-  .caption { text-align: center; color: #4b5563; font-size: 14px; margin: 18px 0 -10px; }
+  .box.dash { border-style: dashed; }
+  .box .bl { position: absolute; left: -2px; top: -22px; font-size: 13px; font-weight: 700; color: #fff; padding: 1px 6px; border-radius: 3px 3px 3px 0; white-space: nowrap; }
+  .box.drawing { border-color: var(--focus); background: rgba(11,92,213,.06); }
+  .handle { position: absolute; width: 9px; height: 9px; background: #fff; border: 2px solid var(--focus); }
+  .stagebar { position: absolute; top: 12px; left: 16px; right: 16px; display: flex; gap: 8px; align-items: center; }
+  .stagebar .hint { white-space: nowrap; margin-left: auto; font-size: var(--text-s); color: var(--ink-2); background: var(--panel); border: 1px solid var(--rule); padding: 4px 10px; border-radius: var(--radius); }
+  .pattern { background: var(--panel); border-top: 1px solid var(--rule); padding: 10px 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pattern .lab { font-weight: 600; margin-right: 4px; }
+  .vchip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 4px; color: #fff; font-weight: 600; font-size: var(--text-s); }
+  .lit { font-weight: 700; color: var(--ink-2); padding: 0 2px; }
+  .prev { width: 100%; font-size: var(--text-s); color: var(--ink-2); }
+  .prev b { color: var(--ink); font-weight: 600; }
+  .reads { overflow: hidden; }
+  .read { padding: 10px 18px; border-bottom: 1px solid var(--rule); }
+  .read .rk { display: flex; align-items: center; gap: 8px; font-size: var(--text-s); color: var(--ink-2); }
+  .read .rk .conf { margin-left: auto; }
+  .read .rv { font-size: var(--text-l); font-weight: 600; margin-top: 3px; }
+  .read.bad { background: var(--check-soft); }
+  .read.bad .rv { color: var(--check-ink); }
+  .meter { width: 56px; height: 6px; background: var(--rule); border-radius: 3px; position: relative; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
+  .meter i { position: absolute; inset: 0 auto 0 0; background: var(--ok); }
+
+  /* Review table */
+  .revwrap { flex: 1; display: grid; grid-template-columns: 1fr 384px; min-height: 0; }
+  .tablewrap { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .progress { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--rule); font-size: var(--text-s); }
+  .progress .bar { flex: 0 0 260px; height: 8px; background: var(--rule); border-radius: 4px; overflow: hidden; }
+  .progress .bar i { display: block; height: 100%; width: 74%; background: var(--shell); }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; background: var(--panel); }
+  th { position: sticky; top: 0; text-align: left; font-size: var(--text-s); font-weight: 700; color: var(--ink-2); background: #f6f8fb; padding: 9px 12px; border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }
+  th .sort { color: var(--ink); }
+  td { padding: 0 12px; height: 40px; border-bottom: 1px solid var(--rule); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+  td.n { color: var(--ink-2); }
+  td.check { background: var(--check-soft); color: var(--check-ink); font-weight: 600; }
+  td.check .cell { display: flex; align-items: center; gap: 6px; }
+  td.edited::after { content: "elle"; margin-left: 8px; font-size: 13px; color: var(--ink-2); border: 1px solid var(--rule); border-radius: 3px; padding: 0 4px; }
+  tr.cur td { background: var(--select); }
+  tr.cur td.check { background: #f7e7a1; }
+  tr.cur td.focus { box-shadow: inset 0 0 0 3px var(--focus); }
+  tr.pending td { color: #6b778b; }
+  .tag-ok { display: inline-flex; align-items: center; gap: 5px; color: var(--ok); font-weight: 600; }
+  .tag-ck { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; background: var(--check); color: var(--check-ink); padding: 1px 8px; border-radius: 3px; }
+  .tag-wait { display: inline-flex; align-items: center; gap: 5px; color: #4d5a6f; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .toggle .cb { width: 20px; height: 20px; border-radius: 3px; background: var(--shell); display: grid; place-items: center; }
+  .crop { margin: 12px 18px 0; border: 1px solid var(--rule-strong); background: #fff; height: 206px; font-size: 13px; position: relative; overflow: hidden; }
+  .crop .p { position: absolute; font-size: 13px; color: #26303e; white-space: nowrap; }
+  .suggest { padding: 14px 18px; }
+  .suggest .big { font-size: 26px; font-weight: 700; letter-spacing: .01em; margin: 2px 0 4px; }
+  .suggest .why { font-size: var(--text-s); color: var(--ink-2); }
+  .stack { display: grid; gap: 8px; padding: 0 18px 14px; }
+  .stack .btn { justify-content: flex-start; height: 40px; }
+  .stack .btn kbd { margin-left: auto; }
 </style>
 </head>
 <body>
 
-<!-- 1. Timeline editor -->
-<p class="caption"><b>1. Kontrol: zaman çizgisi</b> (video düzenleyici gibi: sayfaları seç, filtre ve şablon uygula)</p>
+<!-- Shared drawn pictograms, one stroke weight -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5h16l-6 7.5V19l-4 2v-8.5z"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-tpl" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1.5"/><rect x="7" y="6" width="7" height="4"/><path d="M7 14h10M7 17h6"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+    <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5M8.5 11h5M11 8.5v5"/></symbol>
+    <symbol id="i-saved" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></symbol>
+    <symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="3"/></symbol>
+    <!-- Cut markers: shape carries the type -->
+    <symbol id="m-qr" viewBox="0 0 29 29"><circle cx="14.5" cy="14.5" r="12.5" fill="#1f5fbf" stroke="none"/><rect x="9" y="9" width="4.5" height="4.5" fill="#fff" stroke="none"/><rect x="15.5" y="9" width="4.5" height="4.5" fill="#fff" stroke="none"/><rect x="9" y="15.5" width="4.5" height="4.5" fill="#fff" stroke="none"/><rect x="16.5" y="16.5" width="2.5" height="2.5" fill="#fff" stroke="none"/></symbol>
+    <symbol id="m-filter" viewBox="0 0 29 29"><circle cx="14.5" cy="14.5" r="11.5" fill="#fff" stroke="#b45200" stroke-width="3" stroke-dasharray="5 3.2"/><path d="M9.5 10.5h10l-3.8 4.6v4l-2.4 1.2v-5.2z" fill="#b45200" stroke="none"/></symbol>
+    <symbol id="m-manual" viewBox="0 0 29 29"><rect x="2" y="2" width="25" height="25" rx="3" fill="#b42318" stroke="none"/><g fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round"><circle cx="10" cy="10" r="2.6"/><circle cx="10" cy="19" r="2.6"/><path d="M21.5 8.5 12 17M17 15.5l4.5 4.5M12 12l2 2"/></g></symbol>
+    <symbol id="qrpat" viewBox="0 0 21 21"><path fill="#15202e" d="M0 0h7v7H0zM1 1v5h5V1zM2 2h3v3H2zM14 0h7v7h-7zm1 1v5h5V1zm1 1h3v3h-3zM0 14h7v7H0zm1 1v5h5v-5zm1 1h3v3H2zM9 0h2v2H9zm2 2h2v2h-2zM8 4h2v3H8zm1 5h3v2H9zm4 0h2v3h-2zm3 0h3v2h-3zm-8 3h2v2H8zm6 1h2v2h-2zm3 0h4v2h-4zm-8 2h3v2H9zm6 1h2v4h-2zm3 1h3v2h-3zm-9 2h2v2H9zm9 0h2v1h-2zM0 9h2v2H0zm3 0h3v2H3zm-3 3h4v1H0z"/></symbol>
+  </defs>
+</svg>
+
+<!-- ============================ 1. KONTROL ============================ -->
+<div class="caption">1 · Kontrol <span>İşin tamamı tek bir hat: belgeler duraklar, kesimler istasyon işaretleri. 1366×768.</span></div>
 <div class="board" id="timeline">
-  <div class="titlebar">Evrakçı · Seçim 2026 (812 sayfa, 3 parti)</div>
-  <div class="tabs"><div class="tab">Yükle</div><div class="tab on">Kontrol</div><div class="tab">Şablonlar</div><div class="tab">Değerler</div><div class="tab">Dışa Aktar</div><div class="tab">Rehber</div></div>
-  <div class="toolbar">
-    <span class="btn">↶ Geri al</span><span class="btn">↷ Yinele</span><span class="sep"></span>
-    <span class="btn primary">Filtre: her N sayfa…</span><span class="btn primary">Şablon uygula…</span><span class="sep"></span>
-    <span class="btn">✂ Kesim ekle</span><span class="btn">Kesimi kaldır</span><span class="btn">⟳ Döndür</span><span class="btn">Sil</span><span class="sep"></span>
-    <label class="btn"><input type="checkbox" checked> Boş sayfaları at</label>
-    <span class="hint" style="margin-left:auto">Seçim: sayfa 5–9 (5 sayfa) · Shift+tıkla / sürükle</span>
+  <div class="header">
+    <div class="brand"><svg class="mark" viewBox="0 0 34 20" aria-hidden="true"><line x1="3" y1="10" x2="31" y2="10" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="6" cy="10" r="5" fill="#13294b" stroke="#fff" stroke-width="2.5"/><circle cx="17" cy="10" r="5" fill="#f5c518" stroke="#fff" stroke-width="2.5"/><circle cx="28" cy="10" r="5" fill="#13294b" stroke="#fff" stroke-width="2.5"/></svg>Evrakçı</div>
+    <div class="job"><b>Kasım 2026 – Faaliyet belgeleri</b><small>3 parti · 812 sayfa</small></div>
+    <nav class="tabs">
+      <div class="tab" title="Ctrl+1">Yükle</div>
+      <div class="tab on" title="Ctrl+2">Kontrol</div>
+      <div class="tab" title="Ctrl+3">Şablonlar</div>
+      <div class="tab" title="Ctrl+4">Değerler</div>
+      <div class="tab" title="Ctrl+5">Dışa Aktar</div>
+      <div class="tab" title="Ctrl+6">Rehber</div>
+    </nav>
+    <div class="right"><svg class="i"><use href="#i-saved"/></svg>Kaydedildi 14:32</div>
   </div>
-  <div class="panel timeline">
-    <div class="legend">
-      <span><span class="sw" style="background:var(--qr)"></span>QR kesimi</span>
-      <span><span class="sw" style="background:repeating-linear-gradient(90deg,var(--filter) 0 6px,transparent 6px 10px)"></span>Filtre kesimi</span>
-      <span><span class="sw" style="background:var(--manual)"></span>Elle kesim</span>
-      <span><span class="sw" style="background:#cfd5de;opacity:.5"></span>Atılan boş sayfa</span>
-      <span style="margin-left:auto">Küçük resimler kaydırdıkça yüklenir · 812 sayfada akıcı</span>
-    </div>
-    <div class="lane">
-      <div class="doc a"><span class="label">1. belge · Seçim Yetki Belgesi</span><div class="page"><span class="n">1</span></div><div class="page"><span class="n">2</span></div></div>
-      <div class="cut filter"><i></i></div>
-      <div class="doc b"><span class="label">2. belge</span><div class="page"><span class="n">3</span></div><div class="page"><span class="n">4</span></div></div>
-      <div class="cut qr"><i></i><b>QR</b></div>
-      <div class="page qrpage" style="margin:0 2px"><span class="n">5</span></div>
-      <div class="cut qr"><i></i></div>
-      <div class="doc a"><span class="label">3. belge · 4 sayfa (QR ile çevrili)</span><div class="page sel"><span class="n">6</span></div><div class="page sel"><span class="n">7</span></div><div class="page sel"><span class="n">8</span></div><div class="page dropped sel"><span class="n">9</span></div><div class="page"><span class="n">10</span></div></div>
-      <div class="cut manual"><i></i><b>✂</b></div>
-      <div class="doc b"><span class="label">4. belge ⚠</span><div class="page"><span class="n">11</span></div><div class="page"><span class="n">12</span></div></div>
-      <div class="cut filter"><i></i></div>
-      <div class="doc a"><span class="label">5. belge</span><div class="page"><span class="n">13</span></div></div>
-    </div>
-    <div class="bands">
-      <div class="band" style="background:#2f62c4;width:318px">Filtre: her 2 sayfa · Seçim Yetki Belgesi</div>
-      <div class="band" style="background:#5d6676;width:470px;margin-left:8px">Şablon: Seçim Yetki Belgesi</div>
-    </div>
-    <div class="scroll"></div>
-  </div>
-  <div class="lower">
-    <div class="panel preview"><h3>Sayfa 7 <span class="muted">(3. belge, 2/4)</span></h3>
-      <div class="sheet"><div class="txt" style="top:8%"></div><div class="txt" style="top:12%;right:40%"></div><div class="txt" style="top:22%"></div><div class="txt" style="top:26%"></div><div class="txt" style="top:30%;right:30%"></div><div class="txt" style="top:44%"></div><div class="txt" style="top:48%;right:50%"></div></div>
-    </div>
-    <div class="panel info"><h3>3. belge</h3>
-      <div class="kv"><div>Sayfalar</div><div>6, 7, 8, 10 (9 boş, atıldı)</div><div>Kesim</div><div>QR (önce) · Elle kesim (sonra)</div><div>Şablon</div><div>Seçim Yetki Belgesi</div><div>Dosya adı</div><div>123456_Örnek Ticaret Ltd. Şti.pdf</div></div>
-      <h3>4. belge</h3>
-      <div class="flag">⚠ Eksik sayfa: filtre 2 sayfa bekliyordu, kesimden önce 1 sayfa kaldı.</div>
-      <div class="flag">⚠ Firma Ünvanı okunamadı (öneri: "Çağrı Ticaret"). <u>Değerler</u> sekmesinde düzeltin.</div>
-      <p class="muted">Her işlem geri alınabilir. İş kendiliğinden kaydedilir.</p>
-    </div>
-  </div>
-</div>
 
-<!-- 2. Template creator -->
-<p class="caption"><b>2. Şablon oluşturucu</b> (değişkenleri siz adlandırın, kutuları çizin, başka örneklerden varyant ekleyin)</p>
-<div class="board" id="template">
-  <div class="titlebar">Evrakçı · Şablon: Seçim Yetki Belgesi</div>
-  <div class="tabs"><div class="tab">Yükle</div><div class="tab">Kontrol</div><div class="tab on">Şablonlar</div><div class="tab">Değerler</div><div class="tab">Dışa Aktar</div><div class="tab">Rehber</div></div>
   <div class="toolbar">
-    <span class="btn">Örnek belge aç…</span><span class="btn primary">+ Başka örnek belgeden varyant ekle…</span><span class="sep"></span>
-    <span class="btn">Dışa aktar</span><span class="btn">İçe aktar</span><span class="sep"></span>
-    <span class="hint">Örnek: ornek-1.pdf · sayfa 1/2 · Kutu çizmek için sürükleyin</span>
-    <span class="btn" style="margin-left:auto">Güven eşiği: %70</span>
+    <button class="btn icon" title="Geri al"><svg class="i"><use href="#i-undo"/></svg><kbd>Ctrl+Z</kbd></button>
+    <button class="btn icon" title="Yinele"><svg class="i"><use href="#i-redo"/></svg><kbd>Ctrl+Y</kbd></button>
+    <div class="sep"></div>
+    <div class="selinfo">Sayfa 214–218 seçili<small>5 sayfa · Belge 41 ve 42</small></div>
+    <div class="sep"></div>
+    <span class="field"><svg class="i"><use href="#i-filter"/></svg>Her <input value="3" style="width:48px;text-align:center"> sayfada bir belge</span>
+    <button class="btn primary focus">Filtreyi uygula <kbd>F</kbd></button>
+    <button class="btn"><svg class="i"><use href="#i-scissors"/></svg>Kesim <kbd>K</kbd></button>
+    <button class="btn"><svg class="i"><use href="#i-tpl"/></svg>Şablon uygula <kbd>T</kbd></button>
+    <button class="btn icon" title="Döndür (R)"><svg class="i"><use href="#i-rotate"/></svg></button>
+    <button class="btn icon" title="Sil (Del)"><svg class="i"><use href="#i-trash"/></svg></button>
+    <div class="spacer"></div>
+    <button class="btn icon" title="Yakınlaştır"><svg class="i"><use href="#i-zoom"/></svg></button>
   </div>
-  <div class="main">
-    <div class="panel vars"><h3>Değişkenler <span class="btn" style="float:right;padding:1px 8px">+ Ekle</span></h3>
-      <div class="var"><div class="head"><span><span class="dot" style="background:#2f6fde"></span>Firma Ünvanı</span><span class="tag">zorunlu</span></div>
-        <div class="variant"><span><span class="grip">⋮⋮</span>1. sayfa 1 · 20,40 → 150,50 mm</span><span class="muted">ornek-1.pdf</span></div>
-        <div class="variant"><span><span class="grip">⋮⋮</span>2. sayfa 1 · 20,40 → 150,62 mm</span><span class="muted">uzun-unvan.pdf</span></div>
-        <div class="muted" style="font-size:11px;margin-top:4px">Sırayla denenir; ilk güvenilir okuma kullanılır. Sürükleyerek sıralayın.</div></div>
-      <div class="var"><div class="head"><span><span class="dot" style="background:#18a058"></span>Kayıt No</span><span class="tag">zorunlu</span></div>
-        <div class="variant"><span><span class="grip">⋮⋮</span>1. sayfa 1 · 120,22 → 190,30 mm</span><span class="muted">ornek-1.pdf</span></div></div>
-      <div class="var"><div class="head"><span><span class="dot" style="background:#b8609a"></span>Şirket Türü</span><span class="muted" style="font-size:11px">isteğe bağlı</span></div>
-        <div class="variant"><span><span class="grip">⋮⋮</span>1. son sayfa · 20,250 → 90,258 mm</span><span class="muted">ornek-1.pdf</span></div></div>
-      <p class="muted" style="font-size:11px">Hazır alan yok: her değişkeni siz adlandırırsınız.</p>
+
+  <div class="route">
+    <div class="lbl"><b>Hat</b> · 287 belge · 812 sayfa · tıklayınca oraya gider</div>
+    <div class="keys">
+      <span style="display:inline-flex;gap:6px;align-items:center"><svg width="16" height="16"><use href="#m-qr"/></svg>QR ayıraç</span>
+      <span style="display:inline-flex;gap:6px;align-items:center"><svg width="16" height="16"><use href="#m-filter"/></svg>Filtre</span>
+      <span style="display:inline-flex;gap:6px;align-items:center"><svg width="16" height="16"><use href="#m-manual"/></svg>Elle kesim</span>
+      <span style="display:inline-flex;gap:6px;align-items:center"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M7 1 13 7 7 13 1 7z" fill="#f5c518" stroke="#3d2f00" stroke-width="1.5"/></svg>Kontrol (6)</span>
     </div>
-    <div class="panel canvas"><h3>ornek-1.pdf <span class="muted">— sayfa 1</span></h3>
-      <div class="docpage">
-        <div class="sheet" style="position:absolute;inset:0;border:none">
-          <div class="txt" style="top:7%;left:62%;right:10%"></div>
-          <div class="txt" style="top:14%;right:30%"></div><div class="txt" style="top:16.5%;right:52%"></div>
-          <div class="txt" style="top:26%"></div><div class="txt" style="top:29%"></div><div class="txt" style="top:32%;right:40%"></div>
-          <div class="txt" style="top:44%"></div><div class="txt" style="top:47%;right:35%"></div>
+    <svg class="map" id="routemap" viewBox="0 0 1334 40" preserveAspectRatio="none"></svg>
+  </div>
+
+  <div class="main">
+    <div class="work">
+      <div class="lanes">
+        <div class="lane-name">Belge</div><div class="track" id="l-band"></div>
+        <div class="lane-name">Sayfa</div><div class="track" id="l-page"></div>
+        <div class="lane-name">Şablon</div><div class="track" id="l-tpl"></div>
+        <div class="lane-name">Değerler</div><div class="track" id="l-val"></div>
+      </div>
+      <div class="scroller"><i></i></div>
+    </div>
+
+    <aside class="side">
+      <h2>Belge 41</h2>
+      <div class="sub">Sayfa 214–216 · parti 2 · Kapasite Raporu</div>
+      <section>
+        <div class="notice"><svg class="i" style="color:var(--check-ink)"><use href="#i-alert"/></svg>
+          <p><b>Sicil_No emin değil</b><small>“48Z13” okundu. Öneri: 48213 (varyant 2).</small>
+          <button class="btn" style="margin-top:8px;height:32px">Değerlerde aç <kbd>Ctrl+4</kbd></button></p></div>
+      </section>
+      <section>
+        <h3>Neden burada başlıyor?</h3>
+        <dl class="kv">
+          <dt>Önceki kesim</dt><dd style="display:flex;align-items:center;gap:6px"><svg width="18" height="18"><use href="#m-qr"/></svg>QR ayıraç (s. 213)</dd>
+          <dt>Sonraki kesim</dt><dd style="display:flex;align-items:center;gap:6px"><svg width="18" height="18"><use href="#m-filter"/></svg>Filtre, her 3 s.</dd>
+          <dt>Boş sayfa</dt><dd>1 atlandı (s. 217)</dd>
+        </dl>
+      </section>
+      <section>
+        <h3>Bu belge</h3>
+        <div class="actions">
+          <button class="btn"><svg class="i"><use href="#i-scissors"/></svg>Baştaki kesimi kaldır <kbd>Del</kbd></button>
+          <button class="btn">Öncekiyle birleştir <kbd>M</kbd></button>
         </div>
-        <div class="box" style="left:9.5%;top:13.2%;width:62%;height:3.8%;border-color:#2f6fde"><span style="background:#2f6fde">Firma Ünvanı · 1</span></div>
-        <div class="box ghost" style="left:9.5%;top:13.2%;width:62%;height:7.2%;border-color:#2f6fde"><span style="background:#2f6fde;top:auto;bottom:-18px">varyant 2 (uzun-unvan.pdf)</span></div>
-        <div class="box" style="left:57%;top:6.2%;width:33.5%;height:3%;border-color:#18a058"><span style="background:#18a058">Kayıt No</span></div>
-      </div>
-    </div>
-    <div class="panel test"><h3>Bu kutular ne okuyor?</h3>
-      <div class="reading"><div class="muted">Firma Ünvanı · bölüm 1</div><div class="val">Örnek Ticaret Ltd. Şti.</div><div class="conf"><i style="width:93%;background:#18a058"></i></div><div class="muted">güven %93 · kullanılacak</div></div>
-      <div class="reading"><div class="muted">Kayıt No · bölüm 1</div><div class="val">123456</div><div class="conf"><i style="width:96%;background:#18a058"></i></div><div class="muted">güven %96</div></div>
-      <div class="reading"><div class="muted">Şirket Türü · bölüm 1</div><div class="val">—</div><div class="conf"><i style="width:0"></i></div><div class="muted">kutu çizilmedi</div></div>
-      <span class="btn">Bu işin belgelerinde dene…</span>
-    </div>
+      </section>
+    </aside>
   </div>
-  <div class="panel pattern"><b>Dosya adı:</b>
-    <div class="field"><span class="chip">{Kayıt No}</span> _ <span class="chip">{Firma Ünvanı}</span></div>
-    <span class="muted">Örnek: 123456_Örnek Ticaret Ltd. Şti.pdf</span><span class="btn primary">Kaydet</span>
+
+  <div class="status">
+    <span><b>287</b> belge</span><span><b>812</b> sayfa</span><span><b>14</b> boş sayfa atlandı</span>
+    <span class="warn"><em>6</em> belge kontrol bekliyor</span>
+    <span class="kb">N sonraki kontrol · ← → sayfa · Shift ile seçim · Ctrl+1…6 sekmeler</span>
   </div>
 </div>
 
-<!-- 3. Review table -->
-<p class="caption"><b>3. Değerler: kontrol tablosu</b> (belirsiz değerler sarı, tıklayınca sayfa ve kutu görünür)</p>
+<!-- ============================ 2. ŞABLONLAR ============================ -->
+<div class="caption">2 · Şablonlar <span>Değişkenleri kullanıcı adlandırır; varyantlar başka örnek belgelerde çizilir.</span></div>
+<div class="board" id="template">
+  <div class="header">
+    <div class="brand"><svg class="mark" viewBox="0 0 34 20" aria-hidden="true"><line x1="3" y1="10" x2="31" y2="10" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="6" cy="10" r="5" fill="#13294b" stroke="#fff" stroke-width="2.5"/><circle cx="17" cy="10" r="5" fill="#f5c518" stroke="#fff" stroke-width="2.5"/><circle cx="28" cy="10" r="5" fill="#13294b" stroke="#fff" stroke-width="2.5"/></svg>Evrakçı</div>
+    <div class="job"><b>Kasım 2026 – Faaliyet belgeleri</b><small>3 parti · 812 sayfa</small></div>
+    <nav class="tabs">
+      <div class="tab" title="Ctrl+1">Yükle</div>
+      <div class="tab" title="Ctrl+2">Kontrol</div>
+      <div class="tab on" title="Ctrl+3">Şablonlar</div>
+      <div class="tab" title="Ctrl+4">Değerler</div>
+      <div class="tab" title="Ctrl+5">Dışa Aktar</div>
+      <div class="tab" title="Ctrl+6">Rehber</div>
+    </nav>
+    <div class="right"><svg class="i"><use href="#i-alert"/></svg>Kaydedilmemiş değişiklik var</div>
+  </div>
+
+  <div class="tplwrap">
+    <div class="list">
+      <h2>Şablonlar <button class="btn"><svg class="i"><use href="#i-plus"/></svg>Yeni</button></h2>
+      <div class="tlist">
+        <div class="on">Kapasite Raporu <small>4 değişken</small></div>
+        <div>Faaliyet Belgesi <small>3 değişken</small></div>
+        <div>Oda Kayıt Formu <small>5 değişken</small></div>
+      </div>
+      <h2>Değişkenler <button class="btn"><svg class="i"><use href="#i-plus"/></svg>Ekle</button></h2>
+      <div class="vars">
+        <div class="var on">
+          <div class="vh"><span class="sw" style="background:var(--v1)"></span>Sicil_No<small>zorunlu</small></div>
+          <div class="sec"><svg class="i grip" style="width:14px;height:14px"><use href="#i-grip"/></svg><span class="ln2" style="color:var(--v1)"></span><b>Bölüm 1</b> · örnek A</div>
+          <div class="sec"><svg class="i grip" style="width:14px;height:14px"><use href="#i-grip"/></svg><span class="ln2 dash" style="color:var(--v1)"></span><b>Varyant 2</b> · örnek B</div>
+        </div>
+        <div class="var">
+          <div class="vh"><span class="sw" style="background:var(--v2)"></span>Firma_Adi<small>zorunlu</small></div>
+          <div class="sec"><svg class="i grip" style="width:14px;height:14px"><use href="#i-grip"/></svg><span class="ln2" style="color:var(--v2)"></span><b>Bölüm 1</b> · örnek A</div>
+        </div>
+        <div class="var">
+          <div class="vh"><span class="sw" style="background:var(--v3)"></span>Rapor_Tarihi<small>isteğe bağlı</small></div>
+          <div class="sec"><svg class="i grip" style="width:14px;height:14px"><use href="#i-grip"/></svg><span class="ln2" style="color:var(--v3)"></span><b>Bölüm 1</b> · örnek A</div>
+        </div>
+        <div class="var">
+          <div class="vh"><span class="sw" style="background:var(--v4)"></span>Rapor_No<small>isteğe bağlı</small></div>
+          <div class="sec"><svg class="i grip" style="width:14px;height:14px"><use href="#i-grip"/></svg><span class="ln2" style="color:var(--v4)"></span><b>Bölüm 1</b> · örnek A</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas">
+      <div class="stage">
+        <div class="stagebar">
+          <button class="btn primary"><svg class="i"><use href="#i-box"/></svg>Kutu çiz <kbd>B</kbd></button>
+          <span class="field"><select><option>Örnek B · sayfa 455</option></select></span>
+          <button class="btn"><svg class="i"><use href="#i-plus"/></svg>Başka örnek ekle</button>
+          <span class="hint">Varyant 2 çiziliyor · Esc iptal</span>
+        </div>
+        <div class="a4" style="margin-top:42px">
+          <div class="t" style="text-align:left">KAPASİTE RAPORU</div>
+          <div class="p" style="top:70px">Rapor No: 2026/1102</div>
+          <div class="p" style="top:70px;left:230px">Tarih: 31.11.2026</div>
+          <div class="p" style="top:100px;color:#6b778b">Düzenleyen: Sanayi Odası Ekspertiz Birimi</div>
+          <div class="p" style="top:122px">Firma Ünvanı: Özen Mobilya Ltd. Şti.</div>
+          <div class="p" style="top:162px">Adres: Mobilyacılar Sitesi 2. Blok No: 8</div>
+          <div class="bar" style="top:186px;width:300px"></div><div class="bar" style="top:198px;width:280px"></div>
+          <div class="bar" style="top:210px;width:296px"></div><div class="bar" style="top:222px;width:210px"></div>
+          <div class="bar" style="top:252px;width:300px"></div><div class="bar" style="top:264px;width:260px"></div>
+          <div class="bar" style="top:276px;width:290px"></div><div class="bar" style="top:288px;width:180px"></div>
+          <div class="bar" style="top:318px;width:300px"></div><div class="bar" style="top:330px;width:240px"></div>
+          <div class="stamp" style="position:absolute;left:224px;top:400px;width:124px;height:74px;border:2px solid #3e4a8a;border-radius:4px;color:#3e4a8a;text-align:center;font-weight:700;font-size:9.5px;padding-top:9px">ODA KAYIT<br><span style="font-size:15px;letter-spacing:.06em;display:inline-block;margin-top:8px">27744</span></div>
+
+          <div class="box" style="border-color:var(--v4);left:34px;top:64px;width:120px;height:20px"><span class="bl" style="background:var(--v4)">Rapor_No</span></div>
+          <div class="box" style="border-color:var(--v3);left:224px;top:64px;width:112px;height:20px"><span class="bl" style="background:var(--v3)">Rapor_Tarihi</span></div>
+          <div class="box" style="border-color:var(--v1);left:34px;top:94px;width:118px;height:20px;opacity:.75"><span class="bl" style="background:var(--v1);top:-2px;left:122px;border-radius:3px">Sicil_No · Bölüm 1 (burada yok)</span></div>
+          <div class="box" style="border-color:var(--v2);left:34px;top:116px;width:300px;height:20px"><span class="bl" style="background:var(--v2);top:22px;border-radius:0 3px 3px 3px">Firma_Adi</span></div>
+          <div class="box drawing dash" style="left:250px;top:430px;width:72px;height:32px">
+            <span class="bl" style="background:var(--focus)">Sicil_No · Varyant 2</span>
+            <i class="handle" style="right:-6px;bottom:-6px"></i><i class="handle" style="left:-6px;top:-6px"></i>
+          </div>
+        </div>
+      </div>
+      <div class="pattern">
+        <span class="lab">Dosya adı</span>
+        <span class="vchip" style="background:var(--v1)">Sicil_No</span><span class="lit">_</span>
+        <span class="vchip" style="background:var(--v2)">Firma_Adi</span><span class="lit">.pdf</span>
+        <button class="btn" style="height:30px;font-size:var(--text-s)"><svg class="i"><use href="#i-plus"/></svg>Değişken</button>
+        <div class="prev">Bu örnekte: <b>27744_Ozen_Mobilya_Ltd_Sti.pdf</b></div>
+      </div>
+    </div>
+
+    <aside class="side" style="width:auto">
+      <h2>Bu kutular ne okuyor?</h2>
+      <div class="sub">Örnek B üzerinde, kaydetmeden önce. Bir değişkenin bölümleri sırayla denenir.</div>
+      <div class="reads">
+        <div class="read"><div class="rk"><span class="sw" style="background:var(--v1)"></span>Sicil_No · Bölüm 1<span class="conf">boş</span></div><div class="rv" style="color:var(--ink-2);font-weight:400;font-size:var(--text)">Bu örnekte bu yerde sicil yok, Varyant 2 denenir</div></div>
+        <div class="read"><div class="rk"><span class="sw" style="background:var(--v1)"></span>Sicil_No · Varyant 2<span class="conf">%95<span class="meter"><i style="width:95%"></i></span></span></div><div class="rv">27744</div></div>
+        <div class="read"><div class="rk"><span class="sw" style="background:var(--v2)"></span>Firma_Adi<span class="conf">%92<span class="meter"><i style="width:92%"></i></span></span></div><div class="rv">Özen Mobilya Ltd. Şti.</div></div>
+        <div class="read"><div class="rk"><span class="sw" style="background:var(--v4)"></span>Rapor_No<span class="conf">%90<span class="meter"><i style="width:90%"></i></span></span></div><div class="rv">2026/1102</div></div>
+        <div class="read bad"><div class="rk" style="color:var(--check-ink)"><svg class="i" style="width:16px;height:16px"><use href="#i-alert"/></svg>Rapor_Tarihi<span class="conf">%57<span class="meter"><i style="width:57%;background:#8a6d00"></i></span></span></div><div class="rv">31.11.2026</div>
+          <div style="font-size:var(--text-s);margin-top:4px">Kasım 31 gün çekmez. Belgede böyle yazıyor olabilir; kontrol listesine düşer.</div></div>
+      </div>
+      <div class="stack" style="margin-top:auto;padding-top:14px">
+        <button class="btn"><svg class="i"><use href="#i-play"/></svg>Bütün örneklerde dene <kbd>Ctrl+T</kbd></button>
+        <button class="btn primary">Şablonu kaydet <kbd>Ctrl+S</kbd></button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="status">
+    <span>Kapasite Raporu</span><span><b>4</b> değişken</span><span><b>2</b> örnek belge</span>
+    <span class="kb">B kutu çiz · Del kutuyu sil · ok tuşları 1 mm taşır · Shift + ok boyut</span>
+  </div>
+</div>
+
+<!-- ============================ 3. DEĞERLER ============================ -->
+<div class="caption">3 · Değerler <span>Emin olunmayan her değer işaretli; klavyeyle bir sonrakine geçilir.</span></div>
 <div class="board" id="review">
-  <div class="titlebar">Evrakçı · Seçim 2026</div>
-  <div class="tabs"><div class="tab">Yükle</div><div class="tab">Kontrol</div><div class="tab">Şablonlar</div><div class="tab on">Değerler</div><div class="tab">Dışa Aktar</div><div class="tab">Rehber</div></div>
-  <div class="toolbar">
-    <span class="btn primary">Değerleri oku</span><span class="btn">Yalnızca eksikleri oku</span><span class="sep"></span>
-    <label class="btn"><input type="checkbox" checked> Yalnızca kontrol gerekenler (3)</label>
-    <span class="hint" style="margin-left:auto">Hücreye çift tıklayıp düzeltin · Enter: öneriyi kabul et</span>
+  <div class="header">
+    <div class="brand"><svg class="mark" viewBox="0 0 34 20" aria-hidden="true"><line x1="3" y1="10" x2="31" y2="10" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="6" cy="10" r="5" fill="#13294b" stroke="#fff" stroke-width="2.5"/><circle cx="17" cy="10" r="5" fill="#f5c518" stroke="#fff" stroke-width="2.5"/><circle cx="28" cy="10" r="5" fill="#13294b" stroke="#fff" stroke-width="2.5"/></svg>Evrakçı</div>
+    <div class="job"><b>Kasım 2026 – Faaliyet belgeleri</b><small>3 parti · 812 sayfa</small></div>
+    <nav class="tabs">
+      <div class="tab" title="Ctrl+1">Yükle</div>
+      <div class="tab" title="Ctrl+2">Kontrol</div>
+      <div class="tab" title="Ctrl+3">Şablonlar</div>
+      <div class="tab on" title="Ctrl+4">Değerler</div>
+      <div class="tab" title="Ctrl+5">Dışa Aktar</div>
+      <div class="tab" title="Ctrl+6">Rehber</div>
+    </nav>
+    <div class="right"><svg class="i"><use href="#i-saved"/></svg>Kaydedildi 14:36</div>
   </div>
-  <div class="main">
-    <div class="panel tablewrap">
+
+  <div class="toolbar">
+    <label class="toggle"><span class="cb"><svg class="i" style="width:14px;height:14px;stroke:#fff;stroke-width:3"><use href="#i-check"/></svg></span>Yalnızca kontrol gerekenler (6)</label>
+    <div class="sep"></div>
+    <span class="field"><select><option>Şablon: hepsi</option></select></span>
+    <span class="field" style="position:relative"><input placeholder="Ara: firma, sicil no…" style="width:230px;padding-left:34px"><svg class="i" style="position:absolute;left:9px;color:var(--ink-2)"><use href="#i-search"/></svg></span>
+    <div class="spacer"></div>
+    <button class="btn">Yalnızca eksikleri oku</button>
+    <button class="btn" disabled><svg class="i"><use href="#i-play"/></svg>Değerleri oku</button>
+  </div>
+  <div class="progress"><svg class="i" style="color:var(--shell)"><use href="#i-clock"/></svg><b>Okunuyor: 212 / 287 belge</b><span class="bar"><i></i></span><span style="color:var(--ink-2)">yaklaşık 2 dk kaldı · elle yazdıklarınız korunur</span><button class="btn" style="height:30px;margin-left:auto">İptal</button></div>
+
+  <div class="revwrap">
+    <div class="tablewrap">
       <table>
-        <tr><th>#</th><th>Şablon</th><th>Firma Ünvanı</th><th>Kayıt No</th><th>Şirket Türü</th><th>Dosya adı</th><th>Kontrol</th></tr>
-        <tr><td>4</td><td>Seçim Yetki B.</td><td class="warn">? öneri: Çağrı Ticaret</td><td>654321</td><td>Ltd. Şti.</td><td class="muted">belge_004.pdf</td><td>zorunlu değer eksik</td></tr>
-        <tr class="selrow"><td>17</td><td>Seçim Yetki B.</td><td>Deniz Gıda A.Ş.</td><td class="warn">? öneri: 77812</td><td>A.Ş.</td><td class="muted">belge_017.pdf</td><td>zorunlu değer eksik</td></tr>
-        <tr><td>23</td><td>Seçim Yetki B.</td><td class="edited">Kuzey İnşaat ✓</td><td>440021</td><td class="warn">? okunamadı</td><td>440021_Kuzey İnşaat.pdf</td><td>okunamadı: Şirket Türü</td></tr>
-        <tr><td colspan="7" class="muted" style="text-align:center">… 97 belge sorunsuz (filtre kapalıyken görünür)</td></tr>
+        <thead><tr><th style="width:72px"><span class="sort">Belge ▲</span></th><th>Sayfalar</th><th>Şablon</th><th>Sicil_No</th><th>Firma_Adi</th><th>Rapor_Tarihi</th><th>Durum</th></tr></thead>
+        <tbody>
+          <tr><td class="n">17</td><td>88–90</td><td>Kapasite Raporu</td><td class="check"><span class="cell"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>3O771</span></td><td>Yıldız Gıda Paz. A.Ş.</td><td>28.10.2026</td><td><span class="tag-ck"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>Kontrol</span></td></tr>
+          <tr><td class="n">23</td><td>117–118</td><td>Faaliyet Belgesi</td><td>51408</td><td class="check"><span class="cell"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>(boş)</span></td><td>—</td><td><span class="tag-ck"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>Kontrol</span></td></tr>
+          <tr class="cur"><td class="n">41</td><td>214–216</td><td>Kapasite Raporu</td><td class="check focus"><span class="cell"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>48Z13</span></td><td>Akçay Tekstil San. ve Tic. Ltd. Şti.</td><td>03.11.2026</td><td><span class="tag-ck"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>Kontrol</span></td></tr>
+          <tr><td class="n">58</td><td>301–302</td><td>Faaliyet Belgesi</td><td class="edited">62190</td><td class="check"><span class="cell"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>Kuzey Lojist1k</span></td><td>—</td><td><span class="tag-ck"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>Kontrol</span></td></tr>
+          <tr><td class="n">96</td><td>455–457</td><td>Kapasite Raporu</td><td>27744</td><td>Özen Mobilya Ltd. Şti.</td><td class="check"><span class="cell"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>31.11.2026</span></td><td><span class="tag-ck"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>Kontrol</span></td></tr>
+          <tr><td class="n">131</td><td>602–603</td><td>Faaliyet Belgesi</td><td class="check"><span class="cell"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>(boş)</span></td><td>Ilgaz Tarım Ürünleri</td><td>—</td><td><span class="tag-ck"><svg class="i" style="width:15px;height:15px"><use href="#i-alert"/></svg>Kontrol</span></td></tr>
+          <tr class="pending"><td colspan="7"><span class="tag-wait"><svg class="i" style="width:15px;height:15px"><use href="#i-clock"/></svg>75 belge henüz okunmadı; okundukça kontrol gerekenler buraya eklenir</span></td></tr>
+        </tbody>
       </table>
+      <div style="padding:10px 16px;color:var(--ink-2);font-size:var(--text-s)">Filtre açık: kontrol gerekmeyen 206 belge gizli.</div>
     </div>
-    <div class="panel side"><h3>17. belge · sayfa 33 <span class="muted">— Kayıt No</span></h3>
-      <div class="sheet" style="flex:1;max-height:520px">
-        <div class="txt" style="top:7%;left:62%;right:10%"></div><div class="txt" style="top:14%;right:30%"></div><div class="txt" style="top:26%"></div><div class="txt" style="top:29%"></div>
-        <div class="box" style="left:57%;top:6%;width:33.5%;height:3.2%;border-color:#b8680a"><span style="background:#a55c08">Kayıt No · bölüm 1: "77812" %58</span></div>
+
+    <aside class="side" style="width:auto">
+      <h2>Belge 41 · Sicil_No</h2>
+      <div class="sub">Sayfa 214 · Kapasite Raporu · güven %38</div>
+      <div class="crop">
+        <div class="p" style="left:16px;top:16px;color:#6b778b">Rapor No: 2026/0917</div>
+        <div class="p" style="left:16px;top:52px">Oda Sicil No: <span class="val" style="letter-spacing:.04em;padding:4px 5px;border:3px solid var(--v1);border-radius:2px">48<span style="opacity:.45;filter:blur(.6px)">2</span>13</span></div>
+        <div class="bl" style="position:absolute;left:112px;top:84px;background:var(--v1);color:#fff;font-size:13px;font-weight:700;padding:1px 6px;border-radius:0 3px 3px 3px">Bölüm 1 · %38</div>
+        <div style="position:absolute;left:0;right:0;top:118px;border-top:1px dashed var(--rule-strong);font-size:12px"></div>
+        <div class="p" style="left:16px;top:128px;font-size:var(--text-s);color:var(--ink-2)">Aynı sayfanın altı:</div>
+        <div style="position:absolute;left:150px;top:132px;width:118px;height:62px;border:2px solid #3e4a8a;border-radius:4px;color:#3e4a8a;text-align:center;font-weight:700;font-size:11px;padding-top:6px">ODA KAYIT<br><span style="font-size:17px;letter-spacing:.06em;display:inline-block;margin-top:4px;padding:1px 6px;border:2px dashed var(--v1)">48213</span></div>
+        <div style="position:absolute;left:16px;top:160px;background:var(--v1);color:#fff;font-size:13px;font-weight:700;padding:1px 6px;border-radius:3px;white-space:nowrap">Varyant 2 · %93</div>
       </div>
-      <div style="margin-top:8px"><span class="btn primary">Öneriyi kabul et (77812)</span> <span class="btn">Elle yaz…</span> <span class="btn">Yeni varyant çiz…</span></div>
-    </div>
+      <div class="suggest">
+        <div class="why">Okunan: <b style="color:var(--check-ink)">48Z13</b> (Bölüm 1, %38)</div>
+        <div class="why" style="margin-top:6px">Öneri, Varyant 2'den (%93):</div>
+        <div class="big">48213</div>
+      </div>
+      <div class="stack">
+        <button class="btn primary focus"><svg class="i"><use href="#i-check"/></svg>Öneriyi kabul et <kbd>Enter</kbd></button>
+        <button class="btn"><svg class="i"><use href="#i-pen"/></svg>Elle yaz <kbd>F2</kbd></button>
+        <button class="btn"><svg class="i"><use href="#i-box"/></svg>Yeni varyant çiz <kbd>V</kbd></button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="status">
+    <span><b>212</b> / 287 okundu</span><span class="warn"><em>6</em> kontrol</span><span><b>1</b> elle düzeltildi</span>
+    <span class="kb">↑ ↓ satır · Tab hücre · N sonraki kontrol · Ctrl+Z geri al</span>
   </div>
 </div>
 
+<script>
+  // Synthetic pages for the timeline: no real documents. One sequence drives all four lanes.
+  const seq = [
+    { page: 212, kind: 'text', doc: 40 },
+    { cut: 'qr', tag: 'QR' },
+    { page: 213, kind: 'separator' },
+    { page: 214, kind: 'text', doc: 41, cls: 'sel focus' }, { page: 215, kind: 'text', doc: 41, cls: 'sel' }, { page: 216, kind: 'text', doc: 41, cls: 'sel' },
+    { cut: 'filter', tag: 'Filtre 3' },
+    { page: 217, kind: 'empty', doc: 42, cls: 'sel dropped' }, { page: 218, kind: 'text', doc: 42, cls: 'sel' },
+    { cut: 'manual', tag: 'Elle' },
+    { page: 219, kind: 'text', doc: 43 },
+  ];
+  const docs = {
+    40: { band: 'b', title: 'Belge 40', sub: '3 sayfa', tpl: 'Faaliyet Belgesi', val: ['ok', 'Tamam'], from: -24 },
+    41: { band: 'a cur', title: 'Belge 41', sub: 'Kapasite Raporu · 3 sayfa', tpl: 'Kapasite Raporu', val: ['check', 'Kontrol: Sicil_No emin değil'] },
+    42: { band: 'b', title: 'Belge 42', sub: 'Faaliyet Belgesi · 1 sayfa + 1 boş', tpl: 'Faaliyet Belgesi', val: ['ok', 'Tamam'] },
+    43: { band: 'a', title: 'Belge 43', sub: 'Şablon yok', tpl: null, val: ['none', 'Okunmadı'], to: 60 },
+  };
+  const icon = (id) => `<svg class="i" style="width:15px;height:15px"><use href="#${id}"/></svg>`;
+  const lane = (id) => document.getElementById(id);
+  const rows = (n) => { let s = '<i class="hd"></i>'; for (let i = 0; i < 10; i++) s += `<i class="ln" style="top:${28 + i * 10}px;width:${54 + ((n * 7 + i * 13) % 24)}px"></i>`; return s; };
+  let x = 12; const span = {};
+  for (const it of seq) {
+    if (it.cut) {
+      lane('l-page').insertAdjacentHTML('beforeend', `<div class="cut ${it.cut}" style="left:${x}px"><span class="rail"></span><svg class="marker"><use href="#m-${it.cut}"/></svg><span class="tag">${it.tag}</span></div>`);
+      x += 40; continue;
+    }
+    const body = it.kind === 'text' ? rows(it.page) : it.kind === 'separator' ? `<svg class="qr" viewBox="0 0 21 21"><use href="#qrpat"/></svg><div class="qrt">AYIRAÇ</div>` : '';
+    const note = it.kind === 'separator' ? ' · ayıraç' : it.kind === 'empty' ? ' · boş' : '';
+    lane('l-page').insertAdjacentHTML('beforeend', `<div class="page ${it.cls || ''} ${it.kind === 'separator' ? 'separator' : ''}" style="left:${x}px"><div class="sheet">${body}</div><div class="num"><b>${it.page}</b>${note}</div></div>`);
+    if (it.doc) { const s = span[it.doc] || (span[it.doc] = { a: x, b: x }); s.b = x + 108; }
+    x += 112;
+  }
+  for (const [id, d] of Object.entries(docs)) {
+    const s = span[id]; const a = s.a + (d.from || 0) - 4, w = s.b - s.a + 8 - (d.from || 0) + (d.to || 0);
+    lane('l-band').insertAdjacentHTML('beforeend', `<div class="band ${d.band}" style="left:${a}px;width:${w}px"><b>${d.title}</b>${d.sub}</div>`);
+    lane('l-tpl').insertAdjacentHTML('beforeend', `<div class="slot" style="left:${a}px;width:${w}px">${d.tpl ? `<span class="chip">${icon('i-tpl')}${d.tpl}</span>` : '<span class="chip none">Şablon uygulanmadı</span>'}</div>`);
+    const [k, t] = d.val; const ic = k === 'ok' ? icon('i-check') : k === 'check' ? icon('i-alert') : '';
+    lane('l-val').insertAdjacentHTML('beforeend', `<div class="slot" style="left:${a}px;width:${w}px"><span class="chip ${k}">${ic}${t}</span></div>`);
+  }
+  // Selection wash behind the selected pages
+  const sel = [...document.querySelectorAll('#l-page .page.sel')];
+  const sa = parseFloat(sel[0].style.left) - 6, sb = parseFloat(sel.at(-1).style.left) + 114;
+  lane('l-page').insertAdjacentHTML('afterbegin', `<div class="selwash" style="left:${sa}px;width:${sb - sa}px"></div>`);
+
+  // Route map: every document as a stop along one line.
+  const map = document.getElementById('routemap');
+  const W = 1334, Y = 20, total = 812;
+  let svg = `<line x1="4" y1="${Y}" x2="${W - 4}" y2="${Y}" stroke="#13294b" stroke-width="6" stroke-linecap="round"/>`;
+  // Document starts, anchored to the same documents as the review table.
+  const anchors = [[1, 1], [17, 88], [23, 117], [41, 214], [58, 301], [96, 455], [131, 602], [288, 813]];
+  const checks = [17, 23, 41, 58, 96, 131];
+  const startOf = (d) => { for (let i = 1; i < anchors.length; i++) { const [d0, p0] = anchors[i - 1], [d1, p1] = anchors[i]; if (d <= d1) return Math.round(p0 + (d - d0) * (p1 - p0) / (d1 - d0)); } };
+  const px = (pg) => 4 + ((pg - 1) / total) * (W - 8);
+  for (let d = 1; d <= 287; d++) if (!checks.includes(d)) svg += `<line x1="${px(startOf(d))}" y1="${Y - 6}" x2="${px(startOf(d))}" y2="${Y + 6}" stroke="#ffffff" stroke-width="1.2"/>`;
+  for (const d of checks) { const x = px(startOf(d)); svg += `<path d="M${x} ${Y - 9} L${x + 9} ${Y} L${x} ${Y + 9} L${x - 9} ${Y}Z" fill="#f5c518" stroke="#3d2f00" stroke-width="1.6"/>`; }
+  const vx = px(211), vw = px(220) - px(211);
+  svg += `<rect x="${vx - 3}" y="${Y - 15}" width="${vw + 6}" height="30" rx="4" fill="none" stroke="#0b5cd5" stroke-width="3"/>`;
+  map.innerHTML = svg;
+</script>
 </body>
 </html>

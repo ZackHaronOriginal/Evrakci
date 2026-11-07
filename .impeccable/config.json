@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-11-06T15:00:13.896Z",
         "reason": "Claude: static approval mockup; flagged .sheet elements depict scanned paper pages with text bars placed like printed lines"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          "docs/superpowers/mockups/plan-5-window.html"
+        ],
+        "createdAt": "2026-11-07T17:22:54.387Z",
+        "reason": "Claude: 9.5–11px text depicts printed text on scanned paper pages inside the mockup, not UI text"
       }
     ]
   }

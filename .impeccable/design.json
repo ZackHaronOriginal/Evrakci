@@ -1,0 +1,600 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-07T17:19:53+00:00",
+  "title": "Design System: Evrakçı",
+  "extensions": {
+    "colorMeta": {
+      "shell": {
+        "role": "primary",
+        "displayName": "Signage Navy",
+        "canonical": "#13294b",
+        "tonalRamp": [
+          "#040b19",
+          "#18253a",
+          "#30435f",
+          "#4b6286",
+          "#6b84a9",
+          "#91a6c7",
+          "#b8cae6",
+          "#e1f0ff"
+        ]
+      },
+      "shell-raised": {
+        "role": "primary",
+        "displayName": "Raised Navy",
+        "canonical": "#1d3a66",
+        "tonalRamp": [
+          "#020b1c",
+          "#14253f",
+          "#2c4265",
+          "#45628e",
+          "#6584b1",
+          "#8ca7cf",
+          "#b4cbed",
+          "#def0ff"
+        ]
+      },
+      "shell-ink": {
+        "role": "primary",
+        "displayName": "Signage White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "shell-ink-2": {
+        "role": "primary",
+        "displayName": "Navy Mist",
+        "canonical": "#c6d3e8",
+        "tonalRamp": [
+          "#070b12",
+          "#1f252f",
+          "#3a4250",
+          "#576273",
+          "#788395",
+          "#9ca6b5",
+          "#c1cad7",
+          "#e8effa"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Cool Ground",
+        "canonical": "#eef2f7",
+        "tonalRamp": [
+          "#0a0b0d",
+          "#232527",
+          "#404245",
+          "#5e6165",
+          "#7f8387",
+          "#a2a5a9",
+          "#c7c9cc",
+          "#edeff1"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "#cdd6e2",
+        "tonalRamp": [
+          "#090b0f",
+          "#21252b",
+          "#3d424a",
+          "#5b626c",
+          "#7b838d",
+          "#9fa6af",
+          "#c4cad1",
+          "#eaeff5"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Strong Rule",
+        "canonical": "#8d9bb0",
+        "tonalRamp": [
+          "#070b12",
+          "#1e2530",
+          "#394351",
+          "#566274",
+          "#778396",
+          "#9ba6b7",
+          "#c0cad8",
+          "#e8effa"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#15202e",
+        "tonalRamp": [
+          "#070b12",
+          "#1f262f",
+          "#39434f",
+          "#566272",
+          "#778494",
+          "#9ba6b5",
+          "#c1cad6",
+          "#e8eff9"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink Secondary",
+        "canonical": "#44526a",
+        "tonalRamp": [
+          "#060b14",
+          "#1d2533",
+          "#384254",
+          "#546279",
+          "#75839b",
+          "#99a6bb",
+          "#bfcadc",
+          "#e7effd"
+        ]
+      },
+      "focus": {
+        "role": "tertiary",
+        "displayName": "Focus Blue",
+        "canonical": "#0b5cd5",
+        "tonalRamp": [
+          "#000333",
+          "#001d61",
+          "#003a93",
+          "#1259c8",
+          "#397def",
+          "#69a4ff",
+          "#98caff",
+          "#c8f0ff"
+        ]
+      },
+      "select": {
+        "role": "neutral",
+        "displayName": "Selection Wash",
+        "canonical": "#dce9fb",
+        "tonalRamp": [
+          "#080b11",
+          "#1f262e",
+          "#3b434e",
+          "#586270",
+          "#788392",
+          "#9ca6b3",
+          "#c2cad5",
+          "#e9eff8"
+        ]
+      },
+      "cut-qr": {
+        "role": "tertiary",
+        "displayName": "QR Line Blue",
+        "canonical": "#1f5fbf",
+        "tonalRamp": [
+          "#00062c",
+          "#002156",
+          "#0f3e84",
+          "#245eb6",
+          "#4681dc",
+          "#73a6f5",
+          "#a0cbff",
+          "#cef1ff"
+        ]
+      },
+      "cut-filter": {
+        "role": "tertiary",
+        "displayName": "Filter Line Orange",
+        "canonical": "#b45200",
+        "tonalRamp": [
+          "#200000",
+          "#461000",
+          "#702900",
+          "#9c4300",
+          "#c2662c",
+          "#df8e61",
+          "#fcb792",
+          "#ffe1c4"
+        ]
+      },
+      "cut-manual": {
+        "role": "tertiary",
+        "displayName": "Manual Line Red",
+        "canonical": "#b42318",
+        "tonalRamp": [
+          "#260000",
+          "#4f0000",
+          "#7c1109",
+          "#ac2a1f",
+          "#d45141",
+          "#f17f6f",
+          "#ffac9d",
+          "#ffd9cc"
+        ]
+      },
+      "check": {
+        "role": "secondary",
+        "displayName": "Kontrol Yellow",
+        "canonical": "#f5c518",
+        "tonalRamp": [
+          "#180600",
+          "#391f00",
+          "#5c3b00",
+          "#835900",
+          "#a67c00",
+          "#c5a130",
+          "#e4c774",
+          "#ffedaf"
+        ]
+      },
+      "check-soft": {
+        "role": "secondary",
+        "displayName": "Kontrol Wash",
+        "canonical": "#fff4c2",
+        "tonalRamp": [
+          "#0f0b00",
+          "#2b250b",
+          "#4a4221",
+          "#6b6138",
+          "#8c8358",
+          "#aea681",
+          "#d0caab",
+          "#f4efd7"
+        ]
+      },
+      "check-ink": {
+        "role": "secondary",
+        "displayName": "Kontrol Ink",
+        "canonical": "#3d2f00",
+        "tonalRamp": [
+          "#100a00",
+          "#2c240c",
+          "#4c4121",
+          "#6e6039",
+          "#908159",
+          "#b1a482",
+          "#d3c9ac",
+          "#f6eed7"
+        ]
+      },
+      "check-edge": {
+        "role": "secondary",
+        "displayName": "Kontrol Edge",
+        "canonical": "#8a6d00",
+        "tonalRamp": [
+          "#140900",
+          "#322200",
+          "#543f00",
+          "#785e00",
+          "#9a7f2e",
+          "#baa363",
+          "#dbc894",
+          "#fdeec5"
+        ]
+      },
+      "ok": {
+        "role": "tertiary",
+        "displayName": "Done Green",
+        "canonical": "#1b7a3d",
+        "tonalRamp": [
+          "#001200",
+          "#002f0d",
+          "#065024",
+          "#1f733b",
+          "#46965c",
+          "#76b784",
+          "#a3d9ae",
+          "#d1fbd9"
+        ]
+      },
+      "doc-a": {
+        "role": "neutral",
+        "displayName": "Document Band A",
+        "canonical": "#e3ecf8",
+        "tonalRamp": [
+          "#090b0f",
+          "#21252b",
+          "#3d424a",
+          "#5b626b",
+          "#7c838d",
+          "#9fa6ae",
+          "#c4cad1",
+          "#eaeff5"
+        ]
+      },
+      "doc-b": {
+        "role": "neutral",
+        "displayName": "Document Band B",
+        "canonical": "#f3f6fa",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242527",
+          "#404245",
+          "#5f6164",
+          "#808286",
+          "#a3a5a8",
+          "#c7c9cc",
+          "#edeef0"
+        ]
+      },
+      "var-1": {
+        "role": "tertiary",
+        "displayName": "Variable Teal",
+        "canonical": "#0f7b78",
+        "tonalRamp": [
+          "#001010",
+          "#002d2c",
+          "#004d4b",
+          "#0e706d",
+          "#3d928f",
+          "#70b3b0",
+          "#9fd5d2",
+          "#cff8f6"
+        ]
+      },
+      "var-2": {
+        "role": "tertiary",
+        "displayName": "Variable Violet",
+        "canonical": "#6b3fb3",
+        "tonalRamp": [
+          "#11002a",
+          "#2c1153",
+          "#4b2b80",
+          "#6d46b0",
+          "#8e69d7",
+          "#ae91f0",
+          "#d0baff",
+          "#f4e3ff"
+        ]
+      },
+      "var-3": {
+        "role": "tertiary",
+        "displayName": "Variable Rust",
+        "canonical": "#9a4a12",
+        "tonalRamp": [
+          "#1d0200",
+          "#421600",
+          "#692f04",
+          "#944a1a",
+          "#b96c3f",
+          "#d7936d",
+          "#f4bb9c",
+          "#ffe3cb"
+        ]
+      },
+      "var-4": {
+        "role": "tertiary",
+        "displayName": "Variable Plum",
+        "canonical": "#a3245f",
+        "tonalRamp": [
+          "#22000b",
+          "#490025",
+          "#741742",
+          "#a22f61",
+          "#c95382",
+          "#e680a5",
+          "#ffacc9",
+          "#ffd8ee"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "brand": {
+        "displayName": "Brand",
+        "purpose": "Wordmark in the navy header."
+      },
+      "value-display": {
+        "displayName": "Value display",
+        "purpose": "Suggested value in the review side panel."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Tabs, panel headings, read values."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Base text, buttons, inputs, table cells."
+      },
+      "body-strong": {
+        "displayName": "Body strong",
+        "purpose": "Subheadings, values in key-value lists, selection info."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Secondary lines, chips, lane names, page numbers, status bar."
+      },
+      "label-sm": {
+        "displayName": "Label small",
+        "purpose": "Key caps, cut tags, box labels. Minimum size in app chrome."
+      }
+    },
+    "fontLicence": {
+      "family": "Atkinson Hyperlegible Next",
+      "licence": "SIL OFL 1.1",
+      "status": "needs owner approval (not on MIT/BSD/Apache/MPL/HPND/LGPL list)",
+      "fallback": "Segoe UI"
+    },
+    "shadows": [
+      {
+        "name": "paper-thumb",
+        "value": "0 1px 3px rgba(19, 41, 75, .18)",
+        "purpose": "Page thumbnails on the timeline."
+      },
+      {
+        "name": "paper-canvas",
+        "value": "0 3px 12px rgba(19, 41, 75, .18)",
+        "purpose": "Enlarged A4 page in the template creator."
+      }
+    ],
+    "focus": [
+      {
+        "name": "focus-ring",
+        "value": "outline: 3px solid #0b5cd5; outline-offset: 2px",
+        "purpose": "Keyboard focus on controls."
+      },
+      {
+        "name": "focus-ring-page",
+        "value": "box-shadow: 0 0 0 3px #fff, 0 0 0 6px #0b5cd5",
+        "purpose": "Keyboard focus on a page thumbnail."
+      },
+      {
+        "name": "focus-ring-cell",
+        "value": "box-shadow: inset 0 0 0 3px #0b5cd5",
+        "purpose": "Focused table cell."
+      }
+    ],
+    "motion": [],
+    "breakpoints": [
+      {
+        "name": "design-target",
+        "value": "1366x768"
+      }
+    ],
+    "pictograms": {
+      "grid": "24px",
+      "displaySize": "18px",
+      "strokeWidth": "1.8",
+      "caps": "round",
+      "joins": "round"
+    }
+  },
+  "components": [
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Toolbar and panel action with pictogram and shortcut key cap.",
+      "html": "<button class=\"ds-btn\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"6\" cy=\"6\" r=\"3\"/><circle cx=\"6\" cy=\"18\" r=\"3\"/><path d=\"M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12\"/></svg>Kesim <kbd class=\"ds-kbd\">K</kbd></button>",
+      "css": ".ds-btn{font-family:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:15px;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 12px;border-radius:6px;border:1px solid #8d9bb0;background:#ffffff;color:#15202e;cursor:pointer;}.ds-btn:hover{background:#eef2f7;}.ds-btn:focus-visible{outline:3px solid #0b5cd5;outline-offset:2px;}.ds-kbd{font:inherit;font-size:13px;font-weight:600;color:#44526a;border:1px solid #cdd6e2;border-radius:4px;padding:0 5px;}"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action per toolbar, in signage navy.",
+      "html": "<button class=\"ds-btn-primary\">Filtreyi uygula <kbd class=\"ds-kbd-n\">F</kbd></button>",
+      "css": ".ds-btn-primary{font-family:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:15px;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 12px;border-radius:6px;border:1px solid #13294b;background:#13294b;color:#fff;cursor:pointer;}.ds-btn-primary:hover{background:#1d3a66;}.ds-btn-primary:focus-visible{outline:3px solid #0b5cd5;outline-offset:2px;}.ds-kbd-n{font:inherit;font-size:13px;font-weight:600;color:#c6d3e8;border:1px solid #1d3a66;border-radius:4px;padding:0 5px;}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "36px field with strong-rule outline.",
+      "html": "<input class=\"ds-input\" value=\"3\" style=\"width:48px;text-align:center\">",
+      "css": ".ds-input{font-family:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:15px;height:36px;border:1px solid #8d9bb0;border-radius:6px;padding:0 8px;background:#fff;color:#15202e;}.ds-input:focus-visible{outline:3px solid #0b5cd5;outline-offset:2px;}"
+    },
+    {
+      "name": "Signage Tabs",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Navy header tabs; the active tab opens into the cool ground.",
+      "html": "<nav class=\"ds-tabs\"><span class=\"ds-tab\">Yükle</span><span class=\"ds-tab ds-on\">Kontrol</span><span class=\"ds-tab\">Şablonlar</span></nav>",
+      "css": ".ds-tabs{font-family:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;font-variant-numeric:tabular-nums;display:flex;align-items:flex-end;gap:4px;background:#13294b;height:54px;padding:0 12px;}.ds-tab{font-size:17px;font-weight:600;color:#c6d3e8;padding:0 18px;height:44px;display:flex;align-items:center;border-radius:6px 6px 0 0;cursor:pointer;}.ds-tab:hover{color:#fff;}.ds-tab.ds-on{background:#eef2f7;color:#13294b;}"
+    },
+    {
+      "name": "Lane Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Pill chips in timeline lanes; kontrol in yellow with pictogram.",
+      "html": "<span class=\"ds-chip\">Kapasite Raporu</span> <span class=\"ds-chip ds-check\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3 2 20h20z\"/><path d=\"M12 10v4M12 17h.01\"/></svg>Kontrol: Sicil_No emin değil</span>",
+      "css": ".ds-chip{font-family:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;gap:6px;font-size:14px;padding:3px 10px;border-radius:99px;border:1px solid #8d9bb0;background:#fff;color:#15202e;}.ds-chip.ds-check{background:#f5c518;border-color:#8a6d00;color:#3d2f00;font-weight:700;}"
+    },
+    {
+      "name": "Kontrol Notice",
+      "kind": "card",
+      "refersTo": "notice-check",
+      "description": "Explains an unsure value and offers one action.",
+      "html": "<div class=\"ds-notice\"><span class=\"ds-ic\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3 2 20h20z\"/><path d=\"M12 10v4M12 17h.01\"/></svg></span><p><b>Sicil_No emin değil</b><small>“48Z13” okundu. Öneri: 48213</small></p></div>",
+      "css": ".ds-notice{font-family:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:15px;display:flex;gap:10px;align-items:flex-start;background:#fff4c2;border:1px solid #c9a200;border-radius:6px;padding:10px 12px;color:#15202e;max-width:280px;}.ds-notice p{margin:0;}.ds-notice small{display:block;font-size:14px;color:#44526a;margin-top:2px;}.ds-ic{color:#3d2f00;}"
+    },
+    {
+      "name": "Cut Markers",
+      "kind": "custom",
+      "refersTo": "cut-tag",
+      "description": "Station markers: the shape says the cut type, colour repeats it.",
+      "html": "<div class=\"ds-cuts\"><span><svg width=\"29\" height=\"29\" viewBox=\"0 0 29 29\"><circle cx=\"14.5\" cy=\"14.5\" r=\"12.5\" fill=\"#1f5fbf\"/><rect x=\"9\" y=\"9\" width=\"4.5\" height=\"4.5\" fill=\"#fff\"/><rect x=\"15.5\" y=\"9\" width=\"4.5\" height=\"4.5\" fill=\"#fff\"/><rect x=\"9\" y=\"15.5\" width=\"4.5\" height=\"4.5\" fill=\"#fff\"/></svg><b class=\"ds-ct\" style=\"color:#1f5fbf\">QR</b></span><span><svg width=\"29\" height=\"29\" viewBox=\"0 0 29 29\"><circle cx=\"14.5\" cy=\"14.5\" r=\"11.5\" fill=\"#fff\" stroke=\"#b45200\" stroke-width=\"3\" stroke-dasharray=\"5 3.2\"/><path d=\"M9.5 10.5h10l-3.8 4.6v4l-2.4 1.2v-5.2z\" fill=\"#b45200\"/></svg><b class=\"ds-ct\" style=\"color:#b45200\">Filtre 3</b></span><span><svg width=\"29\" height=\"29\" viewBox=\"0 0 29 29\"><rect x=\"2\" y=\"2\" width=\"25\" height=\"25\" rx=\"3\" fill=\"#b42318\"/><g fill=\"none\" stroke=\"#fff\" stroke-width=\"1.9\" stroke-linecap=\"round\"><circle cx=\"10\" cy=\"10\" r=\"2.6\"/><circle cx=\"10\" cy=\"19\" r=\"2.6\"/><path d=\"M21.5 8.5 12 17M17 15.5l4.5 4.5M12 12l2 2\"/></g></svg><b class=\"ds-ct\" style=\"color:#b42318\">Elle</b></span></div>",
+      "css": ".ds-cuts{font-family:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;font-variant-numeric:tabular-nums;display:flex;gap:24px;align-items:center;}.ds-cuts span{display:flex;flex-direction:column;align-items:center;gap:6px;}.ds-ct{font-size:13px;font-weight:700;background:#fff;border:1px solid currentColor;border-radius:4px;padding:1px 5px;}"
+    },
+    {
+      "name": "Review Table Row",
+      "kind": "custom",
+      "refersTo": "table-row-current",
+      "description": "Current row in selection wash; unsure cell in kontrol wash with focus ring.",
+      "html": "<table class=\"ds-tbl\"><tr><th>Belge</th><th>Sicil_No</th><th>Durum</th></tr><tr><td>17</td><td>51408</td><td>Tamam</td></tr><tr class=\"ds-cur\"><td>41</td><td class=\"ds-ck\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3 2 20h20z\"/><path d=\"M12 10v4M12 17h.01\"/></svg> 48Z13</td><td><span class=\"ds-tag\">Kontrol</span></td></tr></table>",
+      "css": ".ds-tbl{font-family:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:15px;border-collapse:separate;border-spacing:0;background:#fff;color:#15202e;}.ds-tbl th{text-align:left;font-size:14px;font-weight:700;color:#44526a;background:#f6f8fb;padding:9px 12px;border-bottom:1px solid #8d9bb0;}.ds-tbl td{padding:0 12px;height:40px;border-bottom:1px solid #cdd6e2;}.ds-cur td{background:#dce9fb;}.ds-tbl td.ds-ck{background:#fff4c2;color:#3d2f00;font-weight:600;box-shadow:inset 0 0 0 3px #0b5cd5;}.ds-tag{background:#f5c518;color:#3d2f00;font-weight:700;padding:1px 8px;border-radius:3px;}"
+    },
+    {
+      "name": "Status Bar",
+      "kind": "nav",
+      "refersTo": "status-bar",
+      "description": "Navy bar with counts and the kontrol count in yellow.",
+      "html": "<div class=\"ds-status\"><span><b>287</b> belge</span><span><em>6</em> belge kontrol bekliyor</span><span class=\"ds-kb\">N sonraki kontrol</span></div>",
+      "css": ".ds-status{font-family:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:22px;height:30px;padding:0 16px;background:#13294b;color:#c6d3e8;font-size:14px;}.ds-status b{color:#fff;font-weight:600;}.ds-status em{font-style:normal;background:#f5c518;color:#3d2f00;font-weight:700;padding:0 7px;border-radius:3px;margin-right:6px;}.ds-kb{margin-left:auto;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Transit Line",
+    "overview": "**Creative North Star: \"The Transit Line\"**\n\nThe job is a transit line. Pages run along one line, documents are the stops, cuts are the station markers. The visual world is public wayfinding signage: deep signage-navy panels with white lettering frame the window (header with tabs, status bar), a light cool ground carries the work, signage yellow marks every stop that needs a check, and cut types are line colours that always come with their own marker shape.\n\nThe window is dense but calm for hour-long sessions on 1366×768 office monitors. Text is large and highly legible, every frequent action shows its keyboard shortcut on a key cap, and nothing that needs attention is ever silent: a kontrol shows in the route map, the timeline lane, the side panel, the review table and the status bar at once.\n\nThe source of truth is the approved HTML mockup (`docs/superpowers/mockups/plan-5-window.html`). The product ships as a PySide6/Qt window, so every token below is named by role and is meant to become a Qt palette/stylesheet variable. The owner plans configurable looks later; swap values, keep roles.",
+    "keyCharacteristics": [
+      "Navy signage shell (header, primary button, status bar) around a light cool work ground.",
+      "One line, many stops: route map, document bands and cut rails read as a transit diagram.",
+      "Signage yellow means \"kontrol\" and nothing else.",
+      "Cut type is carried by shape first, colour second.",
+      "Large legible type (15px base, 17px titles) with tabular figures everywhere.",
+      "Drawn line pictograms at one stroke weight; keyboard shortcut caps on every frequent action."
+    ],
+    "rules": [
+      {
+        "name": "The One Meaning Rule",
+        "body": "Kontrol Yellow means \"needs a check\" and is never used for decoration, branding or emphasis. (The brand mark's middle stop is the one sanctioned exception: it shows the yellow stop on the line.)",
+        "section": "colors"
+      },
+      {
+        "name": "The Shape First Rule",
+        "body": "Colour never carries meaning alone. Cuts differ by marker shape and rail pattern, kontrol by an alert pictogram, variables by their name label.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Tabular figures are on everywhere (`font-variant-numeric: tabular-nums`), so page numbers, counts and ranges line up across the timeline and table.",
+        "section": "typography"
+      },
+      {
+        "name": "The Paper Only Rule",
+        "body": "Only representations of paper cast shadows. Panels, buttons, chips and bars stay flat.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** take every colour, size and radius from the role tokens so the look can be swapped later.",
+      "**Do** pair each cut colour with its fixed marker shape and rail pattern (QR disc, filter dashed ring, manual square).",
+      "**Do** show the keyboard shortcut on a key cap for every frequent action, and a visible 3px focus ring.",
+      "**Do** keep body text at 15px or larger and nothing in app chrome under 13px.",
+      "**Do** repeat a kontrol everywhere the user might look: route map, lane, side panel, table, status bar."
+    ],
+    "donts": [
+      "**Don't** use Kontrol Yellow for anything but \"needs a check\".",
+      "**Don't** carry meaning by colour alone.",
+      "**Don't** add shadows to panels, buttons or chips; only paper casts shadows.",
+      "**Don't** add chamber branding; Evrakçı is a neutral tool.",
+      "**Don't** use text glyphs (▲, ✓, ⚠) as icons; use the drawn pictogram set."
+    ]
+  }
+}

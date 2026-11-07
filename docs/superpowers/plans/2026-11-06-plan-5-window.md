@@ -40,14 +40,22 @@ It must stay smooth with 800+ pages, and undo/redo every edit.
 
 - `src/evrakci/pipeline/` stays free of Qt. All UI text is Turkish.
 - **No logic duplicated from the core.** The UI only calls core functions.
-- Cut types look different, and the same everywhere:
-  - QR cut: solid blue
-  - filter cut: dashed orange
-  - manual cut: solid red with ✂
-  - dropped empty page: faded
+- **Look:** follows `DESIGN.md` and the approved mockups (`docs/superpowers/mockups/plan-5-*.png`).
+  Colours and sizes come from one token table (`src/evrakci/ui/theme.py`), so looks can be made
+  configurable later.
+- Cut types look different, and the same everywhere (shape first, colour repeats it):
+  - QR cut: filled blue disc on a solid line
+  - filter cut: dashed orange ring on a dashed line
+  - manual cut: red square with scissors on a solid line
+  - dropped empty page: faded, dashed edge, labelled "boş"
+- "Kontrol" is always signage yellow with a warning icon and text, never colour alone.
+- The Kontrol screen has a route map of the whole job above the timeline: one tick per document,
+  a yellow diamond per document that needs a check, and a frame for the visible part (click to jump).
 - Every edit can be undone (Ctrl+Z / Ctrl+Y), and the job is saved after each edit.
+- Shortcuts: Ctrl+1…6 tabs; N / Shift+N next / previous kontrol; F filter, K cut, T template,
+  B draw box, Enter accept suggestion, F2 type a value, V draw a new variant.
 - Long work shows progress, can be cancelled, and never freezes the window.
-- Colour contrast meets WCAG AA. UI text is at least 11 px, using the system font.
+- Colour contrast meets WCAG AA. Body text is 15 px and the smallest text is 13 px.
 
 ## Review Focus
 
@@ -94,7 +102,8 @@ It must stay smooth with 800+ pages, and undo/redo every edit.
   - `src/evrakci/ui/timeline.py`: `TimelineModel` (a `QAbstractListModel` of pages, with roles
     for the document band, cut type before the page, dropped, flags and template name),
     `TimelineDelegate` and `TimelineView` (horizontal, range selection)
-  - `src/evrakci/ui/kontrol.py`: the screen, with the toolbar and side panel from mockup 1
+  - `src/evrakci/ui/kontrol.py`: the screen, with the toolbar, route map, lanes (Belge, Sayfa,
+    Şablon, Değerler) and side panel from mockup 1
 - Tests:
   - the cut type before each page (QR, filter or manual) matches `compute_documents`
   - selecting pages 5–9 then "Filtre: her N sayfa" calls `apply_filter` with those ids

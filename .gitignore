@@ -42,3 +42,4 @@ build/
 packaging/tesseract-bundle/
 dist/
 !docs/superpowers/mockups/*.png
+docs/superpowers/mockups/fonts/

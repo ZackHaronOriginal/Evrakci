@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Evrakçı · Kontrol (Pul Katalog)</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--g:#f2f0ea;--ink:#1c1c1c;--mute:#5a5a5a;--line:#cfccc2;--red:#d1361f;--blue:#1f5fbf;--org:#b35f00;--paper:#fff}
+*{box-sizing:border-box}html,body{width:1440px;height:900px;overflow:hidden;margin:0}
+body{background:var(--g);color:var(--ink);font:15px/1.4 "IBM Plex Sans",system-ui,sans-serif;display:flex;flex-direction:column}
+kbd{font:500 13px "IBM Plex Mono",monospace;color:var(--mute);border:1px solid var(--line);border-radius:3px;padding:0 4px;margin-left:6px;background:var(--g)}
+svg.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+header{height:48px;background:var(--ink);color:#f2f0ea;display:flex;align-items:center;padding:0 20px;gap:28px;flex:none}
+.brand{font-weight:600;font-size:18px}
+nav{display:flex;height:100%}nav a{display:flex;align-items:center;padding:0 16px;color:#c9c6bd;text-decoration:none;font-size:15px;border-bottom:3px solid transparent}
+nav a.on{color:#fff;border-bottom-color:#f2f0ea;font-weight:600}
+.job{margin-left:auto;color:#e6e3da}.saved{color:#c9c6bd;font-size:14px;display:flex;gap:6px;align-items:center}
+.tb{height:56px;display:flex;align-items:center;gap:8px;padding:0 20px;border-bottom:1px solid var(--line);flex:none;background:#faf9f5}
+.btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;border:1px solid #b9b5aa;border-radius:4px;background:var(--paper);font:500 14px "IBM Plex Sans";color:var(--ink);white-space:nowrap}
+.btn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}.btn.pri kbd{color:#e6e3da;background:#333;border-color:#555}
+.btn.ico{width:34px;padding:0;justify-content:center}
+.selinfo{font-size:14px;padding:0 10px;border-left:1px solid var(--line);border-right:1px solid var(--line);white-space:nowrap;height:34px;display:flex;align-items:center}
+.flt{display:flex;align-items:center;gap:6px;font-size:14px;white-space:nowrap}.flt input{width:40px;height:30px;font:600 15px "IBM Plex Sans";text-align:center;border:1px solid #b9b5aa;border-radius:4px}
+.sp{flex:1}
+.ov{height:60px;display:flex;align-items:center;gap:20px;padding:0 20px;border-bottom:1px solid var(--line);flex:none}
+.ov .t{font-size:14px;color:var(--mute);width:150px;line-height:1.25}.ov .t b{color:var(--ink);font-weight:600;font-size:15px;display:block}
+.bar{position:relative;width:760px;height:44px}
+.bar .tr{position:absolute;left:0;right:0;top:12px;height:8px;background:repeating-linear-gradient(90deg,#c9c6bc 0 2px,transparent 2px 6px);border-radius:1px}
+.bar .win{position:absolute;top:6px;height:20px;border:2px solid var(--ink);background:rgba(28,28,28,.08)}
+.bar .k{position:absolute;top:8px;width:16px;height:16px;margin-left:-8px;border:2px solid var(--red);border-radius:50% 45% 50% 40%}
+.bar .k span{position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:13px;color:var(--ink)}
+.zoom{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:14px}
+.zoom input{width:120px;accent-color:var(--ink)}.zl{display:flex;gap:12px;color:var(--mute)}.zl b{color:var(--ink)}
+main{flex:1;display:flex;min-height:0}
+.grid{flex:1;padding:12px 16px;display:flex;flex-wrap:wrap;align-content:flex-start;row-gap:6px;overflow:hidden}
+.doc{display:flex;flex-direction:column}
+.cap{height:22px;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;width:0;min-width:100%;padding-left:2px}
+.cap.sepcap{font-weight:400;color:var(--mute)}.cap.no{font-weight:500}
+.pages{display:flex;gap:6px;position:relative;padding:0 2px}
+.pg{width:60px;display:flex;flex-direction:column;align-items:center}
+.sh{width:60px;height:84px;background:var(--paper);border:1px solid #b9b5aa;position:relative;
+ background-image:linear-gradient(#8a877f,#8a877f),repeating-linear-gradient(#fff 0 9px,#d2cfc6 9px 12px,#fff 12px 15px);
+ background-size:30px 4px,44px 56px;background-position:8px 10px,8px 20px;background-repeat:no-repeat}
+.pg span{font-size:13px;color:var(--mute);margin-top:3px;line-height:18px}
+.pg.sel .sh{outline:2px solid var(--blue);outline-offset:2px}.pg.sel span{color:var(--blue);font-weight:600}
+.pg.foc .sh{outline:4px solid var(--blue);outline-offset:3px}
+.pg.blank .sh{background:#fbfaf7;border-style:dashed;display:grid;place-items:center}.pg.blank b{font-size:13px;color:var(--mute);font-weight:500}
+.pg.sep .sh{background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}.pg.sep b{font-size:13px;font-weight:600;letter-spacing:0}
+.qr{width:30px;height:30px;background:repeating-conic-gradient(var(--ink) 0 25%,#fff 0 50%) 0 0/10px 10px;outline:3px solid var(--ink);outline-offset:-3px}
+.done{position:absolute;right:3px;top:3px;width:14px;height:14px;background:linear-gradient(135deg,transparent 45%,var(--ink) 45% 57%,transparent 57%)}
+.gut{width:30px;display:flex;align-items:center;justify-content:center;padding-top:22px;height:128px}
+.gut i{display:block}
+.cq{width:14px;height:14px;border-radius:50%;background:var(--blue)}
+.cf{width:16px;height:16px;border-radius:50%;border:2px dashed var(--org)}
+.cm{width:18px;height:18px;background:var(--red);display:grid!important;place-items:center}
+.ring{position:absolute;left:-14px;top:-12px;width:calc(100% + 28px);height:118px;pointer-events:none}
+.ktag{position:absolute;right:-10px;top:-24px;background:var(--red);color:#fff;font:600 13px "IBM Plex Sans";font-style:normal;padding:1px 6px;border-radius:2px;transform:rotate(-3deg)}
+aside{width:384px;flex:none;border-left:1px solid var(--line);background:#faf9f5;padding:18px 20px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+aside h2{margin:0;font-size:20px;font-weight:600}.meta{color:var(--mute);font-size:14px;margin-top:2px}
+.note{border:2px solid var(--red);border-radius:6px 10px 7px 12px;padding:12px 14px;background:#fff}
+.note .h{display:flex;align-items:center;gap:8px;font-weight:600}.note .h em{background:var(--red);color:#fff;font:600 13px "IBM Plex Sans";font-style:normal;padding:1px 6px;border-radius:2px}
+.vals{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;margin:8px 0 10px;font-size:15px}.vals dt{color:var(--mute)}.vals dd{margin:0;font:500 15px "IBM Plex Mono"}
+h3{margin:0 0 6px;font-size:16px;font-weight:600}
+.why{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;font-size:15px}.why li{display:flex;gap:10px;align-items:center}.why i{flex:none}
+.why .bk{width:14px;height:18px;border:1px dashed var(--mute);background:#fbfaf7}
+.acts{display:flex;flex-direction:column;gap:8px}.acts .btn{height:38px;font-size:15px;justify-content:flex-start}
+.leg{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:14px;color:var(--ink)}
+.leg div{display:flex;align-items:center;gap:8px}.leg .rg{width:18px;height:14px;border:2px solid var(--red);border-radius:50% 45% 50% 40%}
+.leg .dn{position:relative;width:14px;height:14px}.leg .dn .done{right:0;top:0}
+footer{height:34px;background:var(--ink);color:#e6e3da;display:flex;align-items:center;padding:0 20px;gap:18px;font-size:14px;flex:none}
+footer .w{color:#fff;font-weight:600}footer .hint{margin-left:auto;color:#c9c6bd}footer kbd{color:#e6e3da;background:#333;border-color:#555}
+</style></head><body>
+<header><span class="brand">Evrakçı</span>
+<nav><a>Yükle</a><a class="on">Kontrol</a><a>Şablonlar</a><a>Değerler</a><a>Dışa Aktar</a><a>Rehber</a></nav>
+<span class="job">Kasım 2026 – Faaliyet belgeleri · 3 parti · 812 sayfa</span>
+<span class="saved"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg>Kaydedildi 14:32</span></header>
+<div class="tb">
+<span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>Geri al<kbd>Ctrl+Z</kbd></span>
+<span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>Yinele<kbd>Ctrl+Y</kbd></span>
+<span class="selinfo">Sayfa 214–218 seçili · 5 sayfa · Belge 41 ve 42</span>
+<span class="flt">Her <input value="3" aria-label="Sayfa sayısı"> sayfada bir belge</span>
+<span class="btn pri">Filtreyi uygula<kbd>F</kbd></span>
+<span class="btn"><svg class="ic" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5 20 19M8.5 16.5 20 5"/></svg>Kesim<kbd>K</kbd></span>
+<span class="btn"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Şablon uygula<kbd>T</kbd></span>
+<span class="sp"></span>
+<span class="btn ico" title="Döndür (R)"><svg class="ic" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></span>
+<span class="btn ico" title="Sil (Del)"><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>
+</div>
+<div class="ov">
+<div class="t"><b>Tüm iş</b>287 belge · 812 sayfa</div>
+<div class="bar" aria-label="İş genel görünümü"><div class="tr"></div>
+<div class="win" style="left:178px;width:62px" title="Görünen sayfalar 190–259"></div>
+<i class="k" style="left:82px"><span>17</span></i><i class="k" style="left:110px"><span>23</span></i><i class="k" style="left:200px"><span>41</span></i>
+<i class="k" style="left:282px"><span>58</span></i><i class="k" style="left:426px"><span>96</span></i><i class="k" style="left:563px"><span>131</span></i></div>
+<div class="t" style="width:auto"><b style="color:var(--red)">6 kontrol</b>görünen s.190–259</div>
+<label class="zoom">Pul boyu <input type="range" min="0" max="2" value="0"><span class="zl"><b>Küçük</b><span>Orta</span><span>Büyük</span></span></label>
+</div>
+<main>
+<section class="grid" aria-label="Sayfalar">
+<div class="doc"><div class="cap">36 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>190</span></div><div class="pg"><div class="sh"></div><span>191</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>192</span></div></div></div>
+<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">37 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>193</span></div><div class="pg"><div class="sh"></div><span>194</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>195</span></div></div></div>
+<div class="gut"><i class="cq" title="QR kesim"></i></div><div class="doc"><div class="cap sepcap">Ayıraç</div><div class="pages"><div class="pg sep"><div class="sh"><b>AYIRAÇ</b><i class="qr"></i></div><span>196</span></div></div></div>
+<div class="gut"></div><div class="doc"><div class="cap">38 · Kapasite Raporu</div><div class="pages"><div class="pg"><div class="sh"></div><span>197</span></div><div class="pg"><div class="sh"></div><span>198</span></div><div class="pg"><div class="sh"></div><span>199</span></div><div class="pg"><div class="sh"></div><span>200</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>201</span></div></div></div>
+<div class="gut"><i class="cm" title="Elle kesim"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="4" cy="4" r="2.2"/><circle cx="4" cy="12" r="2.2"/><path d="M6 5.5 14 13M6 10.5 14 3"/></svg></i></div><div class="doc"><div class="cap">39 · Sicil Gazetesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>202</span></div><div class="pg"><div class="sh"></div><span>203</span></div><div class="pg"><div class="sh"></div><span>204</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>205</span></div></div></div>
+<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">40 · Oda Kayıt Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>206</span></div><div class="pg"><div class="sh"></div><span>207</span></div><div class="pg"><div class="sh"></div><span>208</span></div><div class="pg"><div class="sh"></div><span>209</span></div><div class="pg"><div class="sh"></div><span>210</span></div><div class="pg"><div class="sh"></div><span>211</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>212</span></div></div></div>
+<div class="gut"><i class="cq" title="QR kesim"></i></div><div class="doc"><div class="cap sepcap">Ayıraç</div><div class="pages"><div class="pg sep"><div class="sh"><b>AYIRAÇ</b><i class="qr"></i></div><span>213</span></div></div></div>
+<div class="gut"></div><div class="doc chk"><div class="cap">41 · Kapasite Raporu</div><div class="pages"><div class="pg sel foc"><div class="sh"></div><span>214</span></div><div class="pg sel"><div class="sh"></div><span>215</span></div><div class="pg sel"><div class="sh"></div><span>216</span></div><svg class="ring" viewBox="0 0 200 120" preserveAspectRatio="none"><path d="M18 62C14 30 60 9 108 8c50-1 84 18 85 50 1 34-38 55-92 55C48 114 10 96 12 62 13 40 34 22 62 15" fill="none" stroke="#d1361f" stroke-width="2.6" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg><em class="ktag">Kontrol</em></div></div>
+<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">42 · Faaliyet B.</div><div class="pages"><div class="pg blank sel"><div class="sh"><b>boş</b></div><span>217</span></div><div class="pg sel"><div class="sh"><s class="done"></s></div><span>218</span></div></div></div>
+<div class="gut"><i class="cm" title="Elle kesim"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="4" cy="4" r="2.2"/><circle cx="4" cy="12" r="2.2"/><path d="M6 5.5 14 13M6 10.5 14 3"/></svg></i></div><div class="doc"><div class="cap no">43 · Şablon yok · Okunmadı</div><div class="pages"><div class="pg"><div class="sh"></div><span>219</span></div><div class="pg"><div class="sh"></div><span>220</span></div><div class="pg"><div class="sh"></div><span>221</span></div><div class="pg"><div class="sh"></div><span>222</span></div></div></div>
+<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">44 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>223</span></div><div class="pg"><div class="sh"></div><span>224</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>225</span></div></div></div>
+<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">45 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>226</span></div><div class="pg"><div class="sh"></div><span>227</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>228</span></div></div></div>
+<div class="gut"><i class="cq" title="QR kesim"></i></div><div class="doc"><div class="cap sepcap">Ayıraç</div><div class="pages"><div class="pg sep"><div class="sh"><b>AYIRAÇ</b><i class="qr"></i></div><span>229</span></div></div></div>
+<div class="gut"></div><div class="doc"><div class="cap">46 · Kapasite Raporu</div><div class="pages"><div class="pg"><div class="sh"></div><span>230</span></div><div class="pg"><div class="sh"></div><span>231</span></div><div class="pg"><div class="sh"></div><span>232</span></div><div class="pg"><div class="sh"></div><span>233</span></div><div class="pg"><div class="sh"></div><span>234</span></div><div class="pg"><div class="sh"></div><span>235</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>236</span></div></div></div>
+<div class="gut"><i class="cm" title="Elle kesim"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="4" cy="4" r="2.2"/><circle cx="4" cy="12" r="2.2"/><path d="M6 5.5 14 13M6 10.5 14 3"/></svg></i></div><div class="doc"><div class="cap">47 · İmza Sirküleri</div><div class="pages"><div class="pg"><div class="sh"></div><span>237</span></div><div class="pg"><div class="sh"></div><span>238</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>239</span></div></div></div>
+<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">48 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>240</span></div><div class="pg"><div class="sh"></div><span>241</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>242</span></div></div></div>
+<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">49 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>243</span></div><div class="pg"><div class="sh"></div><span>244</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>245</span></div></div></div>
+<div class="gut"><i class="cq" title="QR kesim"></i></div><div class="doc"><div class="cap sepcap">Ayıraç</div><div class="pages"><div class="pg sep"><div class="sh"><b>AYIRAÇ</b><i class="qr"></i></div><span>246</span></div></div></div>
+<div class="gut"></div><div class="doc"><div class="cap">50 · Kapasite Raporu</div><div class="pages"><div class="pg"><div class="sh"></div><span>247</span></div><div class="pg"><div class="sh"></div><span>248</span></div><div class="pg"><div class="sh"></div><span>249</span></div><div class="pg"><div class="sh"></div><span>250</span></div><div class="pg"><div class="sh"></div><span>251</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>252</span></div></div></div>
+<div class="gut"><i class="cm" title="Elle kesim"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="4" cy="4" r="2.2"/><circle cx="4" cy="12" r="2.2"/><path d="M6 5.5 14 13M6 10.5 14 3"/></svg></i></div><div class="doc"><div class="cap">51 · Sicil Gazetesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>253</span></div><div class="pg"><div class="sh"></div><span>254</span></div><div class="pg"><div class="sh"></div><span>255</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>256</span></div></div></div>
+<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">52 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>257</span></div><div class="pg"><div class="sh"></div><span>258</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>259</span></div></div></div>
+<div class="gut"><i class="cf" title="Filtre kesim"></i></div><div class="doc"><div class="cap">53 · Faaliyet Belgesi</div><div class="pages"><div class="pg"><div class="sh"></div><span>260</span></div><div class="pg"><div class="sh"></div><span>261</span></div><div class="pg"><div class="sh"><s class="done"></s></div><span>262</span></div></div></div>
+</section>
+<aside>
+<div><h2>Belge 41 · Kapasite Raporu</h2><div class="meta">Sayfa 214–216 · 3 sayfa · Şablon: Kapasite Raporu</div></div>
+<div class="note"><div class="h"><em>Kontrol</em>Sicil_No emin değil</div>
+<dl class="vals"><dt>Okunan</dt><dd>48Z13</dd><dt>Öneri</dt><dd>48213</dd><dt>Firma_Adi</dt><dd>Tamam</dd></dl>
+<span class="btn pri">Değerlerde aç<kbd>Ctrl+4</kbd></span></div>
+<div><h3>Neden burada başlıyor?</h3><ul class="why">
+<li><i class="cq"></i>Önceki kesim: QR ayıraç s.213</li>
+<li><i class="cf"></i>Sonraki kesim: Filtre her 3 s.</li>
+<li><i class="bk"></i>Boş sayfa: 1 atlandı s.217</li></ul></div>
+<div class="acts"><span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>Baştaki kesimi kaldır<kbd>Del</kbd></span>
+<span class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>Öncekiyle birleştir<kbd>M</kbd></span></div>
+<div class="leg"><div><i class="cq"></i>QR ayıraç</div><div><i class="cf"></i>Filtre kesimi</div><div><i class="cm" title="Elle kesim"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="#fff" stroke-width="1.6"><circle cx="4" cy="4" r="2.2"/><circle cx="4" cy="12" r="2.2"/><path d="M6 5.5 14 13M6 10.5 14 3"/></svg></i>Elle kesim</div>
+<div><i class="rg"></i>Kontrol bekliyor</div><div><span class="dn"><s class="done"></s></span>Tamam</div><div><i class="bk" style="width:12px;height:16px;border:1px dashed #5a5a5a"></i>Boş sayfa</div></div>
+</aside>
+</main>
+<footer><span class="w">287 belge</span><span>812 sayfa</span><span>14 boş sayfa atlandı</span><span class="w">6 belge kontrol bekliyor</span>
+<span class="hint">Sonraki kontrol <kbd>N</kbd> · Seç <kbd>Shift+←/→</kbd> · Yakınlaştır <kbd>Ctrl++</kbd></span></footer>
+</body></html>

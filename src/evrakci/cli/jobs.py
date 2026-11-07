@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -17,10 +16,8 @@ from evrakci.pipeline.cuts import (
     document_template,
     record_read_error,
 )
-from evrakci.pipeline.export import plan_export
-from evrakci.pipeline.index import write_index
+from evrakci.pipeline.exporting import ExportError, export_job
 from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
-from evrakci.pipeline.naming import fit_names, unique_names
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
@@ -30,7 +27,6 @@ from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsErr
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.model import Template, TemplateError
 from evrakci.pipeline.templates.read import read_document
-from evrakci.pipeline.writer import write_documents
 
 
 def load_job(store: JobStore, job_id: str) -> Job:
@@ -272,70 +268,40 @@ def _job_templates(args: argparse.Namespace, job: Job) -> dict[str, Template | N
 def export(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
     store.save(job)  # marks the job as in use, so the day limit never removes it mid-export
-    items = plan_export(job, _job_templates(args, job))
-    try:
-        fitted = unique_names(fit_names([i.name for i in items], Path(args.cikti)))
-    except ValueError as error:
-        raise UserError(str(error)) from None
-    for item, name in zip(items, fitted, strict=True):
-        item.name = name
     with_layer = not args.metin_katmani_yok
-    if with_layer and items:
-        reason = default_engine().available()
-        if reason:
-            raise UserError(
-                f"{reason}. Metin katmanı olmadan yazmak için --metin-katmani-yok kullanın."
-            )
-    try:
-        paths = write_documents(
-            [i.document for i in items],
-            store.batch_files(job),
-            job.rotations,
-            args.cikti,
-            names=[i.name for i in items],
-        )
-    except FileExistsError as error:
-        raise UserError(
-            f"Çıktı klasöründe önceki bir dışa aktarımdan dosya var ({error}): {args.cikti}. "
-            "Lütfen boş bir klasör seçin."
-        ) from None
-    notes = {}
-    if with_layer and paths:
+    tessdata = None
+    if with_layer:
         tessdata = default_tessdata()
         label = "tur_best" if tessdata.folder else "sistem (tur)"
         print(f"Türkçe veri: {label}")
-        for number, (path, item) in enumerate(zip(paths, items, strict=True), start=1):
-            print(f"\rMetin katmanı: {number}/{len(paths)} belge", end="", file=sys.stderr)
-            # The original stays in place until the layered copy is complete.
-            layered = path.with_name(path.name + ".gecici")
-            try:
-                result = add_text_layer(path, layered, tessdata=tessdata)
-                os.replace(layered, path)
-            except (EngineUnavailable, OSError) as error:
-                print(file=sys.stderr)
-                done = ", ".join(p.name for p in paths[: number - 1]) or "yok"
-                raise UserError(
-                    f"{path.name}: {error}. Tüm belgeler yazıldı; metin katmanı eklenenler: {done}."
-                ) from None
-            finally:
-                layered.unlink(missing_ok=True)
-            item.pdfa = result.pdfa
-            if not result.pdfa and result.note:
-                item.checks.append(f"PDF/A değil: {result.note}")
-            notes[path] = _layer_note(result.pdfa, result.note)
-        print(file=sys.stderr)
+
+    def progress(stage: str, done: int, total: int) -> None:
+        if stage == "layer" and done < total:
+            print(f"\rMetin katmanı: {done + 1}/{total} belge", end="", file=sys.stderr)
+
+    try:
+        result = export_job(
+            job, store.batch_files(job), _job_templates(args, job), Path(args.cikti),
+            with_layer=with_layer, progress=progress, engine=default_engine() if with_layer
+            else None, add_layer=add_text_layer, tessdata=tessdata,
+        )
+    except EngineUnavailable as error:
+        raise UserError(
+            f"{error}. Metin katmanı olmadan yazmak için --metin-katmani-yok kullanın."
+        ) from None
+    except ExportError as error:
+        raise UserError(str(error)) from None
+    finally:
+        if with_layer:
+            print(file=sys.stderr)
+    items, paths = result.items, result.paths
+    notes = {path: _layer_note(note is None, note) for path, note in result.notes.items()}
     for path, item in zip(paths, items, strict=True):
         positions = [job.position_of(pid) for pid in item.document.page_ids]
         checks = f" [kontrol: {', '.join(item.checks)}]" if item.checks else ""
         print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}{checks}")
-    needing = sum(1 for item in items if item.checks)
-    listing = ""
-    if paths:
-        try:
-            write_index(items, job, Path(args.cikti) / "index.xlsx")
-        except Exception as error:  # the PDFs are safe; say clearly what is missing
-            raise UserError(f"PDF'ler yazıldı ama index.xlsx yazılamadı: {error}") from None
-        listing = " Liste: index.xlsx"
+    needing = result.needing_check
+    listing = " Liste: index.xlsx" if paths else ""
     print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.{listing}")
     if _settings().retention == DELETE_AFTER_EXPORT:
         if needing:

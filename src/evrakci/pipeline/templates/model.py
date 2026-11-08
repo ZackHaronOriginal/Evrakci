@@ -57,7 +57,8 @@ class Section:
         if self.page == 0:
             raise TemplateError("Sayfa 0 olamaz: 1 ilk sayfa, -1 son sayfadır.")
         x0, y0, x1, y1 = self.box_mm
-        if not (x0 < x1 and y0 < y1) or min(self.box_mm) < 0:
+        finite = all(math.isfinite(v) for v in self.box_mm)
+        if not finite or not (x0 < x1 and y0 < y1) or min(self.box_mm) < 0:
             raise TemplateError(f"Geçersiz kutu: {list(self.box_mm)}")
 
 
@@ -180,6 +181,8 @@ def template_to_dict(template: Template) -> dict:
 
 
 def template_from_dict(data: dict) -> Template:
+    if not isinstance(data, dict):
+        raise TemplateError("Bu dosya bir Evrakçı şablonu değil.")
     if data.get("format") != TEMPLATE_FORMAT or data.get("version") != TEMPLATE_FORMAT_VERSION:
         raise TemplateError("Bu dosya bir Evrakçı şablonu değil veya sürümü desteklenmiyor.")
     try:

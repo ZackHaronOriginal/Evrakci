@@ -10,7 +10,7 @@ import pypdfium2 as pdfium
 
 from evrakci.cli.errors import UserError
 from evrakci.pipeline.ocr.tesseract import default_engine
-from evrakci.pipeline.render import render_page
+from evrakci.pipeline.render import PageRenderer
 from evrakci.pipeline.templates.model import (
     Section,
     Template,
@@ -223,7 +223,8 @@ def describe_values(values: dict, names: dict[str, str], indent: str = "") -> li
         name = names.get(key, key)
         if value.flagged:
             hint = f' (öneri: "{value.suggestion}")' if value.suggestion else ""
-            lines.append(f"{indent}{name}: OKUNAMADI{hint}")
+            reason = "" if value.readings else " (bölüm yok: kutu çizilmemiş)"
+            lines.append(f"{indent}{name}: OKUNAMADI{hint}{reason}")
         else:
             lines.append(
                 f'{indent}{name}: "{value.value}" (bölüm {value.section + 1}, '
@@ -252,9 +253,8 @@ def test_template(args, _jobs) -> int:
         pdf.close()
     except pdfium.PdfiumError:
         raise UserError(f"PDF açılamadı: {args.ornek.name}") from None
-    values = read_document(
-        template, page_count, lambda index: render_page(args.ornek, index), engine
-    )
+    with PageRenderer(args.ornek) as pages:  # the PDF is opened once for every page
+        values = read_document(template, page_count, pages.render, engine)
     print(f"{template.name}: {args.ornek.name} ({page_count} sayfa)")
     for line in describe_values(values, template.names_by_key()):
         print(line)

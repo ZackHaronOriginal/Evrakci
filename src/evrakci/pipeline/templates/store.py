@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 import uuid
 from collections.abc import Callable
@@ -16,6 +17,8 @@ from evrakci.pipeline.templates.model import (
     template_from_dict,
     template_to_dict,
 )
+
+_ID = re.compile(r"[0-9a-f]{1,32}")
 
 
 def default_template_root() -> Path:
@@ -49,13 +52,24 @@ class TemplateStore:
         self.root = Path(root)
 
     def _path(self, template_id: str) -> Path:
+        if not _ID.fullmatch(template_id or ""):
+            raise KeyError(template_id)  # ids are hex; anything else never touches the disk
         return self.root / f"{template_id}.json"
+
+    def _unique_name(self, name: str) -> str:
+        names = {t.name for t in self.list()}
+        if name not in names:
+            return name
+        number = 2
+        while f"{name} ({number})" in names:
+            number += 1
+        return f"{name} ({number})"
 
     def create(self, name: str) -> Template:
         name = name.strip()
         if not name:
             raise TemplateError("Şablon adı boş olamaz.")
-        template = Template(id=uuid.uuid4().hex[:10], name=name)
+        template = Template(id=uuid.uuid4().hex[:10], name=self._unique_name(name))
         self.save(template)
         return template
 
@@ -75,7 +89,7 @@ class TemplateStore:
         for path in self.root.glob("*.json"):
             try:
                 templates.append(self.load(path.stem))
-            except TemplateError:
+            except (TemplateError, KeyError):
                 if on_error:
                     on_error(path.stem)
         return sorted(templates, key=lambda t: (t.name.casefold(), t.id))
@@ -87,7 +101,10 @@ class TemplateStore:
         path.unlink()
 
     def export(self, template_id: str, path: Path) -> None:
-        _write(Path(path), self.load(template_id))
+        path = Path(path)
+        if path.exists():
+            raise TemplateError(f"Bu adla bir dosya zaten var: {path.name}. Başka bir ad seçin.")
+        _write(path, self.load(template_id))
 
     def import_file(self, path: Path) -> Template:
         path = Path(path)
@@ -95,11 +112,6 @@ class TemplateStore:
             raise TemplateError(f"Dosya bulunamadı: {path.name}")
         template = _read(path, path.name)
         template.id = uuid.uuid4().hex[:10]  # never trust an id (or path) from a file
-        names = {t.name for t in self.list()}
-        if template.name in names:
-            number = 2
-            while f"{template.name} ({number})" in names:
-                number += 1
-            template.name = f"{template.name} ({number})"
+        template.name = self._unique_name(template.name)
         self.save(template)
         return template

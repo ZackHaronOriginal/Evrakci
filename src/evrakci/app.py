@@ -1,6 +1,8 @@
+import os
 import sys
 from pathlib import Path
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from evrakci.pipeline.settings import SettingsError, load_settings
@@ -44,6 +46,9 @@ def main() -> int:
     app.setApplicationName("Evrakçı")
     window = build_window()
     window.show()
+    close_after = os.environ.get("EVRAKCI_KAPAT_MS")  # smoke tests: start, then close itself
+    if close_after:
+        QTimer.singleShot(int(close_after), app.quit)
     return app.exec()
 
 

@@ -35,8 +35,7 @@ BUNDLED = [
     "openpyxl",
     "platformdirs",
     "PySide6",
-    "cx_Freeze",
-]
+]  # cx_Freeze is a build tool; only its small runtime stubs ship (see NOTICE.txt)
 
 
 def fail(message: str) -> None:

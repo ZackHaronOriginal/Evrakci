@@ -17,7 +17,7 @@ Tesseract Turkish data (tur_best) Apache-2.0                     https://github.
 OCRmyPDF                          MPL-2.0                        https://github.com/ocrmypdf/OCRmyPDF
 pikepdf / qpdf                    MPL-2.0 / Apache-2.0           https://github.com/pikepdf/pikepdf
 pypdfium2 / PDFium                Apache-2.0 / BSD-3-Clause      https://github.com/pypdfium2-team/pypdfium2
-Pillow                            HPND                           https://github.com/python-pillow/Pillow
+Pillow                            MIT-CMU (HPND family)          https://github.com/python-pillow/Pillow
 openpyxl                          MIT                            https://foss.heptapod.net/openpyxl/openpyxl
 segno                             BSD-3-Clause                   https://github.com/heuer/segno
 zxing-cpp                         Apache-2.0                     https://github.com/zxing-cpp/zxing-cpp

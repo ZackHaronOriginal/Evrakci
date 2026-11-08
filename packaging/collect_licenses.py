@@ -46,7 +46,12 @@ def collect(out_dir: Path, names: Iterable[str]) -> None:
             ):
                 source = Path(dist.locate_file(file))
                 if source.is_file():
-                    target = out_dir / "python" / name / file.name
+                    # Keep the path below dist-info/ (e.g. licenses/a/LICENSE), so files with
+                    # the same name from different subfolders never overwrite each other.
+                    parts = Path(str(file)).parts
+                    start = next((i + 1 for i, part in enumerate(parts)
+                                  if part.endswith(".dist-info")), len(parts) - 1)
+                    target = out_dir / "python" / name / Path(*parts[start:])
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(source, target)
     out_dir.mkdir(parents=True, exist_ok=True)

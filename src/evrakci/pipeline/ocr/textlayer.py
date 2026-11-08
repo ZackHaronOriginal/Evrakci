@@ -69,6 +69,7 @@ def _tessdata_prefix(folder: Path | None):
         temp = ascii_temp_dir()
         if temp is not None:
             os.environ["TEMP"] = os.environ["TMP"] = str(temp)
+            # Process-wide: other threads also use this folder while OCR runs (harmless).
             tempfile.tempdir = str(temp)
         if folder is not None:
             os.environ["TESSDATA_PREFIX"] = str(ascii_safe_dir(folder))

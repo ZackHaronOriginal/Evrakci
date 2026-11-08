@@ -7,7 +7,7 @@ library, and tools run as separate programs.
 
 | Dependency | License | How we use it | OK for commercial/closed builds? |
 |---|---|---|---|
-| PySide6 / Qt | LGPL-3.0 | Dynamically linked Python package | ✅ If users can replace the Qt libraries. Ship a folder build, not a single static binary, and include the LGPL text plus the source location |
+| PySide6 / Qt (with shiboken6, PySide6_Essentials, PySide6_Addons; PySide6_WebEngine and PySide6_Pdf are installed with it but their modules are left out of the build) | LGPL-3.0 | Dynamically linked Python package | ✅ If users can replace the Qt libraries. Ship a folder build, not a single static binary, and include the LGPL text plus the source location |
 | pikepdf (with `[pdfa]`) | MPL-2.0 | Library | ✅ Changes to pikepdf's own files must be shared |
 | jsonschema, referencing, fonttools, rpds-py, attrs (via `pikepdf[pdfa]`) | MIT | Libraries | ✅ |
 | pypdfium2 / PDFium | Apache-2.0 / BSD-3 | Library | ✅ |
@@ -25,6 +25,20 @@ library, and tools run as separate programs.
 | shapely, pyclipper, omegaconf, PyYAML, tqdm, colorlog, six, requests (optional, via rapidocr) | BSD-3 / MIT / BSD / MIT / MPL-2.0+MIT / MIT / MIT / Apache-2.0 | Libraries | ✅ |
 | Ghostscript | **AGPL-3.0** | **Not used.** OCRmyPDF 17.13+ makes PDF/A without it (`--pdfa-backend internal`) | Not bundled and never called |
 | qpdf | Apache-2.0 | Via pikepdf | ✅ |
+| img2pdf, fpdf2 (via OCRmyPDF) | LGPL-3.0 | Separate Python libraries, replaceable files in the folder build | ✅ Same rules as Qt |
+| cryptography (via pikepdf/OCRmyPDF) | Apache-2.0 OR BSD-3-Clause | Library | ✅ |
+| cffi | MIT-0 | Library | ✅ |
+| pycparser | BSD-3-Clause | Library | ✅ |
+| lxml | BSD-3-Clause | Library | ✅ |
+| pdfminer.six, charset-normalizer (via OCRmyPDF) | MIT | Libraries | ✅ |
+| pydantic, pydantic_core, annotated-types, typing-inspection (via OCRmyPDF) | MIT | Libraries | ✅ |
+| rich, markdown-it-py, mdurl (via OCRmyPDF) | MIT | Libraries | ✅ |
+| Pygments | BSD-2-Clause | Library (via rich) | ✅ |
+| pluggy (via OCRmyPDF) | MIT | Library | ✅ |
+| packaging | Apache-2.0 OR BSD-2-Clause | Library | ✅ |
+| uharfbuzz (via OCRmyPDF) | Apache-2.0 | Library | ✅ |
+| typing_extensions | PSF-2.0 | Library | ✅ Permissive (Python licence) |
+| et_xmlfile (via openpyxl) | MIT | Library | ✅ |
 
 ## Development only (not shipped)
 
@@ -39,6 +53,7 @@ library, and tools run as separate programs.
 |---|---|---|---|
 | cx_Freeze | PSF-2.0 | Build tool; its small runtime stubs ship in the folder build | ✅ |
 | Inno Setup | BSD-style (Inno Setup License) | Build tool for the installer | ✅ Keep its copyright notice |
+| pefile | MIT | Build tool: finds the DLLs tesseract.exe loads | ✅ Not shipped |
 | Tesseract for Windows (UB Mannheim build) | Apache-2.0 | Bundled external program in `tesseract\` | ✅ |
 | Licence texts for all bundled parts | — | `licenses\` in the install folder, listed in `NOTICE.txt` | — |
 

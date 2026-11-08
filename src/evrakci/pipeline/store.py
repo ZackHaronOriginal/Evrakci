@@ -24,7 +24,9 @@ class JobFileError(Exception):
 
 
 def default_root() -> Path:
-    return platformdirs.user_data_path("Evrakci", appauthor=False) / "jobs"
+    configured = os.environ.get("EVRAKCI_KOK")
+    return Path(configured) if configured else (
+        platformdirs.user_data_path("Evrakci", appauthor=False) / "jobs")
 
 
 @dataclass(frozen=True)

@@ -139,7 +139,9 @@ def ascii_safe_dir(
     digest = (content or hashlib.sha256(str(folder).encode("utf-8")).hexdigest())[:12]
     target = root / f"tessdata-{digest}"
     if target.is_dir():
-        return target
+        if content is None or _file_hash(target / "tur.traineddata") == content:
+            return target
+        shutil.rmtree(target, ignore_errors=True)  # changed or planted: never reuse it
     # Copy beside the target, then rename: a half-finished copy is never handed out.
     root.mkdir(parents=True, exist_ok=True)
     partial = root / f"tessdata-{digest}-{uuid.uuid4().hex[:8]}.tmp"
@@ -155,11 +157,17 @@ def ascii_safe_dir(
 
 
 def ascii_copy_root() -> Path:
-    """Where ASCII-path copies go: EVRAKCI_ASCII_KOK, or ProgramData/Evrakci."""
+    """Where ASCII-path copies go: EVRAKCI_ASCII_KOK, or a folder of this user's own.
+
+    The folder sits under ProgramData/Evrakci (an ASCII path) but is named per user, so one
+    user's scans and data are never mixed with another's on a shared office PC.
+    """
     configured = os.environ.get("EVRAKCI_ASCII_KOK")
     if configured:
         return Path(configured)
-    return Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Evrakci"
+    user = os.environ.get("USERNAME") or os.environ.get("USER") or "kullanici"
+    folder = "u-" + hashlib.sha256(user.casefold().encode("utf-8")).hexdigest()[:12]
+    return Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Evrakci" / folder
 
 
 def system_tessdata() -> Path | None:

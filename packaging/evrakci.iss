@@ -11,7 +11,8 @@ AppName=Evrakçı
 AppVersion={#AppVersion}
 AppPublisher=Evrakçı
 AppPublisherURL=https://github.com/ZackHaronOriginal/Evrakci
-; ASCII folder: Windows Tesseract cannot open data under non-ASCII paths.
+; No Turkish letters in the folder name. A per-user install path still holds the user's
+; name, so the app copies Tesseract data to an ASCII folder when it must (ascii_safe_dir).
 DefaultDirName={autopf}\Evrakci
 DefaultGroupName=Evrakçı
 LicenseFile=licenses\AGPL-3.0.txt
@@ -101,11 +102,13 @@ begin
     exit;
   if not RegQueryStringValue(RootKey, EnvironmentKey(''), 'Path', Current) then
     exit;
-  Folder := ';' + ExpandConstant('{app}');
+  Current := Current + ';';
+  Folder := ';' + ExpandConstant('{app}') + ';';
   Position := Pos(Uppercase(Folder), Uppercase(Current));
   if Position > 0 then
   begin
-    Delete(Current, Position, Length(Folder));
+    Delete(Current, Position, Length(Folder) - 1);
+    Delete(Current, Length(Current), 1);
     RegWriteExpandStringValue(RootKey, EnvironmentKey(''), 'Path', Current);
   end;
 end;

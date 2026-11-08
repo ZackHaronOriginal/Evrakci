@@ -9,12 +9,14 @@ on:
       - "packaging/**"
       - "src/**"
       - "pyproject.toml"
+      - "docs/tarama-rehberi.md"
       - ".github/workflows/windows-installer.yml"
   pull_request:
     paths:
       - "packaging/**"
       - "src/**"
       - "pyproject.toml"
+      - "docs/tarama-rehberi.md"
       - ".github/workflows/windows-installer.yml"
 
 permissions:
@@ -76,6 +78,22 @@ jobs:
 
       - name: Freeze (folder build)
         run: python packaging/build.py --tesseract packaging/tesseract-bundle --tur-best tur.traineddata
+
+      - name: Hide the system Tesseract (the bundle must work on its own)
+        shell: pwsh
+        run: |
+          Rename-Item "C:\Program Files\Tesseract-OCR" "Tesseract-OCR-gizli"
+
+      - name: Start the window, let it close itself, and check the guide is bundled
+        shell: pwsh
+        run: |
+          if (-not (Test-Path build\evrakci\docs\tarama-rehberi.md)) { throw "tarama-rehberi.md eksik" }
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:EVRAKCI_KAPAT_MS = "3000"
+          $env:EVRAKCI_KOK = "$env:RUNNER_TEMP\pencere-isler"
+          $env:EVRAKCI_SABLON_KOK = "$env:RUNNER_TEMP\pencere-sablonlar"
+          $process = Start-Process build\evrakci\evrakci-arayuz.exe -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "evrakci-arayuz.exe çıkış kodu $($process.ExitCode)" }
 
       - name: Smoke test the built app
         shell: pwsh

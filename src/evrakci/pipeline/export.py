@@ -13,7 +13,7 @@ from evrakci.pipeline.cuts import (
     document_template,
 )
 from evrakci.pipeline.job import Job
-from evrakci.pipeline.naming import build_name, unique_names
+from evrakci.pipeline.naming import build_name_kept, unique_names
 from evrakci.pipeline.templates.model import Template
 
 
@@ -26,6 +26,7 @@ class ExportItem:
     values: dict[str, str] = field(default_factory=dict)  # by variable name, for the index
     checks: list[str] = field(default_factory=list)
     pdfa: bool | None = None
+    keep: int = 0  # characters of `name` that must stay so required values survive
 
 
 def _numbered(number: int) -> str:
@@ -66,7 +67,7 @@ def _apply_template(item: ExportItem, job: Job, document: Document, template) ->
         v.name: by_name[v.name].value if v.name in by_name else "" for v in template.variables
     }
     required = {v.name for v in template.variables if v.required}
-    name, checks = build_name(template.filename_pattern, by_name, required)
+    name, checks, keep = build_name_kept(template.filename_pattern, by_name, required)
     in_pattern = set(checks)
     # Required or unsure variables outside the pattern still need a look.
     for variable in template.variables:
@@ -88,3 +89,4 @@ def _apply_template(item: ExportItem, job: Job, document: Document, template) ->
         item.checks.append("dosya adı boş kaldı")
     if name:
         item.name = name
+        item.keep = keep

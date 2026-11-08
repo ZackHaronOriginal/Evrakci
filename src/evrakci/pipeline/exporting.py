@@ -32,6 +32,7 @@ class ExportResult:
     paths: list[Path]
     # Per file with a text layer: (is PDF/A, note when it is not)
     notes: dict[Path, tuple[bool, str | None]] = field(default_factory=dict)
+    index_written: bool = False
 
     @property
     def needing_check(self) -> int:
@@ -53,10 +54,19 @@ def export_job(
     out_dir = Path(out_dir)
     items = plan_export(job, templates)
     try:
-        fitted = unique_names(fit_names([i.name for i in items], out_dir))
+        fitted = fit_names([i.name for i in items], out_dir)
     except ValueError as error:
         raise ExportError(str(error)) from None
     for item, name in zip(items, fitted, strict=True):
+        if name == item.name:
+            continue
+        if len(name) < item.keep:  # a required value would be cut: never silently
+            item.checks.append("zorunlu değer dosya adına sığmadı (klasör yolu uzun)")
+            name = f"belge_{item.number:03d}"
+        else:
+            item.checks.append("dosya adı kısaltıldı (klasör yolu uzun)")
+        item.name = name
+    for item, name in zip(items, unique_names([i.name for i in items]), strict=True):
         item.name = name
     if with_layer and items:
         if engine is None:
@@ -68,6 +78,10 @@ def export_job(
             raise EngineUnavailable(reason)
     report = progress or (lambda stage, done, total: None)
     report("write", 0, len(items))
+    def written_so_far() -> str:
+        names = sorted(p.name for p in out_dir.glob("*.pdf")) if out_dir.is_dir() else []
+        return ", ".join(names) or "yok"
+
     try:
         paths = write_documents(
             [i.document for i in items], batch_files, job.rotations, out_dir,
@@ -78,6 +92,11 @@ def export_job(
         raise ExportError(
             f"Çıktı klasöründe önceki bir dışa aktarımdan dosya var ({error}): {out_dir}. "
             "Lütfen boş bir klasör seçin."
+        ) from None
+    except OSError as error:
+        raise ExportError(
+            f"Dosyalar yazılamadı ({error.strerror or error}). Yazılanlar: {written_so_far()}. "
+            "index.xlsx yazılmadı; yer açıp boş bir klasöre yeniden dışa aktarın."
         ) from None
     result = ExportResult(items, paths)
     if with_layer and paths:
@@ -90,8 +109,12 @@ def export_job(
                 os.replace(layered, path)
             except (EngineUnavailable, OSError) as error:
                 done = ", ".join(p.name for p in paths[: number - 1]) or "yok"
+                for later in items[number - 1:]:
+                    later.checks.append("metin katmanı eklenmedi")
+                index_note = _write_index_quietly(items, job, out_dir)
                 raise ExportError(
                     f"{path.name}: {error}. Tüm belgeler yazıldı; metin katmanı eklenenler: {done}."
+                    f" {index_note}"
                 ) from None
             finally:
                 layered.unlink(missing_ok=True)
@@ -105,4 +128,18 @@ def export_job(
             write_index(items, job, out_dir / "index.xlsx")
         except Exception as error:  # the PDFs are safe; say clearly what is missing
             raise ExportError(f"PDF'ler yazıldı ama index.xlsx yazılamadı: {error}") from None
+        result.index_written = True
     return result
+
+
+def _write_index_quietly(items, job: Job, out_dir: Path) -> str:
+    try:
+        write_index(items, job, out_dir / "index.xlsx")
+    except Exception as error:
+        return f"index.xlsx da yazılamadı: {error}"
+    return "index.xlsx yazıldı; metin katmanı eksik olanlar orada işaretli."
+
+
+def may_delete_after_export(result: ExportResult) -> bool:
+    """'Delete after export' only after a full export: files and index written, no checks."""
+    return bool(result.paths) and result.index_written and not result.needing_check

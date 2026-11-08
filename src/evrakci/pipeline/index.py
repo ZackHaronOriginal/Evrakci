@@ -43,10 +43,14 @@ def write_index(items: Sequence[ExportItem], job: Job, path: Path) -> None:
             if name not in variables:
                 variables.append(name)
 
+    headings = list(_FIXED)
+    for name in variables:  # a variable named like a fixed column gets a mark of its own
+        headings.append(f"{name} (değişken)" if name in _FIXED else name)
+
     book = Workbook()
     sheet = book.active
     sheet.title = "Belgeler"
-    for column, title in enumerate(_FIXED + variables, start=1):
+    for column, title in enumerate(headings, start=1):
         cell = sheet.cell(row=1, column=column)
         _set_text(cell, title)
         cell.font = Font(bold=True)

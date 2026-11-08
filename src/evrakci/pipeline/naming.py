@@ -50,11 +50,20 @@ def build_name(
 
     A value counts only if something is left of it after making it Windows-safe.
     """
+    name, checks, _keep = build_name_kept(pattern, values, required)
+    return name, checks
+
+
+def build_name_kept(
+    pattern: str, values: Mapping[str, VariableValue], required: set[str]
+) -> tuple[str | None, list[str], int]:
+    """Like build_name, plus how many characters must stay so every required value survives."""
     checks: list[str] = []
     problems: list[str] = []
     cleaned: dict[str, str] = {}
-    name = pattern
-    for variable in dict.fromkeys(pattern_names(pattern)):
+    marked = pattern
+    order = list(dict.fromkeys(pattern_names(pattern)))
+    for number, variable in enumerate(order):
         value = values.get(variable)
         raw = value.value.strip() if value is not None and not value.flagged else ""
         text = safe_filename(raw) if raw else ""
@@ -67,14 +76,33 @@ def build_name(
             elif value is not None and value.flagged:
                 checks.append(f"okunamadı: {variable}")
         cleaned[variable] = text
-        name = name.replace(f"{{{variable}}}", text)
+        # Markers keep each value's own place through the separator clean-up.
+        marked = marked.replace(f"{{{variable}}}", f"\ue000{number}\ue001" if text else "")
     if problems:
-        return None, problems
-    final = safe_filename(_tidy_separators(name))
-    cut = [v for v in required if cleaned.get(v) and cleaned[v] not in final]
+        return None, problems, 0
+    marked = _tidy_separators(marked)
+    spans: dict[str, list[tuple[int, int]]] = {}
+    expanded = ""
+    for part in re.split("(\ue000\\d+\ue001)", marked):
+        if part.startswith("\ue000"):
+            variable = order[int(part[1:-1])]
+            spans.setdefault(variable, []).append((len(expanded), len(expanded) + len(
+                cleaned[variable])))
+            expanded += cleaned[variable]
+        else:
+            expanded += part
+    final = safe_filename(expanded)
+    keep = 0
+    cut = []
+    for variable in required:
+        places = spans.get(variable, [])
+        if places and not any(final[a:b] == cleaned[variable] for a, b in places):
+            cut.append(variable)
+        elif places:
+            keep = max(keep, min(b for a, b in places if final[a:b] == cleaned[variable]))
     if cut:
-        return None, [f"zorunlu değer dosya adına sığmadı: {v}" for v in sorted(cut)]
-    return final, checks
+        return None, [f"zorunlu değer dosya adına sığmadı: {v}" for v in sorted(cut)], 0
+    return final, checks, keep
 
 
 def name_key(name: str) -> str:

@@ -178,7 +178,7 @@ def test_export_failure_keeps_every_document(tmp_path, capsys, monkeypatch):
     err = capsys.readouterr().err
     assert "belge_002.pdf: disk dolu" in err and "belge_001.pdf" in err
     names = sorted(p.name for p in (tmp_path / "out").iterdir())
-    assert names == ["belge_001.pdf", "belge_002.pdf"]
+    assert names == ["belge_001.pdf", "belge_002.pdf", "index.xlsx"]  # index marks the gap
 
 
 @needs_tesseract

@@ -16,7 +16,7 @@ from evrakci.pipeline.cuts import (
     document_template,
     record_read_error,
 )
-from evrakci.pipeline.exporting import ExportError, export_job
+from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after_export
 from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
@@ -111,7 +111,9 @@ def _template_names(args: argparse.Namespace) -> dict[str, str]:
     return {t.id: t.name for t in template_store(args).list()}
 
 
-def _check_marks(job: Job, document: Document) -> list[str]:
+def _check_marks(
+    job: Job, document: Document, templates: dict[str, Template | None] | None = None
+) -> list[str]:
     marks = []
     if "leftover" in document.flags:
         marks.append("eksik sayfa")
@@ -126,6 +128,12 @@ def _check_marks(job: Job, document: Document) -> list[str]:
         marks.append("yeniden okunmalı")
     if values and any(v.flagged for v in values.values()):
         marks.append("okunamayan değer")
+    template = (templates or {}).get(document_template(job, document)[0] or "")
+    if values is not None and template is not None:
+        for variable in template.variables:
+            value = values.get(variable.key)
+            if variable.required and (value is None or not value.value.strip()):
+                marks.append(f"zorunlu değer eksik: {variable.name}")
     return marks
 
 
@@ -145,12 +153,13 @@ def show(args: argparse.Namespace, store: JobStore) -> int:
         return 0
     print(f"{job.name} ({job.id})")
     names = _template_names(args) if job.templates else {}
+    templates = _job_templates(args, job) if job.templates else {}
     for number, (positions, document) in enumerate(
         zip(doc_positions, documents, strict=True), start=1
     ):
         template_id, _ = document_template(job, document)
         template = f" ({names.get(template_id, template_id)})" if template_id else ""
-        marks = _check_marks(job, document)
+        marks = _check_marks(job, document, templates)
         mark = f"  [kontrol: {', '.join(marks)}]" if marks else ""
         print(f"{number}. belge{template}: sayfa {positions_text(positions)}{mark}")
     qr = [job.position_of(pid) for pid in job.ordered_page_ids() if job.pages[pid].is_separator]
@@ -304,14 +313,16 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
     listing = " Liste: index.xlsx" if paths else ""
     print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.{listing}")
     if _settings().retention == DELETE_AFTER_EXPORT:
-        if needing:
+        if may_delete_after_export(result):
+            store.delete(job.id)
+            print(f"İş silindi (saklama ayarı): {job.id}")
+        elif needing:
             print(
                 f"İş saklandı: {needing} belge kontrol gerektiriyor; "
                 "düzeltip yeniden dışa aktarabilirsiniz."
             )
         else:
-            store.delete(job.id)  # only reached when every file and the index were written
-            print(f"İş silindi (saklama ayarı): {job.id}")
+            print("İş saklandı: hiçbir belge yazılmadı.")
     return 0
 
 
@@ -420,8 +431,9 @@ def _templated_documents(args, job: Job):
 
 def list_values(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
+    templates = _job_templates(args, job)
     for number, document, template in _templated_documents(args, job):
-        marks = _check_marks(job, document)
+        marks = _check_marks(job, document, templates)
         if args.kontrol and not marks:
             continue
         positions = positions_text([job.position_of(p) for p in document.page_ids])

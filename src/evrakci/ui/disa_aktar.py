@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.pipeline.export import plan_export
-from evrakci.pipeline.exporting import ExportError, export_job
+from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after_export
 from evrakci.pipeline.job import job_from_dict, job_to_dict
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.settings import (
@@ -255,7 +255,7 @@ class DisaAktarScreen(QWidget):
         self.results.resizeColumnsToContents()
         message = (f"{len(result.paths)} belge yazıldı, {result.needing_check} belge kontrol "
                    "gerektiriyor. Liste: index.xlsx")
-        if self.retention.currentData() == DELETE_AFTER_EXPORT and not result.needing_check:
+        if self.retention.currentData() == DELETE_AFTER_EXPORT and may_delete_after_export(result):
             controller.store.delete(job.id)
             message += " İş silindi (saklama ayarı)."
             self.job_deleted.emit()

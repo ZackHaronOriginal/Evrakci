@@ -32,10 +32,18 @@ def _job_with_values(tmp_path, values, pattern, required=("no",)):
     return store, job, {template.id: template}
 
 
+def _folder_leaving(tmp_path, budget):
+    """An output folder whose path leaves exactly `budget` characters for file names."""
+    from evrakci.pipeline.naming import _LONGEST_SUFFIX, PATH_LIMIT
+
+    base = len(str(tmp_path.resolve())) + 1
+    return tmp_path / ("x" * (PATH_LIMIT - base - len(_LONGEST_SUFFIX) - 1 - budget))
+
+
 def test_a_long_folder_never_cuts_a_required_value_silently(tmp_path):
     store, job, templates = _job_with_values(
         tmp_path, {"ad": "a" * 60, "no": "TC12345678901"}, "{ad}_{no}")
-    out = tmp_path / ("x" * 150)
+    out = _folder_leaving(tmp_path, 40)
     result = export_job(job, store.batch_files(job), templates, out, with_layer=False)
     [item] = result.items
     assert "TC12345678901" not in item.name
@@ -45,7 +53,7 @@ def test_a_long_folder_never_cuts_a_required_value_silently(tmp_path):
 def test_a_shortened_name_is_marked(tmp_path):
     store, job, templates = _job_with_values(
         tmp_path, {"no": "1", "ad": "b" * 90}, "{no}_{ad}")
-    out = tmp_path / ("y" * 150)
+    out = _folder_leaving(tmp_path, 40)
     result = export_job(job, store.batch_files(job), templates, out, with_layer=False)
     [item] = result.items
     assert item.name.startswith("1_") and any("kısaltıldı" in c for c in item.checks)

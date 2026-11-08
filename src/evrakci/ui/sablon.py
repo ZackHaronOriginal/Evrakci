@@ -532,15 +532,23 @@ class SablonScreen(QWidget):
             self._reread = True
             return
         template = template_from_dict(template_to_dict(self.template))
+        # Everything the worker needs is copied here, on the window thread.
+        controller = self.controller()
         document = self._document()
+        files = controller.store.batch_files(controller.job)
+        rotations = dict(controller.job.rotations)
+        engine = self._engine()
+
+        def page_image(index: int):
+            pid = document.page_ids[index]
+            batch_id, page = parse_page_id(pid)
+            return render_page(files[batch_id], page, rotations.get(pid, 0), dpi=READ_DPI)
 
         def work(_progress):
-            engine = self._engine()
             reason = engine.available()
             if reason:
                 raise EngineUnavailable(reason)
-            return read_document(template, len(document.page_ids),
-                                 lambda i: self._render(i + 1, READ_DPI), engine)
+            return read_document(template, len(document.page_ids), page_image, engine)
 
         self._read_template = template
         self._read_task = Task(work)

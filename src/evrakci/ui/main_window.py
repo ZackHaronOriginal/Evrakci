@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QLabel, QMainWindow, QMessageBox, QTabWidget
 
@@ -40,17 +41,22 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(theme.stylesheet())
         self.kontrol: KontrolScreen | None = None
         self.thumbnails: ThumbnailService | None = None
+        self._closing = False
 
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
         self.yukle = YukleScreen(store)
         self.yukle.job_opened.connect(self._job_opened)
+        self.yukle.can_switch = self._switch_refusal
         self.sablon = SablonScreen(templates, self.controller)
         self.degerler = DegerlerScreen(self.controller, self.template_map)
         self.degerler.draw_variant.connect(self._draw_variant)
         self.disa_aktar = DisaAktarScreen(self.controller, self.template_map, settings_path)
         self.disa_aktar.job_deleted.connect(self._job_deleted)
         self.rehber = RehberScreen()
+        self.disa_aktar.finished.connect(self._work_stopped)
+        self.yukle.task_finished.connect(self._work_stopped)
+        self.degerler.finished.connect(self._work_stopped)
         self._kontrol_placeholder = QLabel("Önce Yükle sekmesinden bir iş açın.")
         for name, widget in zip(TAB_NAMES, (self.yukle, self._kontrol_placeholder, self.sablon,
                                             self.degerler, self.disa_aktar, self.rehber),
@@ -69,6 +75,7 @@ class MainWindow(QMainWindow):
         self.message = QLabel("")
         self.statusBar().addWidget(self.counts)
         self.statusBar().addPermanentWidget(self.message)
+        self.yukle.refused.connect(self.message.setText)
         self._open_last_job()
 
     # Shared state
@@ -95,8 +102,10 @@ class MainWindow(QMainWindow):
         controller = self.controller()
         self.store.root.mkdir(parents=True, exist_ok=True)
         (self.store.root / LAST_JOB).write_text(job.id, encoding="utf-8")
-        self.thumbnails = ThumbnailService(job_renderer(job, self.store.batch_files(job)),
-                                           height=110)
+        if self.thumbnails is not None:
+            self.thumbnails.stop()  # the previous job's renders are no longer wanted
+        self.thumbnails = ThumbnailService(
+            job_renderer(job, lambda: self.store.batch_files(job)), height=110, parent=self)
         kontrol = KontrolScreen(controller, self.thumbnails, self.template_map)
         kontrol.open_values.connect(lambda _n: self.tabs.setCurrentIndex(3))
         old = self.tabs.widget(1)
@@ -156,8 +165,17 @@ class MainWindow(QMainWindow):
             self.sablon.draw_button.setChecked(True)
 
     # Closing
+    def _switch_refusal(self) -> str | None:
+        if self._busy_screens():
+            return "Dışa aktarma ya da okuma sürüyor; bitince başka bir iş açın."
+        return None
+
+    def _busy_screens(self) -> list:
+        return [s for s in (self.disa_aktar, self.yukle, self.degerler) if s.busy()]
+
     def closeEvent(self, event) -> None:
-        if self.disa_aktar.busy() or self.yukle.busy():
+        busy = self._busy_screens()
+        if busy and not self._closing:
             answer = QMessageBox.question(
                 self, "Evrakçı",
                 "Bir iş sürüyor. Durdurup kapatılsın mı? Yazılmış dosyalar klasörde kalır.",
@@ -165,6 +183,15 @@ class MainWindow(QMainWindow):
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
-            self.disa_aktar.cancel()
-            self.yukle.cancel()
+            self._closing = True
+            for screen in busy:
+                screen.cancel()
+        if busy:  # close once the work has stopped (see _work_stopped)
+            self.message.setText("Durduruluyor… Pencere iş durunca kapanır.")
+            event.ignore()
+            return
         event.accept()
+
+    def _work_stopped(self) -> None:
+        if self._closing and not self._busy_screens():
+            QTimer.singleShot(0, self.close)

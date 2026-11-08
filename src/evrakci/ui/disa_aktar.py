@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.pipeline.export import plan_export
 from evrakci.pipeline.exporting import ExportError, export_job
+from evrakci.pipeline.job import job_from_dict, job_to_dict
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.settings import (
     DELETE_AFTER_EXPORT,
@@ -200,9 +201,11 @@ class DisaAktarScreen(QWidget):
             self.message.setText("Önce boş bir hedef klasör seçin.")
             return
         out_dir = Path(self.folder.text().strip())
-        job = controller.job
-        controller.store.save(job)  # marks the job as in use for the day limit
+        controller.store.save(controller.job)  # marks the job as in use for the day limit
+        # The worker gets its own copy: the live job can still be edited meanwhile.
+        job = job_from_dict(job_to_dict(controller.job))
         files = controller.store.batch_files(job)
+        self._exporting = (controller, job)
         templates = dict(self.templates())
         with_layer = self.layer.isChecked()
 
@@ -233,7 +236,7 @@ class DisaAktarScreen(QWidget):
 
     def _done(self, result) -> None:
         warn = self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
-        job = self.controller().job
+        controller, job = self._exporting  # the job that was exported, not the open one
         ordered = sorted(zip(result.paths, result.items, strict=True),
                          key=lambda pair: not pair[1].checks)  # flagged files first
         self.results.setRowCount(len(ordered))
@@ -253,8 +256,7 @@ class DisaAktarScreen(QWidget):
         message = (f"{len(result.paths)} belge yazıldı, {result.needing_check} belge kontrol "
                    "gerektiriyor. Liste: index.xlsx")
         if self.retention.currentData() == DELETE_AFTER_EXPORT and not result.needing_check:
-            controller = self.controller()
-            controller.store.delete(controller.job.id)
+            controller.store.delete(job.id)
             message += " İş silindi (saklama ayarı)."
             self.job_deleted.emit()
         self.open_index.setEnabled(bool(result.paths))
@@ -265,10 +267,15 @@ class DisaAktarScreen(QWidget):
         self._finish(message)
 
     def _cancelled(self) -> None:
-        self._finish("Dışa aktarma iptal edildi. Yazılmış dosyalar klasörde kaldı.")
+        written = sorted(p.name for p in self.out_dir.glob("*.pdf")) if self.out_dir else []
+        self._finish(
+            f"Dışa aktarma durduruldu: {len(written)} dosya yazıldı, index.xlsx yazılmadı. "
+            "Yeniden dışa aktarmak için boş bir klasör seçin."
+        )
 
     def _finish(self, message: str) -> None:
         self.task = None
+        self._exporting = None
         self._set_busy(False)
         self.progress_label.setText("")
         self.message.setText(message)

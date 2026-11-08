@@ -153,6 +153,14 @@ class Job:
             self.read_errors.pop(pid, None)
             self.value_sources.pop(pid, None)
 
+    def attach_batch(self, batch: Batch, pages: list[PageInfo]) -> None:
+        """Add an analyzed batch (see JobStore.prepare_batch) at the end."""
+        if any(b.id == batch.id for b in self.batches):
+            raise ValueError(f"batch {batch.id} already in the job")
+        self.batches.append(batch)
+        for index, info in enumerate(pages):
+            self.pages[page_id(batch.id, index)] = info
+
     def get_batch(self, batch_id: str) -> Batch:
         for batch in self.batches:
             if batch.id == batch_id:

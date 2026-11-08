@@ -30,7 +30,8 @@ class ExportError(Exception):
 class ExportResult:
     items: list[ExportItem]
     paths: list[Path]
-    notes: dict[Path, str | None] = field(default_factory=dict)  # text-layer note per file
+    # Per file with a text layer: (is PDF/A, note when it is not)
+    notes: dict[Path, tuple[bool, str | None]] = field(default_factory=dict)
 
     @property
     def needing_check(self) -> int:
@@ -71,13 +72,13 @@ def export_job(
         paths = write_documents(
             [i.document for i in items], batch_files, job.rotations, out_dir,
             names=[i.name for i in items],
+            progress=lambda done, total: report("write", done, total),
         )
     except FileExistsError as error:
         raise ExportError(
             f"Çıktı klasöründe önceki bir dışa aktarımdan dosya var ({error}): {out_dir}. "
             "Lütfen boş bir klasör seçin."
         ) from None
-    report("write", len(paths), len(items))
     result = ExportResult(items, paths)
     if with_layer and paths:
         for number, (path, item) in enumerate(zip(paths, items, strict=True), start=1):
@@ -97,7 +98,7 @@ def export_job(
             item.pdfa = layer.pdfa
             if not layer.pdfa and layer.note:
                 item.checks.append(f"PDF/A değil: {layer.note}")
-            result.notes[path] = None if layer.pdfa else layer.note
+            result.notes[path] = (layer.pdfa, layer.note)
         report("layer", len(paths), len(paths))
     if paths:
         try:

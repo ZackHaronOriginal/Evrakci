@@ -8,6 +8,7 @@ import shutil
 import time
 import uuid
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 import platformdirs
@@ -24,6 +25,12 @@ class JobFileError(Exception):
 
 def default_root() -> Path:
     return platformdirs.user_data_path("Evrakci", appauthor=False) / "jobs"
+
+
+@dataclass(frozen=True)
+class PreparedBatch:
+    batch: Batch
+    pages: list[PageInfo]
 
 
 class JobStore:
@@ -80,6 +87,22 @@ class JobStore:
             self.batch_file(job, batch).unlink(missing_ok=True)
             raise
         return batch
+
+    def prepare_batch(self, job: Job, pdf_path: Path) -> PreparedBatch:
+        """Analyze a PDF and copy it into the job folder, without changing `job`.
+
+        Attach it afterwards with `job.attach_batch`, so slow analysis can run on the side
+        while the job is still being edited.
+        """
+        infos = analyze_pdf(Path(pdf_path))
+        number = max((int(b.id[1:]) for b in job.batches), default=0) + 1
+        while self.batch_file(job, Batch(f"b{number}", "", 0)).exists():
+            number += 1  # a file left by an undone earlier batch keeps its name
+        batch = Batch(f"b{number}", Path(pdf_path).name, len(infos))
+        target = self.batch_file(job, batch)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(pdf_path, target)
+        return PreparedBatch(batch, infos)
 
     def _attach(self, job: Job, path: Path, infos: list[PageInfo]) -> Batch:
         number = max((int(b.id[1:]) for b in job.batches), default=0) + 1

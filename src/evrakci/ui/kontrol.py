@@ -196,6 +196,11 @@ class KontrolScreen(QWidget):
         body.addWidget(self.side)
         root.addLayout(body, 1)
 
+        self.model.modelAboutToBeReset.connect(self._remember_selection)
+        self.model.modelReset.connect(self._restore_selection)
+        self._kept: tuple[list[str], str | None] = ([], None)
+        self._rotations = dict(controller.job.rotations)
+        self.thumbnails = thumbnails
         self.timeline.selectionModel().selectionChanged.connect(self._selection_changed)
         self.timeline.selectionModel().currentChanged.connect(self._current_changed)
         self.timeline.horizontalScrollBar().valueChanged.connect(self._scrolled)
@@ -231,8 +236,7 @@ class KontrolScreen(QWidget):
         self.template_button = key_button("Şablon uygula", "T")
         self.template_button.clicked.connect(self.apply_template)
         self.rotate_button = key_button("Döndür", "R")
-        self.rotate_button.clicked.connect(lambda: self._each_selected(
-            lambda pid: self.controller.rotate(pid, 90)))
+        self.rotate_button.clicked.connect(self.rotate_selected)
         self.delete_button = key_button("Sil", "Del")
         self.delete_button.clicked.connect(self.toggle_delete)
         for widget in (self.undo_button, self.redo_button, self.selection_label):
@@ -254,7 +258,7 @@ class KontrolScreen(QWidget):
             "F": self.apply_filter,
             "K": self.toggle_cut,
             "T": self.apply_template,
-            "R": lambda: self._each_selected(lambda pid: self.controller.rotate(pid, 90)),
+            "R": self.rotate_selected,
             "Del": self.toggle_delete,
             "M": self.merge_current,
             "N": lambda: self.jump_to_check(1),
@@ -303,10 +307,24 @@ class KontrolScreen(QWidget):
         else:
             self.controller.add_cut(pid)
 
+    def rotate_selected(self) -> None:
+        ids = self.selected_ids()
+        if ids:  # one undo step for the whole selection
+            self.controller.run("Döndür", lambda job: [job.rotate(pid, 90) for pid in ids])
+
     def toggle_delete(self) -> None:
-        deleted = self.controller.job.deleted
-        self._each_selected(lambda pid: self.controller.undelete_page(pid) if pid in deleted
-                            else self.controller.delete_page(pid))
+        ids = self.selected_ids()
+        if not ids:
+            return
+
+        def toggle(job) -> None:
+            for pid in ids:
+                if pid in job.deleted:
+                    job.undelete_page(pid)
+                else:
+                    job.delete_page(pid)
+
+        self.controller.run("Sil / geri al", toggle)
 
     def merge_current(self) -> None:
         number = self.current_document()
@@ -328,10 +346,6 @@ class KontrolScreen(QWidget):
         else:
             self.controller.status.emit("İlk belgenin öncesi yok.")
 
-    def _each_selected(self, action) -> None:
-        for pid in self.selected_ids():
-            action(pid)
-
     def go_to_row(self, row: int) -> None:
         index = self.model.index(row)
         self.timeline.setCurrentIndex(index)
@@ -350,7 +364,39 @@ class KontrolScreen(QWidget):
         self.go_to_row(target)
 
     # Refreshing
+    def _remember_selection(self) -> None:
+        rows = sorted(i.row() for i in self.timeline.selectionModel().selectedIndexes())
+        current = self.timeline.currentIndex()
+        self._kept = ([self.model.page_id(r) for r in rows],
+                      self.model.page_id(current.row()) if current.isValid() else None)
+
+    def _restore_selection(self) -> None:
+        selected, current = self._kept
+        selection = self.timeline.selectionModel()
+        flags = QItemSelectionModel.SelectionFlag.Select
+        for pid in selected:
+            try:
+                selection.select(self.model.index(self.model.row_of(pid)), flags)
+            except ValueError:
+                continue  # the page is gone (its batch was removed)
+        if current is not None:
+            try:
+                selection.setCurrentIndex(self.model.index(self.model.row_of(current)),
+                                          QItemSelectionModel.SelectionFlag.NoUpdate)
+            except ValueError:
+                pass
+
+    def _refresh_thumbnails(self) -> None:
+        rotations = self.controller.job.rotations
+        changed = {pid for pid in set(rotations) | set(self._rotations)
+                   if rotations.get(pid) != self._rotations.get(pid)}
+        self._rotations = dict(rotations)
+        if self.thumbnails is not None:
+            for pid in changed:
+                self.thumbnails.invalidate(pid)
+
     def _job_changed(self) -> None:
+        self._refresh_thumbnails()
         items = plan_export(self.controller.job, self.templates())
         checks = {item.number: item.checks for item in items}
         self.model.set_checks(checks)

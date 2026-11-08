@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.pipeline.job import Job
+from evrakci.pipeline.job import Job, job_from_dict, job_to_dict
 from evrakci.pipeline.store import JobStore
 from evrakci.ui.controller import JobController
 from evrakci.ui.kontrol import index_rule, key_button
@@ -36,6 +36,7 @@ def _heading(text: str) -> QLabel:
 class YukleScreen(QWidget):
     job_opened = Signal(object)  # Job; `self.controller` is its controller
     task_finished = Signal()
+    refused = Signal(str)
 
     def __init__(self, store: JobStore, parent=None) -> None:
         super().__init__(parent)
@@ -44,6 +45,8 @@ class YukleScreen(QWidget):
         self.store = store
         self.controller: JobController | None = None
         self.task: Task | None = None
+        # Returns a Turkish reason when another job must not be opened now.
+        self.can_switch = lambda: "Bir iş sürüyor; bitince açın." if self.task else None
 
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -149,6 +152,10 @@ class YukleScreen(QWidget):
         self.open_job(self.store.load(item.data(Qt.ItemDataRole.UserRole)))
 
     def open_job(self, job: Job) -> None:
+        reason = self.can_switch() if self.controller is not None else None
+        if reason:
+            self.refused.emit(reason)
+            return
         if self.controller is not None:
             self.controller.job_changed.disconnect(self._show_batches)
         self.controller = JobController(self.store, job)
@@ -182,14 +189,15 @@ class YukleScreen(QWidget):
             self.add_batch(Path(path))
 
     def add_batch(self, path: Path) -> None:
-        job = self.controller.job
+        # Analysis runs on the side; the job stays editable and changes only when attaching.
+        snapshot = job_from_dict(job_to_dict(self.controller.job))
         self._run(f"{path.name} inceleniyor",
-                  lambda progress: self.store.add_batch(job, path),
-                  lambda _batch: self._batch_added())
+                  lambda progress: self.store.prepare_batch(snapshot, path),
+                  self._batch_prepared)
 
-    def _batch_added(self) -> None:
-        self.controller.undo_stack.clear()  # the batch file is on disk now; earlier steps stay
-        self.controller.job_changed.emit()
+    def _batch_prepared(self, prepared) -> None:
+        self.controller.run("Parti ekle",
+                            lambda job: job.attach_batch(prepared.batch, prepared.pages))
 
     def move_batch(self, step: int) -> None:
         row = self.batches.currentRow()

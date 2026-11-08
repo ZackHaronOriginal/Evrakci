@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QAbstractItemDelegate,
     QAbstractItemView,
     QCheckBox,
     QComboBox,
@@ -75,10 +76,16 @@ class ValueSide(QFrame):
             layout.addWidget(button)
         layout.addStretch(1)
 
+    def show_nothing(self) -> None:
+        for label in (self.read, self.suggestion, self.meta):
+            label.setText("")
+        self.accept_button.setEnabled(False)
+
 
 class DegerlerScreen(QWidget):
     draw_variant = Signal(int, str)  # document number, variable name
     status = Signal(str)
+    finished = Signal()
 
     def __init__(
         self,
@@ -174,7 +181,19 @@ class DegerlerScreen(QWidget):
     def column_of(self, variable_name: str) -> int:
         return 3 + self._columns.index(variable_name)
 
+    def _commit_open_editor(self) -> None:
+        """Store text still being typed, so a refresh never throws it away."""
+        if self.table.state() != QAbstractItemView.State.EditingState:
+            return
+        editor = self.table.findChild(QLineEdit)
+        if editor is not None:
+            self.table.commitData(editor)
+            self.table.closeEditor(editor, QAbstractItemDelegate.EndEditHint.NoHint)
+
     def refresh(self) -> None:
+        if self._filling:
+            return
+        self._commit_open_editor()
         controller = self.controller()
         self._filling = True
         self.table.clear()
@@ -304,6 +323,7 @@ class DegerlerScreen(QWidget):
         value = (current_values(self.controller().job, document) or {}).get(key)
         name = self.table.horizontalHeaderItem(column).text()
         self.side.title.setText(f"Belge {cell.data(DOC_ROLE)} · {name}")
+        self.side.show_nothing()
         if value is None:
             return
         percent = round(value.confidence * 100)
@@ -364,6 +384,11 @@ class DegerlerScreen(QWidget):
         controller = self.controller()
         if controller is None or self.task is not None:
             return
+        engine = self._engine()
+        reason = engine.available()
+        if reason:  # refuse like the command line does; nothing is touched
+            self.progress_label.setText(f"Okunamadı: {reason}")
+            return
         job = controller.job
         templates = self.templates()
         files = controller.store.batch_files(job)
@@ -376,16 +401,12 @@ class DegerlerScreen(QWidget):
             if only_missing and current_values(job, document) is not None:
                 continue
             work.append((document, template_id, templates.get(template_id)))
+        results: list = []  # filled by the worker; kept even when the read is cancelled
+        self._results = results
 
         def run(progress):
-            engine = self._engine()
-            reason = engine.available()
-            results = []
             for done, (document, template_id, template) in enumerate(work, start=1):
                 progress(done - 1, len(work))
-                if reason:
-                    results.append((document, template_id, None, reason))
-                    continue
                 if template is None:
                     results.append((document, template_id, None,
                                     f"Şablon bulunamadı: {template_id}"))
@@ -413,39 +434,55 @@ class DegerlerScreen(QWidget):
         self._set_busy(True)
         start(self.task)
 
+    def read_count(self) -> int:
+        return len(getattr(self, "_results", []))
+
     def _progress(self, done: int, total: int) -> None:
         self.progress.setRange(0, max(1, total))
         self.progress.setValue(done)
         self.progress_label.setText(
             f"Okunuyor: {done} / {total} belge · elle yazdıklarınız korunur")
 
-    def _read_done(self, results) -> None:
+    def _store(self, results) -> int:
+        """Store readings on the window thread, as one undoable edit. Returns how many."""
         controller = self.controller()
-        current = {tuple(d.page_ids) for d in controller.documents()}
+        job = controller.job
+        current = {tuple(d.page_ids): document_template(job, d)[0]
+                   for d in controller.documents()}
+        stored = []
 
         def store(job) -> None:
-            for document, template_id, values, error in results:
-                if tuple(document.page_ids) not in current:
-                    continue  # the cuts changed while reading; this reading is stale
-                if values is None:
+            for document, template_id, values, error in list(results):
+                if current.get(tuple(document.page_ids), object()) != template_id:
+                    continue  # the cuts or the template changed while reading: stale
+                if values is not None:
+                    store_reading(job, document, template_id, values)
+                elif not any(v.edited for v in (current_values(job, document) or {}).values()):
                     record_read_error(job, document, template_id, error)
                 else:
-                    store_reading(job, document, template_id, values)
+                    continue  # never wipe the user's corrections because a read failed
+                stored.append(document)
 
         controller.run("Değerleri oku", store)
-        self._finish(f"{len(results)} belge okundu.")
+        return len(stored)
+
+    def _read_done(self, results) -> None:
+        count = self._store(results)
+        self._finish(f"{count} belge okundu.")
 
     def _read_failed(self, message: str) -> None:
         self._finish(f"Okunamadı: {message}")
 
     def _read_cancelled(self) -> None:
-        self._finish("Okuma iptal edildi; okunanlar kaydedilmedi.")
+        count = self._store(self._results)
+        self._finish(f"Okuma durduruldu: {count} belge okundu ve kaydedildi, kalanlar okunmadı.")
 
     def _finish(self, message: str) -> None:
         self.task = None
         self._set_busy(False)
         self.progress_label.setText(message)
         self.refresh()
+        self.finished.emit()
 
     def cancel(self) -> None:
         if self.task is not None:

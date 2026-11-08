@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from PIL import Image
@@ -24,12 +24,18 @@ def to_qimage(image: Image.Image) -> QImage:
     return qimage.copy()  # own the pixels; `data` goes away
 
 
-def job_renderer(job: Job, batch_files: dict[str, Path], dpi: int = 30) -> Renderer:
-    """Render a page of `job` from its batch file, rotated as the user rotated it."""
+def job_renderer(
+    job: Job, batch_files: Callable[[], Mapping[str, Path]], dpi: int = 30
+) -> Renderer:
+    """Render a page of `job` from its batch file, rotated as the user rotated it.
+
+    `batch_files` is asked on every render, so batches added later are found too.
+    """
 
     def render(pid: str, height: int) -> Image.Image:
         batch_id, index = parse_page_id(pid)
-        image = render_page(batch_files[batch_id], index, job.rotations.get(pid, 0), dpi=dpi)
+        path = batch_files()[batch_id]
+        image = render_page(path, index, job.rotations.get(pid, 0), dpi=dpi)
         width = max(1, round(image.width * height / image.height))
         return image.resize((width, height))
 
@@ -37,7 +43,7 @@ def job_renderer(job: Job, batch_files: dict[str, Path], dpi: int = 30) -> Rende
 
 
 class _Relay(QObject):
-    done = Signal(str, QImage)
+    done = Signal(str, QImage, int)
 
 
 class _Job(QRunnable):
@@ -67,6 +73,7 @@ class ThumbnailService(QObject):
         self.capacity = capacity
         self.cache: OrderedDict[str, QImage] = OrderedDict()
         self._wanted: set[str] = set()
+        self._version: dict[str, int] = {}  # bumped by invalidate; older renders are dropped
         self._busy = 0
         self._lock = threading.Lock()
         self._pool = QThreadPool(self)
@@ -92,11 +99,23 @@ class ThumbnailService(QObject):
             self._wanted &= set(pids)
 
     def invalidate(self, pid: str | None = None) -> None:
-        """Drop cached images (one page after a rotation, or all)."""
+        """Drop cached images (one page, or all); renders already running are thrown away."""
+        with self._lock:
+            pids = list(self.cache) + list(self._wanted) if pid is None else [pid]
+            for key in pids:
+                self._version[key] = self._version.get(key, 0) + 1
+                self._wanted.discard(key)
         if pid is None:
             self.cache.clear()
         else:
             self.cache.pop(pid, None)
+
+    def stop(self) -> None:
+        """Forget all pending work, for example when another job is opened.
+
+        Queued renders still run but skip their page, so the busy count stays right.
+        """
+        self.keep_only(set())
 
     def idle(self) -> bool:
         with self._lock:
@@ -107,6 +126,7 @@ class ThumbnailService(QObject):
         try:
             with self._lock:
                 wanted = pid in self._wanted
+                version = self._version.get(pid, 0)
             if wanted:
                 try:
                     image = to_qimage(self.renderer(pid, self.height))
@@ -114,12 +134,15 @@ class ThumbnailService(QObject):
                     image = None
         finally:
             with self._lock:
-                self._wanted.discard(pid)
+                if self._version.get(pid, 0) == version:
+                    self._wanted.discard(pid)
                 self._busy -= 1
         if image is not None:
-            self._relay.done.emit(pid, image)
+            self._relay.done.emit(pid, image, version)
 
-    def _finished(self, pid: str, image: QImage) -> None:
+    def _finished(self, pid: str, image: QImage, version: int) -> None:
+        if self._version.get(pid, 0) != version:
+            return  # invalidated while rendering: an old picture
         self.cache[pid] = image
         self.cache.move_to_end(pid)
         while len(self.cache) > self.capacity:

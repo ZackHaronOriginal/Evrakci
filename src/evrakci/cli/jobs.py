@@ -248,7 +248,7 @@ def empty_pages(args: argparse.Namespace, store: JobStore) -> int:
 
 
 def _layer_note(pdfa: bool, note: str | None) -> str:
-    return " (PDF/A-2b)" if pdfa else f" (normal PDF: {note})"
+    return " (PDF/A-2b)" if pdfa else f" (normal PDF: {note or 'PDF/A doğrulanamadı'})"
 
 
 def _job_templates(args: argparse.Namespace, job: Job) -> dict[str, Template | None]:
@@ -295,7 +295,7 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
         if with_layer:
             print(file=sys.stderr)
     items, paths = result.items, result.paths
-    notes = {path: _layer_note(note is None, note) for path, note in result.notes.items()}
+    notes = {path: _layer_note(pdfa, note) for path, (pdfa, note) in result.notes.items()}
     for path, item in zip(paths, items, strict=True):
         positions = [job.position_of(pid) for pid in item.document.page_ids]
         checks = f" [kontrol: {', '.join(item.checks)}]" if item.checks else ""

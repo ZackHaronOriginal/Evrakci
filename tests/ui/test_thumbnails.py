@@ -43,7 +43,7 @@ def test_cached_pages_are_not_rendered_twice(qtbot):
 
 def test_cache_is_bounded(qtbot):
     renderer = CountingRenderer()
-    service = ThumbnailService(renderer, height=20, capacity=5)
+    service = ThumbnailService(renderer, height=20, capacity=5, workers=1)  # fixed order
     got = []
     service.ready.connect(lambda pid, image: got.append(pid))
     for i in range(12):
@@ -78,7 +78,7 @@ def test_job_renderer_draws_a_real_page_at_the_requested_height(tmp_path):
     pdf = make_pdf(tmp_path / "b1.pdf", [text_page("A"), text_page("B")])
     job = job_from_kinds({"b1": "pp"})
     job.rotate("b1/1", 90)
-    render = job_renderer(job, {"b1": pdf})
+    render = job_renderer(job, lambda: {"b1": pdf})
     assert render("b1/0", 100).height == 100
     rotated = render("b1/1", 100)
     assert rotated.height == 100 and rotated.width > 100  # landscape after rotation

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import ExitStack
 from pathlib import Path
 
@@ -20,6 +20,7 @@ def write_documents(
     out_dir: Path,
     stem: str = "belge",
     names: Sequence[str] | None = None,
+    progress: Callable[[int, int], None] | None = None,
 ) -> list[Path]:
     """Write one PDF per document and return their paths in order.
 
@@ -54,4 +55,6 @@ def write_documents(
                         output.pages[-1].rotate(extra, relative=True)
                 output.save(target)
             written.append(target)
+            if progress:  # may raise to stop between files; written files stay complete
+                progress(len(written), len(documents))
     return written

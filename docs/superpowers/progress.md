@@ -1,6 +1,6 @@
 # Progress: Plans 1–6
 
-Last checked 2026-11-07: **231 tests pass**, `ruff check .` is clean.
+Last checked 2026-11-08: **311 tests pass**, `ruff check .` is clean.
 
 | Plan | State | Review fixes (commit) |
 |---|---|---|
@@ -9,7 +9,7 @@ Last checked 2026-11-07: **231 tests pass**, `ruff check .` is clean.
 | 2b OCR text layer | done | "fix: address OCR text layer review findings" |
 | 3 Templates | done | "fix: address template review findings" |
 | 4 Review and export | done | "fix: address review and export review findings" |
-| 5 Window | **stopped: waiting for the owner to choose a design** | — |
+| 5 Window | done; Kartotek look approved 2026-11-07 | "fix: address the window review findings" |
 | 6 Windows installer | done; GitHub Actions build is green | "fix: address Windows installer review findings" |
 
 ## What works (CLI)
@@ -35,16 +35,22 @@ Last checked 2026-11-07: **231 tests pass**, `ruff check .` is clean.
 - **Non-ASCII Windows paths:** handled with ASCII-safe copies of the Tesseract data and temp folders.
 - **Values:** stored under permanent variable keys, so renaming a variable keeps its values.
 
-## Plan 5 status
+## Plan 5: the window (`evrakci-arayuz`)
 
-1. PRODUCT.md is written.
-2. Five design directions are in `.impeccable/mocks/decision/`:
-   - Kartotek
-   - Hat Haritası
-   - Terminal Sarısı
-   - Pul Katalog
-   - Windows standardı
-3. The owner chose **Kartotek**; all six screens are in `docs/superpowers/mockups/kartotek/`.
+Six tabs over the same core as the CLI, in the approved Kartotek look (`DESIGN.md`,
+`docs/superpowers/mockups/kartotek/`):
 
-After the owner picks a direction, all six screens are drawn in it for approval, and only then is
-the window built.
+- **Yükle:** jobs, batches (drag-drop or file dialog, reorder, remove), analysis with cancel.
+- **Kontrol:** whole-job strip (one line per page, a rider per document to check), guide-tab
+  timeline (QR left, filter centre, manual right), filters on a selection, cuts, rotate,
+  delete, merge, undo/redo, N / Shift+N to the next check. Smooth at 1000 pages.
+- **Şablonlar:** draw boxes on a mm grid, variants from other example documents, try order,
+  file-name pattern, live "what do the boxes read".
+- **Değerler:** review table, only-checks filter, accept suggestion (Enter), type (F2),
+  draw a new variant (V), background reading where your corrections always win.
+- **Dışa Aktar:** the same export as `is disa-aktar` (shared core `export_job`), retention.
+- **Rehber:** the scanning guide and separator sheets to print.
+
+Decisions: font is Segoe UI (Atkinson not approved); export and "corrections win" moved into
+the core so CLI and window share them; batch add is an undoable edit; template edits have
+their own undo. Full list of rulings: Plan 5 section of the final summary.

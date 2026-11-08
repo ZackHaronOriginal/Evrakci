@@ -45,7 +45,7 @@ def test_tur_best_checksum_checked(tmp_path, monkeypatch):
 
     (tmp_path / "tur.traineddata").write_bytes(b"truncated")
     assert len(TUR_BEST_SHA256) == 64 and verify_tur_best(tmp_path) is False
-    assert not (tmp_path / "tur.traineddata").exists()
+    assert (tmp_path / "tur.traineddata").exists()  # not the app's own folder: left alone
 
 
 @needs_tesseract
@@ -90,7 +90,8 @@ def test_variant_dir_and_verification(tmp_path, monkeypatch):
     monkeypatch.setenv("EVRAKCI_TESSDATA_FAST", str(tmp_path))
     assert tessdata_dir("fast") == tmp_path
     (tmp_path / "tur.traineddata").write_bytes(b"x")
-    assert verify_tessdata("fast") is False and not (tmp_path / "tur.traineddata").exists()
+    assert verify_tessdata("fast") is False
+    assert (tmp_path / "tur.traineddata").exists()  # a configured folder is never touched
 
 
 def test_comparison_lists_all_official_variants():

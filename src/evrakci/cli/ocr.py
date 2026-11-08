@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import time
 import urllib.request
 from pathlib import Path
@@ -237,23 +239,25 @@ def _download_tessdata(variant: str) -> bool:
     folder = tessdata_dir(variant)
     target = folder / "tur.traineddata"
     label = f"tur_{variant}"
-    if verify_tessdata(variant, folder):
-        prepare_tessdata(folder)
-        print(f"{label}: hazır ({target})")
-        return True
-    folder.mkdir(parents=True, exist_ok=True)
     partial = target.with_name(target.name + ".part")
-    url = _TUR_BEST_URL if variant == "best" else TESSDATA_VARIANTS[variant].url
     try:
+        if verify_tessdata(variant, folder):
+            prepare_tessdata(folder)
+            print(f"{label}: hazır ({target})")
+            return True
+        folder.mkdir(parents=True, exist_ok=True)
+        url = _TUR_BEST_URL if variant == "best" else TESSDATA_VARIANTS[variant].url
         with urllib.request.urlopen(url, timeout=120) as response:
-            partial.write_bytes(response.read())
-        partial.replace(target)
-        if not verify_tessdata(variant, folder):
+            data = response.read()
+        # Checked before it takes the real name, so an unverified file never sits there.
+        if hashlib.sha256(data).hexdigest() != TESSDATA_VARIANTS[variant].sha256:
             raise OSError("indirilen dosya doğrulanamadı")
+        partial.write_bytes(data)
+        partial.replace(target)
         prepare_tessdata(folder)
         print(f"{label}: indirildi ({target})")
         return True
-    except OSError as error:
+    except (OSError, EngineUnavailable) as error:
         partial.unlink(missing_ok=True)
         print(f"{label}: hata: {error}")
         return False
@@ -268,10 +272,16 @@ def ocr_file(args: argparse.Namespace, store) -> int:
         raise UserError(
             f"Çıktı dosyası zaten var: {args.cikti} (üzerine yazmak için --uzerine-yaz)"
         )
+    # Written beside the target and moved into place only when complete, so a failed run
+    # never damages an existing output file.
+    temporary = args.cikti.with_name(args.cikti.name + ".gecici")
     try:
-        result = add_text_layer(args.giris, args.cikti, pdfa=not args.pdf)
+        result = add_text_layer(args.giris, temporary, pdfa=not args.pdf)
+        os.replace(temporary, args.cikti)
     except EngineUnavailable as error:
         raise UserError(str(error)) from None
+    finally:
+        temporary.unlink(missing_ok=True)
     kind = "PDF/A-2b" if result.pdfa else f"normal PDF: {result.note}" if result.note else "PDF"
     print(f"Metin katmanı eklendi: {args.cikti.name} ({kind})")
     return 0

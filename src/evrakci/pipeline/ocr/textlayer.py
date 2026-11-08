@@ -137,4 +137,8 @@ def add_text_layer(
     except exceptions.ExitCodeException as error:
         detail = f" ({error})" if str(error).strip() else ""
         raise EngineUnavailable(f"Metin katmanı eklenemedi: {src.name}{detail}") from error
+    except EngineUnavailable:
+        raise
+    except Exception as error:  # anything else inside OCRmyPDF/pikepdf: a clear Turkish message
+        raise EngineUnavailable(f"Metin katmanı eklenemedi: {src.name} ({error})") from error
     return TextLayerResult(dst, pdfa=pdfa)

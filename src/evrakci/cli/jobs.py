@@ -279,16 +279,16 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
     store.save(job)  # marks the job as in use, so the day limit never removes it mid-export
     with_layer = not args.metin_katmani_yok
     tessdata = None
-    if with_layer:
-        tessdata = default_tessdata()
-        label = "tur_best" if tessdata.folder else "sistem (tur)"
-        print(f"Türkçe veri: {label}")
 
     def progress(stage: str, done: int, total: int) -> None:
         if stage == "layer" and done < total:
             print(f"\rMetin katmanı: {done + 1}/{total} belge", end="", file=sys.stderr)
 
     try:
+        if with_layer:
+            tessdata = default_tessdata()
+            label = "tur_best" if tessdata.folder else "sistem (tur)"
+            print(f"Türkçe veri: {label}")
         result = export_job(
             job, store.batch_files(job), _job_templates(args, job), Path(args.cikti),
             with_layer=with_layer, progress=progress, engine=default_engine() if with_layer

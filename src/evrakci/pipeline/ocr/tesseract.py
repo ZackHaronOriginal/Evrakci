@@ -87,13 +87,19 @@ def tessdata_dir(variant: str) -> Path:
 
 
 def verify_tessdata(variant: str, folder: Path | None = None) -> bool:
-    """True if the folder holds the correct tur.traineddata. A wrong file is deleted."""
-    path = (folder or tessdata_dir(variant)) / "tur.traineddata"
+    """True if the folder holds the correct tur.traineddata.
+
+    A wrong file is deleted only in the app's own download folder; a folder an admin
+    configured, or the bundled copy, is never touched.
+    """
+    folder = Path(folder or tessdata_dir(variant))
+    path = folder / "tur.traineddata"
     if not path.is_file():
         return False
-    if hashlib.sha256(path.read_bytes()).hexdigest() == TESSDATA_VARIANTS[variant].sha256:
+    if _file_hash(path) == TESSDATA_VARIANTS[variant].sha256:
         return True
-    path.unlink()
+    if folder.resolve() == (data_dir() / f"tessdata_{variant}").resolve():
+        path.unlink()
     return False
 
 
@@ -207,6 +213,8 @@ class TessData:
 
 def default_tessdata() -> TessData:
     """tur_best when it is installed and verified, otherwise the system's tur."""
+    if find_tesseract() is None:  # no program: the caller reports "Tesseract bulunamadı"
+        return TessData("tur", None)
     best = tessdata_best_dir()
     if verify_tur_best(best):
         prepare_tessdata(best)

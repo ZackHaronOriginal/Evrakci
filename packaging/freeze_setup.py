@@ -57,7 +57,10 @@ setup(
                 "unittest",  # OCRmyPDF imports unittest.mock at run time
             ],
             "includes": ["PySide6.QtCore", "PySide6.QtGui", "PySide6.QtWidgets", "unittest.mock"],
-            "excludes": ["tkinter", "pandas", "rapidocr", "onnxruntime", "cv2", *UNUSED_QT],
+            # readline links GNU Readline (GPL-3.0), which must not ship.
+            "excludes": [
+                "tkinter", "readline", "pandas", "rapidocr", "onnxruntime", "cv2", *UNUSED_QT
+            ],
             "include_files": include_files,
             "include_msvcr": True,
         }

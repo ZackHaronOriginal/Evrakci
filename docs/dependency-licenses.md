@@ -57,6 +57,15 @@ library, and tools run as separate programs.
 | Tesseract for Windows (UB Mannheim build) | Apache-2.0 | Bundled external program in `tesseract\` | ✅ |
 | Licence texts for all bundled parts | — | `licenses\` in the install folder, listed in `NOTICE.txt` | — |
 
+## Build tools and bundled libraries (Linux build)
+
+| Component | License | How it is used | OK for commercial/closed builds? |
+|---|---|---|---|
+| patchelf | GPL-3.0 | Build tool used by cx_Freeze to set library search paths | ✅ Not shipped |
+| Tesseract (system package) | Apache-2.0 | Installed by the user from the distribution; not bundled | ✅ |
+| Python runtime libraries: OpenSSL 3 (libssl, libcrypto), libffi, bzip2, xz (liblzma), mpdecimal, ncurses (libncursesw, libtinfo), libuuid | Apache-2.0, MIT, bzip2 (BSD-style), 0BSD/public domain, BSD-2-Clause, MIT-style (X11), BSD-3-Clause | Copied from the Python build into `uygulama/lib/` | ✅ |
+| GNU Readline | GPL-3.0 | **Left out**: `readline` is excluded from the freeze and `build.py` fails if `libreadline` appears in a build | — |
+
 ## Avoid
 
 - **PyQt6 / PyQt5**: GPL unless you buy a commercial license.

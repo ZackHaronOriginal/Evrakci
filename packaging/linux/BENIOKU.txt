@@ -1,0 +1,25 @@
+Evrakçı — Linux sürümü
+=======================
+
+Gerekenler (Debian, Ubuntu, Pardus):
+
+    sudo apt install tesseract-ocr libxcb-cursor0
+
+Türkçe OCR verisi (tur_best) uygulamayla gelir; ayrıca dil paketi kurmanız gerekmez.
+
+Kurmak (yalnızca bu kullanıcı için, yönetici izni gerekmez):
+
+    ./kur.sh
+
+Uygulama menüsünde "Evrakçı" görünür. Komut satırı: evrakci, pencere: evrakci-arayuz.
+
+Kurmadan çalıştırmak:
+
+    ./uygulama/evrakci-arayuz
+
+Kaldırmak (işleriniz ve şablonlarınız silinmez):
+
+    ~/.local/share/evrakci-uygulama/kaldir.sh
+
+Lisanslar: uygulama/licenses/ klasöründe. Qt kütüphaneleri uygulama/lib/ altında ayrı
+dosyalardır (LGPL); kendi derlediğiniz sürümle değiştirebilirsiniz.

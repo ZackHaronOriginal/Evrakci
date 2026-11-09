@@ -79,6 +79,24 @@ the window (`evrakci-arayuz`), the command line (`evrakci`), Tesseract and the o
 Turkish OCR data — nothing else to install. Job data stays in your user folder and is kept
 when you uninstall. Licences of bundled components: `licenses\NOTICE.txt` in the install folder.
 
+## Install (Linux)
+
+The "Linux build" workflow builds `evrakci-<sürüm>-linux-x86_64.tar.gz` (artifact
+**Evrakci-Linux**). It runs on Ubuntu 22.04 or newer, Debian 12 and Pardus 23. Tesseract comes
+from the system; the Turkish OCR data (tur_best) is bundled:
+
+```bash
+sudo apt install tesseract-ocr libxcb-cursor0
+```
+
+```bash
+tar -xzf evrakci-*-linux-x86_64.tar.gz && ./evrakci-*/kur.sh
+```
+
+`kur.sh` installs for the current user only (no root), adds Evrakçı to the applications menu
+and links `evrakci` and `evrakci-arayuz` into `~/.local/bin`. Uninstall with
+`~/.local/share/evrakci-uygulama/kaldir.sh`; jobs and templates are kept.
+
 ## Development
 
 ```bash

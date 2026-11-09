@@ -36,6 +36,11 @@ Tesseract's own libraries         leptonica: BSD-2-Clause;        tesseract\doc\
                                   licences, incl. LGPL-2.1        these DLLs are LGPL-2.1 (LGPL-2.1.txt). Each is a
                                   (LGPL-2.1.txt)                  separate, replaceable file.
 
+Linux build: Tesseract is not bundled (it comes from the system package). The Python
+runtime's own libraries in lib/ are OpenSSL 3 (Apache-2.0), libffi (MIT), bzip2 (bzip2
+licence), xz/liblzma (0BSD), mpdecimal (BSD-2-Clause), ncurses (MIT-style) and libuuid
+(BSD-3-Clause). GNU Readline is deliberately left out.
+
 Exact versions of every bundled Python package and their licence files:
   licenses\VERSIONS.txt and licenses\python\<package>\
 

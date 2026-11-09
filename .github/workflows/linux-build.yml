@@ -1,0 +1,94 @@
+name: Linux build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+    branches: ["main", "claude/intelligent-fermi-6e3g7l"]
+    paths:
+      - "packaging/**"
+      - "src/**"
+      - "pyproject.toml"
+      - "docs/tarama-rehberi.md"
+      - ".github/workflows/linux-build.yml"
+  pull_request:
+    paths:
+      - "packaging/**"
+      - "src/**"
+      - "pyproject.toml"
+      - "docs/tarama-rehberi.md"
+      - ".github/workflows/linux-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # The oldest supported Ubuntu: the build runs on its glibc (2.35) and newer
+    # (Ubuntu 22.04+, Debian 12, Pardus 23).
+    runs-on: ubuntu-22.04
+    env:
+      QT_QPA_PLATFORM: offscreen
+      LANG: C.UTF-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Qt system libraries, Tesseract and patchelf (build machine)
+        run: >-
+          sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libgl1
+          libxcb-cursor0 tesseract-ocr tesseract-ocr-tur patchelf
+
+      - name: Install Evrakçı and cx_Freeze
+        run: pip install -e ".[dev]" "cx_Freeze>=8"
+
+      - name: Tests
+        run: |
+          ruff check .
+          pytest -q
+
+      - name: Download and verify tur_best
+        run: |
+          curl -fsSL -o tur.traineddata \
+            https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/main/tur.traineddata
+          echo "e0c3338dc17503dc7d335a507c9ae01b2b46cfd07561171e1e1ac55d85e8e438  tur.traineddata" \
+            | sha256sum -c -
+
+      - name: Freeze (folder build)
+        run: |
+          configs=$(python -c "from evrakci.pipeline.ocr.tesseract import system_tessdata; print(system_tessdata())")
+          python packaging/build.py --tur-best tur.traineddata --tessdata-configs "$configs"
+
+      - name: Package
+        run: python packaging/linux_package.py --cikti dist
+
+      - name: Remove the system's Turkish data (the bundled tur_best must be used)
+        run: sudo apt-get remove -y tesseract-ocr-tur
+
+      - name: Start the window and let it close itself
+        run: |
+          test -f build/evrakci/docs/tarama-rehberi.md
+          EVRAKCI_KAPAT_MS=3000 EVRAKCI_KOK="$RUNNER_TEMP/pencere-isler" \
+            EVRAKCI_SABLON_KOK="$RUNNER_TEMP/pencere-sablonlar" build/evrakci/evrakci-arayuz
+
+      - name: Install with kur.sh into a Turkish-named home and smoke test the installed copy
+        run: |
+          home="$RUNNER_TEMP/Ev Şükrü"
+          mkdir -p "$home" "$RUNNER_TEMP/acilan"
+          tar -xzf dist/*.tar.gz -C "$RUNNER_TEMP/acilan"
+          # Read-only, as after an install by an admin: the data must not need writing.
+          HOME="$home" XDG_DATA_HOME="$home/.local/share" sh "$RUNNER_TEMP"/acilan/evrakci-*/kur.sh
+          chmod -R a-w "$home/.local/share/evrakci-uygulama"
+          HOME="$home" python packaging/smoke_test.py --komut "$home/.local/bin/evrakci" \
+            --klasor "$RUNNER_TEMP/duman Ğ"
+          chmod -R u+w "$home/.local/share/evrakci-uygulama"
+          HOME="$home" sh "$home/.local/share/evrakci-uygulama/kaldir.sh"
+          test ! -e "$home/.local/share/evrakci-uygulama"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Evrakci-Linux
+          path: dist/*.tar.gz
+          if-no-files-found: error

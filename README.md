@@ -89,7 +89,7 @@ the window libraries; on a minimal system install them with:
 
 ```bash
 sudo apt install tesseract-ocr libxcb-cursor0 libxcb-icccm4 libxcb-util1 libxcb-image0 \
-  libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0 libegl1 libgl1
+  libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxcb-shape0 libxkbcommon-x11-0 libegl1 libgl1 libdbus-1-3
 ```
 
 ```bash

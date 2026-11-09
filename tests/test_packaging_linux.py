@@ -414,3 +414,30 @@ def test_window_names_its_desktop_file(qapp):
     app.configure_application(qapp)
     assert qapp.desktopFileName() == "evrakci-arayuz"
     assert qapp.applicationName() == "Evrakçı"
+
+
+WINDOW_PACKAGES = {
+    "libxcb-cursor0", "libxcb-icccm4", "libxcb-util1", "libxcb-image0", "libxcb-keysyms1",
+    "libxcb-render-util0", "libxcb-xkb1", "libxcb-shape0", "libxkbcommon-x11-0", "libegl1",
+    "libgl1", "libdbus-1-3",
+}
+
+
+def apt_packages(text: str) -> set[str]:
+    """Package names on the apt lines of a file (README, BENIOKU, kur.sh, workflow)."""
+    import re
+
+    joined = text.replace("\\\n", " ").replace('" \\\n', " ").replace('"', " ")
+    names = set()
+    for line in joined.splitlines():
+        if "apt install" in line or "apt-get install" in line:
+            names |= set(re.findall(r"\b(lib[a-z0-9.+-]+|tesseract-ocr)\b", line))
+    return names
+
+
+def test_documented_window_packages_match_everywhere():
+    # Found on a clean Debian 12 by kur.sh's own check: libdbus-1-3 and libxcb-shape0 too.
+    for path in ("README.md", "packaging/linux/BENIOKU.txt", "packaging/linux/kur.sh",
+                 ".github/workflows/linux-build.yml"):
+        found = apt_packages((ROOT / path).read_text(encoding="utf-8"))
+        assert WINDOW_PACKAGES <= found, (path, WINDOW_PACKAGES - found)

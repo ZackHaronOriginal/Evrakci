@@ -110,7 +110,7 @@ if [ -f "$qxcb" ] && command -v ldd >/dev/null 2>&1; then
     if [ -n "$eksik" ]; then
         echo "Uyarı: pencere için eksik sistem kütüphaneleri: $eksik"
         echo "    sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-util1 libxcb-image0" \
-            "libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0 libegl1 libgl1"
+            "libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxcb-shape0 libxkbcommon-x11-0 libegl1 libgl1 libdbus-1-3"
     fi
 fi
 case ":$PATH:" in

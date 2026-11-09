@@ -82,6 +82,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "vcpkg çıkış kodu $LASTEXITCODE" }
 
       - name: Stage Tesseract (allow-list of libraries, every licence text)
+        env:
+          PYTHONIOENCODING: utf-8
         run: python packaging/stage_tesseract.py --vcpkg "$env:RUNNER_TEMP\vcpkg-installed\$env:TRIPLET" packaging\tesseract-bundle
 
       - name: Download and verify Turkish data (tur_fast for tests, tur_best for tests and the build)

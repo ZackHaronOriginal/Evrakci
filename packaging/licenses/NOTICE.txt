@@ -60,6 +60,7 @@ in tesseract\licenses\<name>.txt:
   libjpeg-turbo    IJG, BSD-3-Clause and Zlib. This software is based in part on the work of
                    the Independent JPEG Group.
   libpng           libpng-2.0
+  libspng          BSD-2-Clause
   libwebp          BSD-3-Clause
   openjpeg         BSD-2-Clause
   tiff (libtiff)   libtiff (BSD-style)

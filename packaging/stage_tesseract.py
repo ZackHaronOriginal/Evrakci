@@ -23,6 +23,7 @@ ALLOWED_PORTS = {
     "giflib": "MIT",
     "libjpeg-turbo": "IJG AND BSD-3-Clause AND Zlib",
     "libpng": "libpng-2.0",
+    "libspng": "BSD-2-Clause",
     "libwebp": "BSD-3-Clause",
     "openjpeg": "BSD-2-Clause",
     "tiff": "libtiff",

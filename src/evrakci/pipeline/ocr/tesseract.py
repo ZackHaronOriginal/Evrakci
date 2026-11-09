@@ -185,8 +185,23 @@ def system_tessdata() -> Path | None:
     out = subprocess.run(
         [str(binary), "--list-langs"], capture_output=True, text=True, check=False, env=env
     ).stdout
-    first = out.splitlines()[0] if out else ""
-    return Path(first.split('"')[1]) if first.count('"') >= 2 else None
+    return tessdata_from_list_langs(out, binary)
+
+
+def tessdata_from_list_langs(output: str, binary: Path) -> Path | None:
+    """The data folder from `tesseract --list-langs`.
+
+    Tesseract 5 names it on the first line; Tesseract 4 (e.g. Ubuntu 22.04) does not, so then
+    the usual folders beside the program (…/share/tesseract-ocr/*/tessdata, …/share/tessdata)
+    are tried.
+    """
+    first = output.splitlines()[0] if output else ""
+    if first.count('"') >= 2:
+        return Path(first.split('"')[1])
+    share = Path(binary).resolve().parent.parent / "share"
+    candidates = [*sorted(share.glob("tesseract-ocr/*/tessdata"), reverse=True),
+                  share / "tessdata"]
+    return next((c for c in candidates if (c / "configs" / "hocr").is_file()), None)
 
 
 def prepare_tessdata(folder: Path) -> None:

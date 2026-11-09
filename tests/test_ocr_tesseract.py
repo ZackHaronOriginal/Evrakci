@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from conftest import needs_tesseract
 from fakes import render_line
@@ -198,3 +200,26 @@ def test_bundled_hash_cached(tmp_path, monkeypatch):
     tesseract._file_matches(path, "x")
     tesseract._file_matches(path, "x")
     assert len(calls) == 1
+
+
+def test_tessdata_folder_from_tesseract_5_output(tmp_path):
+    from evrakci.pipeline.ocr.tesseract import tessdata_from_list_langs
+
+    output = 'List of available languages in "/usr/share/tesseract-ocr/5/tessdata/" (3):\neng\n'
+    assert tessdata_from_list_langs(output, tmp_path / "tesseract") == Path(
+        "/usr/share/tesseract-ocr/5/tessdata/")
+
+
+def test_tessdata_folder_when_tesseract_4_does_not_print_it(tmp_path):
+    # Tesseract 4 (Ubuntu 22.04) prints no folder; look next to the program instead.
+    from evrakci.pipeline.ocr.tesseract import tessdata_from_list_langs
+
+    binary = tmp_path / "usr" / "bin" / "tesseract"
+    binary.parent.mkdir(parents=True)
+    binary.write_text("")
+    data = tmp_path / "usr" / "share" / "tesseract-ocr" / "4.00" / "tessdata"
+    (data / "configs").mkdir(parents=True)
+    (data / "configs" / "hocr").write_text("")
+    output = "List of available languages (2):\neng\nosd\n"
+    assert tessdata_from_list_langs(output, binary) == data
+    assert tessdata_from_list_langs(output, tmp_path / "baska" / "tesseract") is None

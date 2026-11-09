@@ -127,7 +127,8 @@ jobs:
         run: |
           if (-not (Test-Path build\evrakci\lib\PySide6\plugins\platforms\qwindows.dll)) { throw "qwindows.dll eksik" }
           if (-not (Test-Path build\evrakci\docs\tarama-rehberi.md)) { throw "tarama-rehberi.md eksik" }
-          $stray = Get-ChildItem build\evrakci\lib -Recurse -Include "libtesseract*", "libleptonica*", "*jbig*"
+          # DLLs only: JBIG2 Python modules (pikepdf, pdfminer) are a different, permissive format.
+          $stray = Get-ChildItem build\evrakci\lib -Recurse -Include "*tesseract*.dll", "*leptonica*.dll", "*jbig*.dll"
           if ($stray) { throw "lib içinde Tesseract kütüphanesi: $stray" }
 
       - name: Start the real window (no offscreen) and let it close itself

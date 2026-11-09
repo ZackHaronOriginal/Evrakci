@@ -27,6 +27,7 @@ def fake_configs(folder: Path) -> Path:
     (folder / "configs" / "hocr").write_text("tessedit_create_hocr 1\n")
     (folder / "tessconfigs").mkdir()
     (folder / "tessconfigs" / "nobatch").write_text("\n")
+    (folder / "eng.traineddata").write_bytes(b"eng")
     return folder
 
 
@@ -68,6 +69,8 @@ def test_staging_copies_configs_into_tur_best(tmp_path, monkeypatch):
     assert (stage / "tessdata_best" / "configs" / "hocr").is_file()
     assert (stage / "tessdata_best" / "tessconfigs" / "nobatch").is_file()
     assert (stage / "tessdata_best" / "tur.traineddata").read_bytes() == b"sahte veri"
+    # Tesseract 4 needs eng beside tur to list languages.
+    assert (stage / "tessdata_best" / "eng.traineddata").read_bytes() == b"eng"
 
 
 def test_linux_licence_texts_ship_only_on_linux(tmp_path, monkeypatch):

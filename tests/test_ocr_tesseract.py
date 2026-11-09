@@ -223,3 +223,55 @@ def test_tessdata_folder_when_tesseract_4_does_not_print_it(tmp_path):
     output = "List of available languages (2):\neng\nosd\n"
     assert tessdata_from_list_langs(output, binary) == data
     assert tessdata_from_list_langs(output, tmp_path / "baska" / "tesseract") is None
+
+
+def fake_system_tessdata(folder: Path) -> Path:
+    (folder / "configs").mkdir(parents=True)
+    (folder / "configs" / "hocr").write_text("")
+    (folder / "eng.traineddata").write_bytes(b"eng")
+    return folder
+
+
+def test_prepare_tessdata_adds_english_for_tesseract_4(tmp_path, monkeypatch):
+    # Tesseract 4 lists no language unless eng.traineddata sits beside tur.traineddata.
+    from evrakci.pipeline.ocr import tesseract
+
+    source = fake_system_tessdata(tmp_path / "sistem")
+    monkeypatch.setattr(tesseract, "system_tessdata", lambda: source)
+    folder = tmp_path / "veri"
+    (folder / "configs").mkdir(parents=True)
+    (folder / "configs" / "hocr").write_text("")  # configs already there
+    tesseract.prepare_tessdata(folder)
+    assert (folder / "eng.traineddata").read_bytes() == b"eng"
+
+
+def test_prepare_tessdata_read_only_folder_with_configs_is_fine(tmp_path, monkeypatch):
+    from evrakci.pipeline.ocr import tesseract
+
+    source = fake_system_tessdata(tmp_path / "sistem")
+    monkeypatch.setattr(tesseract, "system_tessdata", lambda: source)
+    folder = tmp_path / "paket"
+    (folder / "configs").mkdir(parents=True)
+    (folder / "configs" / "hocr").write_text("")
+
+    def read_only(*args, **kwargs):
+        raise PermissionError("salt okunur")
+
+    monkeypatch.setattr(tesseract.shutil, "copy2", read_only)
+    tesseract.prepare_tessdata(folder)  # no error: the bundle ships its own eng
+
+
+def test_prepare_tessdata_looks_for_english_once(tmp_path, monkeypatch):
+    from evrakci.pipeline.ocr import tesseract
+
+    calls = []
+    source = tmp_path / "sistem"
+    (source / "configs").mkdir(parents=True)  # a system folder without eng
+    (source / "configs" / "hocr").write_text("")
+    monkeypatch.setattr(tesseract, "system_tessdata", lambda: calls.append(1) or source)
+    folder = tmp_path / "paket"
+    (folder / "configs").mkdir(parents=True)
+    (folder / "configs" / "hocr").write_text("")
+    for _ in range(3):
+        tesseract.prepare_tessdata(folder)
+    assert len(calls) == 1

@@ -88,6 +88,9 @@ def stage_inputs(
         for name in ("configs", "tessconfigs"):
             if source is not None and (source / name).is_dir():
                 shutil.copytree(source / name, best / name)
+        # Tesseract 4 (Ubuntu 22.04) lists no language unless eng sits beside tur.
+        if source is not None and (source / "eng.traineddata").is_file():
+            shutil.copy2(source / "eng.traineddata", best / "eng.traineddata")
 
 
 def main() -> int:

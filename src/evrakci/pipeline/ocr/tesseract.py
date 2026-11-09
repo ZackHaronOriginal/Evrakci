@@ -204,18 +204,32 @@ def tessdata_from_list_langs(output: str, binary: Path) -> Path | None:
     return next((c for c in candidates if (c / "configs" / "hocr").is_file()), None)
 
 
+_ENGLISH_TRIED: set[Path] = set()  # folders where adding eng.traineddata was tried
+
+
 def prepare_tessdata(folder: Path) -> None:
     """Copy Tesseract's small output config folders into a separate data folder.
 
     Tesseract looks for its `hocr`, `txt` and `tsv` configs next to the language data.
+    Tesseract 4 also lists no language at all unless eng.traineddata is there, so the system's
+    copy is added too (best effort: a read-only bundle ships its own).
     """
-    if (folder / "configs" / "hocr").is_file():
+    has_configs = (folder / "configs" / "hocr").is_file()
+    if has_configs and ((folder / "eng.traineddata").is_file() or folder in _ENGLISH_TRIED):
         return
+    _ENGLISH_TRIED.add(folder)
     source = system_tessdata()
     if source is not None:
-        for name in ("configs", "tessconfigs"):
-            if (source / name).is_dir() and not (folder / name).is_dir():
-                shutil.copytree(source / name, folder / name)
+        if not has_configs:
+            for name in ("configs", "tessconfigs"):
+                if (source / name).is_dir() and not (folder / name).is_dir():
+                    shutil.copytree(source / name, folder / name)
+        english = source / "eng.traineddata"
+        if english.is_file() and not (folder / "eng.traineddata").exists():
+            try:
+                shutil.copy2(english, folder / "eng.traineddata")
+            except OSError:
+                pass
     if not (folder / "configs" / "hocr").is_file():
         raise EngineUnavailable(f"Tesseract ayar dosyaları bulunamadı (configs): {folder}")
 

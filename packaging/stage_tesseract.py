@@ -15,6 +15,10 @@ import shutil
 import sys
 from pathlib import Path
 
+# The Windows console code page (cp1252) cannot print Turkish letters: always write UTF-8.
+for _stream in (sys.stdout, sys.stderr):
+    _stream.reconfigure(encoding="utf-8", errors="replace")
+
 # vcpkg port -> licence (SPDX). Anything else in the build stops it.
 ALLOWED_PORTS = {
     "tesseract": "Apache-2.0",

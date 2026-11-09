@@ -1,5 +1,6 @@
 """Plan 6 second fresh review (2026-11-09): every finding that can be tested here, red first."""
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -338,3 +339,19 @@ def test_packages_never_needed_are_excluded_from_the_freeze():
     text = (ROOT / "packaging" / "freeze_setup.py").read_text(encoding="utf-8")
     for name in ("numpy", "requests", "yaml", "dotenv", "dateutil", "certifi", "urllib3"):
         assert f'"{name}"' in text, name
+
+
+def test_scripts_print_turkish_on_a_non_utf8_console(tmp_path):
+    # stdout is strict on a cp1252 console (stderr only escapes); both lines are Turkish.
+    import subprocess
+
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252:strict", "PYTHONUTF8": "0"}
+    build = tmp_path / "derleme"
+    for name in ("evrakci", "evrakci-arayuz"):
+        touch(build / name)
+    for script, args in (("build.py", ["--kontrol"]),
+                         ("linux_package.py", ["--build", str(build), "--cikti",
+                                               str(tmp_path / "çıktı"), "--surum", "1"])):
+        result = subprocess.run([sys.executable, str(ROOT / "packaging" / script), *args],
+                                capture_output=True, env=env, cwd=tmp_path)
+        assert result.returncode == 0, result.stderr[-600:]

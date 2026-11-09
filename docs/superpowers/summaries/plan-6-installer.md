@@ -15,4 +15,6 @@
   what is really in `lib\`; CI pins actions, installs from a hashed lock, runs the real
   window and a silent install/upgrade/uninstall. Left for the owner: code signing (needs a
   certificate) and Inno Setup's own checksum (pinned through Chocolatey's package).
-- **Last build:** run 42448379964, green, artifact `Evrakci-Kurulum`. Tests: 352.
+- **Last build:** run 42561985121 (commit `f1b4a2b`), green: vcpkg Tesseract, tests, freeze, real
+  window, smoke tests, installer, silent install/upgrade/uninstall. Artifact `Evrakci-Kurulum`.
+  Linux build run 42561985529 green. Tests: 525.

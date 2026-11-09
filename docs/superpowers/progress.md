@@ -1,6 +1,6 @@
 # Progress: Plans 1–7
 
-Last checked 2026-11-09: **523 tests pass**, `ruff check .` is clean.
+Last checked 2026-11-09: **525 tests pass**, `ruff check .` is clean.
 
 | Plan | State | Review fixes (commit) |
 |---|---|---|
@@ -10,7 +10,7 @@ Last checked 2026-11-09: **523 tests pass**, `ruff check .` is clean.
 | 3 Templates | done | "fix: address template review findings" |
 | 4 Review and export | done | "fix: address review and export review findings" |
 | 5 Window | done; Kartotek look approved 2026-11-07 | "fix: address the window review findings" |
-| 6 Windows installer | done; GitHub Actions build is green | "fix: address Windows installer review findings" |
+| 6 Windows installer | done; Tesseract built from source by vcpkg; Windows run 42561985121 green | "fix: address Windows installer review findings" |
 | 2–4, 6 second review | done 2026-11-09; four fresh whole-plan reviews, every finding fixed | `1b7d1e1`, `3636dae`, `edaac39`, `df04532` |
 | 7 Linux build | done; GitHub Actions build and clean Debian 12 / Ubuntu 24.04 installs are green (run 42552347140) | "fix: address the Linux build review findings" |
 

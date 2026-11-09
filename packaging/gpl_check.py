@@ -1,0 +1,48 @@
+"""Find and remove GPL-only parts that must not ship (docs/dependency-licenses.md).
+
+GNU Readline and GDBM are GPL-3.0; their Python modules are excluded at freeze time, and a build
+that still holds them is refused. Qt Virtual Keyboard and Qt Wayland Compositor are GPL-3.0 (not
+LGPL); PySide6 brings them along, so they are deleted from the build. The app needs neither.
+"""
+
+from __future__ import annotations
+
+import shutil
+from pathlib import Path
+
+GPL_LIBRARIES = ("libreadline", "libgdbm")
+GPL_QT = (
+    "qt6virtualkeyboard",
+    "qtvirtualkeyboardplugin",
+    "qt6waylandcompositor",
+    "qt6waylandeglcompositor",
+)
+GPL_QT_FOLDERS = ("wayland-graphics-integration-server",)
+
+
+def _is_gpl_qt(path: Path) -> bool:
+    name = path.name.lower()
+    return any(part in name for part in GPL_QT) or any(f in path.parts for f in GPL_QT_FOLDERS)
+
+
+def forbidden_libraries(build_dir: Path) -> list[Path]:
+    """Every file in a build that must not ship."""
+    return sorted(
+        p for p in Path(build_dir).rglob("*")
+        if p.is_file() and (p.name.startswith(GPL_LIBRARIES) or _is_gpl_qt(p))
+    )
+
+
+def remove_gpl_qt(build_dir: Path) -> list[Path]:
+    """Delete the GPL-only Qt parts from a build; returns what was removed."""
+    build_dir = Path(build_dir)
+    removed = []
+    for folder in sorted(p for p in build_dir.rglob("*")
+                         if p.is_dir() and p.name in GPL_QT_FOLDERS):
+        removed.extend(p for p in folder.rglob("*") if p.is_file())
+        shutil.rmtree(folder)
+    for path in forbidden_libraries(build_dir):
+        if _is_gpl_qt(path):
+            path.unlink()
+            removed.append(path)
+    return removed

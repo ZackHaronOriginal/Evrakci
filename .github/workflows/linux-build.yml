@@ -8,6 +8,7 @@ on:
     paths:
       - "packaging/**"
       - "src/**"
+      - "tests/**"
       - "pyproject.toml"
       - "docs/tarama-rehberi.md"
       - ".github/workflows/linux-build.yml"
@@ -15,6 +16,7 @@ on:
     paths:
       - "packaging/**"
       - "src/**"
+      - "tests/**"
       - "pyproject.toml"
       - "docs/tarama-rehberi.md"
       - ".github/workflows/linux-build.yml"
@@ -27,6 +29,7 @@ jobs:
     # The oldest supported Ubuntu: the build runs on its glibc (2.35) and newer
     # (Ubuntu 22.04+, Debian 12, Pardus 23).
     runs-on: ubuntu-22.04
+    timeout-minutes: 60
     env:
       QT_QPA_PLATFORM: offscreen
       LANG: C.UTF-8
@@ -56,39 +59,97 @@ jobs:
           echo "e0c3338dc17503dc7d335a507c9ae01b2b46cfd07561171e1e1ac55d85e8e438  tur.traineddata" \
             | sha256sum -c -
 
-      - name: Freeze (folder build)
+      - name: Freeze (folder build; GPL-only Qt parts removed, GPL libraries refused)
         run: |
           configs=$(python -c "from evrakci.pipeline.ocr.tesseract import system_tessdata; print(system_tessdata())")
           python packaging/build.py --tur-best tur.traineddata --tessdata-configs "$configs"
 
-      - name: Package
-        run: python packaging/linux_package.py --cikti dist
+      - name: Package (reproducible, with SHA-256)
+        run: |
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)
+          python packaging/linux_package.py --cikti dist
+          cd dist && sha256sum -c ./*.sha256
 
       - name: Remove the system's Turkish data (the bundled tur_best must be used)
         run: sudo apt-get remove -y tesseract-ocr-tur
 
       - name: Start the window and let it close itself
+        timeout-minutes: 2
         run: |
           test -f build/evrakci/docs/tarama-rehberi.md
           EVRAKCI_KAPAT_MS=3000 EVRAKCI_KOK="$RUNNER_TEMP/pencere-isler" \
-            EVRAKCI_SABLON_KOK="$RUNNER_TEMP/pencere-sablonlar" build/evrakci/evrakci-arayuz
+            EVRAKCI_SABLON_KOK="$RUNNER_TEMP/pencere-sablonlar" timeout 60 build/evrakci/evrakci-arayuz
 
-      - name: Install with kur.sh into a Turkish-named home and smoke test the installed copy
+      - name: Install with kur.sh from Turkish-named folders, run the installed copy, uninstall
+        timeout-minutes: 10
         run: |
           home="$RUNNER_TEMP/Ev Şükrü"
-          mkdir -p "$home" "$RUNNER_TEMP/acilan"
-          tar -xzf dist/*.tar.gz -C "$RUNNER_TEMP/acilan"
+          kaynak="$RUNNER_TEMP/İndirilenler Ğ"
+          mkdir -p "$home" "$kaynak" "$RUNNER_TEMP/Geçici Ç"
+          export TMPDIR="$RUNNER_TEMP/Geçici Ç"
+          tar -xzf dist/*.tar.gz -C "$kaynak"
+          HOME="$home" sh "$kaynak"/evrakci-*/kur.sh
+          app="$home/.local/share/evrakci-uygulama"
           # Read-only, as after an install by an admin: the data must not need writing.
-          HOME="$home" XDG_DATA_HOME="$home/.local/share" sh "$RUNNER_TEMP"/acilan/evrakci-*/kur.sh
-          chmod -R a-w "$home/.local/share/evrakci-uygulama"
+          chmod -R a-w "$app"
           HOME="$home" python packaging/smoke_test.py --komut "$home/.local/bin/evrakci" \
             --klasor "$RUNNER_TEMP/duman Ğ"
-          chmod -R u+w "$home/.local/share/evrakci-uygulama"
-          HOME="$home" sh "$home/.local/share/evrakci-uygulama/kaldir.sh"
-          test ! -e "$home/.local/share/evrakci-uygulama"
+          HOME="$home" EVRAKCI_KAPAT_MS=3000 EVRAKCI_KOK="$RUNNER_TEMP/kurulu-isler" \
+            EVRAKCI_SABLON_KOK="$RUNNER_TEMP/kurulu-sablonlar" timeout 60 "$home/.local/bin/evrakci-arayuz"
+          HOME="$home" sh "$app/kaldir.sh"
+          test ! -e "$app"
+          test ! -L "$home/.local/bin/evrakci" && test ! -L "$home/.local/bin/evrakci-arayuz"
+          test ! -e "$home/.local/share/applications/evrakci-arayuz.desktop"
+          test ! -e "$home/.local/share/icons/hicolor/scalable/apps/evrakci.svg"
 
       - uses: actions/upload-artifact@v4
         with:
           name: Evrakci-Linux
-          path: dist/*.tar.gz
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
           if-no-files-found: error
+
+  # The tarball on clean systems with only the packages the README lists, on a real X display.
+  clean-system:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["debian:12", "ubuntu:24.04"]
+    container: ${{ matrix.image }}
+    env:
+      LANG: C.UTF-8
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Evrakci-Linux
+          path: dist
+
+      - name: Only the documented packages, plus test tools (Python for the check, Xvfb)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends tesseract-ocr libxcb-cursor0 \
+            libxcb-icccm4 libxcb-util1 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
+            libxcb-xkb1 libxkbcommon-x11-0 libegl1 libgl1
+          apt-get install -y --no-install-recommends python3 python3-venv xvfb xauth \
+            fonts-dejavu-core
+          python3 -m venv /tmp/py && /tmp/py/bin/pip install pillow pypdfium2
+
+      - name: Install, check nothing is missing, smoke test, open the window, uninstall
+        run: |
+          cd dist && sha256sum -c ./*.sha256 && cd ..
+          tar -xzf dist/*.tar.gz -C /tmp
+          # A container has only root; kur.sh refuses root unless told it is a container.
+          EVRAKCI_ROOT_KURULUMU=1 sh /tmp/evrakci-*/kur.sh | tee kurulum.log
+          if grep -q "eksik\|Tesseract bulunamadı" kurulum.log; then exit 1; fi
+          /tmp/py/bin/python packaging/smoke_test.py --komut "$HOME/.local/bin/evrakci" \
+            --klasor "/tmp/duman Ğ"
+          EVRAKCI_KAPAT_MS=3000 QT_QPA_PLATFORM=xcb timeout 60 \
+            xvfb-run -a "$HOME/.local/bin/evrakci-arayuz"
+          sh "$HOME/.local/share/evrakci-uygulama/kaldir.sh"
+          test ! -e "$HOME/.local/share/evrakci-uygulama"

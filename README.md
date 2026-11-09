@@ -81,21 +81,30 @@ when you uninstall. Licences of bundled components: `licenses\NOTICE.txt` in the
 
 ## Install (Linux)
 
-The "Linux build" workflow builds `evrakci-<sürüm>-linux-x86_64.tar.gz` (artifact
-**Evrakci-Linux**). It runs on Ubuntu 22.04 or newer, Debian 12 and Pardus 23. Tesseract comes
-from the system; the Turkish OCR data (tur_best) is bundled:
+The "Linux build" workflow builds `evrakci-<sürüm>-linux-x86_64.tar.gz` and its `.sha256`
+(artifact **Evrakci-Linux**). It is built on Ubuntu 22.04 and tested on clean Debian 12 and
+Ubuntu 24.04 systems, so it runs on Ubuntu 22.04 or newer, Debian 12 and Pardus 23. Tesseract
+comes from the system; the Turkish OCR data (tur_best) is bundled. Most desktops already have
+the window libraries; on a minimal system install them with:
 
 ```bash
-sudo apt install tesseract-ocr libxcb-cursor0
+sudo apt install tesseract-ocr libxcb-cursor0 libxcb-icccm4 libxcb-util1 libxcb-image0 \
+  libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0 libegl1 libgl1
 ```
 
 ```bash
-tar -xzf evrakci-*-linux-x86_64.tar.gz && ./evrakci-*/kur.sh
+tar -xzf evrakci-0.0.1-linux-x86_64.tar.gz
 ```
 
-`kur.sh` installs for the current user only (no root), adds Evrakçı to the applications menu
-and links `evrakci` and `evrakci-arayuz` into `~/.local/bin`. Uninstall with
-`~/.local/share/evrakci-uygulama/kaldir.sh`; jobs and templates are kept.
+```bash
+./evrakci-0.0.1/kur.sh
+```
+
+`kur.sh` installs for the current user only (never with sudo), adds Evrakçı to the applications
+menu and links `evrakci` and `evrakci-arayuz` into `~/.local/bin` (on Ubuntu, log out and in
+once if that folder was new). It warns about any missing system library and prints the exact
+uninstall command (normally `~/.local/share/evrakci-uygulama/kaldir.sh`); uninstalling keeps
+jobs and templates. Close Evrakçı before installing a new version.
 
 ## Development
 

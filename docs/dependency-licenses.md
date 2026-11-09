@@ -62,9 +62,17 @@ library, and tools run as separate programs.
 | Component | License | How it is used | OK for commercial/closed builds? |
 |---|---|---|---|
 | patchelf | GPL-3.0 | Build tool used by cx_Freeze to set library search paths | ✅ Not shipped |
-| Tesseract (system package) | Apache-2.0 | Installed by the user from the distribution; not bundled | ✅ |
-| Python runtime libraries: OpenSSL 3 (libssl, libcrypto), libffi, bzip2, xz (liblzma), mpdecimal, ncurses (libncursesw, libtinfo), libuuid | Apache-2.0, MIT, bzip2 (BSD-style), 0BSD/public domain, BSD-2-Clause, MIT-style (X11), BSD-3-Clause | Copied from the Python build into `uygulama/lib/` | ✅ |
-| GNU Readline | GPL-3.0 | **Left out**: `readline` is excluded from the freeze and `build.py` fails if `libreadline` appears in a build | — |
+| Tesseract (system package) | Apache-2.0 | Installed by the user from the distribution; only its `configs`/`tessconfigs` files are bundled in `tessdata_best/` | ✅ |
+| Python runtime libraries: OpenSSL 3 (libssl, libcrypto), libffi, bzip2, xz (liblzma), mpdecimal, libuuid | Apache-2.0, MIT, bzip2 (BSD-style), 0BSD/public domain, BSD-2-Clause, BSD-3-Clause | Copied from the Python build into `uygulama/lib/`; texts in `licenses/linux/` | ✅ Keep the copyright notices |
+| ICU (via Qt) | Unicode License | Shared libraries in `lib/PySide6/Qt/lib/` | ✅ Keep the notice (`licenses/linux/ICU.txt`) |
+| GNU Readline, GDBM | GPL-3.0 | **Left out**: their modules (`readline`, `dbm.gnu`) are excluded from the freeze; `build.py` and `linux_package.py` refuse a build that contains them | — |
+| ncurses (via `curses`) | MIT-style | **Left out**: unused, excluded from the freeze | — |
+
+## GPL-only Qt parts (both builds)
+
+PySide6 ships Qt Virtual Keyboard and Qt Wayland Compositor, which are GPL-3.0 or commercial
+(not LGPL). Evrakçı uses neither, so `packaging/build.py` deletes them after freezing
+(`packaging/gpl_check.py`) and refuses the build if any remains, on Windows and Linux.
 
 ## Avoid
 

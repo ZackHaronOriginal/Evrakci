@@ -36,10 +36,26 @@ Tesseract's own libraries         leptonica: BSD-2-Clause;        tesseract\doc\
                                   licences, incl. LGPL-2.1        these DLLs are LGPL-2.1 (LGPL-2.1.txt). Each is a
                                   (LGPL-2.1.txt)                  separate, replaceable file.
 
-Linux build: Tesseract is not bundled (it comes from the system package). The Python
-runtime's own libraries in lib/ are OpenSSL 3 (Apache-2.0), libffi (MIT), bzip2 (bzip2
-licence), xz/liblzma (0BSD), mpdecimal (BSD-2-Clause), ncurses (MIT-style) and libuuid
-(BSD-3-Clause). GNU Readline is deliberately left out.
+Linux build
+-----------
+Paths above are written the Windows way; on Linux the same files are under lib/ and
+licenses/ with forward slashes. The Tesseract program is not bundled on Linux (it comes from
+the system package, Apache-2.0); its small output config files (configs/, tessconfigs/,
+Apache-2.0) are bundled in tessdata_best/. The rows for tesseract.exe and its DLLs apply to
+Windows only.
+
+Libraries of the Python runtime, in lib/ (licence and copyright texts in licenses/linux/):
+  OpenSSL 3 (libssl, libcrypto)   Apache-2.0 (Apache-2.0.txt)
+  libffi                          MIT (libffi.txt)
+  bzip2 (libbz2)                  bzip2 licence, BSD-style (bzip2.txt)
+  xz (liblzma)                    0BSD / public domain (xz.txt; its GPL parts are the xz tools,
+                                  which are not included)
+  mpdecimal (libmpdec)            BSD-2-Clause (mpdecimal.txt)
+  libuuid (util-linux)            BSD-3-Clause (libuuid.txt; only libuuid is included)
+ICU (libicu*, in lib/PySide6/Qt/lib/), used by Qt: Unicode licence (ICU.txt)
+
+Left out on purpose (GPL-only): GNU Readline, GDBM, Qt Virtual Keyboard and Qt Wayland
+Compositor. Both builds remove those Qt parts, and the build fails if any of them remains.
 
 Exact versions of every bundled Python package and their licence files:
   licenses\VERSIONS.txt and licenses\python\<package>\

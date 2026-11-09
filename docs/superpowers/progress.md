@@ -11,7 +11,7 @@ Last checked 2026-11-09: **362 tests pass**, `ruff check .` is clean.
 | 4 Review and export | done | "fix: address review and export review findings" |
 | 5 Window | done; Kartotek look approved 2026-11-07 | "fix: address the window review findings" |
 | 6 Windows installer | done; GitHub Actions build is green | "fix: address Windows installer review findings" |
-| 7 Linux build | done; owner's request 2026-11-09 | see `docs/superpowers/plans/2026-11-09-plan-7-linux.md` |
+| 7 Linux build | built and reviewed; owner's request 2026-11-09 | "fix: address the Linux build review findings" |
 
 ## What works (CLI)
 

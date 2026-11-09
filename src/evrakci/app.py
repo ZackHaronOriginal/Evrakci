@@ -38,12 +38,18 @@ def build_window(
     return window
 
 
+def configure_application(app: QApplication) -> None:
+    app.setApplicationName("Evrakçı")
+    # Matches the Linux menu entry (evrakci-arayuz.desktop), so the dock shows its icon.
+    app.setDesktopFileName("evrakci-arayuz")
+
+
 def main() -> int:
     from multiprocessing import freeze_support
 
     freeze_support()  # OCRmyPDF's worker processes in the frozen Windows app
     app = QApplication(sys.argv)
-    app.setApplicationName("Evrakçı")
+    configure_application(app)
     window = build_window()
     window.show()
     close_after = os.environ.get("EVRAKCI_KAPAT_MS")  # smoke tests: start, then close itself

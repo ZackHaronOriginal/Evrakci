@@ -1,15 +1,28 @@
 #!/bin/sh
-# Evrakçı'yı kaldırır: program klasörü, komut bağlantıları ve menü kaydı.
+# Evrakçı'yı kaldırır: program klasörü, komut bağlantıları, menü kaydı ve simge.
 # İşleriniz, şablonlarınız ve ayarlarınız silinmez.
+# kur.sh'nin kopyaladığı yerden çalıştırın (yolu kur.sh yazar).
 set -eu
 
-if [ -z "${HOME:-}" ] || [ "$HOME" = "/" ]; then
-    echo "Ev klasörü (HOME) belirsiz; hiçbir şey silinmedi." >&2
+hata() {
+    echo "$1" >&2
     exit 1
+}
+
+burasi=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)
+yollar="$burasi/kurulum-yollari.txt"
+if [ ! -f "$burasi/evrakci-arayuz" ] || [ ! -f "$yollar" ]; then
+    hata "Bu klasör bir Evrakçı kurulumu değil: $burasi (kaldir.sh'yi kurulum klasöründen çalıştırın)"
 fi
-veri="${XDG_DATA_HOME:-$HOME/.local/share}"
-hedef="$veri/evrakci-uygulama"
-bin="$HOME/.local/bin"
+{
+    read -r hedef
+    read -r bin
+    read -r menu
+    read -r simge
+} < "$yollar"
+if [ "$(CDPATH='' cd -- "$hedef" 2>/dev/null && pwd -P)" != "$burasi" ]; then
+    hata "Kurulum kaydı bu klasörle uyuşmuyor: $yollar"
+fi
 
 for ad in evrakci evrakci-arayuz; do
     # Yalnızca bu kurulumun bağlantısı silinir.
@@ -17,6 +30,7 @@ for ad in evrakci evrakci-arayuz; do
         rm -f "$bin/$ad"
     fi
 done
-rm -f "$veri/applications/evrakci.desktop"
-echo "Evrakçı kaldırıldı. İşleriniz ve şablonlarınız silinmedi."
+rm -f "$menu/evrakci-arayuz.desktop" "$simge/evrakci.svg"
+chmod -R u+w "$hedef" 2>/dev/null || true
 rm -rf "$hedef"
+echo "Evrakçı kaldırıldı. İşleriniz ve şablonlarınız silinmedi."

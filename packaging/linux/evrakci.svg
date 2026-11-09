@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Evrakçı</title>
+  <!-- Kartotek: a green-grey cabinet card with a manila guide tab and the red index rule -->
+  <rect x="4" y="10" width="56" height="48" rx="6" fill="#3f5a4c"/>
+  <path d="M14 18h14l3-6h14l3 6h2a2 2 0 0 1 2 2v30a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V20a2 2 0 0 1 2-2z"
+        fill="#e9d9a6" stroke="#b9a66a" stroke-width="1.5"/>
+  <rect x="17" y="27" width="30" height="2.5" fill="#c8372d"/>
+  <rect x="17" y="34" width="24" height="2" fill="#2b2410" opacity=".55"/>
+  <rect x="17" y="40" width="27" height="2" fill="#2b2410" opacity=".55"/>
+  <rect x="17" y="46" width="18" height="2" fill="#2b2410" opacity=".55"/>
+  <rect x="44" y="12" width="7" height="9" rx="1" fill="#e8731a"/>
+</svg>

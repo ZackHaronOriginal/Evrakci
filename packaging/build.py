@@ -24,6 +24,8 @@ ROOT = HERE.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(HERE))
 
+from gpl_check import forbidden_libraries, remove_gpl_qt  # noqa: E402
+
 from evrakci.pipeline.ocr.tesseract import TESSDATA_VARIANTS  # noqa: E402
 
 STAGE = HERE / "stage"
@@ -39,16 +41,6 @@ BUNDLED = [
     "platformdirs",
     "PySide6",
 ]  # cx_Freeze is a build tool; only its small runtime stubs ship (see NOTICE.txt)
-
-
-# GNU Readline is GPL-3.0; only permissive libraries may ship (docs/dependency-licenses.md).
-GPL_LIBRARIES = ("libreadline",)
-
-
-def forbidden_libraries(build_dir: Path) -> list[Path]:
-    """Shared libraries in a build that must not ship."""
-    return sorted(p for p in Path(build_dir).rglob("*")
-                  if p.is_file() and p.name.startswith(GPL_LIBRARIES))
 
 
 def fail(message: str) -> None:
@@ -71,13 +63,17 @@ def stage_inputs(
         (tesseract / name).is_file() for name in ("tesseract.exe", "tesseract")
     ):
         fail(f"Tesseract bulunamadı: {tesseract}")
+    if configs is not None and tur_best is None:
+        fail("--tessdata-configs yalnızca --tur-best ile birlikte kullanılır")
     if configs is not None and not (configs / "configs" / "hocr").is_file():
         fail(f"Tesseract ayar dosyaları bulunamadı (configs/hocr): {configs}")
     if check_only:
         return
     shutil.rmtree(stage, ignore_errors=True)
     stage.mkdir(parents=True)
-    shutil.copytree(HERE / "licenses", stage / "licenses")
+    # Licence texts of the Python runtime's own libraries ship only in the Linux build.
+    ignore = None if sys.platform.startswith("linux") else shutil.ignore_patterns("linux")
+    shutil.copytree(HERE / "licenses", stage / "licenses", ignore=ignore)
     from collect_licenses import collect
 
     collect(stage / "licenses", BUNDLED)
@@ -116,6 +112,8 @@ def main() -> int:
         check=True,
         cwd=ROOT,
     )
+    for path in remove_gpl_qt(ROOT / "build" / "evrakci"):
+        print(f"GPL bileşeni çıkarıldı: {path.name}")
     found = forbidden_libraries(ROOT / "build" / "evrakci")
     if found:
         fail("Derlemede GPL kütüphanesi var: " + ", ".join(str(p) for p in found))

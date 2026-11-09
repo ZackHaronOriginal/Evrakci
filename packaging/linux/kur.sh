@@ -4,60 +4,116 @@
 # İşler ve şablonlar ayrı bir klasörde durur; kurulum onlara dokunmaz.
 set -eu
 
-if [ -z "${HOME:-}" ] || [ "$HOME" = "/" ]; then
-    echo "Ev klasörü (HOME) belirsiz; kurulum yapılmadı." >&2
+hata() {
+    echo "$1" >&2
     exit 1
+}
+
+# EVRAKCI_ROOT_KURULUMU=1: yalnızca root'tan başka kullanıcısı olmayan kaplar (container) için.
+if [ "$(id -u)" = 0 ] && [ "${EVRAKCI_ROOT_KURULUMU:-}" != 1 ]; then
+    hata "kur.sh yönetici (root/sudo) olarak çalıştırılmaz; kendi kullanıcınızla çalıştırın: ./kur.sh"
 fi
-kaynak=$(cd "$(dirname "$0")" && pwd)
-veri="${XDG_DATA_HOME:-$HOME/.local/share}"
+if [ -z "${HOME:-}" ] || [ "$HOME" = "/" ]; then
+    hata "Ev klasörü (HOME) belirsiz; kurulum yapılmadı."
+fi
+kaynak=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)
+veri="${XDG_DATA_HOME:-}"
+case "$veri" in
+    /*) ;;
+    *) veri="$HOME/.local/share" ;;  # XDG: göreli bir yol yok sayılır
+esac
 hedef="$veri/evrakci-uygulama"
 bin="$HOME/.local/bin"
 menu="$veri/applications"
+simge="$veri/icons/hicolor/scalable/apps"
 
 if [ ! -x "$kaynak/uygulama/evrakci-arayuz" ] || [ ! -x "$kaynak/uygulama/evrakci" ]; then
-    echo "Uygulama dosyaları eksik: $kaynak/uygulama" >&2
-    exit 1
+    hata "Uygulama dosyaları eksik: $kaynak/uygulama"
 fi
 
-mkdir -p "$veri" "$bin" "$menu"
+sil() {
+    chmod -R u+w "$1" 2>/dev/null || true
+    rm -rf "$1"
+}
+
+mkdir -p "$veri" "$bin"
+# Yarım kalmış önceki kurulumların artıkları.
+for artik in "$hedef".yeni.* "$hedef".eski.*; do
+    if [ -e "$artik" ]; then sil "$artik"; fi
+done
 # Yeni kopya önce yanına yazılır; yarım kalan bir kopya hiç kullanılmaz.
 gecici="$hedef.yeni.$$"
-rm -rf "$gecici"
+trap 'sil "$gecici"' EXIT
 cp -R "$kaynak/uygulama" "$gecici"
 cp "$kaynak/kaldir.sh" "$gecici/kaldir.sh"
 chmod +x "$gecici/kaldir.sh"
-rm -rf "$hedef"
+# kaldir.sh, ortam sonradan değişse de tam olarak bu kurulumu kaldırır.
+printf '%s\n%s\n%s\n%s\n' "$hedef" "$bin" "$menu" "$simge" > "$gecici/kurulum-yollari.txt"
+if [ -e "$hedef" ]; then
+    mv "$hedef" "$hedef.eski.$$"
+fi
 mv "$gecici" "$hedef"
+trap - EXIT
+if [ -e "$hedef.eski.$$" ]; then sil "$hedef.eski.$$"; fi
 
 for ad in evrakci evrakci-arayuz; do
-    if [ -e "$bin/$ad" ] && [ ! -L "$bin/$ad" ]; then
-        echo "Not: $bin/$ad başka bir programa ait; değiştirilmedi."
+    yol="$bin/$ad"
+    if [ -L "$yol" ]; then
+        # Yalnızca bu kurulumun bağlantısı ya da hiçbir yere gitmeyen bir bağlantı değiştirilir.
+        if [ "$(readlink "$yol")" = "$hedef/$ad" ] || [ ! -e "$yol" ]; then
+            ln -sfn "$hedef/$ad" "$yol"
+        else
+            echo "Not: $yol başka bir programa ait; değiştirilmedi."
+        fi
+    elif [ -e "$yol" ]; then
+        echo "Not: $yol başka bir programa ait; değiştirilmedi."
     else
-        ln -sf "$hedef/$ad" "$bin/$ad"
+        ln -s "$hedef/$ad" "$yol"
     fi
 done
 
-cat > "$menu/evrakci.desktop" <<MENU
+# Menü kaydı: Exec satırı bu karakterleri taşıyamaz, o zaman kayıt eklenmez.
+case "$hedef" in
+    *'"'* | *'`'* | *'$'* | *'\'* | *'%'*)
+        echo "Not: kurulum yolunda \" \` \$ \\ ya da % var; menü kaydı eklenmedi."
+        echo "Başlatmak için: $hedef/evrakci-arayuz"
+        ;;
+    *)
+        mkdir -p "$menu" "$simge"
+        cp "$kaynak/evrakci.svg" "$simge/evrakci.svg"
+        cat > "$menu/evrakci-arayuz.desktop" <<MENU
 [Desktop Entry]
 Type=Application
 Name=Evrakçı
 Comment=Taranan evrakı belgelere ayırır, adlandırır ve dışa aktarır
 Exec="$hedef/evrakci-arayuz"
-Icon=x-office-document
+Icon=evrakci
+StartupWMClass=evrakci-arayuz
 Terminal=false
 Categories=Office;
 MENU
+        ;;
+esac
 
 echo "Evrakçı kuruldu: $hedef"
 echo "Başlatmak için uygulama menüsünden Evrakçı'yı seçin ya da: evrakci-arayuz"
+echo "Kaldırmak için: $hedef/kaldir.sh"
 if ! command -v tesseract >/dev/null 2>&1; then
     echo "Uyarı: Tesseract bulunamadı; OCR (metin katmanı) için gerekir:"
     echo "    sudo apt install tesseract-ocr"
 fi
-if command -v ldconfig >/dev/null 2>&1 && ! ldconfig -p 2>/dev/null | grep -q libxcb-cursor; then
-    echo "Uyarı: pencere için libxcb-cursor0 gerekebilir: sudo apt install libxcb-cursor0"
+# Pencerenin (Qt) sistemden istediği kütüphaneler.
+qxcb="$hedef/lib/PySide6/Qt/plugins/platforms/libqxcb.so"
+if [ -f "$qxcb" ] && command -v ldd >/dev/null 2>&1; then
+    eksik=$(LD_LIBRARY_PATH="$hedef/lib/PySide6/Qt/lib" ldd "$qxcb" 2>/dev/null \
+        | awk '/not found/ { print $1 }' | sort -u | tr '\n' ' ')
+    if [ -n "$eksik" ]; then
+        echo "Uyarı: pencere için eksik sistem kütüphaneleri: $eksik"
+        echo "    sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-util1 libxcb-image0" \
+            "libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0 libegl1 libgl1"
+    fi
 fi
 case ":$PATH:" in
     *":$bin:"*) ;;
-    *) echo "Not: $bin PATH içinde değil; komut satırından çalıştırmak için ekleyin." ;;
+    *) echo "Not: $bin PATH içinde değil; oturumu kapatıp açınca çoğu sistemde eklenir." ;;
 esac

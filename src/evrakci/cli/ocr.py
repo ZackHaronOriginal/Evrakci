@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import http.client
 import json
 import os
 import time
@@ -60,24 +61,49 @@ def all_engines() -> list[OcrEngine]:
     ]
 
 
-def _render_pages(path: Path) -> list:
+# The one page image kept at a time: real scans are rendered page by page, never all at once.
+_RENDERED: dict[tuple[str, int], object] = {}
+
+
+def _open_pdf(path: Path):
     if not path.is_file():
         raise UserError(f"Dosya bulunamadı: {path.name}")
     try:
-        pdf = pdfium.PdfDocument(str(path))
+        return pdfium.PdfDocument(str(path))
     except pdfium.PdfiumError:
         raise UserError(f"PDF açılamadı: {path.name}") from None
-    try:
-        images = []
-        for index in range(len(pdf)):
-            page = pdf[index]
+
+
+class _Pages:
+    """The pages of the real scans, rendered at 300 dpi only when needed."""
+
+    def __init__(self, pdfs: list[Path]) -> None:
+        self.paths = {path.name: path for path in pdfs}
+        self.counts = {}
+        for path in pdfs:
+            pdf = _open_pdf(path)
             try:
-                images.append(page.render(scale=_DPI / 72, grayscale=True).to_pil().convert("L"))
+                self.counts[path.name] = len(pdf)
             finally:
-                page.close()
-        return images
-    finally:
-        pdf.close()
+                pdf.close()
+            if not self.counts[path.name]:
+                raise UserError(f"PDF'de sayfa yok: {path.name}")
+
+    def image(self, name: str, number: int):
+        key = (name, number)
+        if key not in _RENDERED:
+            _RENDERED.clear()  # let the previous page go first
+            pdf = _open_pdf(self.paths[name])
+            try:
+                page = pdf[number - 1]
+                try:
+                    bitmap = page.render(scale=_DPI / 72, grayscale=True)
+                    _RENDERED[key] = bitmap.to_pil().convert("L")
+                finally:
+                    page.close()
+            finally:
+                pdf.close()
+        return _RENDERED[key]
 
 
 def _load_boxes(path: Path) -> list[dict]:
@@ -113,12 +139,12 @@ def _real_report(
     if duplicates:
         names_text = ", ".join(duplicates)
         raise UserError(f"Aynı adlı PDF'ler var: {names_text}. Lütfen yeniden adlandırın.")
-    pages = {path.name: _render_pages(path) for path in pdfs}
+    pages = _Pages(pdfs)
     for box in boxes:
-        images = pages.get(Path(box["pdf"]).name)
-        if images is None or int(box["sayfa"]) > len(images):
+        name = Path(box["pdf"]).name
+        if not 1 <= int(box["sayfa"]) <= pages.counts.get(name, 0):
             raise UserError(f"Kutudaki PDF veya sayfa yok: {box['pdf']} sayfa {box['sayfa']}")
-        box["_px"] = _box_pixels(box["kutu_mm"], images[int(box["sayfa"]) - 1].size)
+        box["_px"] = _box_pixels(box["kutu_mm"], pages.image(name, int(box["sayfa"])).size)
 
     usable = []
     lines = ["# OCR motor karşılaştırması: gerçek taramalar", ""]
@@ -158,8 +184,9 @@ def _real_report(
                 + " | ".join(cells)
                 + " |"
             )
-    for name, images in pages.items():
-        for number in range(1, len(images) + 1):
+    _RENDERED.clear()
+    for name, count in pages.counts.items():
+        for number in range(1, count + 1):
             lines += ["", f"## {name}, sayfa {number}", ""]
             for engine in usable:
                 lines.append(f"- **{engine.name}:** {texts[engine.name][(name, number)]}")
@@ -168,19 +195,20 @@ def _real_report(
 
 def _read_all(
     engine: OcrEngine,
-    pages: dict[str, list],
+    pages: _Pages,
     boxes: list[dict],
     texts: dict[str, dict[tuple[str, int], str]],
     readings: dict[str, list[str]],
     preprocess: bool,
 ) -> tuple[float, int]:
     """Read every page and box with one engine. Returns (seconds, pages read)."""
-    first = next(iter(pages.values()))[0]
+    first = pages.image(next(iter(pages.counts)), 1)
     engine.read_region(first.crop((0, 0, min(400, first.width), min(100, first.height))))  # warm-up
     seconds, count = 0.0, 0
     page_texts = {}
-    for name, images in pages.items():
-        for number, image in enumerate(images, start=1):
+    for name, count in pages.counts.items():
+        for number in range(1, count + 1):
+            image = pages.image(name, number)
             prepared = prepare_page(image) if preprocess else image
             started = time.perf_counter()
             words = engine.read_page(prepared)
@@ -189,7 +217,7 @@ def _read_all(
             page_texts[(name, number)] = " ".join(w.text for w in words)[:400]
     box_readings = []
     for box in boxes:
-        crop = pages[Path(box["pdf"]).name][box["sayfa"] - 1].crop(box["_px"])
+        crop = pages.image(Path(box["pdf"]).name, box["sayfa"]).crop(box["_px"])
         box_readings.append(engine.read_region(prepare_region(crop) if preprocess else crop).text)
     texts[engine.name] = page_texts
     readings[engine.name] = box_readings
@@ -227,7 +255,10 @@ def download_models(args: argparse.Namespace, store) -> int:
         try:
             path = ensure_model(official_model(version, kind, key))
             print(f"{key}: hazır ({path})")
-        except (EngineUnavailable, ImportError, KeyError) as error:
+        except ImportError:  # e.g. the installed app: RapidOCR is only for the comparison
+            print("RapidOCR kurulu değil; yalnızca motor karşılaştırması için gerekir, atlandı.")
+            break
+        except (EngineUnavailable, KeyError) as error:
             failed = True
             print(f"{key}: hata: {error}")
     for variant in ("fast", "standard", "best"):
@@ -257,9 +288,9 @@ def _download_tessdata(variant: str) -> bool:
         prepare_tessdata(folder)
         print(f"{label}: indirildi ({target})")
         return True
-    except (OSError, EngineUnavailable) as error:
+    except (OSError, EngineUnavailable, http.client.HTTPException) as error:
         partial.unlink(missing_ok=True)
-        print(f"{label}: hata: {error}")
+        print(f"{label}: hata: {error!r}" if not str(error) else f"{label}: hata: {error}")
         return False
 
 
@@ -315,6 +346,8 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.set_defaults(handler=compare)
 
     p = commands.add_parser(
-        "ocr-modelleri-indir", help="RapidOCR modellerini ve tur_best verisini indirir"
+        "ocr-modelleri-indir",
+        help="Türkçe OCR verilerini (tur_fast, tur, tur_best) ve varsa RapidOCR "
+             "modellerini indirir",
     )
     p.set_defaults(handler=download_models)

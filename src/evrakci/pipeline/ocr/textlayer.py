@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import tempfile
 import threading
 from contextlib import contextmanager
@@ -42,17 +43,18 @@ class TextLayerResult:
 def ascii_temp_dir(
     windows: bool | None = None, current: str | None = None, root: Path | None = None
 ) -> Path | None:
-    """An ASCII temp folder when the user's temp folder has non-ASCII letters (Windows only).
+    """A fresh ASCII temp folder when the user's temp folder has non-ASCII letters (Windows).
 
     OCRmyPDF passes temp file paths to Tesseract, which cannot open non-ASCII paths on Windows.
+    Each run gets its own folder that only this user can open; the caller removes it.
     """
     windows = os.name == "nt" if windows is None else windows
     current = tempfile.gettempdir() if current is None else current
     if not windows or current.isascii():
         return None
-    folder = (root or ascii_copy_root()) / "tmp"
-    folder.mkdir(parents=True, exist_ok=True)
-    return folder
+    parent = (root or ascii_copy_root()) / "tmp"
+    parent.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix="ocr-", dir=parent))
 
 
 @contextmanager
@@ -79,6 +81,8 @@ def _tessdata_prefix(folder: Path | None):
         try:
             yield
         finally:
+            if temp is not None:  # page images of scans never stay behind
+                shutil.rmtree(temp, ignore_errors=True)
             tempfile.tempdir = previous_tempdir
             for name, value in previous.items():
                 if value is None:
@@ -95,7 +99,11 @@ def _run(src: Path, dst: Path, tessdata: TessData, output_type: str, jobs: int |
             language=tessdata.language,
             output_type=output_type,
             pdfa_backend="internal",  # never Ghostscript
-            mode="skip",  # pages that already have text keep it
+            rasterizer="pypdfium",  # never Ghostscript
+            optimize=0,  # the optimizer would ask Ghostscript for its version; scans stay as is
+            # Scanners' own hidden text (often wrong on Turkish letters) is read again in
+            # Turkish; visible text in born-digital pages is kept.
+            mode="redo",
             jobs=jobs,
             progress_bar=False,
         )
@@ -112,20 +120,23 @@ def add_text_layer(
     if find_tesseract() is None:
         raise EngineUnavailable("Tesseract bulunamadı")
     tessdata = tessdata or default_tessdata()
-    if tessdata.folder is not None:
-        prepare_tessdata(tessdata.folder)
     dst.parent.mkdir(parents=True, exist_ok=True)
     try:
+        if tessdata.folder is not None:
+            prepare_tessdata(tessdata.folder)
+        reason = ""
         try:
             code = _run(src, dst, tessdata, "pdfa-2" if pdfa else "pdf", jobs)
-        except exceptions.PdfaConversionFailedError:
+        except exceptions.PdfaConversionFailedError as error:
             code = ocrmypdf.ExitCode.pdfa_conversion_failed
+            reason = " ".join(str(error).split())[:200]
         if pdfa and code == ocrmypdf.ExitCode.pdfa_conversion_failed:
             dst.unlink(missing_ok=True)
             code = _run(src, dst, tessdata, "pdf", jobs)
             if code != ocrmypdf.ExitCode.ok:
                 raise EngineUnavailable(f"Metin katmanı eklenemedi: {src.name} (kod {code})")
-            return TextLayerResult(dst, pdfa=False, note=PDFA_FALLBACK_NOTE)
+            note = f"{PDFA_FALLBACK_NOTE} ({reason})" if reason else PDFA_FALLBACK_NOTE
+            return TextLayerResult(dst, pdfa=False, note=note)
         if code != ocrmypdf.ExitCode.ok:
             raise EngineUnavailable(f"Metin katmanı eklenemedi: {src.name} (kod {code})")
     except exceptions.EncryptedPdfError as error:

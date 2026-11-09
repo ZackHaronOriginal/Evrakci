@@ -6,8 +6,11 @@ import csv
 import hashlib
 import io
 import os
+import re
 import shutil
 import subprocess
+import tempfile
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,6 +46,16 @@ TESSDATA_VARIANTS = {
 }
 TUR_BEST_SHA256 = TESSDATA_VARIANTS["best"].sha256
 TUR_BEST_URL = TESSDATA_VARIANTS["best"].url
+
+_LIST_TIMEOUT = 60  # seconds for "tesseract --list-langs"
+_READ_TIMEOUT = 300  # seconds for reading one page or box
+
+
+def no_window(windows: bool | None = None) -> dict:
+    """subprocess options that keep a console window from flashing up (Windows window app)."""
+    windows = os.name == "nt" if windows is None else windows
+    return {"creationflags": 0x08000000} if windows else {}  # CREATE_NO_WINDOW
+
 
 _WINDOWS_PATHS = [
     Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe"),
@@ -123,6 +136,33 @@ def _windows_short_path(path: Path) -> Path:
     return path
 
 
+def _tree_digest(folder: Path) -> str | None:
+    """One hash over every file in a folder (names and contents), or None if it is empty."""
+    folder = Path(folder)
+    files = sorted(p for p in folder.rglob("*") if p.is_file())
+    if not files:
+        return None
+    digest = hashlib.sha256()
+    for path in files:
+        content = _file_hash(path)
+        if content is None:
+            return None
+        digest.update(f"{path.relative_to(folder).as_posix()}\0{content}\n".encode())
+    return digest.hexdigest()
+
+
+def _prune_copies(root: Path, keep: str) -> None:
+    """Remove older data copies, and copies left half-made more than an hour ago."""
+    now = time.time()
+    for path in root.glob("tessdata-*"):
+        try:
+            stale = path.name.endswith(".tmp") and now - path.stat().st_mtime > 3600
+            if path.name != keep and (stale or not path.name.endswith(".tmp")):
+                shutil.rmtree(path, ignore_errors=True)
+        except OSError:
+            pass
+
+
 def ascii_safe_dir(
     folder: Path,
     windows: bool | None = None,
@@ -133,6 +173,7 @@ def ascii_safe_dir(
 
     Tesseract on Windows fails on data folders with non-ASCII letters (C:\\Users\\Şükrü\\...).
     Try the short 8.3 path; if that is still not ASCII, use a copy under an ASCII folder.
+    A copy is used only when every file in it matches the original.
     """
     folder = Path(folder)
     windows = os.name == "nt" if windows is None else windows
@@ -142,40 +183,72 @@ def ascii_safe_dir(
     if str(short).isascii():
         return short
     root = copy_root or ascii_copy_root()
-    # Named after the data itself, so a new download never reuses an old copy.
-    content = _file_hash(folder / "tur.traineddata")
-    digest = (content or hashlib.sha256(str(folder).encode("utf-8")).hexdigest())[:12]
-    target = root / f"tessdata-{digest}"
-    if target.is_dir():
-        if content is None or _file_hash(target / "tur.traineddata") == content:
-            return target
-        shutil.rmtree(target, ignore_errors=True)  # changed or planted: never reuse it
-    # Copy beside the target, then rename: a half-finished copy is never handed out.
+    digest = _tree_digest(folder) or hashlib.sha256(str(folder).encode("utf-8")).hexdigest()
+    name = f"tessdata-{digest[:12]}"  # named after the data itself
+    target = root / name
+    if target.is_dir() and _tree_digest(target) == digest:
+        return target
+    shutil.rmtree(target, ignore_errors=True)  # changed or planted: never reused
     root.mkdir(parents=True, exist_ok=True)
-    partial = root / f"tessdata-{digest}-{uuid.uuid4().hex[:8]}.tmp"
+    _prune_copies(root, keep=name)
+    # Copied into a fresh private folder first, so a half-made copy is never handed out.
+    partial = Path(tempfile.mkdtemp(prefix=f"{name}-", suffix=".tmp", dir=root))
     try:
-        shutil.copytree(folder, partial)
-        os.rename(partial, target)
-    except OSError:
-        if not target.is_dir():
-            raise
-    finally:
+        shutil.copytree(folder, partial, dirs_exist_ok=True)
+    except BaseException:
         shutil.rmtree(partial, ignore_errors=True)
-    return target
+        raise
+    try:
+        os.rename(partial, target)
+        return target
+    except OSError:
+        if target.is_dir() and _tree_digest(target) == digest:
+            shutil.rmtree(partial, ignore_errors=True)
+            return target  # another run made the same copy meanwhile
+        return partial  # the name is taken by something we cannot trust: use our own copy
 
 
-def ascii_copy_root() -> Path:
-    """Where ASCII-path copies go: EVRAKCI_ASCII_KOK, or a folder of this user's own.
+def _make_private_dir(path: Path) -> bool:
+    """Create a folder only this user can open (owner-only on Windows with Python 3.12.4+)."""
+    try:
+        os.mkdir(path, 0o700)
+        return True
+    except FileExistsError:
+        return False
 
-    The folder sits under ProgramData/Evrakci (an ASCII path) but is named per user, so one
-    user's scans and data are never mixed with another's on a shared office PC.
+
+def ascii_copy_root(windows: bool | None = None, short_path=None) -> Path:
+    """Where ASCII-path copies and temp folders go: EVRAKCI_ASCII_KOK, or a folder of this
+    user's own.
+
+    First the user's own local app folder, through its short 8.3 path. Only when that is not
+    ASCII, a private folder under ProgramData (an ASCII path): its random name is kept in the
+    user's own profile, so no other user can guess it or create it in advance.
     """
     configured = os.environ.get("EVRAKCI_ASCII_KOK")
     if configured:
         return Path(configured)
-    user = os.environ.get("USERNAME") or os.environ.get("USER") or "kullanici"
-    folder = "u-" + hashlib.sha256(user.casefold().encode("utf-8")).hexdigest()[:12]
-    return Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Evrakci" / folder
+    windows = os.name == "nt" if windows is None else windows
+    local_root = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    local = Path(local_root) / "Evrakci" / "ascii"
+    local.mkdir(parents=True, exist_ok=True)
+    short = (short_path or _windows_short_path)(local) if windows else local
+    if str(short).isascii():
+        return short
+    shared = Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Evrakci"
+    shared.mkdir(parents=True, exist_ok=True)
+    record = local.parent / "ascii-klasoru.txt"
+    try:
+        name = record.read_text(encoding="utf-8").strip()
+    except OSError:
+        name = ""
+    if re.fullmatch(r"u-[0-9a-f]{32}", name) and (shared / name).is_dir():
+        return shared / name
+    while True:
+        name = f"u-{uuid.uuid4().hex}"
+        if _make_private_dir(shared / name):
+            record.write_text(name, encoding="utf-8")
+            return shared / name
 
 
 def system_tessdata() -> Path | None:
@@ -183,26 +256,36 @@ def system_tessdata() -> Path | None:
     binary = find_tesseract()
     if binary is None:
         return None
-    env = {k: v for k, v in os.environ.items() if k != "TESSDATA_PREFIX"}
-    out = subprocess.run(
-        [str(binary), "--list-langs"], capture_output=True, text=True, check=False, env=env
-    ).stdout
-    return tessdata_from_list_langs(out, binary)
+    env = os.environ.copy()  # one snapshot: other threads may change os.environ meanwhile
+    prefix = env.pop("TESSDATA_PREFIX", None)
+    try:
+        out = subprocess.run(
+            [str(binary), "--list-langs"], capture_output=True, text=True, encoding="utf-8",
+            errors="replace", check=False, env=env, timeout=_LIST_TIMEOUT, **no_window(),
+        ).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return tessdata_from_list_langs(out, binary, prefix=prefix)
 
 
-def tessdata_from_list_langs(output: str, binary: Path) -> Path | None:
+def tessdata_from_list_langs(output: str, binary: Path, prefix: str | None = None) -> Path | None:
     """The data folder from `tesseract --list-langs`.
 
     Tesseract 5 names it on the first line; Tesseract 4 (e.g. Ubuntu 22.04) does not, so then
-    the usual folders beside the program (…/share/tesseract-ocr/*/tessdata, …/share/tessdata)
-    are tried.
+    TESSDATA_PREFIX and the usual folders near the program are tried.
     """
     first = output.splitlines()[0] if output else ""
     if first.count('"') >= 2:
         return Path(first.split('"')[1])
-    share = Path(binary).resolve().parent.parent / "share"
-    candidates = [*sorted(share.glob("tesseract-ocr/*/tessdata"), reverse=True),
-                  share / "tessdata"]
+    program = Path(binary).resolve().parent
+    share = program.parent / "share"
+    candidates = [Path(prefix), Path(prefix) / "tessdata"] if prefix else []
+    candidates += [
+        *sorted(share.glob("tesseract-ocr/*/tessdata"), reverse=True),
+        share / "tessdata",
+        share / "tesseract" / "tessdata",  # RHEL, Fedora
+        program / "tessdata",  # Windows builds keep it beside the program
+    ]
     return next((c for c in candidates if (c / "configs" / "hocr").is_file()), None)
 
 
@@ -247,17 +330,16 @@ def default_tessdata() -> TessData:
     if find_tesseract() is None:  # no program: the caller reports "Tesseract bulunamadı"
         return TessData("tur", None)
     best = tessdata_best_dir()
-    if verify_tur_best(best):
-        prepare_tessdata(best)
-        return TessData("tur", best)
-    return TessData("tur", None)
+    # Config files are added by the text layer itself (add_text_layer), which needs them;
+    # reading boxes does not, so a missing config never blocks it.
+    return TessData("tur", best) if verify_tur_best(best) else TessData("tur", None)
 
 
 def find_tesseract() -> Path | None:
     """EVRAKCI_TESSERACT, then the copy bundled with the app, then PATH, then usual folders."""
     configured = os.environ.get("EVRAKCI_TESSERACT")
-    if configured and Path(configured).is_file():
-        return Path(configured)
+    if configured:  # an admin's explicit choice: never silently replaced by another program
+        return Path(configured) if Path(configured).is_file() else None
     bundle = app_dir()
     if bundle is not None:
         name = "tesseract.exe" if os.name == "nt" else "tesseract"
@@ -286,6 +368,9 @@ class TesseractEngine:
         return self._reason
 
     def _check(self) -> str | None:
+        configured = os.environ.get("EVRAKCI_TESSERACT")
+        if configured and not Path(configured).is_file():
+            return f"EVRAKCI_TESSERACT ayarındaki program bulunamadı: {configured}"
         binary = find_tesseract()
         if binary is None:
             return "Tesseract programı bulunamadı"
@@ -293,9 +378,15 @@ class TesseractEngine:
             if not (self.tessdata_dir / f"{self.lang}.traineddata").is_file():
                 return f"'{self.lang}' dil verisi bulunamadı: {self.tessdata_dir}"
             return None
-        result = subprocess.run(
-            [str(binary), "--list-langs"], capture_output=True, text=True, check=False
-        )
+        try:
+            result = subprocess.run(
+                [str(binary), "--list-langs"], capture_output=True, text=True, encoding="utf-8",
+                errors="replace", check=False, timeout=_LIST_TIMEOUT, **no_window(),
+            )
+        except subprocess.TimeoutExpired:
+            return "Tesseract yanıt vermedi"
+        except OSError as error:
+            return f"Tesseract çalıştırılamadı: {error}"
         languages = result.stdout.split()
         if self.lang not in languages:
             return f"'{self.lang}' dil verisi kurulu değil"
@@ -310,13 +401,24 @@ class TesseractEngine:
         command = [str(find_tesseract()), "stdin", "stdout", "-l", self.lang, "--psm", str(psm)]
         if self.tessdata_dir is not None:
             command += ["--tessdata-dir", str(ascii_safe_dir(self.tessdata_dir))]
-        command += ["-c", "tessedit_create_tsv=1"]  # works without the "tsv" config file
-        result = subprocess.run(command, input=buffer.getvalue(), capture_output=True, check=False)
+        # Pages are rendered at 300 dpi; one thread per call is much faster on small boxes.
+        command += ["--dpi", "300", "-c", "tessedit_create_tsv=1"]  # no "tsv" config needed
+        env = {**os.environ, "OMP_THREAD_LIMIT": "1"}
+        try:
+            result = subprocess.run(
+                command, input=buffer.getvalue(), capture_output=True, check=False, env=env,
+                timeout=_READ_TIMEOUT, **no_window(),
+            )
+        except subprocess.TimeoutExpired:
+            raise EngineUnavailable("Tesseract yanıt vermedi") from None
+        except OSError as error:
+            raise EngineUnavailable(f"Tesseract çalıştırılamadı: {error}") from None
         if result.returncode != 0:
             message = result.stderr.decode("utf-8", "replace").strip().splitlines()[-1:]
             raise EngineUnavailable(f"Tesseract hata verdi: {' '.join(message)}")
         rows = csv.DictReader(
-            io.StringIO(result.stdout.decode("utf-8")), delimiter="\t", quoting=csv.QUOTE_NONE
+            io.StringIO(result.stdout.decode("utf-8", "replace")), delimiter="\t",
+            quoting=csv.QUOTE_NONE,
         )
         words = []
         for row in rows:

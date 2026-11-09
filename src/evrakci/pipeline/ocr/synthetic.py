@@ -7,12 +7,14 @@ from __future__ import annotations
 
 import io
 import math
+import os
 import random
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
+
+from evrakci.pipeline.ocr.engine import EngineUnavailable
 
 _FONT_CANDIDATES = {
     False: [
@@ -39,11 +41,27 @@ _CODAS = ["", "", "n", "r", "l", "k", "ş", "ğ", "t", "z", "m", "y"]
 Box = tuple[int, int, int, int]
 
 
+class FontNotFound(EngineUnavailable):
+    """No usable font for drawing synthetic pages (the message is Turkish)."""
+
+
+def font_candidates(serif: bool = False) -> list[str]:
+    """Known font files; Windows fonts are looked up in %WINDIR%, wherever Windows is."""
+    windows = os.environ.get("WINDIR") or os.environ.get("SystemRoot") or r"C:\Windows"
+    return [
+        c.replace("C:\\Windows", windows) if c.startswith("C:\\Windows") else c
+        for c in _FONT_CANDIDATES[serif]
+    ]
+
+
 def find_font(serif: bool = False) -> Path:
-    for candidate in _FONT_CANDIDATES[serif]:
+    for candidate in font_candidates(serif):
         if Path(candidate).is_file():
             return Path(candidate)
-    raise FileNotFoundError(f"No {'serif' if serif else 'sans'} font found on {sys.platform}")
+    kind = "tırnaklı" if serif else "tırnaksız"
+    raise FontNotFound(
+        f"Yazı tipi bulunamadı ({kind}): DejaVu, Liberation, Arial veya Times kurulu olmalı."
+    )
 
 
 @dataclass(frozen=True)

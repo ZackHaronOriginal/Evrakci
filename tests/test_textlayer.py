@@ -71,7 +71,7 @@ def test_real_pdfa_failure_falls_back(tmp_path):
         pikepdf.Page(pdf.pages[1]).contents_add(pdf.make_stream(b"BT /Yok 12 Tf (x) Tj ET"))
         pdf.save(src)
     result = add_text_layer(src, tmp_path / "o.pdf")
-    assert not result.pdfa and result.note == "PDF/A doğrulanamadı; normal PDF yazıldı"
+    assert not result.pdfa and result.note.startswith("PDF/A doğrulanamadı; normal PDF yazıldı")
     assert "Örnek" in page_text(tmp_path / "o.pdf", 0)
 
 

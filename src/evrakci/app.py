@@ -44,10 +44,32 @@ def configure_application(app: QApplication) -> None:
     app.setDesktopFileName("evrakci-arayuz")
 
 
+def hide_console_for_children(windows=None, frozen=None, kernel32=None, user32=None) -> bool:
+    """Give the window app one hidden console, so the programs OCRmyPDF starts (Tesseract)
+    use it instead of flashing a console window each time. Windows build only."""
+    windows = os.name == "nt" if windows is None else windows
+    frozen = getattr(sys, "frozen", False) if frozen is None else frozen
+    if not (windows and frozen):
+        return False
+    if kernel32 is None or user32 is None:
+        import ctypes
+
+        kernel32, user32 = ctypes.windll.kernel32, ctypes.windll.user32
+    if kernel32.GetConsoleWindow():
+        return False  # started from a console: keep it
+    if not kernel32.AllocConsole():
+        return False
+    window = kernel32.GetConsoleWindow()
+    if window:
+        user32.ShowWindow(window, 0)  # SW_HIDE
+    return True
+
+
 def main() -> int:
     from multiprocessing import freeze_support
 
     freeze_support()  # OCRmyPDF's worker processes in the frozen Windows app
+    hide_console_for_children()
     app = QApplication(sys.argv)
     configure_application(app)
     window = build_window()

@@ -37,12 +37,14 @@ def test_ascii_copies_live_in_a_folder_of_their_own_per_user(monkeypatch, tmp_pa
     from evrakci.pipeline.ocr.tesseract import ascii_copy_root
 
     monkeypatch.delenv("EVRAKCI_ASCII_KOK", raising=False)
-    monkeypatch.setenv("ProgramData", str(tmp_path))
-    monkeypatch.setenv("USERNAME", "Şükrü")
-    first = ascii_copy_root()
-    monkeypatch.setenv("USERNAME", "Ayşe")
-    assert first != ascii_copy_root()
-    assert first.parent == tmp_path / "Evrakci" and str(first).isascii()
+    monkeypatch.setenv("ProgramData", str(tmp_path / "pd"))
+    no_short_names = {"windows": True, "short_path": lambda p: p}
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "Şükrü"))
+    first = ascii_copy_root(**no_short_names)
+    assert ascii_copy_root(**no_short_names) == first  # the same user keeps their folder
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "Ayşe"))
+    assert first != ascii_copy_root(**no_short_names)
+    assert first.parent == tmp_path / "pd" / "Evrakci" and first.name.isascii()
 
 
 def test_a_tampered_ascii_copy_is_not_reused(tmp_path):

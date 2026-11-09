@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -160,7 +161,8 @@ def test_ascii_copy_is_atomic_and_follows_content(tmp_path):
     first = ascii_safe_dir(source, windows=True, short_path=lambda p: p, copy_root=root)
     assert (first / "tur.traineddata").read_bytes() == b"one"
     assert ascii_safe_dir(source, windows=True, short_path=lambda p: p, copy_root=root) == first
-    (source / "tur.traineddata").write_bytes(b"two")  # data downloaded again
+    (tmp_path / "indirilen").write_bytes(b"two")  # data downloaded again, put in place
+    os.replace(tmp_path / "indirilen", source / "tur.traineddata")
     second = ascii_safe_dir(source, windows=True, short_path=lambda p: p, copy_root=root)
     assert second != first and (second / "tur.traineddata").read_bytes() == b"two"
     assert not any(
@@ -275,3 +277,17 @@ def test_prepare_tessdata_looks_for_english_once(tmp_path, monkeypatch):
     for _ in range(3):
         tesseract.prepare_tessdata(folder)
     assert len(calls) == 1
+
+
+def test_file_hash_sees_a_replaced_file_with_the_same_size_and_time(tmp_path):
+    from evrakci.pipeline.ocr.tesseract import _file_hash
+
+    path = tmp_path / "tur.traineddata"
+    path.write_bytes(b"one")
+    first = _file_hash(path)
+    stat = path.stat()
+    new = tmp_path / "yeni"
+    new.write_bytes(b"two")  # downloaded again: same size, then put in place
+    os.replace(new, path)
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))  # coarse clocks: same time
+    assert _file_hash(path) != first

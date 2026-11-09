@@ -50,7 +50,7 @@ _WINDOWS_PATHS = [
 ]
 
 
-_HASHES: dict[tuple[str, int, int], str] = {}
+_HASHES: dict[tuple[str, int, int, int, int], str] = {}
 
 
 def _file_hash(path: Path) -> str | None:
@@ -59,7 +59,9 @@ def _file_hash(path: Path) -> str | None:
         stat = path.stat()
     except OSError:
         return None
-    key = (str(path), stat.st_size, stat.st_mtime_ns)
+    # The file id (inode) changes when a download replaces the file, even when a coarse clock
+    # gives the new file the same size and time.
+    key = (str(path), stat.st_size, stat.st_mtime_ns, stat.st_ino, stat.st_ctime_ns)
     if key not in _HASHES:
         _HASHES[key] = hashlib.sha256(path.read_bytes()).hexdigest()
     return _HASHES[key]

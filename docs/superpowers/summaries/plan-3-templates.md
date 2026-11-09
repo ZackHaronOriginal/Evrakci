@@ -10,3 +10,8 @@
 - **Decisions:** values keyed by a permanent variable key (renaming never loses values); imported
   ids are regenerated; template ids are hex only.
 - **Reviews:** `19913bd`; fresh review 2026-11-08 → `924211e` (13 new tests).
+- **Second fresh review (2026-11-09, report in the session):** 14 findings plus test gaps, all
+  fixed in `3636dae` (`tests/test_templates_review2.py`, 39 tests): the file name is the
+  template id, a failed re-read keeps corrections, values carry the template revision
+  (`is oku --sadece-eksik` re-reads changed ones), strict types in template files,
+  `is sablon-kaldir`, thin and top-left boxes, damaged pages recorded.

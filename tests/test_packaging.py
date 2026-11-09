@@ -63,7 +63,11 @@ def test_iss_has_required_settings():
     assert "Languages\\Turkish.isl" in iss
     assert "evrakci-arayuz.exe" in iss and "{autodesktop}" in iss
     lowered = iss.lower()
-    assert "userappdata" not in lowered and "localappdata" not in lowered  # job data is kept
+    assert "userappdata" not in lowered
+    # Job data lives in {localappdata}\Evrakci: only the OCR cache below it may be removed.
+    for line in lowered.splitlines():
+        if "{localappdata}" in line and not line.lstrip().startswith((";", "//")):
+            assert "evrakci\\ascii" in line, line
 
 
 def test_smoke_script_makes_and_checks_a_pdf(tmp_path):
@@ -100,43 +104,25 @@ def test_iss_removes_old_files_and_cleans_path():
     assert "[InstallDelete]" in iss
     for folder in ("lib", "tesseract", "tessdata_best", "licenses"):
         assert f'Name: "{{app}}\\{folder}"' in iss
-    assert "CurUninstallStepChanged" in iss and "HKA" in iss
-    assert "[UninstallDelete]" in iss and "{commonappdata}\\Evrakci" in iss
-
-
-def test_dll_closure():
-    sys.path.insert(0, str(ROOT / "packaging"))
-    from stage_tesseract import dll_closure
-
-    imports = {
-        "tesseract.exe": ["libtesseract-5.dll", "KERNEL32.dll"],
-        "libtesseract-5.dll": ["libleptonica-6.dll", "libstdc++-6.dll"],
-        "libleptonica-6.dll": ["libpng16-16.dll"],
-        "libpng16-16.dll": [],
-        "libstdc++-6.dll": [],
-        "libpango-1.0-0.dll": ["libglib-2.0-0.dll"],
-    }
-    found = dll_closure("tesseract.exe", lambda name: imports.get(name, []), set(imports))
-    assert found == {
-        "libtesseract-5.dll",
-        "libleptonica-6.dll",
-        "libpng16-16.dll",
-        "libstdc++-6.dll",
-    }
+    assert "CurUninstallStepChanged" in iss and "RemoveFromPath" in iss and "AddToPath" in iss
+    # Only this user's cache: the shared ProgramData folder is never deleted as a whole.
+    assert "[UninstallDelete]" in iss and "RemoveSharedCache" in iss
 
 
 def test_notice_covers_more_components():
     notice = (ROOT / "packaging" / "licenses" / "NOTICE.txt").read_text(encoding="utf-8")
-    for component in ("img2pdf", "cryptography", "cffi", "leptonica", "LGPL-2.1"):
+    for component in ("img2pdf", "cryptography", "cffi", "leptonica", "libtiff"):
         assert component in notice
-    assert (ROOT / "packaging" / "licenses" / "LGPL-2.1.txt").is_file()
+    # No LGPL-2.1 part ships any more (the old Tesseract DLLs); its text is not needed.
+    assert not (ROOT / "packaging" / "licenses" / "LGPL-2.1.txt").exists()
 
 
 def test_collect_licenses_writes_versions(tmp_path):
     sys.path.insert(0, str(ROOT / "packaging"))
-    from collect_licenses import collect
+    from collect_licenses import collect_from_build
+    from test_packaging_review2 import fake_lib
 
-    collect(tmp_path, ["pikepdf", "openpyxl"])
+    collect_from_build(fake_lib(tmp_path / "lib", "pikepdf", "openpyxl"), tmp_path)
     versions = (tmp_path / "VERSIONS.txt").read_text(encoding="utf-8")
     assert "pikepdf==" in versions and "openpyxl==" in versions
     assert any((tmp_path / "python").rglob("*"))

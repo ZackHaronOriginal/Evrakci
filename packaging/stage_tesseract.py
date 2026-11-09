@@ -1,66 +1,94 @@
-"""Copy only what Tesseract needs from a Windows Tesseract install.
+"""Stage the Tesseract that vcpkg built for Windows: the program, its configs, every licence.
 
-    python packaging/stage_tesseract.py SOURCE_DIR TARGET_DIR
-    (e.g. SOURCE_DIR = C:\\Program Files\\Tesseract-OCR)
+    python packaging/stage_tesseract.py --vcpkg INSTALLED_TRIPLET_DIR TARGET_DIR
 
-Bundles tesseract.exe and the DLLs it loads (found by walking PE imports with pefile, MIT,
-used at build time only), plus the output configs and the licence docs. Training tools,
-the uninstaller and language data are left out.
+Tesseract is built from source by vcpkg (pinned in packaging/vcpkg/vcpkg.json; vcpkg checks
+every source download against its SHA-512) as one static tesseract.exe, without curl,
+libarchive or JBIG-KIT. Every library that went into it must be on ALLOWED_PORTS with a
+permissive licence, and its licence text is copied next to it.
 """
 
 from __future__ import annotations
 
+import argparse
 import shutil
 import sys
-from collections.abc import Callable, Iterable
 from pathlib import Path
 
-
-def dll_closure(
-    start: str, imports_of: Callable[[str], Iterable[str]], available: set[str]
-) -> set[str]:
-    """Every DLL from `available` that `start` loads, directly or indirectly."""
-    by_lower = {name.lower(): name for name in available}
-    found: set[str] = set()
-    pending = [start]
-    while pending:
-        current = pending.pop()
-        for name in imports_of(current):
-            local = by_lower.get(name.lower())
-            if local and local != start and local not in found:
-                found.add(local)
-                pending.append(local)
-    return found
+# vcpkg port -> licence (SPDX). Anything else in the build stops it.
+ALLOWED_PORTS = {
+    "tesseract": "Apache-2.0",
+    "leptonica": "BSD-2-Clause",
+    "cpu-features": "Apache-2.0",
+    "giflib": "MIT",
+    "libjpeg-turbo": "IJG AND BSD-3-Clause AND Zlib",
+    "libpng": "libpng-2.0",
+    "libwebp": "BSD-3-Clause",
+    "openjpeg": "BSD-2-Clause",
+    "tiff": "libtiff",
+    "liblzma": "0BSD",
+    "zlib": "Zlib",
+}
 
 
-def _pe_imports(folder: Path) -> Callable[[str], list[str]]:
-    import pefile
-
-    def imports_of(name: str) -> list[str]:
-        pe = pefile.PE(str(folder / name), fast_load=True)
-        pe.parse_data_directories(
-            directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_IMPORT"]]
-        )
-        return [entry.dll.decode() for entry in getattr(pe, "DIRECTORY_ENTRY_IMPORT", [])]
-
-    return imports_of
+def fail(message: str) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(1)
 
 
-def stage(source: Path, target: Path) -> list[str]:
-    dlls = {p.name for p in source.glob("*.dll")}
-    needed = dll_closure("tesseract.exe", _pe_imports(source), dlls)
+def installed_ports(installed: Path) -> list[str]:
+    """Ports vcpkg installed for this triplet (build-machine helpers have another triplet)."""
+    triplet = installed.name
+    info = installed.parent / "vcpkg" / "info"
+    ports = set()
+    for record in info.glob("*.list"):
+        name, _, rest = record.stem.partition("_")
+        if rest.endswith(f"_{triplet}"):
+            ports.add(name)
+    if not ports:
+        fail(f"vcpkg kurulum kaydı bulunamadı: {info}")
+    return sorted(ports)
+
+
+def stage_vcpkg(installed: Path, target: Path) -> list[str]:
+    installed, target = Path(installed), Path(target)
+    ports = installed_ports(installed)
+    unknown = [p for p in ports if p not in ALLOWED_PORTS]
+    if unknown:
+        fail(f"İzin listesinde olmayan kütüphane: {', '.join(unknown)} (lisansını kontrol edin)")
+    missing = [p for p in ports if not (installed / "share" / p / "copyright").is_file()]
+    if missing:
+        fail(f"Lisans metni yok: {', '.join(missing)}")
+    tools = installed / "tools" / "tesseract"
+    if not (tools / "tesseract.exe").is_file():
+        fail(f"tesseract.exe bulunamadı: {tools}")
+    extra = sorted(p.name for p in tools.glob("*.dll"))
+    if extra:  # the static build must not need any DLL of its own
+        fail(f"Beklenmeyen DLL: {', '.join(extra)}")
+    configs = installed / "share" / "tessdata"
+    if not (configs / "configs" / "hocr").is_file():
+        fail(f"Tesseract ayar dosyaları bulunamadı: {configs}")
     shutil.rmtree(target, ignore_errors=True)
     (target / "tessdata").mkdir(parents=True)
-    for name in ["tesseract.exe", *sorted(needed)]:
-        shutil.copy2(source / name, target / name)
+    shutil.copy2(tools / "tesseract.exe", target / "tesseract.exe")
     for name in ("configs", "tessconfigs"):
-        if (source / "tessdata" / name).is_dir():
-            shutil.copytree(source / "tessdata" / name, target / "tessdata" / name)
-    if (source / "doc").is_dir():
-        shutil.copytree(source / "doc", target / "doc")
-    return sorted(needed)
+        if (configs / name).is_dir():
+            shutil.copytree(configs / name, target / "tessdata" / name)
+    (target / "licenses").mkdir()
+    for port in ports:
+        shutil.copy2(installed / "share" / port / "copyright", target / "licenses" / f"{port}.txt")
+    return ports
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--vcpkg", type=Path, required=True, help="vcpkg_installed/<triplet>")
+    parser.add_argument("target", type=Path)
+    args = parser.parse_args()
+    ports = stage_vcpkg(args.vcpkg, args.target)
+    print("tesseract.exe + " + ", ".join(f"{p} ({ALLOWED_PORTS[p]})" for p in ports))
+    return 0
 
 
 if __name__ == "__main__":
-    copied = stage(Path(sys.argv[1]), Path(sys.argv[2]))
-    print("tesseract.exe + " + ", ".join(copied))
+    raise SystemExit(main())

@@ -25,6 +25,7 @@ from evrakci.pipeline.ocr.tesseract import (
     TESSDATA_VARIANTS,
     TUR_BEST_URL,
     TesseractEngine,
+    default_tessdata,
     prepare_tessdata,
     tessdata_dir,
     verify_tessdata,
@@ -306,8 +307,9 @@ def ocr_file(args: argparse.Namespace, store) -> int:
     # Written beside the target and moved into place only when complete, so a failed run
     # never damages an existing output file.
     temporary = args.cikti.with_name(args.cikti.name + ".gecici")
+    tessdata = default_tessdata()
     try:
-        result = add_text_layer(args.giris, temporary, pdfa=not args.pdf)
+        result = add_text_layer(args.giris, temporary, tessdata=tessdata, pdfa=not args.pdf)
         os.replace(temporary, args.cikti)
     except EngineUnavailable as error:
         raise UserError(str(error)) from None
@@ -315,6 +317,7 @@ def ocr_file(args: argparse.Namespace, store) -> int:
         temporary.unlink(missing_ok=True)
     kind = "PDF/A-2b" if result.pdfa else f"normal PDF: {result.note}" if result.note else "PDF"
     print(f"Metin katmanı eklendi: {args.cikti.name} ({kind})")
+    print(f"OCR verisi: {'tur_best' if tessdata.folder else 'sistemdeki tur'}")
     return 0
 
 

@@ -17,20 +17,9 @@ def _norm(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
-def test_every_shipped_package_is_in_the_dependency_licence_list():
-    import build
-    from collect_licenses import _closure
-
-    doc = _norm((ROOT / "docs" / "dependency-licenses.md").read_text(encoding="utf-8"))
-    missing = [d.metadata["Name"] for d in _closure(build.BUNDLED)
-               if _norm(d.metadata["Name"]) not in doc and d.metadata["Name"] != "evrakci"]
-    assert missing == []
-
-
 def test_build_tool_cx_freeze_is_not_listed_as_shipped():
-    import build
-
-    assert "cx_Freeze" not in build.BUNDLED
+    listing = (ROOT / "packaging" / "shipped-packages.txt").read_text(encoding="utf-8")
+    assert "cx_freeze" not in listing.lower()
 
 
 def test_ascii_copies_live_in_a_folder_of_their_own_per_user(monkeypatch, tmp_path):
@@ -109,8 +98,8 @@ def test_licence_files_with_the_same_name_do_not_overwrite_each_other(tmp_path, 
         def locate_file(self, file):
             return sources / file.path
 
-    monkeypatch.setattr(collect_licenses, "_closure", lambda names: [Dist()])
-    collect_licenses.collect(tmp_path / "out", ["pkg"])
+    monkeypatch.setattr(collect_licenses, "_shipped_distributions", lambda lib, own: [Dist()])
+    collect_licenses.collect_from_build(tmp_path / "lib", tmp_path / "out")
     found = sorted(p.read_text() for p in (tmp_path / "out" / "python" / "pkg").rglob("LICENSE"))
     assert len(found) == 2
 

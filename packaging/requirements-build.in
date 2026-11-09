@@ -1,0 +1,2 @@
+# Build-only tools, added to the project and dev dependencies in requirements-build.txt.
+cx_Freeze>=8

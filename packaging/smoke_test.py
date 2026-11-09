@@ -43,6 +43,7 @@ def main() -> int:
     parser.add_argument("--komut", required=True, help="evrakci.exe, or python with --modul")
     parser.add_argument("--modul", action="store_true", help="run as python -m evrakci.cli")
     parser.add_argument("--klasor", type=Path, required=True)
+    parser.add_argument("--beklenen-veri", help="e.g. tur_best: the OCR data that must be used")
     args = parser.parse_args()
     args.klasor.mkdir(parents=True, exist_ok=True)
     scan, out = args.klasor / "tarama.pdf", args.klasor / "cikti.pdf"
@@ -57,6 +58,9 @@ def main() -> int:
         if result.returncode != 0:
             print(result.stderr, file=sys.stderr)
             return 1
+    if args.beklenen_veri and f"OCR verisi: {args.beklenen_veri}" not in result.stdout:
+        print(f"Beklenen OCR verisi kullanılmadı: {args.beklenen_veri}", file=sys.stderr)
+        return 1
     text = page_text(out)
     if TEXT not in text:
         print(f"Metin katmanı yanlış: {text!r}", file=sys.stderr)

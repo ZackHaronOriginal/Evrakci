@@ -33,7 +33,11 @@ UNUSED_QT = [
     ).split()
 ]
 
-include_files = [(str(path), path.name) for path in STAGE.iterdir()] if STAGE.is_dir() else []
+sys.path.insert(0, str(HERE))
+from layout import freeze_include_files  # noqa: E402
+
+# Tesseract is added after the freeze (layout.AFTER_FREEZE), never scanned by cx_Freeze.
+include_files = freeze_include_files(STAGE)
 # The Rehber tab shows the scanning guide.
 include_files.append((str(HERE.parent / "docs" / "tarama-rehberi.md"), "docs/tarama-rehberi.md"))
 
@@ -62,6 +66,9 @@ setup(
             "excludes": [
                 "tkinter", "readline", "curses", "_curses", "dbm.gnu", "_gdbm",
                 "pandas", "rapidocr", "onnxruntime", "cv2", *UNUSED_QT,
+                # Never needed; only ever picked up from whatever else the build machine has.
+                "numpy", "requests", "urllib3", "certifi", "idna", "yaml", "dotenv",
+                "dateutil", "defusedxml",
             ],
             "include_files": include_files,
             "include_msvcr": True,

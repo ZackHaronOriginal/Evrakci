@@ -7,9 +7,9 @@ library, and tools run as separate programs.
 
 | Dependency | License | How we use it | OK for commercial/closed builds? |
 |---|---|---|---|
-| PySide6 / Qt (with shiboken6, PySide6_Essentials, PySide6_Addons; PySide6_WebEngine and PySide6_Pdf are installed with it but their modules are left out of the build) | LGPL-3.0 | Dynamically linked Python package | ✅ If users can replace the Qt libraries. Ship a folder build, not a single static binary, and include the LGPL text plus the source location |
+| PySide6 / Qt (with shiboken6, PySide6_Essentials, PySide6_Addons; PySide6_WebEngine and PySide6_Pdf are installed with it; their modules are left out, and Qt Pdf with its image plugin is removed from the build) | LGPL-3.0 | Dynamically linked Python package | ✅ If users can replace the Qt libraries. Ship a folder build, not a single static binary, and include the LGPL text plus the source location |
 | pikepdf (with `[pdfa]`) | MPL-2.0 | Library | ✅ Changes to pikepdf's own files must be shared |
-| jsonschema, referencing, fonttools, rpds-py, attrs (via `pikepdf[pdfa]`) | MIT | Libraries | ✅ |
+| jsonschema, jsonschema-specifications, referencing, fonttools, rpds-py, attrs (via `pikepdf[pdfa]`) | MIT | Libraries | ✅ |
 | pypdfium2 / PDFium | Apache-2.0 / BSD-3 | Library | ✅ |
 | openpyxl | MIT | Library | ✅ |
 | Pillow | HPND | Library | ✅ |
@@ -52,10 +52,14 @@ library, and tools run as separate programs.
 | Component | License | How it is used | OK for commercial/closed builds? |
 |---|---|---|---|
 | cx_Freeze | PSF-2.0 | Build tool; its small runtime stubs ship in the folder build | ✅ |
-| Inno Setup | BSD-style (Inno Setup License) | Build tool for the installer | ✅ Keep its copyright notice |
-| pefile | MIT | Build tool: finds the DLLs tesseract.exe loads | ✅ Not shipped |
-| Tesseract for Windows (UB Mannheim build) | Apache-2.0 | Bundled external program in `tesseract\` | ✅ |
-| Licence texts for all bundled parts | — | `licenses\` in the install folder, listed in `NOTICE.txt` | — |
+| Inno Setup | BSD-style (Inno Setup License) | Build tool for the installer (version pinned in the workflow) | ✅ Keep its copyright notice |
+| vcpkg | MIT | Build tool: builds Tesseract from source (pinned commit; every source download is SHA-512 checked) | ✅ Not shipped |
+| Tesseract for Windows (built by vcpkg: one static `tesseract.exe`, no curl, libarchive or JBIG-KIT) | Apache-2.0 | Bundled external program in `tesseract\` | ✅ |
+| Libraries built into `tesseract.exe`: leptonica (BSD-2-Clause), cpu-features (Apache-2.0), giflib (MIT), libjpeg-turbo (IJG, BSD-3-Clause, Zlib), libpng (libpng-2.0), libwebp (BSD-3-Clause), openjpeg (BSD-2-Clause), tiff (libtiff), liblzma (0BSD), zlib (Zlib) | Permissive | Allow-list in `packaging/stage_tesseract.py`; any other library stops the build; texts in `tesseract\licenses\` | ✅ Keep the notices |
+| Python runtime (Windows) | PSF-2.0, with expat, zlib, libffi, bzip2, xz, mpdecimal, OpenSSL inside | `python3*.dll` and `lib\`; `licenses\Python-LICENSE.txt` carries all their notices | ✅ |
+| Microsoft Visual C++ runtime | Microsoft Visual C++ Redistributable terms | `vcruntime140*.dll`, `msvcp140*.dll`; terms in `share\licenses\` | ✅ Redistributable |
+| JBIG-KIT | GPL-2.0-or-later | **Left out**: the earlier Windows Tesseract build linked it through libtiff; the vcpkg build has no JBIG, and `gpl_check.py` refuses it | — |
+| Licence texts for all bundled parts | — | `licenses\` in the install folder, listed in `NOTICE.txt`; Python packages are taken from what is really in `lib\` (`collect_licenses.py`), and the build fails for a package missing here | — |
 
 ## Build tools and bundled libraries (Linux build)
 

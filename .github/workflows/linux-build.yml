@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     tags: ["v*"]
-    branches: ["main", "claude/intelligent-fermi-6e3g7l"]
+    branches: ["main", "claude/**"]
     paths:
       - "packaging/**"
       - "src/**"
@@ -34,8 +34,8 @@ jobs:
       QT_QPA_PLATFORM: offscreen
       LANG: C.UTF-8
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
@@ -44,8 +44,10 @@ jobs:
           sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libgl1
           libxcb-cursor0 tesseract-ocr tesseract-ocr-tur patchelf
 
-      - name: Install Evrakçı and cx_Freeze
-        run: pip install -e ".[dev]" "cx_Freeze>=8"
+      - name: Build dependencies from the hashed lock
+        run: |
+          python -m pip install --require-hashes -r packaging/requirements-build.txt
+          python -m pip install --no-deps -e .
 
       - name: Tests
         run: |
@@ -63,6 +65,9 @@ jobs:
         run: |
           configs=$(python -c "from evrakci.pipeline.ocr.tesseract import system_tessdata; print(system_tessdata())")
           python packaging/build.py --tur-best tur.traineddata --tessdata-configs "$configs"
+          # The packages really in the build must match the reviewed list (a dependency change
+          # must be noticed, documented and committed).
+          git diff --exit-code packaging/shipped-packages.txt
 
       - name: Package (reproducible, with SHA-256)
         run: |
@@ -102,7 +107,7 @@ jobs:
           test ! -e "$home/.local/share/applications/evrakci-arayuz.desktop"
           test ! -e "$home/.local/share/icons/hicolor/scalable/apps/evrakci.svg"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Evrakci-Linux
           path: |
@@ -124,8 +129,8 @@ jobs:
       LANG: C.UTF-8
       DEBIAN_FRONTEND: noninteractive
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: Evrakci-Linux
           path: dist

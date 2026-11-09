@@ -24,25 +24,13 @@ ROOT = HERE.parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(HERE))
 
+from collect_licenses import collect_from_build, undocumented  # noqa: E402
 from gpl_check import forbidden_libraries, remove_gpl_qt  # noqa: E402
+from layout import copy_python_licence, place_after_freeze, remove_unused_qt  # noqa: E402
 
 from evrakci.pipeline.ocr.tesseract import TESSDATA_VARIANTS  # noqa: E402
 
 STAGE = HERE / "stage"
-# Top-level packages in the build; their dependencies are followed automatically.
-BUNDLED = [
-    "evrakci",
-    "ocrmypdf",
-    "pikepdf",
-    "pypdfium2",
-    "zxing-cpp",
-    "segno",
-    "openpyxl",
-    "platformdirs",
-    "PySide6",
-]  # cx_Freeze is a build tool; only its small runtime stubs ship (see NOTICE.txt)
-
-
 def fail(message: str) -> None:
     print(message, file=sys.stderr)
     raise SystemExit(1)
@@ -74,9 +62,6 @@ def stage_inputs(
     # Licence texts of the Python runtime's own libraries ship only in the Linux build.
     ignore = None if sys.platform.startswith("linux") else shutil.ignore_patterns("linux")
     shutil.copytree(HERE / "licenses", stage / "licenses", ignore=ignore)
-    from collect_licenses import collect
-
-    collect(stage / "licenses", BUNDLED)
     if tesseract is not None:
         shutil.copytree(tesseract, stage / "tesseract")
     if tur_best is not None:
@@ -91,6 +76,27 @@ def stage_inputs(
         # Tesseract 4 (Ubuntu 22.04) lists no language unless eng sits beside tur.
         if source is not None and (source / "eng.traineddata").is_file():
             shutil.copy2(source / "eng.traineddata", best / "eng.traineddata")
+
+
+def finish(build: Path, stage: Path = STAGE) -> None:
+    """After cx_Freeze: add Tesseract, take out what must not ship, add every licence."""
+    place_after_freeze(stage, build)
+    for path in remove_gpl_qt(build):
+        print(f"GPL bileşeni çıkarıldı: {path.name}")
+    for path in remove_unused_qt(build):
+        print(f"Kullanılmayan Qt parçası çıkarıldı: {path.name}")
+    found = forbidden_libraries(build)
+    if found:
+        fail("Derlemede GPL kütüphanesi var: " + ", ".join(str(p) for p in found))
+    shipped = collect_from_build(build / "lib", build / "licenses")
+    (HERE / "shipped-packages.txt").write_text(
+        "\n".join(sorted(shipped, key=str.lower)) + "\n", encoding="utf-8")
+    missing = undocumented(shipped, (ROOT / "docs" / "dependency-licenses.md").read_text(
+        encoding="utf-8"))
+    if missing:
+        fail("docs/dependency-licenses.md içinde olmayan paket: " + ", ".join(missing))
+    if copy_python_licence(build / "licenses") is None:
+        fail("Python'un lisans dosyası (LICENSE.txt) bulunamadı")
 
 
 def main() -> int:
@@ -115,11 +121,7 @@ def main() -> int:
         check=True,
         cwd=ROOT,
     )
-    for path in remove_gpl_qt(ROOT / "build" / "evrakci"):
-        print(f"GPL bileşeni çıkarıldı: {path.name}")
-    found = forbidden_libraries(ROOT / "build" / "evrakci")
-    if found:
-        fail("Derlemede GPL kütüphanesi var: " + ", ".join(str(p) for p in found))
+    finish(ROOT / "build" / "evrakci")
     print(f"Hazır: {ROOT / 'build' / 'evrakci'}")
     return 0
 

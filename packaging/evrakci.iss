@@ -43,6 +43,9 @@ Type: filesandordirs; Name: "{app}\lib"
 Type: filesandordirs; Name: "{app}\tesseract"
 Type: filesandordirs; Name: "{app}\tessdata_best"
 Type: filesandordirs; Name: "{app}\licenses"
+Type: filesandordirs; Name: "{app}\share"
+Type: filesandordirs; Name: "{app}\docs"
+Type: files; Name: "{app}\*.dll"
 
 [Files]
 Source: "*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -53,13 +56,10 @@ Name: "{group}\Lisanslar"; Filename: "{app}\licenses\NOTICE.txt"
 Name: "{group}\Evrakçı'yı kaldır"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Evrakçı"; Filename: "{app}\evrakci-arayuz.exe"; Tasks: desktopicon
 
-[Registry]
-; HKA = HKCU for a per-user install, HKLM for an all-users install.
-Root: HKA; Subkey: "{code:EnvironmentKey}"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Tasks: addtopath; Check: NeedsAddPath(ExpandConstant('{app}'))
-
 [UninstallDelete]
-; Only the ASCII-path cache of OCR data (see ascii_safe_dir); job data in the user folder is kept.
-Type: filesandordirs; Name: "{commonappdata}\Evrakci"
+; Only this user's cache of OCR data and temp folders (see ascii_copy_root). Job data in
+; {localappdata}\Evrakci is kept; the ProgramData fallback folder is removed in [Code].
+Type: filesandordirs; Name: "{localappdata}\Evrakci\ascii"
 
 [Run]
 Filename: "{app}\evrakci-arayuz.exe"; Description: "Evrakçı'yı başlat"; Flags: nowait postinstall skipifsilent
@@ -81,34 +81,74 @@ begin
     Result := HKEY_CURRENT_USER;
 end;
 
-function NeedsAddPath(Folder: string): Boolean;
-var
-  Current: string;
+function TrimSeparators(Value: string): string;
 begin
-  if not RegQueryStringValue(RootKey, EnvironmentKey(''), 'Path', Current) then
-  begin
-    Result := True;
-    exit;
-  end;
-  Result := Pos(';' + Uppercase(Folder) + ';', ';' + Uppercase(Current) + ';') = 0;
+  while (Length(Value) > 0) and (Value[1] = ';') do
+    Delete(Value, 1, 1);
+  while (Length(Value) > 0) and (Value[Length(Value)] = ';') do
+    Delete(Value, Length(Value), 1);
+  Result := Value;
 end;
 
-procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+procedure AddToPath;
+var
+  Current, Folder: string;
+begin
+  Folder := ExpandConstant('{app}');
+  if not RegQueryStringValue(RootKey, EnvironmentKey(''), 'Path', Current) then
+    Current := '';
+  if Pos(';' + Uppercase(Folder) + ';', ';' + Uppercase(Current) + ';') > 0 then
+    exit;
+  Current := TrimSeparators(Current);
+  if Current <> '' then
+    Current := Current + ';';
+  RegWriteExpandStringValue(RootKey, EnvironmentKey(''), 'Path', Current + Folder);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssPostInstall) and WizardIsTaskSelected('addtopath') then
+    AddToPath;
+end;
+
+procedure RemoveFromPath;
 var
   Current, Folder: string;
   Position: Integer;
 begin
-  if CurUninstallStep <> usPostUninstall then
-    exit;
   if not RegQueryStringValue(RootKey, EnvironmentKey(''), 'Path', Current) then
     exit;
-  Current := Current + ';';
+  // Separators on both ends, so the entry is found first, last or alone in the list.
+  Current := ';' + Current + ';';
   Folder := ';' + ExpandConstant('{app}') + ';';
   Position := Pos(Uppercase(Folder), Uppercase(Current));
   if Position > 0 then
   begin
     Delete(Current, Position, Length(Folder) - 1);
-    Delete(Current, Length(Current), 1);
-    RegWriteExpandStringValue(RootKey, EnvironmentKey(''), 'Path', Current);
+    RegWriteExpandStringValue(RootKey, EnvironmentKey(''), 'Path', TrimSeparators(Current));
   end;
+end;
+
+procedure RemoveSharedCache;
+var
+  Record, Name: string;
+  Lines: TArrayOfString;
+begin
+  // The ProgramData fallback folder has a random name kept in this user's profile.
+  Record := ExpandConstant('{localappdata}\Evrakci\ascii-klasoru.txt');
+  if LoadStringsFromFile(Record, Lines) and (GetArrayLength(Lines) > 0) then
+  begin
+    Name := Trim(Lines[0]);
+    if (Length(Name) = 34) and (Copy(Name, 1, 2) = 'u-') then
+      DelTree(ExpandConstant('{commonappdata}\Evrakci\') + Name, True, True, True);
+  end;
+  DeleteFile(Record);
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep <> usPostUninstall then
+    exit;
+  RemoveFromPath;
+  RemoveSharedCache;
 end;

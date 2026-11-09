@@ -120,7 +120,7 @@ def test_ocr_overwrite_keeps_the_old_file_when_ocr_fails(tmp_path, monkeypatch):
     out = tmp_path / "out.pdf"
     out.write_bytes(b"old output")
 
-    def failing(source, destination, pdfa=True):
+    def failing(source, destination, tessdata=None, pdfa=True):
         destination.write_bytes(b"half")
         raise EngineUnavailable("Metin katmanı eklenemedi")
 

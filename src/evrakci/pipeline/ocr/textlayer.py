@@ -105,6 +105,9 @@ def _run(src: Path, dst: Path, tessdata: TessData, output_type: str, jobs: int |
             # Turkish; visible text in born-digital pages is kept.
             mode="redo",
             jobs=jobs,
+            # Threads by default; EVRAKCI_OCR_SURECLER=1 uses worker processes instead (the
+            # Windows smoke test checks that the frozen app can start them).
+            use_threads=os.environ.get("EVRAKCI_OCR_SURECLER") != "1",
             progress_bar=False,
         )
 

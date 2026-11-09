@@ -355,3 +355,15 @@ def test_scripts_print_turkish_on_a_non_utf8_console(tmp_path):
         result = subprocess.run([sys.executable, str(ROOT / "packaging" / script), *args],
                                 capture_output=True, env=env, cwd=tmp_path)
         assert result.returncode == 0, result.stderr[-600:]
+
+
+def test_installer_code_uses_no_pascal_reserved_words_as_names():
+    reserved = {"record", "type", "file", "set", "label", "object", "string", "array", "case",
+                "class", "const", "var", "in", "of", "to", "with", "unit", "packed", "goto"}
+    code = iss().split("[Code]", 1)[1]
+    names = set()
+    for block in re.findall(r"\bvar\b(.*?)\bbegin\b", code, re.S | re.I):
+        for line in block.split(";"):
+            if ":" in line:
+                names |= {n.strip().lower() for n in line.split(":")[0].split(",")}
+    assert not names & reserved, names & reserved

@@ -131,18 +131,18 @@ end;
 
 procedure RemoveSharedCache;
 var
-  Record, Name: string;
+  RecordFile, Name: string;
   Lines: TArrayOfString;
 begin
   // The ProgramData fallback folder has a random name kept in this user's profile.
-  Record := ExpandConstant('{localappdata}\Evrakci\ascii-klasoru.txt');
-  if LoadStringsFromFile(Record, Lines) and (GetArrayLength(Lines) > 0) then
+  RecordFile := ExpandConstant('{localappdata}\Evrakci\ascii-klasoru.txt');
+  if LoadStringsFromFile(RecordFile, Lines) and (GetArrayLength(Lines) > 0) then
   begin
     Name := Trim(Lines[0]);
     if (Length(Name) = 34) and (Copy(Name, 1, 2) = 'u-') then
       DelTree(ExpandConstant('{commonappdata}\Evrakci\') + Name, True, True, True);
   end;
-  DeleteFile(Record);
+  DeleteFile(RecordFile);
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

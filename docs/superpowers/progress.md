@@ -1,6 +1,6 @@
 # Progress: Plans 1–6
 
-Last checked 2026-11-09: **362 tests pass**, `ruff check .` is clean.
+Last checked 2026-11-09: **383 tests pass**, `ruff check .` is clean.
 
 | Plan | State | Review fixes (commit) |
 |---|---|---|
@@ -11,7 +11,7 @@ Last checked 2026-11-09: **362 tests pass**, `ruff check .` is clean.
 | 4 Review and export | done | "fix: address review and export review findings" |
 | 5 Window | done; Kartotek look approved 2026-11-07 | "fix: address the window review findings" |
 | 6 Windows installer | done; GitHub Actions build is green | "fix: address Windows installer review findings" |
-| 7 Linux build | built and reviewed; owner's request 2026-11-09 | "fix: address the Linux build review findings" |
+| 7 Linux build | done; GitHub Actions build and clean Debian 12 / Ubuntu 24.04 installs are green (run 42552347140) | "fix: address the Linux build review findings" |
 
 ## What works (CLI)
 

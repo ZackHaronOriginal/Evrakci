@@ -83,7 +83,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = settings_commands.add_parser("goster", help="ayarları gösterir")
     p.set_defaults(handler=_show_settings)
     p = settings_commands.add_parser("saklama", help="iş dosyalarının ne kadar saklanacağı")
-    p.add_argument("deger", metavar="sakla|disa-aktarinca-sil|GUN", help="saklama ayarı")
+    p.add_argument(
+        "deger", metavar="sakla|disa-aktarinca-sil|GUN",
+        help="saklama ayarı. GUN: son değişiklikten bu kadar gün sonra iş silinir, dışa "
+             "aktarılmamış olsa da (pencere açılırken ve is listele'de)")
     p.set_defaults(handler=_set_retention)
 
     jobs.add_commands(commands)

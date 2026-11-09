@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,14 +27,15 @@ class Settings:
         value = self.retention
         if value in (KEEP, DELETE_AFTER_EXPORT):
             return
-        if not (value.isdigit() and int(value) > 0):
+        # Only ASCII digits: "³".isdigit() is true but int("³") fails.
+        if not (isinstance(value, str) and re.fullmatch(r"[0-9]+", value) and int(value) > 0):
             raise SettingsError(
                 f"Geçersiz saklama ayarı: {value!r} (sakla, disa-aktarinca-sil veya gün sayısı)"
             )
 
     @property
     def retention_days(self) -> int | None:
-        return int(self.retention) if self.retention.isdigit() else None
+        return int(self.retention) if re.fullmatch(r"[0-9]+", self.retention) else None
 
 
 def settings_path() -> Path:
@@ -47,7 +49,12 @@ def load_settings(path: Path | None = None) -> Settings:
         return Settings()
     try:
         data = json.loads(path.read_text(encoding="utf-8-sig"))
-        return Settings(str(data.get("saklama", KEEP)))
+        if not isinstance(data, dict):
+            raise SettingsError(f"Ayar dosyası bozuk: {path}")
+        value = data.get("saklama", KEEP)
+        if not isinstance(value, str):
+            raise SettingsError(f"Geçersiz saklama ayarı: {value!r}")
+        return Settings(value)
     except (OSError, ValueError) as error:
         raise SettingsError(f"Ayar dosyası okunamadı: {path} ({error})") from error
 

@@ -13,7 +13,7 @@ from evrakci.pipeline.templates.values import VariableValue
 MAX_LENGTH = 120
 # Windows' classic path limit, with a little room; ".pdf.gecici" is the text-layer temp file.
 PATH_LIMIT = 250
-_LONGEST_SUFFIX = " (99).pdf.gecici"
+_LONGEST_SUFFIX = " (999).pdf.gecici"
 _FORBIDDEN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 _DEVICES = ["con", "prn", "aux", "nul", "conin$", "conout$"]
 _NUMBERED = [f"{p}{n}" for p in ("com", "lpt") for n in [*range(1, 10), "¹", "²", "³"]]
@@ -22,15 +22,31 @@ _SEPARATORS = "_-. "
 _REPEATED_SEPARATORS = re.compile(r"(\s*[_\-.]\s*){2,}|\s{2,}")
 
 
-def safe_filename(text: str) -> str:
-    """A name Windows accepts. Turkish letters are kept; may return an empty string."""
+def _clean_text(text: str) -> str:
+    """NFC, every kind of space as one space, characters Windows forbids removed."""
     name = unicodedata.normalize("NFC", text)
     name = re.sub(r"\s", " ", name)  # tabs and line breaks become spaces first
-    name = " ".join(_FORBIDDEN.sub("", name).split())
+    return _FORBIDDEN.sub("", name)
+
+
+def _finish(name: str) -> tuple[str, int | None]:
+    """Cut to the length limit, trim the end, and make a device name safe.
+
+    Returns the name and where an underscore was inserted (or None). Windows treats
+    `AUX`, `AUX.anything` and `AUX .x` as the device, so the part before the first dot
+    is checked, without trailing spaces.
+    """
     name = name[:MAX_LENGTH].rstrip(". ")
-    if name.split(".")[0].casefold() in _RESERVED:
-        name += "_"
-    return name
+    base, dot, rest = name.partition(".")
+    if base.rstrip(" ").casefold() in _RESERVED:
+        at = len(base.rstrip(" "))
+        return base.rstrip(" ") + "_" + dot + rest, at
+    return name, None
+
+
+def safe_filename(text: str) -> str:
+    """A name Windows accepts. Turkish letters are kept; may return an empty string."""
+    return _finish(" ".join(_clean_text(text).split()))[0]
 
 
 def _tidy_separators(name: str) -> str:
@@ -54,10 +70,37 @@ def build_name(
     return name, checks
 
 
+def _assemble(marked: str, order: list[str], cleaned: Mapping[str, str]):
+    """The name from the marked pattern, with where each value landed in it."""
+    spans: dict[str, list[tuple[int, int]]] = {}
+    expanded = ""
+    for part in re.split("(\ue000\\d+\ue001)", marked):
+        if part.startswith("\ue000"):
+            variable = order[int(part[1:-1])]
+            text = cleaned[variable]
+            spans.setdefault(variable, []).append((len(expanded), len(expanded) + len(text)))
+            expanded += text
+        else:
+            # The pattern's own text is cleaned here, so value positions stay right.
+            literal = re.sub(" {2,}", " ", _clean_text(part))
+            if expanded.endswith(" ") or not expanded:
+                literal = literal.lstrip(" ")
+            expanded += literal
+    final, inserted = _finish(expanded)
+    if inserted is not None:
+        spans = {v: [(a + (a >= inserted), b + (b > inserted)) for a, b in places]
+                 for v, places in spans.items()}
+    return final, spans, len(expanded.rstrip(". ")) > len(final) - (inserted is not None)
+
+
 def build_name_kept(
     pattern: str, values: Mapping[str, VariableValue], required: set[str]
 ) -> tuple[str | None, list[str], int]:
-    """Like build_name, plus how many characters must stay so every required value survives."""
+    """Like build_name, plus how many characters must stay so every required value survives.
+
+    When the name is too long, optional values are shortened first; a name that was cut is
+    marked.
+    """
     checks: list[str] = []
     problems: list[str] = []
     cleaned: dict[str, str] = {}
@@ -81,27 +124,27 @@ def build_name_kept(
     if problems:
         return None, problems, 0
     marked = _tidy_separators(marked)
-    spans: dict[str, list[tuple[int, int]]] = {}
-    expanded = ""
-    for part in re.split("(\ue000\\d+\ue001)", marked):
-        if part.startswith("\ue000"):
-            variable = order[int(part[1:-1])]
-            spans.setdefault(variable, []).append((len(expanded), len(expanded) + len(
-                cleaned[variable])))
-            expanded += cleaned[variable]
-        else:
-            expanded += part
-    final = safe_filename(expanded)
-    keep = 0
-    cut = []
-    for variable in required:
-        places = spans.get(variable, [])
-        if places and not any(final[a:b] == cleaned[variable] for a, b in places):
-            cut.append(variable)
-        elif places:
-            keep = max(keep, min(b for a, b in places if final[a:b] == cleaned[variable]))
+    final, spans, shortened = _assemble(marked, order, cleaned)
+
+    def surviving(variable: str) -> bool:
+        return any(final[a:b] == cleaned[variable] for a, b in spans.get(variable, []))
+
+    cut = [v for v in required if spans.get(v) and not surviving(v)]
+    optional = sorted((v for v in order if v not in required and cleaned[v]),
+                      key=lambda v: -len(cleaned[v]))
+    while cut and optional:  # give way: shorten the longest optional value and try again
+        excess = sum(len(cleaned[v]) for v in order) - MAX_LENGTH + 10
+        longest = optional.pop(0)
+        cleaned[longest] = cleaned[longest][: max(1, len(cleaned[longest]) - excess)].rstrip()
+        final, spans, _ = _assemble(marked, order, cleaned)
+        shortened = True
+        cut = [v for v in required if spans.get(v) and not surviving(v)]
     if cut:
         return None, [f"zorunlu değer dosya adına sığmadı: {v}" for v in sorted(cut)], 0
+    keep = max((min(b for a, b in spans[v] if final[a:b] == cleaned[v])
+                for v in required if spans.get(v)), default=0)
+    if shortened:
+        checks.append("dosya adı kısaltıldı")
     return final, checks, keep
 
 
@@ -126,7 +169,18 @@ def unique_names(names: Sequence[str]) -> list[str]:
 
 def fit_names(names: Sequence[str], out_dir: Path) -> list[str]:
     """Shorten names so every full path stays within Windows' path limit."""
-    budget = PATH_LIMIT - len(str(Path(out_dir).resolve())) - len(_LONGEST_SUFFIX) - 1
+    budget = PATH_LIMIT - _units(str(Path(out_dir).resolve())) - len(_LONGEST_SUFFIX) - 1
     if budget < 12:
         raise ValueError("Çıktı klasörünün yolu çok uzun; daha kısa bir klasör seçin.")
-    return [name if len(name) <= budget else name[:budget].rstrip(". ") for name in names]
+    return [_cut_units(name, budget) for name in names]
+
+
+def _units(text: str) -> int:
+    """Length as Windows counts it (UTF-16 code units)."""
+    return len(text.encode("utf-16-le")) // 2
+
+
+def _cut_units(name: str, budget: int) -> str:
+    while _units(name) > budget:
+        name = name[:-1]
+    return name.rstrip(". ")

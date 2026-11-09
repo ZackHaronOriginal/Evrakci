@@ -18,13 +18,21 @@ def _values(job: Job, document: Document) -> dict[str, VariableValue]:
     return values
 
 
+def _clean(text: str) -> str:
+    return " ".join(unicodedata.normalize("NFC", text).split())
+
+
 def set_value(job: Job, document: Document, key: str, text: str) -> None:
-    """The user's own value: confident, no longer flagged, kept on re-reading."""
+    """The user's own value: confident, no longer flagged, kept on re-reading.
+
+    The key may be new: a variable added to the template after the document was read.
+    What was read stays in `readings`, so the correction can be undone.
+    """
     values = _values(job, document)
-    if key not in values:
-        raise KeyError(key)
-    clean = " ".join(unicodedata.normalize("NFC", text).split())
-    values[key] = VariableValue(clean, 1.0, None, False, "", (), True)
+    old = values.get(key)
+    readings = old.readings if old is not None else ()
+    suggestion = (old.suggestion or (old.value if not old.edited else "")) if old else ""
+    values[key] = VariableValue(_clean(text), 1.0, None, False, suggestion, readings, True)
 
 
 def accept_suggestion(job: Job, document: Document, key: str) -> None:
@@ -34,7 +42,18 @@ def accept_suggestion(job: Job, document: Document, key: str) -> None:
     value = values[key]
     if not value.flagged or not value.suggestion:
         raise ValueError("öneri yok")
-    values[key] = replace(value, value=value.suggestion, confidence=1.0, flagged=False, edited=True)
+    values[key] = replace(value, value=_clean(value.suggestion), confidence=1.0, flagged=False,
+                          edited=True)
+
+
+def revert_value(job: Job, document: Document, key: str) -> None:
+    """Undo the user's correction: the value waits for a check again, with what was read as
+    its suggestion, and the next reading may replace it."""
+    values = _values(job, document)
+    if key not in values:
+        raise KeyError(key)
+    value = values[key]
+    values[key] = VariableValue("", 0.0, None, True, value.suggestion, value.readings, False)
 
 
 def store_reading(

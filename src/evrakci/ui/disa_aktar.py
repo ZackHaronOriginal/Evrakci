@@ -259,6 +259,9 @@ class DisaAktarScreen(QWidget):
             controller.store.delete(job.id)
             message += " İş silindi (saklama ayarı)."
             self.job_deleted.emit()
+        elif (self.retention.currentData() == DELETE_AFTER_EXPORT and result.paths
+              and not result.with_layer):
+            message += " İş saklandı: metin katmanı eklenmedi."
         self.open_index.setEnabled(bool(result.paths))
         self.open_folder.setEnabled(True)
         self._finish(message)

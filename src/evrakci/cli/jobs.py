@@ -13,11 +13,11 @@ from evrakci.cli.errors import UserError
 from evrakci.pipeline.cuts import (
     Document,
     compute_documents,
-    current_read_error,
     current_values,
     document_template,
     record_read_error,
 )
+from evrakci.pipeline.export import plan_export
 from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after_export
 from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
@@ -113,30 +113,9 @@ def _template_names(args: argparse.Namespace) -> dict[str, str]:
     return {t.id: t.name for t in template_store(args).list()}
 
 
-def _check_marks(
-    job: Job, document: Document, templates: dict[str, Template | None] | None = None
-) -> list[str]:
-    marks = []
-    if "leftover" in document.flags:
-        marks.append("eksik sayfa")
-    if "mixed_templates" in document.flags:
-        marks.append("karışık şablon")
-    first = document.page_ids[0]
-    error = current_read_error(job, document)
-    if error:
-        marks.append(error)
-    values = current_values(job, document)
-    if values is None and document_template(job, document)[0] and first in job.values:
-        marks.append("yeniden okunmalı")
-    if values and any(v.flagged for v in values.values()):
-        marks.append("okunamayan değer")
-    template = (templates or {}).get(document_template(job, document)[0] or "")
-    if values is not None and template is not None:
-        for variable in template.variables:
-            value = values.get(variable.key)
-            if variable.required and (value is None or not value.value.strip()):
-                marks.append(f"zorunlu değer eksik: {variable.name}")
-    return marks
+def _export_marks(job: Job, templates: dict[str, Template | None]) -> dict[str, list[str]]:
+    """What export would mark, per document (keyed by its first page): one source of truth."""
+    return {item.document.page_ids[0]: item.checks for item in plan_export(job, templates)}
 
 
 def show(args: argparse.Namespace, store: JobStore) -> int:
@@ -155,13 +134,13 @@ def show(args: argparse.Namespace, store: JobStore) -> int:
         return 0
     print(f"{job.name} ({job.id})")
     names = _template_names(args) if job.templates else {}
-    templates = _job_templates(args, job) if job.templates else {}
+    marks_of = _export_marks(job, _job_templates(args, job) if job.templates else {})
     for number, (positions, document) in enumerate(
         zip(doc_positions, documents, strict=True), start=1
     ):
         template_id, _ = document_template(job, document)
         template = f" ({names.get(template_id, template_id)})" if template_id else ""
-        marks = _check_marks(job, document, templates)
+        marks = marks_of.get(document.page_ids[0], [])
         mark = f"  [kontrol: {', '.join(marks)}]" if marks else ""
         print(f"{number}. belge{template}: sayfa {positions_text(positions)}{mark}")
     qr = [job.position_of(pid) for pid in job.ordered_page_ids() if job.pages[pid].is_separator]
@@ -268,7 +247,7 @@ def _job_templates(args: argparse.Namespace, job: Job) -> dict[str, Template | N
     store_ = template_store(args)
     found: dict[str, Template | None] = {}
     for application in job.templates:
-        if application.template_id not in found:
+        if application.template_id and application.template_id not in found:
             try:
                 found[application.template_id] = store_.load(application.template_id)
             except (KeyError, TemplateError):
@@ -323,6 +302,8 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
                 f"İş saklandı: {needing} belge kontrol gerektiriyor; "
                 "düzeltip yeniden dışa aktarabilirsiniz."
             )
+        elif result.paths and not result.with_layer:
+            print("İş saklandı: metin katmanı eklenmedi; katmanla yeniden dışa aktarabilirsiniz.")
         else:
             print("İş saklandı: hiçbir belge yazılmadı.")
     return 0
@@ -454,9 +435,9 @@ def _templated_documents(args, job: Job):
 
 def list_values(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
-    templates = _job_templates(args, job)
+    marks_of = _export_marks(job, _job_templates(args, job))
     for number, document, template in _templated_documents(args, job):
-        marks = _check_marks(job, document, templates)
+        marks = marks_of.get(document.page_ids[0], [])
         if args.kontrol and not marks:
             continue
         positions = positions_text([job.position_of(p) for p in document.page_ids])
@@ -480,7 +461,7 @@ def list_values(args: argparse.Namespace, store: JobStore) -> int:
 
 
 def fix_value(args: argparse.Namespace, store: JobStore) -> int:
-    from evrakci.pipeline.review import accept_suggestion, set_value
+    from evrakci.pipeline.review import accept_suggestion, revert_value, set_value
 
     job = load_job(store, args.id)
     found = {n: (d, t) for n, d, t in _templated_documents(args, job)}
@@ -496,9 +477,11 @@ def fix_value(args: argparse.Namespace, store: JobStore) -> int:
     try:
         if args.oneri:
             accept_suggestion(job, document, key)
+        elif args.geri_al:
+            revert_value(job, document, key)
         else:
             if args.deger is None:
-                raise UserError("Yeni değeri yazın veya --oneri kullanın.")
+                raise UserError("Yeni değeri yazın, ya da --oneri veya --geri-al kullanın.")
             set_value(job, document, key, args.deger)
     except KeyError:
         raise UserError(f"{args.belge}. belgenin değerleri okunmadı (is oku).") from None
@@ -626,8 +609,11 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument("id", help="iş numarası")
     p.add_argument("belge", type=int, metavar="BELGE", help="belge numarası (is goster)")
     p.add_argument("ad", help="değişken adı")
-    p.add_argument("deger", nargs="?", help="yeni değer")
-    p.add_argument("--oneri", action="store_true", help="okunan öneriyi kabul et")
+    choice = p.add_mutually_exclusive_group()
+    choice.add_argument("deger", nargs="?", help="yeni değer")
+    choice.add_argument("--oneri", action="store_true", help="okunan öneriyi kabul et")
+    choice.add_argument("--geri-al", action="store_true",
+                        help="düzeltmeyi geri al: değer yeniden kontrol bekler")
     p.set_defaults(handler=fix_value)
 
     p = job_commands.add_parser("disa-aktar", help="her belgeyi ayrı PDF olarak yazar")

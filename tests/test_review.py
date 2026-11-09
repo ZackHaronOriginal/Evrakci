@@ -21,10 +21,11 @@ def test_set_value_and_accept_suggestion():
     set_value(job, doc, "k1", "  Örnek  Ltd. ")
     accept_suggestion(job, doc, "k2")
     got = current_values(job, doc)
-    assert got["k1"] == VariableValue("Örnek Ltd.", 1.0, None, False, "", (), True)
+    # What was read stays as the suggestion, so the correction can be undone.
+    assert got["k1"] == VariableValue("Örnek Ltd.", 1.0, None, False, "Örnek", (), True)
     assert got["k2"].value == "12345" and got["k2"].edited and not got["k2"].flagged
-    with pytest.raises(KeyError):
-        set_value(job, doc, "yok", "x")
+    set_value(job, doc, "yeni", "x")  # a variable added to the template after reading
+    assert current_values(job, doc)["yeni"].value == "x"
     with pytest.raises(ValueError):
         accept_suggestion(job, doc, "k1")  # nothing left to accept
 

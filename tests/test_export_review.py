@@ -62,6 +62,8 @@ def test_a_shortened_name_is_marked(tmp_path):
 def test_cut_check_looks_at_the_required_values_own_place():
     values = {"ad": _value("x12" + "a" * 125), "no": _value("12")}
     name, checks = build_name("{ad}_{no}", values, {"no"})
+    assert name.endswith("_12") and "dosya adı kısaltıldı" in checks  # "x12…" is not "12"
+    name, checks = build_name("{ad}_{no}", values, {"ad", "no"})
     assert name is None and any("sığmadı: no" in c for c in checks)
 
 
@@ -82,11 +84,11 @@ def test_delete_after_export_never_deletes_a_job_that_wrote_nothing(tmp_path, ca
 
 
 def test_values_listing_marks_an_emptied_required_value(tmp_path):
-    from evrakci.cli.jobs import _check_marks
+    from evrakci.cli.jobs import _export_marks
 
     store, job, templates = _job_with_values(tmp_path, {"no": ""}, "{no}")
     [doc] = compute_documents(job)
-    assert _check_marks(job, doc, templates)
+    assert _export_marks(job, templates)[doc.page_ids[0]]
 
 
 def test_index_is_written_even_when_the_text_layer_fails(tmp_path):

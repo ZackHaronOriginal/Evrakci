@@ -77,7 +77,11 @@ def test_unique_names_turkish_i():
 
 def test_cut_dropping_required_value():
     long = "x" * 119
+    # An optional value gives way to a required one (and the cut is marked) ...
     name, checks = build_name("{a}_{b}", {"a": ok(long), "b": ok("ÖNEMLİ")}, {"b"})
+    assert name.endswith("_ÖNEMLİ") and checks == ["dosya adı kısaltıldı"]
+    # ... but two required values that cannot both fit give no name.
+    name, checks = build_name("{a}_{b}", {"a": ok(long), "b": ok("ÖNEMLİ")}, {"a", "b"})
     assert name is None and checks == ["zorunlu değer dosya adına sığmadı: b"]
 
 

@@ -10,6 +10,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import pikepdf
+
 from evrakci.pipeline.export import ExportItem, plan_export
 from evrakci.pipeline.index import write_index
 from evrakci.pipeline.job import Job
@@ -33,6 +35,7 @@ class ExportResult:
     # Per file with a text layer: (is PDF/A, note when it is not)
     notes: dict[Path, tuple[bool, str | None]] = field(default_factory=dict)
     index_written: bool = False
+    with_layer: bool = False  # every file got the searchable text layer
 
     @property
     def needing_check(self) -> int:
@@ -52,6 +55,8 @@ def export_job(
 ) -> ExportResult:
     """Raises EngineUnavailable before writing anything if the text layer cannot be made."""
     out_dir = Path(out_dir)
+    if out_dir.exists() and not out_dir.is_dir():
+        raise ExportError(f"Hedef bir klasör değil, bir dosya: {out_dir}. Bir klasör seçin.")
     items = plan_export(job, templates)
     try:
         fitted = fit_names([i.name for i in items], out_dir)
@@ -98,7 +103,12 @@ def export_job(
             f"Dosyalar yazılamadı ({error.strerror or error}). Yazılanlar: {written_so_far()}. "
             "index.xlsx yazılmadı; yer açıp boş bir klasöre yeniden dışa aktarın."
         ) from None
-    result = ExportResult(items, paths)
+    except (pikepdf.PdfError, KeyError, IndexError) as error:
+        raise ExportError(
+            f"Taranan dosyalardan biri okunamadı ({error}). Yazılanlar: {written_so_far()}. "
+            "index.xlsx yazılmadı; işin partilerini kontrol edin."
+        ) from None
+    result = ExportResult(items, paths, with_layer=with_layer and bool(paths))
     if with_layer and paths:
         for number, (path, item) in enumerate(zip(paths, items, strict=True), start=1):
             report("layer", number - 1, len(paths))
@@ -141,5 +151,7 @@ def _write_index_quietly(items, job: Job, out_dir: Path) -> str:
 
 
 def may_delete_after_export(result: ExportResult) -> bool:
-    """'Delete after export' only after a full export: files and index written, no checks."""
-    return bool(result.paths) and result.index_written and not result.needing_check
+    """'Delete after export' only after a full export: files, text layer and index written,
+    nothing to check. Without the text layer the job is kept, so it can be exported again."""
+    return (bool(result.paths) and result.index_written and result.with_layer
+            and not result.needing_check)

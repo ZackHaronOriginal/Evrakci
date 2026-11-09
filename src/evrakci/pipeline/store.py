@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import time
 import uuid
@@ -29,6 +30,9 @@ def default_root() -> Path:
         platformdirs.user_data_path("Evrakci", appauthor=False) / "jobs")
 
 
+_JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+
+
 @dataclass(frozen=True)
 class PreparedBatch:
     batch: Batch
@@ -40,6 +44,9 @@ class JobStore:
         self.root = Path(root)
 
     def _job_dir(self, job_id: str) -> Path:
+        # A job id is a plain folder name: never "..", a path or anything outside the root.
+        if not isinstance(job_id, str) or not _JOB_ID.fullmatch(job_id):
+            raise KeyError(job_id)
         return self.root / job_id
 
     def _job_file(self, job_id: str) -> Path:
@@ -131,9 +138,12 @@ class JobStore:
         if not path.is_file():
             raise KeyError(job_id)
         try:
-            return job_from_dict(json.loads(path.read_text(encoding="utf-8")))
+            job = job_from_dict(json.loads(path.read_text(encoding="utf-8")))
         except (ValueError, KeyError, TypeError, OSError) as error:
             raise JobFileError(f"İş dosyası okunamadı: {job_id}") from error
+        # The folder is the job: a copied folder must never save into, or delete, the original.
+        job.id = job_id
+        return job
 
     def list_jobs(self, on_error: Callable[[str], None] | None = None) -> list[Job]:
         """Readable jobs, most recently edited first. Unreadable ones go to `on_error`."""

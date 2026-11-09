@@ -99,8 +99,31 @@ def test_delete_after_export_only_on_success(tmp_path, monkeypatch, capsys):
         )
         == 0
     )
+    # Without the text layer the job is kept, so it can be exported again with it.
+    assert "metin katmanı eklenmedi" in capsys.readouterr().out
+    assert [j.id for j in store.list_jobs()] == [job.id]
+
+    import shutil
+
+    import evrakci.cli.jobs as jobs
+    from evrakci.pipeline.ocr.textlayer import TextLayerResult
+
+    class Ready:
+        def available(self):
+            return None
+
+    def layer(src, dst, tessdata=None, **kwargs):
+        shutil.copy(src, dst)
+        return TextLayerResult(dst, True)
+
+    monkeypatch.setattr(jobs, "default_engine", Ready)
+    from evrakci.pipeline.ocr.tesseract import TessData
+
+    monkeypatch.setattr(jobs, "default_tessdata", lambda: TessData("tur", None))
+    monkeypatch.setattr(jobs, "add_text_layer", layer)
+    assert cli(tmp_path, "is", "disa-aktar", job.id, "--cikti", str(tmp_path / "o2")) == 0
     assert f"İş silindi (saklama ayarı): {job.id}" in capsys.readouterr().out
-    assert store.list_jobs() == [] and (tmp_path / "o" / "index.xlsx").is_file()
+    assert store.list_jobs() == [] and (tmp_path / "o2" / "index.xlsx").is_file()
 
 
 def test_ayar_goster_and_bad_value(tmp_path, monkeypatch, capsys):

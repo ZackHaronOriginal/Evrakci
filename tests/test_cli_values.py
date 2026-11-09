@@ -12,6 +12,7 @@ def setup(tmp_path, capsys):
     template = TemplateStore(templates).create("Deneme")
     template.add_variable("Ünvan", required=True)
     template.add_variable("Kayıt No")
+    template.set_pattern("{Ünvan}_{Kayıt No}")
     TemplateStore(templates).save(template)
     pdf = make_pdf(tmp_path / "t.pdf", [text_page(), text_page()])
     store = JobStore(jobs)

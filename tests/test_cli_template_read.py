@@ -99,7 +99,7 @@ def test_mixed_templates_flagged(tmp_path, capsys):
     run("is", "sablon-uygula", job, "2-2", other)
     capsys.readouterr()
     run("is", "goster", job)
-    assert "[kontrol: karışık şablon]" in capsys.readouterr().out
+    assert "[kontrol: karışık şablon" in capsys.readouterr().out
 
 
 @needs_tesseract
@@ -147,4 +147,4 @@ def test_oku_keeps_going_when_a_document_fails(tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "1. belge: Tesseract hata verdi" in out and "2. belge (Deneme Belgesi)" in out
     run("is", "goster", job)
-    assert "[kontrol: Tesseract hata verdi]" in capsys.readouterr().out
+    assert "[kontrol: Tesseract hata verdi" in capsys.readouterr().out

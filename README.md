@@ -165,15 +165,23 @@ evrakci is deger <id> 5 "Kayıt No" --oneri      # accept what OCR suggested
 evrakci is disa-aktar <id> --cikti cikti        # named PDFs + index.xlsx
 ```
 
-- Files are named from the template's pattern. Characters Windows forbids are removed, Turkish
-  letters are kept, and clashing names get ` (2)`, ` (3)`.
+- Files are named from the template's pattern. Characters Windows forbids (`< > : " / \ | ? *`)
+  are removed, as the design asks (so `2024/15` becomes `202415`), Turkish letters are kept, and
+  clashing names get ` (2)`, ` (3)`. A name cut to fit is marked "dosya adı kısaltıldı";
+  optional values are shortened before a required one would be.
 - A missing or unsure **required** value is never put in a file name: that document is written
   as `belge_NNN.pdf` and marked.
 - `index.xlsx` lists every file with its pages, template, values, PDF/A status and the reasons it
   needs a check.
 - Export needs an empty folder, so files from an earlier export never mix in.
 - Retention: `evrakci ayar saklama sakla` (default, never delete), `disa-aktarinca-sil` (delete
-  the job after a full export), or a number of days (e.g. `30`).
+  the job after a full export: every file written with the text layer, `index.xlsx` written,
+  nothing to check), or a number of days (e.g. `30`). The day limit counts from the job's last
+  change and also deletes jobs that were never exported; it runs when the window starts and on
+  `is listele`. A job folder restored from a backup keeps its old date, so open or change it
+  before the next start.
+- Undo a correction: `evrakci is deger İŞ BELGE AD --geri-al`. Take a template off pages:
+  `evrakci is sablon-kaldir İŞ BAS-SON`.
 
 System dependencies for OCR (later steps): Tesseract with the Turkish language pack (`tur`).
 

@@ -1,5 +1,6 @@
 """Regression tests for the Plan 5 whole-branch review findings."""
 
+import dataclasses
 import shutil
 import threading
 
@@ -44,7 +45,8 @@ def test_export_result_is_applied_to_the_exported_job_not_the_open_one(qtbot, tm
 
     def held(*args, **kwargs):
         gate.wait(5)
-        return real(*args, **kwargs)
+        # As if the text layer was added: only a full export may delete the job.
+        return dataclasses.replace(real(*args, **kwargs), with_layer=True)
 
     monkeypatch.setattr(disa_aktar_module, "export_job", held)
     save_settings(Settings(DELETE_AFTER_EXPORT), tmp_path / "ayar.json")
@@ -407,3 +409,17 @@ def test_another_job_cannot_be_opened_while_work_runs(qtbot, tmp_path):
     assert window.yukle.controller.job.id == job_a.id
     assert "sürüyor" in window.message.text()
     window.disa_aktar.task = None
+
+
+def test_window_says_why_a_job_is_kept_after_export_without_the_text_layer(qtbot, tmp_path):
+    store, job = _real_job(tmp_path, "K")
+    save_settings(Settings(DELETE_AFTER_EXPORT), tmp_path / "ayar.json")
+    controller = JobController(store, job)
+    screen = DisaAktarScreen(lambda: controller, dict, settings_path=tmp_path / "ayar.json")
+    qtbot.addWidget(screen)
+    screen.folder.setText(str(tmp_path / "out"))
+    screen.layer.setChecked(False)
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    assert job.id in {j.id for j in store.list_jobs()}
+    assert "metin katmanı eklenmedi" in screen.message.text()

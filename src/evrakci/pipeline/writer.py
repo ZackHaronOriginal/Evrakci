@@ -34,8 +34,10 @@ def write_documents(
     if len(set(keys)) != len(keys):
         raise ValueError("Aynı dosya adı iki kez yazılamaz.")  # one file would overwrite another
     # Never mix with an earlier export: any old PDF or index would look like part of this one.
+    # Letter case is ignored: a USB stick or Windows share treats Belge.PDF as belge.pdf.
     if out_dir.is_dir():
-        old = sorted(out_dir.glob("*.pdf")) + sorted(out_dir.glob("index.xlsx"))
+        old = sorted(p for p in out_dir.iterdir()
+                     if p.suffix.lower() == ".pdf" or p.name.lower() == "index.xlsx")
         if old:
             raise FileExistsError(old[0].name)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -53,7 +55,9 @@ def write_documents(
                     extra = rotations.get(pid, 0)
                     if extra:
                         output.pages[-1].rotate(extra, relative=True)
-                output.save(target)
+                # "x": never replaces a file that appeared since the check above.
+                with open(target, "xb") as handle:
+                    output.save(handle)
             written.append(target)
             if progress:  # may raise to stop between files; written files stay complete
                 progress(len(written), len(documents))

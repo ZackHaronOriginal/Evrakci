@@ -49,8 +49,11 @@ def plan_export(job: Job, templates: Mapping[str, Template | None]) -> list[Expo
         if template_id is not None:
             _apply_template(item, job, document, templates.get(template_id))
         items.append(item)
-    for item, name in zip(items, unique_names([i.name for i in items]), strict=True):
-        item.name = name
+    # Numbered names go first, so `belge_002` always stays document 2's own name.
+    order = sorted(range(len(items)), key=lambda i: items[i].name != _numbered(i + 1))
+    names = unique_names([items[i].name for i in order])
+    for i, name in zip(order, names, strict=True):
+        items[i].name = name
     return items
 
 

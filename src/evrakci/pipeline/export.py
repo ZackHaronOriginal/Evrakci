@@ -14,7 +14,7 @@ from evrakci.pipeline.cuts import (
 )
 from evrakci.pipeline.job import Job
 from evrakci.pipeline.naming import build_name_kept, unique_names
-from evrakci.pipeline.templates.model import Template
+from evrakci.pipeline.templates.model import Template, template_revision
 
 
 @dataclass
@@ -39,12 +39,13 @@ def plan_export(job: Job, templates: Mapping[str, Template | None]) -> list[Expo
         item = ExportItem(number, document, _numbered(number), None)
         if "leftover" in document.flags:
             item.checks.append("eksik sayfa")
+        template_id, _ = document_template(job, document)
         if "mixed_templates" in document.flags:
-            item.checks.append("karışık şablon")
+            item.checks.append("karışık şablon" if template_id is not None
+                               else "karışık şablon (ilk sayfada şablon yok)")
         error = current_read_error(job, document)
         if error:
             item.checks.append(error)
-        template_id, _ = document_template(job, document)
         if template_id is not None:
             _apply_template(item, job, document, templates.get(template_id))
         items.append(item)
@@ -62,6 +63,9 @@ def _apply_template(item: ExportItem, job: Job, document: Document, template) ->
     if stored is None:
         item.checks.append("değerler okunmadı")
         return
+    source = job.value_sources.get(document.page_ids[0])
+    if source is not None and source.revision and source.revision != template_revision(template):
+        item.checks.append("şablon değişti; yeniden okunmalı")
     by_name = {v.name: stored[v.key] for v in template.variables if v.key in stored}
     item.values = {
         v.name: by_name[v.name].value if v.name in by_name else "" for v in template.variables
@@ -78,9 +82,9 @@ def _apply_template(item: ExportItem, job: Job, document: Document, template) ->
             if reason not in in_pattern:
                 checks.append(reason)
             name = None
-        elif (
-            value is not None and value.flagged and f"okunamadı: {variable.name}" not in in_pattern
-        ):
+        elif value is None:  # added to the template after this document was read
+            checks.append(f"okunmadı: {variable.name}")
+        elif value.flagged and f"okunamadı: {variable.name}" not in in_pattern:
             checks.append(f"okunamadı: {variable.name}")
     item.checks.extend(checks)
     if not template.filename_pattern.strip():

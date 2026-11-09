@@ -21,6 +21,7 @@ from evrakci.pipeline.settings import (
     settings_path,
 )
 from evrakci.pipeline.store import JobFileError, JobStore, default_root
+from evrakci.pipeline.templates.model import TemplateError
 
 
 def _separator(args: argparse.Namespace, store: JobStore) -> int:
@@ -103,7 +104,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     store = JobStore(args.kok if args.kok else default_root())
     try:
         return args.handler(args, store)
-    except (UserError, BatchError, JobFileError, EngineUnavailable, SettingsError) as error:
+    except (UserError, BatchError, JobFileError, EngineUnavailable, SettingsError,
+            TemplateError) as error:
         jobs.finish_progress_line()
         print(str(error), file=sys.stderr)
         return 2

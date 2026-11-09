@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from evrakci.pipeline.job import FilterApplication, Job, ValueSource
+from evrakci.pipeline.job import NO_TEMPLATE, FilterApplication, Job, ValueSource
 from evrakci.pipeline.templates.values import VariableValue
 
 
@@ -18,7 +18,10 @@ def _template_of(job: Job) -> dict[str, str]:
     template_of: dict[str, str] = {}
     for application in job.templates:  # later applications overwrite earlier ones
         for pid in application.page_ids:
-            template_of[pid] = application.template_id
+            if application.template_id == NO_TEMPLATE:
+                template_of.pop(pid, None)
+            else:
+                template_of[pid] = application.template_id
     return template_of
 
 
@@ -30,21 +33,34 @@ def document_template(job: Job, document: Document) -> tuple[str | None, bool]:
 
 
 def record_values(
-    job: Job, document: Document, template_id: str, values: dict[str, VariableValue]
+    job: Job,
+    document: Document,
+    template_id: str,
+    values: dict[str, VariableValue],
+    revision: str = "",
 ) -> None:
     """Store values together with what they were read from."""
     first = document.page_ids[0]
     job.values[first] = values
     job.read_errors.pop(first, None)
-    job.value_sources[first] = ValueSource(tuple(document.page_ids), template_id)
+    job.value_sources[first] = ValueSource(tuple(document.page_ids), template_id, revision)
 
 
 def record_read_error(job: Job, document: Document, template_id: str, message: str) -> None:
-    """Remember that reading this exact document failed, and why."""
+    """Remember that reading this exact document failed, and why.
+
+    Values read earlier from exactly this document and template stay, with the user's
+    corrections: a failed re-read (Tesseract stopped, a file was busy) must never lose them.
+    """
     first = document.page_ids[0]
-    job.values.pop(first, None)
+    source = job.value_sources.get(first)
+    same = (source is not None and source.page_ids == tuple(document.page_ids)
+            and source.template_id == template_id)
+    if not same:
+        job.values.pop(first, None)
+        source = ValueSource(tuple(document.page_ids), template_id)
     job.read_errors[first] = message
-    job.value_sources[first] = ValueSource(tuple(document.page_ids), template_id)
+    job.value_sources[first] = source
 
 
 def _source_matches(job: Job, document: Document) -> bool:

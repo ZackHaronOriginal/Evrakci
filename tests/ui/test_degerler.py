@@ -107,3 +107,33 @@ def test_an_edit_made_while_reading_wins(qtbot, setup):
     docs = ctl.documents()
     assert current_values(ctl.job, docs[0])[sicil.key].value == "12345"
     assert current_values(ctl.job, docs[1])[sicil.key].value == "99999"
+
+
+class FixedEngine:
+    name = "sahte"
+
+    def available(self):
+        return None
+
+    def read_region(self, image):
+        return Reading("77777", 0.9)
+
+
+def test_reading_only_missing_includes_documents_read_with_an_older_template(qtbot, setup):
+    import dataclasses
+
+    from evrakci.pipeline.templates.model import template_revision
+
+    ctl, templates, template, sicil = setup
+    for pid, source in list(ctl.job.value_sources.items()):  # read with this version
+        ctl.job.value_sources[pid] = dataclasses.replace(
+            source, revision=template_revision(template))
+    template.add_section("Sicil_No", Section(1, (10, 30, 60, 40)))  # the template changed
+    templates.save(template)
+    screen = _screen(qtbot, ctl, templates, engine=FixedEngine)
+    screen.read_values(only_missing=True)
+    qtbot.waitUntil(lambda: not screen.busy(), timeout=20000)
+    docs = ctl.documents()
+    assert all(current_values(ctl.job, d)[sicil.key].value == "77777" for d in docs)
+    source = ctl.job.value_sources[docs[0].page_ids[0]]
+    assert source.revision == template_revision(templates.load(template.id))

@@ -7,6 +7,8 @@ import json
 import sys
 from pathlib import Path
 
+import pypdfium2 as pdfium
+
 from evrakci.cli.errors import UserError
 from evrakci.pipeline.cuts import (
     Document,
@@ -22,10 +24,10 @@ from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
 from evrakci.pipeline.render import render_page
-from evrakci.pipeline.review import store_reading
+from evrakci.pipeline.review import needs_reading, store_reading
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsError, load_settings
 from evrakci.pipeline.store import JobStore
-from evrakci.pipeline.templates.model import Template, TemplateError
+from evrakci.pipeline.templates.model import Template, TemplateError, template_revision
 from evrakci.pipeline.templates.read import read_document
 
 
@@ -339,6 +341,15 @@ def apply_template(args: argparse.Namespace, store: JobStore) -> int:
     return 0
 
 
+def remove_template(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    start, end = parse_range(args.aralik)
+    job.remove_template([page_id_at(job, position) for position in range(start, end + 1)])
+    store.save(job)
+    print(f"Şablon kaldırıldı: sayfa {start}-{end}")
+    return 0
+
+
 def _document_pages(store: JobStore, job: Job, document: Document):
     files = store.batch_files(job)
 
@@ -365,7 +376,7 @@ def read_values(args: argparse.Namespace, store: JobStore) -> int:
     ]
     work = [item for item in work if item[2] is not None]
     if args.sadece_eksik:
-        work = [item for item in work if current_values(job, item[1]) is None]
+        work = [item for item in work if _needs_reading(args, job, item[1], item[2], templates)]
     try:
         for done, (number, document, template_id) in enumerate(work, start=1):
             print(f"\rOkunuyor: {done}/{len(work)} belge", end="", file=sys.stderr, flush=True)
@@ -381,8 +392,8 @@ def read_values(args: argparse.Namespace, store: JobStore) -> int:
     return 0
 
 
-def _read_one(args, store, job, document, template_id, templates, engine) -> str:
-    """Read one document; problems are recorded on it and never stop the run."""
+def _load_cached(args, template_id: str, templates: dict) -> Template | str:
+    """The template, or a Turkish reason it cannot be used; loaded once per run."""
     from evrakci.cli.templates import template_store
 
     if template_id not in templates:
@@ -392,7 +403,19 @@ def _read_one(args, store, job, document, template_id, templates, engine) -> str
             templates[template_id] = f"Şablon bulunamadı: {template_id}"
         except TemplateError as error:
             templates[template_id] = str(error)
-    template = templates[template_id]
+    return templates[template_id]
+
+
+def _needs_reading(args, job: Job, document: Document, template_id: str, templates) -> bool:
+    template = _load_cached(args, template_id, templates)
+    if isinstance(template, str):
+        return True  # read it, so the reason is recorded and shown
+    return needs_reading(job, document, template)
+
+
+def _read_one(args, store, job, document, template_id, templates, engine) -> str:
+    """Read one document; problems are recorded on it and never stop the run."""
+    template = _load_cached(args, template_id, templates)
     if isinstance(template, str):
         record_read_error(job, document, template_id, template)
         return f": {template}"
@@ -400,10 +423,10 @@ def _read_one(args, store, job, document, template_id, templates, engine) -> str
         values = read_document(
             template, len(document.page_ids), _document_pages(store, job, document), engine
         )
-    except (EngineUnavailable, OSError) as error:
+    except (EngineUnavailable, OSError, pdfium.PdfiumError) as error:
         record_read_error(job, document, template_id, str(error))
         return f": {error}"
-    store_reading(job, document, template.id, values)
+    store_reading(job, document, template.id, values, template_revision(template))
     values = current_values(job, document)
     names = template.names_by_key()
     summary = ", ".join(f"{names[k]}={v.value or '?'}" for k, v in values.items())
@@ -581,10 +604,16 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument("sablon", metavar="SABLON", help="şablon numarası")
     p.set_defaults(handler=apply_template)
 
+    p = job_commands.add_parser("sablon-kaldir", help="seçili sayfalardaki şablonu kaldırır")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("aralik", metavar="BAS-SON", help="sayfa aralığı, örn. 1-40")
+    p.set_defaults(handler=remove_template)
+
     p = job_commands.add_parser("oku", help="şablonlu belgelerdeki değişkenleri okur")
     p.add_argument("id", help="iş numarası")
     p.add_argument(
-        "--sadece-eksik", action="store_true", help="yalnızca henüz okunmamış belgeleri oku"
+        "--sadece-eksik", action="store_true",
+        help="yalnızca okunmamış, okunamamış ya da şablonu sonradan değişmiş belgeleri oku"
     )
     p.set_defaults(handler=read_values)
 

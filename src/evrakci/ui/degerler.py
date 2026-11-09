@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
+import pypdfium2 as pdfium
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
@@ -34,8 +35,8 @@ from evrakci.pipeline.export import plan_export
 from evrakci.pipeline.job import parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.render import render_page
-from evrakci.pipeline.review import store_reading
-from evrakci.pipeline.templates.model import Template
+from evrakci.pipeline.review import needs_reading, store_reading
+from evrakci.pipeline.templates.model import Template, template_revision
 from evrakci.pipeline.templates.read import read_document
 from evrakci.ui import theme
 from evrakci.ui.controller import JobController
@@ -398,7 +399,9 @@ class DegerlerScreen(QWidget):
             template_id, _ = document_template(job, document)
             if template_id is None:
                 continue
-            if only_missing and current_values(job, document) is not None:
+            template = templates.get(template_id)
+            if only_missing and template is not None and not needs_reading(job, document,
+                                                                           template):
                 continue
             work.append((document, template_id, templates.get(template_id)))
         results: list = []  # filled by the worker; kept even when the read is cancelled
@@ -409,7 +412,7 @@ class DegerlerScreen(QWidget):
                 progress(done - 1, len(work))
                 if template is None:
                     results.append((document, template_id, None,
-                                    f"Şablon bulunamadı: {template_id}"))
+                                    f"Şablon bulunamadı: {template_id}", ""))
                     continue
 
                 def page_image(index, document=document):
@@ -419,9 +422,10 @@ class DegerlerScreen(QWidget):
 
                 try:
                     values = read_document(template, len(document.page_ids), page_image, engine)
-                    results.append((document, template_id, values, None))
-                except (EngineUnavailable, OSError) as error:
-                    results.append((document, template_id, None, str(error)))
+                    results.append((document, template_id, values, None,
+                                    template_revision(template)))
+                except (EngineUnavailable, OSError, pdfium.PdfiumError) as error:
+                    results.append((document, template_id, None, str(error), ""))
             progress(len(work), len(work))
             return results
 
@@ -452,15 +456,13 @@ class DegerlerScreen(QWidget):
         stored = []
 
         def store(job) -> None:
-            for document, template_id, values, error in list(results):
+            for document, template_id, values, error, revision in list(results):
                 if current.get(tuple(document.page_ids), object()) != template_id:
                     continue  # the cuts or the template changed while reading: stale
                 if values is not None:
-                    store_reading(job, document, template_id, values)
-                elif not any(v.edited for v in (current_values(job, document) or {}).values()):
+                    store_reading(job, document, template_id, values, revision)
+                else:  # keeps earlier values and the user's corrections
                     record_read_error(job, document, template_id, error)
-                else:
-                    continue  # never wipe the user's corrections because a read failed
                 stored.append(document)
 
         controller.run("Değerleri oku", store)

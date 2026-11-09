@@ -6,6 +6,7 @@ The code knows no fields, types or document kinds. Everything here is made by th
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import re
 import unicodedata
@@ -27,12 +28,21 @@ def _nfc(text: str) -> str:
     return unicodedata.normalize("NFC", text)
 
 
+def _has_hidden_characters(text: str) -> bool:
+    """Control, format, private-use or unassigned characters (Unicode category C*)."""
+    return any(unicodedata.category(c).startswith("C") for c in text)
+
+
 def validate_name(name: str) -> str:
+    if not isinstance(name, str):
+        raise TemplateError("Değişken adı metin olmalı.")
     cleaned = _nfc(name).strip()
     if not cleaned:
         raise TemplateError("Değişken adı boş olamaz.")
     if "{" in cleaned or "}" in cleaned:
         raise TemplateError(f"Değişken adında {{ veya }} olamaz: {cleaned}")
+    if _has_hidden_characters(cleaned):
+        raise TemplateError(f"Değişken adında görünmeyen veya özel karakter var: {cleaned!r}")
     return cleaned
 
 
@@ -54,12 +64,24 @@ class Section:
     example: str | None = None  # the example document it was drawn on
 
     def __post_init__(self) -> None:
+        if not isinstance(self.page, int) or isinstance(self.page, bool):
+            raise TemplateError(f"Sayfa bir tam sayı olmalı: {self.page!r}")
         if self.page == 0:
             raise TemplateError("Sayfa 0 olamaz: 1 ilk sayfa, -1 son sayfadır.")
-        x0, y0, x1, y1 = self.box_mm
-        finite = all(math.isfinite(v) for v in self.box_mm)
-        if not finite or not (x0 < x1 and y0 < y1) or min(self.box_mm) < 0:
-            raise TemplateError(f"Geçersiz kutu: {list(self.box_mm)}")
+        box = self.box_mm
+        if (
+            not isinstance(box, (tuple, list)) or len(box) != 4
+            or any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in box)
+        ):
+            raise TemplateError(f"Geçersiz kutu: {box!r}")
+        if self.example is not None and not isinstance(self.example, str):
+            raise TemplateError(f"Örnek belge adı metin olmalı: {self.example!r}")
+        finite = all(math.isfinite(v) for v in box)
+        # Past the top or left edge is clipped, like past the right or bottom edge.
+        x0, y0, x1, y1 = max(0.0, box[0]), max(0.0, box[1]), box[2], box[3]
+        if not finite or not (x0 < x1 and y0 < y1):
+            raise TemplateError(f"Geçersiz kutu: {list(box)}")
+        object.__setattr__(self, "box_mm", (x0, y0, x1, y1) if min(box) < 0 else tuple(box))
 
 
 def new_key() -> str:
@@ -145,15 +167,40 @@ class Template:
         sections.insert(new_index, sections.pop(index))
 
     def set_pattern(self, pattern: str) -> None:
-        unknown = [n for n in pattern_names(pattern) if not self._has(n)]
+        if not isinstance(pattern, str):
+            raise TemplateError("Dosya adı kalıbı metin olmalı.")
+        names = pattern_names(pattern)
+        if any(not n for n in names):
+            raise TemplateError("Kalıpta boş değişken adı var: {}")
+        spaced = [n for n in names if n != n.strip()]
+        if spaced:
+            raise TemplateError(
+                f"Süslü parantez içinde baştaki/sondaki boşluk olmamalı: {{{spaced[0]}}}")
+        if _has_hidden_characters(_nfc(pattern)):
+            raise TemplateError("Dosya adı kalıbında görünmeyen veya özel karakter var.")
+        unknown = [n for n in names if not self._has(n)]
         if unknown:
             raise TemplateError(f"Kalıpta bilinmeyen değişken: {', '.join(unknown)}")
         self.filename_pattern = _nfc(pattern)
 
     def set_min_confidence(self, value: float) -> None:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TemplateError("Güven eşiği bir sayı olmalı (örn. 0.7).")
         if math.isnan(value) or not 0 < value <= 1:
             raise TemplateError("Güven eşiği 0 ile 1 arasında olmalı (örn. 0.7).")
         self.min_confidence = value
+
+
+def template_revision(template: Template) -> str:
+    """Changes whenever what is read changes: boxes, pages, their order, the threshold.
+
+    The name, the file-name pattern and required marks do not change what is read.
+    """
+    content = [
+        template.min_confidence,
+        [[v.key, [[s.page, list(s.box_mm)] for s in v.sections]] for v in template.variables],
+    ]
+    return hashlib.sha1(json.dumps(content).encode("utf-8")).hexdigest()[:12]
 
 
 def template_to_dict(template: Template) -> dict:
@@ -183,31 +230,49 @@ def template_to_dict(template: Template) -> dict:
 def template_from_dict(data: dict) -> Template:
     if not isinstance(data, dict):
         raise TemplateError("Bu dosya bir Evrakçı şablonu değil.")
-    if data.get("format") != TEMPLATE_FORMAT or data.get("version") != TEMPLATE_FORMAT_VERSION:
+    version = data.get("version")
+    if (data.get("format") != TEMPLATE_FORMAT or isinstance(version, bool)
+            or version != TEMPLATE_FORMAT_VERSION):
         raise TemplateError("Bu dosya bir Evrakçı şablonu değil veya sürümü desteklenmiyor.")
+    def text(value, what: str) -> str:
+        if not isinstance(value, str):
+            raise TemplateError(f"Şablon dosyası bozuk: {what} metin olmalı.")
+        return value
+
+    def items(value, what: str) -> list:
+        if not isinstance(value, list):
+            raise TemplateError(f"Şablon dosyası bozuk: {what} bir liste olmalı.")
+        return value
+
     try:
-        name = str(data["name"]).strip()
+        name = _nfc(text(data["name"], "ad")).strip()
         if not name:
             raise TemplateError("Şablon adı boş olamaz.")
         # Everything goes through the same checks as the editor.
         template = Template(
-            id=str(data["id"]), name=name, keywords=[str(k) for k in data.get("keywords", [])]
+            id=text(data["id"], "numara"), name=name,
+            keywords=[text(k, "anahtar kelime") for k in items(data.get("keywords", []),
+                                                                 "anahtar kelimeler")],
         )
-        template.set_min_confidence(float(data.get("min_confidence", DEFAULT_MIN_CONFIDENCE)))
-        for item in data["variables"]:
-            variable = template.add_variable(
-                item["name"],
-                bool(item.get("required", False)),
-                key=str(item.get("key") or stable_key(validate_name(item["name"]))),
-            )
-            for s in item.get("sections", []):
-                box = tuple(float(v) for v in s["box_mm"])
-                if len(box) != 4:
-                    raise TemplateError(f"Geçersiz kutu: {s['box_mm']}")
-                variable.sections.append(Section(int(s["page"]), box, s.get("example")))
+        template.set_min_confidence(data.get("min_confidence", DEFAULT_MIN_CONFIDENCE))
+        for item in items(data["variables"], "değişkenler"):
+            if not isinstance(item, dict):
+                raise TemplateError("Şablon dosyası bozuk: değişken bir nesne olmalı.")
+            required = item.get("required", False)
+            if not isinstance(required, bool):
+                raise TemplateError("Şablon dosyası bozuk: zorunlu true veya false olmalı.")
+            key = item.get("key") or stable_key(validate_name(item["name"]))
+            variable = template.add_variable(item["name"], required, key=text(key, "anahtar"))
+            for s in items(item.get("sections", []), "bölümler"):
+                if not isinstance(s, dict):
+                    raise TemplateError("Şablon dosyası bozuk: bölüm bir nesne olmalı.")
+                box = s["box_mm"]
+                if not isinstance(box, list):
+                    raise TemplateError(f"Geçersiz kutu: {box!r}")
+                variable.sections.append(Section(s["page"], tuple(box), s.get("example")))
         if len({v.key for v in template.variables}) != len(template.variables):
             raise TemplateError("Şablonda aynı anahtarlı iki değişken var.")
-        template.set_pattern(str(data.get("filename_pattern", "")))
+        template.set_pattern(data.get("filename_pattern", ""))
     except (KeyError, TypeError) as error:
         raise TemplateError(f"Şablon dosyası eksik veya bozuk ({error}).") from error
     return template

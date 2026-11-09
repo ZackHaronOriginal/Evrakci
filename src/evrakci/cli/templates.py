@@ -253,8 +253,11 @@ def test_template(args, _jobs) -> int:
         pdf.close()
     except pdfium.PdfiumError:
         raise UserError(f"PDF açılamadı: {args.ornek.name}") from None
-    with PageRenderer(args.ornek) as pages:  # the PDF is opened once for every page
-        values = read_document(template, page_count, pages.render, engine)
+    try:
+        with PageRenderer(args.ornek) as pages:  # the PDF is opened once for every page
+            values = read_document(template, page_count, pages.render, engine)
+    except (pdfium.PdfiumError, OSError) as error:
+        raise UserError(f"Örnek belge okunamadı: {args.ornek.name} ({error})") from None
     print(f"{template.name}: {args.ornek.name} ({page_count} sayfa)")
     for line in describe_values(values, template.names_by_key()):
         print(line)

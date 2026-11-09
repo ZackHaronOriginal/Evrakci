@@ -38,6 +38,9 @@ class FilterApplication:
     every_n: int
 
 
+NO_TEMPLATE = ""  # a template application that takes the template off its pages
+
+
 @dataclass(frozen=True)
 class TemplateApplication:
     template_id: str
@@ -50,6 +53,7 @@ class ValueSource:
 
     page_ids: tuple[str, ...]
     template_id: str
+    revision: str = ""  # template_revision() when read; "" for jobs saved before it existed
 
 
 @dataclass
@@ -97,8 +101,15 @@ class Job:
         self.filters.append(FilterApplication(ids, every_n))
 
     def apply_template(self, page_ids: Iterable[str], template_id: str) -> None:
+        if not template_id:
+            raise ValueError("template_id must not be empty (use remove_template)")
         ids = frozenset(self._check(pid) for pid in page_ids)
         self.templates.append(TemplateApplication(template_id, ids))
+
+    def remove_template(self, page_ids: Iterable[str]) -> None:
+        """Take the template off these pages (a later application, so undo stays simple)."""
+        ids = frozenset(self._check(pid) for pid in page_ids)
+        self.templates.append(TemplateApplication(NO_TEMPLATE, ids))
 
     def rotate(self, pid: str, degrees: int) -> None:
         if degrees % 90:
@@ -208,7 +219,8 @@ def job_to_dict(job: Job) -> dict:
         },
         "read_errors": dict(job.read_errors),
         "value_sources": {
-            pid: {"page_ids": list(s.page_ids), "template_id": s.template_id}
+            pid: {"page_ids": list(s.page_ids), "template_id": s.template_id,
+                  "revision": s.revision}
             for pid, s in job.value_sources.items()
         },
     }
@@ -273,7 +285,7 @@ def job_from_dict(data: dict) -> Job:
         },
         read_errors=dict(data.get("read_errors", {})),
         value_sources={
-            pid: ValueSource(tuple(s["page_ids"]), s["template_id"])
+            pid: ValueSource(tuple(s["page_ids"]), s["template_id"], s.get("revision", ""))
             for pid, s in data.get("value_sources", {}).items()
         },
     )

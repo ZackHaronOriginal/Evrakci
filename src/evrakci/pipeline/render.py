@@ -56,6 +56,8 @@ def mm_box_to_pixels(
 ) -> tuple[int, int, int, int] | None:
     """Pixel box clipped to the image, or None when it lies wholly outside."""
     x0, y0, x1, y1 = (round(v / 25.4 * dpi) for v in box_mm)
+    # A box thinner than a pixel still covers at least one pixel.
+    x1, y1 = max(x1, x0 + 1), max(y1, y0 + 1)
     x0, y0 = max(0, x0), max(0, y0)
     x1, y1 = min(size[0], x1), min(size[1], y1)
     if x0 >= x1 or y0 >= y1:

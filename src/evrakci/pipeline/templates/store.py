@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+import unicodedata
 import uuid
 from collections.abc import Callable
 from pathlib import Path
@@ -21,6 +22,15 @@ from evrakci.pipeline.templates.model import (
 _ID = re.compile(r"[0-9a-f]{1,32}")
 
 
+def _umask() -> int:
+    current = os.umask(0o022)
+    os.umask(current)
+    return current
+
+
+_FILE_MODE = 0o666 & ~_umask()  # what a normal new file gets (mkstemp would give 0600)
+
+
 def default_template_root() -> Path:
     configured = os.environ.get("EVRAKCI_SABLON_KOK")
     return Path(configured) if configured else data_dir() / "templates"
@@ -33,6 +43,7 @@ def _write(path: Path, template: Template) -> None:
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as out:
             out.write(text)
+        os.chmod(temporary, _FILE_MODE)
         os.replace(temporary, path)
     finally:
         if os.path.exists(temporary):
@@ -43,7 +54,8 @@ def _read(path: Path, label: str) -> Template:
     try:
         # utf-8-sig: files re-saved in Windows Notepad start with a byte-order mark.
         return template_from_dict(json.loads(path.read_text(encoding="utf-8-sig")))
-    except (OSError, ValueError) as error:  # TemplateError is a ValueError too
+    # TemplateError is a ValueError; huge numbers and deep nesting raise the other two.
+    except (OSError, ValueError, OverflowError, RecursionError) as error:
         raise TemplateError(f"Şablon dosyası okunamadı: {label} ({error})") from error
 
 
@@ -57,6 +69,7 @@ class TemplateStore:
         return self.root / f"{template_id}.json"
 
     def _unique_name(self, name: str) -> str:
+        name = unicodedata.normalize("NFC", name)
         names = {t.name for t in self.list()}
         if name not in names:
             return name
@@ -80,7 +93,10 @@ class TemplateStore:
         path = self._path(template_id)
         if not path.is_file():
             raise KeyError(template_id)
-        return _read(path, template_id)
+        template = _read(path, template_id)
+        # The file name is the id: a copied or renamed file must never write over another.
+        template.id = template_id
+        return template
 
     def list(self, on_error: Callable[[str], None] | None = None) -> list[Template]:
         if not self.root.is_dir():
@@ -102,9 +118,22 @@ class TemplateStore:
 
     def export(self, template_id: str, path: Path) -> None:
         path = Path(path)
-        if path.exists():
-            raise TemplateError(f"Bu adla bir dosya zaten var: {path.name}. Başka bir ad seçin.")
-        _write(path, self.load(template_id))
+        template = self.load(template_id)
+        if not path.parent.is_dir():
+            raise TemplateError(f"Klasör bulunamadı: {path.parent}")
+        text = json.dumps(template_to_dict(template), ensure_ascii=False, indent=1)
+        try:
+            # "x": created only if no file has that name, even if one appears meanwhile.
+            with open(path, "x", encoding="utf-8") as out:
+                try:
+                    out.write(text)
+                except BaseException:
+                    out.close()
+                    path.unlink(missing_ok=True)
+                    raise
+        except FileExistsError:
+            raise TemplateError(
+                f"Bu adla bir dosya zaten var: {path.name}. Başka bir ad seçin.") from None
 
     def import_file(self, path: Path) -> Template:
         path = Path(path)

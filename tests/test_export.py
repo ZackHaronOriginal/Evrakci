@@ -44,8 +44,9 @@ def test_plan_names_and_checks():
         "belge_006",
     ]
     assert items[0].checks == ["okunamadı: Not"]
-    assert items[1].checks == ["zorunlu değer eksik: Kayıt No"]
-    assert items[3].checks == ["okunamadı: Ünvan"]
+    # "Not" was never read for document 2 (added later): marked, never silently empty.
+    assert items[1].checks == ["zorunlu değer eksik: Kayıt No", "okunmadı: Not"]
+    assert items[3].checks == ["okunamadı: Ünvan", "okunmadı: Not"]
     assert items[4].checks == [] and items[4].template_name is None
     assert items[0].values == {"Kayıt No": "101", "Ünvan": "Örnek", "Not": ""}
 

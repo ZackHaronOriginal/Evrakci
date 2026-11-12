@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QApplication
 from evrakci.pipeline.settings import SettingsError, load_settings
 from evrakci.pipeline.store import JobStore, default_root
 from evrakci.pipeline.templates.store import TemplateStore, default_template_root
-from evrakci.ui import icons, theme
+from evrakci.ui import fonts, icons, theme
 from evrakci.ui.main_window import MainWindow
 
 
@@ -44,6 +44,7 @@ def configure_application(app: QApplication) -> None:
     # Matches the Linux menu entry (evrakci-arayuz.desktop), so the dock shows its icon.
     app.setDesktopFileName("evrakci-arayuz")
     app.setStyle("Fusion")  # the same base look on Windows and Linux; the stylesheet does the rest
+    fonts.register_fonts()
     theme.apply_font(app)
     app.setPalette(theme.palette())
     app.setWindowIcon(icons.app_icon())

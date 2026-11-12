@@ -25,6 +25,8 @@ platformdirs                      MIT                            https://github.
 jsonschema(-specifications),      MIT                            (via pikepdf[pdfa])
 referencing,
 fonttools, rpds-py, attrs
+Inter font (ui/assets/fonts)      SIL OFL 1.1 (OFL-1.1.txt)     https://github.com/rsms/inter
+Lucide icons (ui/lucide.py)       ISC                            https://lucide.dev
 cx_Freeze (runtime stubs)         PSF-2.0                        https://github.com/marcelotduarte/cx_Freeze
 fpdf2 (via OCRmyPDF; img2pdf     LGPL-3.0 (LGPL-3.0.txt)        https://github.com/py-pdf/fpdf2
 is not in the build)

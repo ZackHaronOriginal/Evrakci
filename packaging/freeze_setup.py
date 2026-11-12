@@ -41,6 +41,10 @@ include_files = freeze_include_files(STAGE)
 # The Rehber tab shows the scanning guide.
 include_files.append((str(HERE.parent / "docs" / "tarama-rehberi.md"), "docs/tarama-rehberi.md"))
 
+# Inter (fonts.py looks in lib/evrakci/ui/assets/fonts of the folder build).
+include_files.append((str(HERE.parent / "src" / "evrakci" / "ui" / "assets" / "fonts"),
+                      "lib/evrakci/ui/assets/fonts"))
+
 setup(
     name="Evrakci",
     version=__version__.split("+")[0],

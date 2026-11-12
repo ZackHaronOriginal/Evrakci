@@ -47,3 +47,13 @@ Confirmed by the owner on 2026-11-12. These override the research files where th
   7. The title-band search opens the command palette.
   8. Command-bar labels are 15 px.
 - These supersede D2 and D6 where they differ.
+
+## Owner correction after round 3 (2026-11-12)
+
+The owner rejected the round-3 "final" set: "this was not the look I approved", citing the logo and the tab shapes. Round 3 had changed A's approved chrome. It made the tabs text-only with a trapezoid selected tab, moved ≡ to the left and the job name to the status bar, restyled the inspector, and changed spacing and labels.
+
+**Rule from now on:** direction A's approved PNGs and code (`mockups/directions/a/`) are the visual source of truth.
+- The chrome, logo, tabs, command bar, inspector style and spacing are kept exactly.
+- New tabs, states and themes are added in A's style without changing anything approved.
+- Any improvement is proposed separately and applied only after the owner approves it.
+- Round-3 deviations 9–17 are void.

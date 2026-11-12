@@ -1,0 +1,25 @@
+# Confirmed decisions: UI/UX overhaul
+
+Confirmed by the owner on 2026-11-12. These override the research files where they disagree (GOAL.md §2).
+
+| # | Decision (confirmed) |
+|---|---|
+| D1 | **Identity.** The logo palette is the brand: cabinet green `#3f5a4c` is the accent, manila `#e9d9a6` marks a filed document or document start, and signal orange `#e8731a` is used only for "kontrol" (needs a check). Everything else is rebuilt. |
+| D2 | **Feel.** Office-class: Windows 11/Fluent proportions, a command bar per tab, quiet surfaces, 1 px hairlines, one accent. Not a web dashboard. |
+| D3 | **Font.** Bundle **Inter** (SIL OFL 1.1, approved by the owner) static Regular/Medium/SemiBold, falling back to Segoe UI Variable, then Segoe UI. The licence is recorded in `packaging/licenses/` and `docs/dependency-licenses.md`. |
+| D4 | **Type scale.** Body 15/21 px, secondary 13/18, captions 13 px (the floor), section 17/24, panel 20/28, page 24/32. Tabular figures on all numbers. |
+| D5 | **Scale and density.** Text size 100 / 115 / 130 / 150 %. Densities Sıkı / Normal / Geniş give rows 32 / 40 / 48 and controls 28 / 32 / 40. Default is Normal. |
+| D6 | **Geometry.** 4 px grid; spacing {4, 8, 12, 16, 24, 32, 48}; radii 4 (controls), 8 (dialogs, menus, popovers), 2 (page sheets), and no others. |
+| D7 | **Motion.** Durations 0 / 80 / 120 / 180 / 240 ms. Curves: standard (0.2,0,0,1), enter (0,0,0,1), exit (0.3,0,1,1), linear. Nothing over 240 ms except indeterminate progress. No motion on repeated actions (arrow keys, accept-next). Reduced motion follows Qt 6.12 `motionPreference` or the OS, and can be overridden. |
+| D8 | **Icons.** Lucide (ISC) SVGs at 16/20/24 px, recoloured from tokens; they replace the current sprite, whose names stay as aliases. |
+| D9 | **Themes.** Light (default), Dark, and High contrast (follows the OS high-contrast palette). Follows the OS scheme by default; manual override in Ayarlar. |
+| D10 | **Contrast.** Body and table text ≥ 7:1; secondary text ≥ 4.5:1; component edges, icons and focus ≥ 3:1. Unit-tested per token pair, per theme. |
+| D11 | **Focus.** Fluent ring: 2 px outer + 1 px inner, painted by a QProxyStyle/overlay on every focusable widget, never hidden. |
+| D12 | **Stopped redesign.** The 4 uncommitted screen files (`kontrol.py`, `sablon.py`, `timeline.py`, `yukle.py`) were discarded with `git checkout --`; work starts from HEAD `6fd57a0`. |
+| D13 | **Core.** No changes to `src/evrakci/pipeline/` or the CLI unless a UI feature truly needs a core hook; any such hook is minimal and tested. |
+
+## Execution notes
+
+- Orchestration: multi-agent Workflow, approved by the owner. Model tiering: Opus for direction, foundation, integration and review; Sonnet for per-tab build work; Haiku for mechanical checks.
+- Phase 0 baseline at HEAD `6fd57a0`: `pytest` 526 passed / 6 skipped (after installing `tesseract-ocr` + `tesseract-ocr-tur` in the build container; without them `test_missing_language_reported` fails because it lacks the `needs_tesseract` guard). `ruff check .` clean.
+- The UXKIN MCP server does not connect here, so `ui-design-review:ui-compare` falls back to platform conventions.

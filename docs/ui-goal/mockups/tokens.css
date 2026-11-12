@@ -1,0 +1,432 @@
+/* =====================================================================
+ * Evrakçı UI tokens · Phase 1 mockup layer
+ * ---------------------------------------------------------------------
+ * Mirrors the DTCG token file that Phase 2 generates for Qt
+ * (primitive -> semantic -> component). Every colour, size, radius,
+ * duration and curve in the mockups comes from here; shell.css and the
+ * tab pages never write a hex value or a raw pixel size of their own,
+ * except 1px hairlines, component-intrinsic sizes on the 4px grid
+ * (e.g. a 20px kbd cap) and optical nudges marked "optical".
+ *
+ * Decisions (docs/ui-goal/decisions.md) win over everything:
+ *   D1 accent cabinet green #3f5a4c, manila #e9d9a6 = filed, orange #e8731a = kontrol only
+ *   D4 type 15/21 body, 13/18 secondary+caption, 17/24, 20/28, 24/32, tabular figures
+ *   D5 densities: rows 32/40/48, controls 28/32/40 (default Normal)
+ *   D6 4px grid; spacing 4 8 12 16 24 32 48; radii 2 4 8 only
+ *   D7 0/80/120/180/240 ms; standard/enter/exit/linear
+ *   D10 body/table >= 7:1, secondary >= 4.5:1, edges/icons/focus >= 3:1
+ *   D11 focus = 2px outer + 1px inner ring
+ *
+ * CONTRAST PROOF (WCAG 2.x relative luminance, computed by
+ * docs/ui-goal/mockups/_contrast.py; re-run it after any colour change).
+ * "min" is the D10 floor for that pair. Hairlines are decorative
+ * separators and exempt; every control edge uses --edge instead.
+ *
+ * LIGHT
+ *   body text / layer                   #18221d on #f9faf9  15.61:1  min 7   ok
+ *   body text / canvas                  #18221d on #eff2f0  14.49:1  min 7   ok
+ *   body text / chrome                  #18221d on #e9ecea  13.73:1  min 7   ok
+ *   menu text / popover                 #18221d on #ffffff  16.34:1  min 7   ok
+ *   text / selected row                 #18221d on #dde8e1  13.00:1  min 7   ok
+ *   text / hover                        #18221d on #eceeec  14.01:1  min 7   ok
+ *   secondary / layer                   #4a564f on #f9faf9   7.34:1  min 4.5 ok
+ *   secondary / canvas                  #4a564f on #eff2f0   6.81:1  min 4.5 ok
+ *   secondary / chrome                  #4a564f on #e9ecea   6.45:1  min 4.5 ok
+ *   secondary / popover                 #4a564f on #ffffff   7.68:1  min 4.5 ok
+ *   secondary / selected                #4a564f on #dde8e1   6.11:1  min 4.5 ok
+ *   on-accent / accent (15px/600)       #ffffff on #3f5a4c   7.56:1  min 4.5 ok
+ *   accent text / layer                 #3f5a4c on #f9faf9   7.22:1  min 4.5 ok
+ *   accent text / chrome                #3f5a4c on #e9ecea   6.35:1  min 4.5 ok
+ *   manila ink / manila                 #2b2410 on #e9d9a6  10.97:1  min 7   ok
+ *   rider ink / rider (13px/600)        #241000 on #e8731a   6.00:1  min 4.5 ok
+ *   kontrol text / layer                #8a3d00 on #f9faf9   7.30:1  min 4.5 ok
+ *   kontrol text / canvas               #8a3d00 on #eff2f0   6.78:1  min 4.5 ok
+ *   kontrol text / kontrol wash         #8a3d00 on #fde7d3   6.39:1  min 4.5 ok
+ *   ok text / layer                     #1e6b3a on #f9faf9   6.23:1  min 4.5 ok
+ *   danger text / popover               #b3123a on #ffffff   6.85:1  min 4.5 ok
+ *   text / info bar                     #18221d on #e3edfb  13.83:1  min 7   ok
+ *   control edge / layer                #7a867f on #f9faf9   3.62:1  min 3   ok
+ *   control edge / canvas               #7a867f on #eff2f0   3.36:1  min 3   ok
+ *   control edge / chrome               #7a867f on #e9ecea   3.18:1  min 3   ok
+ *   icon / layer                        #3b4640 on #f9faf9   9.40:1  min 3   ok
+ *   icon / chrome                       #3b4640 on #e9ecea   8.26:1  min 3   ok
+ *   accent fill / layer                 #3f5a4c on #f9faf9   7.22:1  min 3   ok
+ *   accent (tab underline) / chrome     #3f5a4c on #e9ecea   6.35:1  min 3   ok
+ *   selection frame / canvas            #3f5a4c on #eff2f0   6.71:1  min 3   ok
+ *   focus outer ring / canvas           #18221d on #eff2f0  14.49:1  min 3   ok
+ *   focus outer ring / layer            #18221d on #f9faf9  15.61:1  min 3   ok
+ *   focus outer ring / chrome           #18221d on #e9ecea  13.73:1  min 3   ok
+ *   focus outer ring / selected         #18221d on #dde8e1  13.00:1  min 3   ok
+ *   focus outer ring / popover          #18221d on #ffffff  16.34:1  min 3   ok
+ *   rider edge / canvas                 #9c4a0b on #eff2f0   5.48:1  min 3   ok
+ *   rider edge / layer                  #9c4a0b on #f9faf9   5.91:1  min 3   ok
+ *   rider edge / selected row           #9c4a0b on #dde8e1   4.92:1  min 3   ok
+ *   guide tab edge / canvas             #8f7d45 on #eff2f0   3.59:1  min 3   ok
+ *   guide tab edge / layer              #8f7d45 on #f9faf9   3.87:1  min 3   ok
+ *   QR cut mark / canvas                #1f5fbf on #eff2f0   5.40:1  min 3   ok
+ *   filter cut mark / canvas            #6b3fa0 on #eff2f0   6.55:1  min 3   ok
+ *   manual cut mark / canvas            #37424a on #eff2f0   9.13:1  min 3   ok
+ *   QR cut mark / layer                 #1f5fbf on #f9faf9   5.82:1  min 3   ok
+ *   filter cut mark / layer             #6b3fa0 on #f9faf9   7.06:1  min 3   ok
+ *   manual cut mark / layer             #37424a on #f9faf9   9.84:1  min 3   ok
+ *   disabled primary label / pressed    #4a564f on #e3e7e4   6.15:1  min 4.5 ok
+ *   danger text / layer                 #b3123a on #f9faf9   6.55:1  min 4.5 ok
+ *   text / danger bar                   #18221d on #fbe4e8  13.51:1  min 7   ok
+ *   text / kontrol wash (uncertain char)  #18221d on #fde7d3  13.65:1  min 7   ok
+ *   hue cut-qr                          #1f5fbf   170 deg from rider  min 30 ok
+ *   hue cut-filter                      #6b3fa0   119 deg from rider  min 30 ok
+ *   hue cut-manual                      #37424a neutral (sat 0.15)      skip
+ *   hue ok                              #1e6b3a   116 deg from rider  min 30 ok
+ *   hue danger                          #b3123a    41 deg from rider  min 30 ok
+ *   hue info                            #1f5fbf   170 deg from rider  min 30 ok
+ *   hue accent                          #3f5a4c neutral (sat 0.18)      skip
+ *   hue text-accent                     #3f5a4c neutral (sat 0.18)      skip
+ *   hue accent-edge-selected            #3f5a4c neutral (sat 0.18)      skip
+ * DARK
+ *   body text / layer                   #e8ece9 on #222825  12.59:1  min 7   ok
+ *   body text / canvas                  #e8ece9 on #1c211e  13.69:1  min 7   ok
+ *   body text / chrome                  #e8ece9 on #191d1b  14.28:1  min 7   ok
+ *   menu text / popover                 #e8ece9 on #2c332f  10.86:1  min 7   ok
+ *   text / selected row                 #e8ece9 on #2e4337   8.92:1  min 7   ok
+ *   text / hover                        #e8ece9 on #2a302d  11.29:1  min 7   ok
+ *   secondary / layer                   #b3bdb7 on #222825   7.78:1  min 4.5 ok
+ *   secondary / canvas                  #b3bdb7 on #1c211e   8.46:1  min 4.5 ok
+ *   secondary / chrome                  #b3bdb7 on #191d1b   8.82:1  min 4.5 ok
+ *   secondary / popover                 #b3bdb7 on #2c332f   6.71:1  min 4.5 ok
+ *   secondary / selected                #b3bdb7 on #2e4337   5.51:1  min 4.5 ok
+ *   on-accent / accent (15px/600)       #0f1b15 on #9fc5ae   9.32:1  min 4.5 ok
+ *   accent text / layer                 #a3cbb4 on #222825   8.41:1  min 4.5 ok
+ *   accent text / chrome                #a3cbb4 on #191d1b   9.54:1  min 4.5 ok
+ *   manila ink / manila                 #2b2410 on #d9c98f   9.32:1  min 7   ok
+ *   rider ink / rider (13px/600)        #241000 on #e8731a   6.00:1  min 4.5 ok
+ *   kontrol text / layer                #ffb27a on #222825   8.51:1  min 4.5 ok
+ *   kontrol text / canvas               #ffb27a on #1c211e   9.26:1  min 4.5 ok
+ *   kontrol text / kontrol wash         #ffb27a on #40291a   7.68:1  min 4.5 ok
+ *   ok text / layer                     #7fd49c on #222825   8.44:1  min 4.5 ok
+ *   danger text / popover               #ff8fa3 on #2c332f   5.99:1  min 4.5 ok
+ *   text / info bar                     #e8ece9 on #1e2a3d  12.11:1  min 7   ok
+ *   control edge / layer                #87938c on #222825   4.71:1  min 3   ok
+ *   control edge / canvas               #87938c on #1c211e   5.12:1  min 3   ok
+ *   control edge / chrome               #87938c on #191d1b   5.34:1  min 3   ok
+ *   icon / layer                        #c9d1cc on #222825   9.64:1  min 3   ok
+ *   icon / chrome                       #c9d1cc on #191d1b  10.93:1  min 3   ok
+ *   accent fill / layer                 #9fc5ae on #222825   7.92:1  min 3   ok
+ *   accent (tab underline) / chrome     #9fc5ae on #191d1b   8.98:1  min 3   ok
+ *   selection frame / canvas            #a3cbb4 on #1c211e   9.15:1  min 3   ok
+ *   focus outer ring / canvas           #ffffff on #1c211e  16.33:1  min 3   ok
+ *   focus outer ring / layer            #ffffff on #222825  15.02:1  min 3   ok
+ *   focus outer ring / chrome           #ffffff on #191d1b  17.03:1  min 3   ok
+ *   focus outer ring / selected         #ffffff on #2e4337  10.64:1  min 3   ok
+ *   focus outer ring / popover          #ffffff on #2c332f  12.95:1  min 3   ok
+ *   rider edge / canvas                 #f08a3e on #1c211e   6.54:1  min 3   ok
+ *   rider edge / layer                  #f08a3e on #222825   6.01:1  min 3   ok
+ *   rider edge / selected row           #f08a3e on #2e4337   4.26:1  min 3   ok
+ *   guide tab edge / canvas             #a8955a on #1c211e   5.53:1  min 3   ok
+ *   guide tab edge / layer              #a8955a on #222825   5.09:1  min 3   ok
+ *   QR cut mark / canvas                #86b4ff on #1c211e   7.77:1  min 3   ok
+ *   filter cut mark / canvas            #c3a6f0 on #1c211e   7.80:1  min 3   ok
+ *   manual cut mark / canvas            #c9d3da on #1c211e  10.74:1  min 3   ok
+ *   QR cut mark / layer                 #86b4ff on #222825   7.14:1  min 3   ok
+ *   filter cut mark / layer             #c3a6f0 on #222825   7.18:1  min 3   ok
+ *   manual cut mark / layer             #c9d3da on #222825   9.88:1  min 3   ok
+ *   disabled primary label / pressed    #b3bdb7 on #303733   6.33:1  min 4.5 ok
+ *   danger text / layer                 #ff8fa3 on #222825   6.94:1  min 4.5 ok
+ *   text / danger bar                   #e8ece9 on #3d2028  12.26:1  min 7   ok
+ *   text / kontrol wash (uncertain char)  #e8ece9 on #40291a  11.36:1  min 7   ok
+ *   hue cut-qr                          #86b4ff   169 deg from rider  min 30 ok
+ *   hue cut-filter                      #c3a6f0   122 deg from rider  min 30 ok
+ *   hue cut-manual                      #c9d3da neutral (sat 0.19)      skip
+ *   hue ok                              #7fd49c   115 deg from rider  min 30 ok
+ *   hue danger                          #ff8fa3    37 deg from rider  min 30 ok
+ *   hue info                            #86b4ff   169 deg from rider  min 30 ok
+ *   hue accent                          #9fc5ae   118 deg from rider  min 30 ok
+ *   hue text-accent                     #a3cbb4   120 deg from rider  min 30 ok
+ *   hue accent-edge-selected            #a3cbb4   120 deg from rider  min 30 ok
+ * HC (preview; Qt uses the OS palette)
+ *   danger != kontrol highlight            #ffffff vs #ffff00  ok
+ *   kontrol text != danger                 #ffff00 vs #ffffff  ok
+ *
+ * High contrast ([data-theme=hc]) is a preview only: in Qt it follows
+ * the OS palette (D9) and drops these values for palette roles.
+ * ===================================================================== */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* ---- primitives: brand (D1, logo kit) ---- */
+  --brand-green: #3f5a4c;
+  --brand-green-strong: #344b3f;
+  --brand-manila: #e9d9a6;
+  --brand-orange: #e8731a;
+
+  /* ---- surfaces (L0 chrome -> L1 layer -> L2 popover) ---- */
+  --bg-chrome: #e9ecea;        /* title bar, tab strip, status bar (Mica fallback) */
+  --bg-layer: #f9faf9;         /* command bar, inspector, list panels */
+  --bg-canvas: #eff2f0;        /* work area behind page sheets */
+  --bg-paper: #ffffff;         /* page sheets only (a scan is white paper) */
+  --paper-ink: #c4cac6;        /* drawn text lines inside mock page sheets */
+  --paper-ink-strong: #6f7973; /* headings / QR inside mock page sheets */
+  --bg-popover: #ffffff;       /* menus, tooltips, flyouts, dialogs */
+  --bg-hover: #eceeec;         /* subtle fill under pointer (opaque for contrast tests) */
+  --bg-pressed: #e3e7e4;
+  --bg-selected: #dde8e1;      /* selected row / thumbnail backdrop */
+  --bg-input: #ffffff;
+  --scrim: rgba(24, 34, 29, 0.32);
+
+  /* ---- text ---- */
+  --text: #18221d;             /* body, table, menu text   (>= 7:1) */
+  --text-2: #4a564f;           /* secondary, meta, captions (>= 4.5:1) */
+  --text-disabled: #8a948e;    /* disabled only (WCAG exempt) */
+  --text-accent: #3f5a4c;      /* links, selected tab label */
+  --text-on-accent: #ffffff;
+
+  /* ---- lines ---- */
+  --hairline: #d5dbd7;         /* decorative 1px separators */
+  --edge: #7a867f;             /* control boundaries (>= 3:1) */
+  --edge-strong: #18221d;
+
+  /* ---- accent (one, D2) ---- */
+  --accent: #3f5a4c;
+  --accent-hover: #344b3f;
+  --accent-pressed: #2b3e34;
+  --accent-edge-selected: #3f5a4c;  /* selection frame on thumbnails/rows */
+
+  /* ---- icons ---- */
+  --icon: #3b4640;
+  --icon-2: #4a564f;
+
+  /* ---- signatures (DESIGN.md) ---- */
+  --manila: #e9d9a6;
+  --manila-edge: #8f7d45;      /* >= 3:1 on canvas, layer and selected (guide tab + page edge, D1) */
+  --manila-ink: #2b2410;
+  --rider: #e8731a;            /* kontrol ONLY */
+  --rider-edge: #9c4a0b;
+  --rider-ink: #241000;
+  --check-text: #8a3d00;       /* "Kontrol" words on light surfaces */
+  --check-wash: #fde7d3;
+
+  /* ---- cut types (position + pictogram first, colour third) ---- */
+  --cut-qr: #1f5fbf;
+  --cut-filter: #6b3fa0;       /* plum: never orange (D1), >= 30 deg hue from --rider */
+  --cut-manual: #37424a;       /* slate ink: a human cut, not an error (red is for deletion/errors only) */
+
+  /* ---- status (icon + word + colour, never colour alone) ---- */
+  --ok: #1e6b3a;
+  --danger: #b3123a;           /* crimson, >= 30 deg hue from --rider */
+  --info: #1f5fbf;
+  --info-wash: #e3edfb;
+  --danger-wash: #fbe4e8;
+
+  /* ---- focus (D11): 2px outer + 1px inner ---- */
+  --focus-outer: #18221d;
+  --focus-inner: #ffffff;
+
+  /* ---- elevation: only transient layers (03 r17) ---- */
+  --shadow-sheet: 0 1px 2px rgba(24, 34, 29, 0.10);
+  --shadow-flyout: 0 4px 12px rgba(24, 34, 29, 0.07), 0 0 2px rgba(24, 34, 29, 0.06);
+  --shadow-dialog: 0 16px 32px rgba(24, 34, 29, 0.07), 0 0 4px rgba(24, 34, 29, 0.06);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-chrome: #191d1b;
+  --bg-layer: #222825;
+  --bg-canvas: #1c211e;
+  --bg-paper: #e6e7e3;         /* scans stay paper, dimmed one step */
+  --paper-ink: #b4bab6;
+  --paper-ink-strong: #5f6964;
+  --bg-popover: #2c332f;
+  --bg-hover: #2a302d;
+  --bg-pressed: #303733;
+  --bg-selected: #2e4337;
+  --bg-input: #1c211e;
+  --scrim: rgba(0, 0, 0, 0.5);
+
+  --text: #e8ece9;
+  --text-2: #b3bdb7;
+  --text-disabled: #6f7a74;
+  --text-accent: #a3cbb4;
+  --text-on-accent: #0f1b15;   /* Windows 11 dark: light accent fill, dark text */
+
+  --hairline: #38403c;
+  --edge: #87938c;
+  --edge-strong: #e8ece9;
+
+  --accent: #9fc5ae;
+  --accent-hover: #b2d3bf;
+  --accent-pressed: #8bb39b;
+  --accent-edge-selected: #a3cbb4;
+
+  --icon: #c9d1cc;
+  --icon-2: #b3bdb7;
+
+  --manila: #d9c98f;
+  --manila-edge: #a8955a;
+  --manila-ink: #2b2410;
+  --rider: #e8731a;
+  --rider-edge: #f08a3e;       /* dark: the edge is lighter than the fill so it stays >= 3:1 on selected rows */
+  --rider-ink: #241000;
+  --check-text: #ffb27a;
+  --check-wash: #40291a;
+
+  --cut-qr: #86b4ff;
+  --cut-filter: #c3a6f0;
+  --cut-manual: #c9d3da;
+
+  --ok: #7fd49c;
+  --danger: #ff8fa3;
+  --info: #86b4ff;
+  --info-wash: #1e2a3d;
+  --danger-wash: #3d2028;
+
+  --focus-outer: #ffffff;
+  --focus-inner: #101311;
+
+  --shadow-sheet: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-flyout: 0 4px 12px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-dialog: 0 16px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* High contrast preview (Windows "Night sky"-like). Borders carry state. */
+[data-theme="hc"] {
+  color-scheme: dark;
+  --bg-chrome: #000000; --bg-layer: #000000; --bg-canvas: #000000; --bg-paper: #ffffff;
+  --paper-ink: #000000; --paper-ink-strong: #000000;
+  --bg-popover: #000000; --bg-hover: #000000; --bg-pressed: #000000; --bg-selected: #000000; /* selection = Highlight frame/bar, text stays WindowText */
+  --bg-input: #000000; --scrim: rgba(0, 0, 0, 0.7);
+  --text: #ffffff; --text-2: #ffffff; --text-disabled: #3ff23f; --text-accent: #ffff00;
+  --text-on-accent: #000000;
+  --hairline: #ffffff; --edge: #ffffff; --edge-strong: #ffffff;
+  --accent: #1aebff; --accent-hover: #1aebff; --accent-pressed: #1aebff; --accent-edge-selected: #1aebff;
+  --icon: #ffffff; --icon-2: #ffffff;
+  --manila: #000000; --manila-edge: #ffffff; --manila-ink: #ffffff;
+  --rider: #ffff00; --rider-edge: #ffff00; --rider-ink: #000000;
+  --check-text: #ffff00; --check-wash: #000000;
+  --cut-qr: #ffffff; --cut-filter: #ffffff; --cut-manual: #ffffff;
+  --ok: #3ff23f; --danger: #ffffff; /* no system "error" colour: icon + word carry it; never the kontrol yellow */ --info: #ffffff; --info-wash: #000000; --danger-wash: #000000;
+  --focus-outer: #ffffff; --focus-inner: #000000;
+  --shadow-sheet: none; --shadow-flyout: none; --shadow-dialog: none;
+}
+
+/* ---------------------------------------------------------------------
+ * Type (D3, D4). Sizes scale with the user text-size setting (D5):
+ * [data-text="115|130|150"] on <html>. 13px is the floor at 100 %.
+ * Weights: 400 / 500 / 600 only (Inter static Regular/Medium/SemiBold).
+ * ------------------------------------------------------------------- */
+:root {
+  --font-ui: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;  /* literal values only */
+  --font-features: "tnum" 1, "cv05" 1;  /* tabular figures everywhere; cv05 = open lowercase l */
+  /* read values, sicil numbers, file names: tell I/l/1, O/0 and B/8 apart (Inter ss02 disambiguation,
+     cv08 serifed capital I, slashed zero). Used in value tables, file names and the Okunan/Öneri lines. */
+  --font-features-code: "tnum" 1, "ss02" 1, "cv05" 1, "cv08" 1, "zero" 1;
+
+  --text-scale: 1;
+  --fs-page: calc(24px * var(--text-scale));     --lh-page: calc(32px * var(--text-scale));
+  --fs-panel: calc(20px * var(--text-scale));    --lh-panel: calc(28px * var(--text-scale));
+  --fs-section: calc(17px * var(--text-scale));  --lh-section: calc(24px * var(--text-scale));
+  --fs-body: calc(15px * var(--text-scale));     --lh-body: calc(21px * var(--text-scale));
+  --fs-secondary: calc(13px * var(--text-scale)); --lh-secondary: calc(18px * var(--text-scale));
+  --fs-caption: calc(13px * var(--text-scale));  --lh-caption: calc(18px * var(--text-scale));
+
+  --fw-regular: 400;
+  --fw-medium: 500;    /* control labels, menu items, tabs */
+  --fw-semibold: 600;  /* headings, selected tab, emphasis */
+}
+[data-text="115"] { --text-scale: 1.15; }
+[data-text="130"] { --text-scale: 1.3; }
+[data-text="150"] { --text-scale: 1.5; }
+
+/* ---------------------------------------------------------------------
+ * Geometry (D6)
+ * ------------------------------------------------------------------- */
+:root {
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-6: 24px; --sp-8: 32px; --sp-12: 48px;
+
+  --r-sheet: 2px;     /* page sheets */
+  --r-control: 4px;   /* buttons, inputs, tooltips, riders, guide tabs */
+  --r-overlay: 8px;   /* menus, popovers, dialogs, toasts */
+
+  --icon-sm: 16px; --icon-md: 20px; --icon-lg: 24px;   /* D8 */
+  --stroke: 1.75;                                      /* Lucide stroke at 16-20px */
+
+  /* fixed chrome */
+  --titlebar-h: 32px;
+  --tabstrip-h: 40px;
+  --statusbar-h: 32px;
+  --inspector-w: 320px;
+  --chip-h: 20px;     /* kbd caps, riders, count badges */
+  --guide-h: 24px;    /* Kontrol guide tab */
+}
+
+/* ---------------------------------------------------------------------
+ * Density (D5): [data-density="compact|normal|comfortable"] on <html>.
+ * Sıkı / Normal / Geniş. Never mixed on one screen (03 r15).
+ * ------------------------------------------------------------------- */
+:root,
+[data-density="normal"] {
+  --row-h: 40px;
+  --control-h: 32px;
+  --commandbar-h: 48px;   /* control + 2 x 8 */
+  --pad-x: var(--sp-3);
+}
+[data-density="compact"] {
+  --row-h: 32px;
+  --control-h: 28px;
+  --commandbar-h: 40px;
+  --pad-x: var(--sp-2);
+}
+[data-density="comfortable"] {
+  --row-h: 48px;
+  --control-h: 40px;
+  --commandbar-h: 56px;
+  --pad-x: var(--sp-4);
+}
+
+/* Text size 130 / 150 % (D5): chrome and controls step up one density so labels never clip
+ * (GOAL 3.3). Rows and controls take the Geniş sizes, chips and icons the next Lucide size,
+ * the inspector widens by one 48 px step. Declared after the density blocks so it wins. */
+[data-text="130"], [data-text="150"] {
+  --row-h: 48px;
+  --control-h: 40px;
+  --commandbar-h: 56px;
+  --titlebar-h: 40px;
+  --tabstrip-h: 48px;
+  --statusbar-h: 40px;
+  --chip-h: 24px;
+  --guide-h: 28px;
+  --icon-sm: 20px; --icon-md: 24px;
+  --inspector-w: 368px;
+}
+
+/* ---------------------------------------------------------------------
+ * Motion (D7). Nothing above 240 ms except indeterminate progress.
+ * Repeated actions (arrows, accept-next) use --dur-0.
+ * ------------------------------------------------------------------- */
+:root {
+  --dur-0: 0ms;
+  --dur-1: 80ms;    /* press, toggle, focus ring */
+  --dur-2: 120ms;   /* hover colour, tooltip in, exits */
+  --dur-3: 180ms;   /* menus, popovers, toasts in */
+  --dur-4: 240ms;   /* panels, tab crossfade, dialogs in */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  --ease-linear: linear;
+}
+[data-motion="reduced"] {
+  --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; --dur-4: 0ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) { --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; --dur-4: 0ms; }
+}
+
+/* ---------------------------------------------------------------------
+ * Focus ring (D11): Fluent 2px outer + 1px inner, 1px gap via inner.
+ * Use as box-shadow on the focused element; Qt paints it in QProxyStyle.
+ * ------------------------------------------------------------------- */
+:root {
+  --focus-ring: 0 0 0 1px var(--focus-inner), 0 0 0 3px var(--focus-outer);
+}

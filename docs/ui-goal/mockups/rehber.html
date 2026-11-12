@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-density="normal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1366">
+<title>Rehber · Evrakçı mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---- Rehber only (tokens only, no new colours) ---- */
+.toc { width: 280px; flex: none; background: var(--bg-layer); display: flex; flex-direction: column; min-height: 0; }
+.toc-search { padding: var(--sp-3) var(--sp-3) var(--sp-2); border-bottom: 1px solid var(--hairline); display: flex; flex-direction: column; gap: var(--sp-2); }
+.toc-search .input { width: 100%; }
+.toc-search .input .q { flex: 1; font-weight: var(--fw-medium); }
+.toc-search .input .placeholder { flex: 1; color: var(--text-2); }
+.toc-search .btn.xs { --control-h: 24px; }
+.toc-search .btn.xs .i { width: var(--icon-sm); height: var(--icon-sm); }
+.toc-status { display: flex; align-items: center; height: 28px; padding: 0 var(--sp-1); }
+.toc-status .t-2 b { color: var(--text); font-weight: var(--fw-semibold); }
+.toc-status .nav { margin-left: auto; display: inline-flex; gap: 0; }
+.toc-body { flex: 1; overflow-y: auto; padding: var(--sp-2) 0; scrollbar-width: thin; }
+.toc-h { padding: var(--sp-2) var(--sp-4) var(--sp-1); font-weight: var(--fw-medium); }
+.toc-list { padding: 0; }
+.toc-list li .lbl { flex: 1; min-width: 0; }
+.toc-list li[aria-selected="true"] .lbl { font-weight: var(--fw-semibold); }
+.toc-list li.zero .lbl { color: var(--text-2); }
+.toc-list li .meta { display: inline-flex; align-items: center; }
+.toc-list li[aria-selected="true"] .badge { background: var(--bg-canvas); }
+
+.article { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-6) var(--sp-8) var(--sp-8); scrollbar-width: thin; background: var(--bg-canvas); }
+.article:focus-visible { box-shadow: none; }
+.prose { max-width: 76ch; }
+.prose .lede { margin: var(--sp-1) 0 var(--sp-4); max-width: 60ch; }
+.prose h1 { margin: 0; }
+.sec { margin-top: var(--sp-6); }
+.sec > h2 { margin: 0 0 var(--sp-2); }
+.prose p { margin: 0 0 var(--sp-3); }
+.prose .infobar { margin: var(--sp-3) 0; }
+.prose .infobar.hint { margin-top: 0; }
+.b, .steps { list-style: none; margin: 0; padding: 0; }
+.b li, .steps li { position: relative; padding-left: var(--sp-6); margin-bottom: var(--sp-2); }
+.b li::before { content: ""; position: absolute; left: var(--sp-2); top: 9px; width: 4px; height: 4px; border-radius: var(--r-sheet); background: var(--text-2); } /* optical: 9px centres on 21px line */
+.steps { counter-reset: step; }
+.steps li { counter-increment: step; }
+.steps li::before { content: counter(step); position: absolute; left: 0; width: var(--sp-4); text-align: right; font-weight: var(--fw-semibold); color: var(--text-accent); font-variant-numeric: tabular-nums; }
+.prose b { font-weight: var(--fw-semibold); }
+.prose code { font-family: var(--font-mono); font-size: var(--fs-secondary); padding: 0 var(--sp-1); border-radius: var(--r-control); background: var(--bg-pressed); white-space: nowrap; }
+.prose .table { margin: var(--sp-2) 0 var(--sp-3); }
+.prose .table.settings td:first-child { width: 160px; font-weight: var(--fw-medium); }
+.prose .table.keys td:first-child { width: 280px; }
+.prose .table.keys td:first-child .kbd { margin-right: 0; }
+.prose .table tr:last-child td { border-bottom: 0; }
+.row-actions { margin-top: var(--sp-3); }
+
+/* search hits: tint + underline for all, solid accent fill for the current one (never colour alone) */
+mark { background: var(--bg-selected); color: var(--text); border-radius: var(--r-sheet); padding: 0 2px; margin: 0 -2px; box-shadow: inset 0 -2px 0 var(--accent); }
+mark.cur { background: var(--accent); color: var(--text-on-accent); box-shadow: none; font-weight: var(--fw-semibold); }
+
+/* empty search */
+.article .empty { margin-top: var(--sp-8); max-width: 560px; }
+.suggest { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-4); }
+.chips { display: flex; gap: var(--sp-2); }
+
+/* separator sheet panel */
+.printp { width: 320px; }
+.faces { display: flex; gap: var(--sp-4); padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--hairline); justify-content: center; }
+.face { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
+.sheetp { width: 120px; height: 170px; background: var(--bg-paper); border-radius: var(--r-sheet); box-shadow: var(--shadow-sheet); color: var(--paper-ink-strong); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-1); text-align: center; padding: var(--sp-2); }
+.sheetp .qr { width: 72px; height: 72px; margin-bottom: var(--sp-1); }
+.sheetp b { font-size: var(--fs-secondary); font-weight: var(--fw-semibold); line-height: var(--lh-secondary); }
+.sheetp span { font-size: var(--fs-secondary); line-height: var(--lh-secondary); }
+.printp .insp-head { padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--hairline); }
+.printp .insp-head .t-2 { margin-top: 2px; }
+.printp .row-ctl { display: flex; align-items: center; gap: var(--sp-2); }
+.printp .actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+.printp .note { margin: var(--sp-1) 0 0; }
+.printp .panel-section { padding: var(--sp-3) var(--sp-4); }
+.statusbar .check-none { color: var(--text-2); }
+.menu { left: 0; top: var(--titlebar-h); }
+.menu .mi > span:first-of-type { flex: 1; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+<!-- Rehber-only Lucide icons (ISC, lucide.dev); candidates for mockup.js -->
+<symbol id="printer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/></symbol>
+<symbol id="book-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+<symbol id="keyboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></symbol>
+<symbol id="chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></symbol>
+<symbol id="external-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+<symbol id="circle-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+<symbol id="save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></symbol>
+</svg>
+<div class="sheet">
+<!-- Pattern: Split Pane (8). TOC list | article | print panel. States: main (search hits), empty (no result), yardim (Yardım menu, Kısayollar) -->
+
+<div class="window" data-state="main" aria-label="Rehber · arama">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu"><span class="menu-item"><u>D</u>osya</span><span class="menu-item">Düz<u>e</u>n</span><span class="menu-item"><u>G</u>örünüm</span><span class="menu-item">Gi<u>t</u></span><span class="menu-item"><u>A</u>raçlar</span><span class="menu-item" data-menu="yardim"><u>Y</u>ardım</span></nav>
+    <div class="title"><b>Kasım 2026 kapasite raporları</b> · Evrakçı</div>
+    <span class="save-state"><svg class="i sm"><use href="#cloud-check"/></svg>Kaydedildi 14:32</span>
+    <div class="caption-buttons" aria-hidden="true"><span><svg class="i "><use href="#minus"/></svg></span><span><svg class="i "><use href="#square"/></svg></span><span><svg class="i "><use href="#x"/></svg></span></div>
+  </header>
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler"><span class="tab" role="tab" aria-selected="false">Yükle</span><span class="tab" role="tab" aria-selected="false">Kontrol</span><span class="tab" role="tab" aria-selected="false">Şablonlar</span><span class="tab" role="tab" aria-selected="false">Değerler</span><span class="tab" role="tab" aria-selected="false">Dışa Aktar</span><span class="tab" role="tab" aria-selected="true">Rehber</span></nav>
+  <div class="commandbar" role="toolbar" aria-label="Rehber komutları">
+    <button class="btn subtle" aria-label="Bul (Ctrl+F)"><svg class="i "><use href="#search"/></svg>Bul</button>
+    <button class="btn subtle icon" aria-label="Önceki sonuç (Shift+F3)"><svg class="i "><use href="#chevron-up"/></svg></button>
+    <button class="btn subtle icon" aria-label="Sonraki sonuç (F3)"><svg class="i "><use href="#chevron-down"/></svg></button>
+    <span class="sep"></span>
+    <button class="btn subtle" aria-label="Yazdır (Ctrl+P)"><svg class="i "><use href="#printer"/></svg>Yazdır</button>
+    <button class="btn subtle"><svg class="i "><use href="#external-link"/></svg>PDF olarak aç</button>
+    <span class="spacer"></span>
+    <button class="btn subtle" aria-label="Kısayolları göster (Shift+F1)"><svg class="i "><use href="#keyboard"/></svg>Kısayolları göster</button>
+    <button class="btn subtle" aria-label="Yardım (F1)"><svg class="i "><use href="#circle-help"/></svg>Yardım</button>
+    <button class="btn subtle icon" aria-label="Diğer komutlar"><svg class="i "><use href="#ellipsis"/></svg></button>
+  </div>
+  <div class="workspace"><aside class="toc" aria-label="İçindekiler">
+      <div class="toc-search"><div class="input search is-focus"><svg class="i "><use href="#search"/></svg><span class="q">ayıraç</span><button class="btn subtle icon xs" aria-label="Aramayı temizle (Esc)"><svg class="i "><use href="#x"/></svg></button></div><div class="toc-status"><span class="t-2"><b class="num">8</b> sonuç · <span class="num">3 / 8</span></span><span class="nav"><button class="btn subtle icon xs" aria-label="Önceki sonuç (Shift+F3)"><svg class="i "><use href="#chevron-up"/></svg></button><button class="btn subtle icon xs" aria-label="Sonraki sonuç (F3)"><svg class="i "><use href="#chevron-down"/></svg></button></span></div></div>
+      <nav class="toc-body"><div class="toc-h t-2">Tarama rehberi</div><ul class="list toc-list"><li class=zero><span class="lbl">Hazırlık</span></li><li aria-selected="true"><span class="lbl">QR ayıraç sayfaları</span><span class=meta><span class="badge num" aria-label="7 sonuç">7</span></span></li><li class=zero><span class="lbl">Küçük makbuzlar</span></li><li class=zero><span class="lbl">Tarayıcı ayarları</span></li><li class=zero><span class="lbl">Yükleme</span></li><li class=zero><span class="lbl">Sonrası</span></li></ul>
+    <div class="toc-h t-2">Başvuru</div><ul class="list toc-list"><li><span class="lbl">Kısayollar</span><span class="meta"><span class="badge num" aria-label="1 sonuç">1</span></span></li><li><span class="lbl">Ayıraç sayfası yazdır</span><span class="meta"><span class="kbd">Ctrl+P</span></span></li></ul></nav></aside><div class="splitter"></div><div class="work"><div class="article" tabindex="0" aria-label="Tarama rehberi"><div class="prose"><h1 class="t-page">Tarama rehberi</h1><p class="lede t-2">Zımbalı evrak destelerini hızlı ve sorunsuz taramak için hazırlık, tarayıcı ayarları ve yükleme adımları.</p><div class="infobar hint"><svg class="i"><use href="#info"/></svg><span class="msg"><b>İpucu.</b> <span class="kbd">Ctrl+F</span> ile rehberde arayın, <span class="kbd">Ctrl+tekerlek</span> ile yazıyı büyütün.</span><button class="btn subtle" style="--control-h:28px">Bir daha gösterme</button></div><section class="sec" aria-labelledby="s1">
+  <h2 class="t-panel" id="s1">1. Hazırlık</h2>
+  <ul class="b">
+   <li>Her desteyi masaya <b>orijinal sırasıyla</b> koyun.</li>
+   <li>Zımba tellerini <b>zımba sökücü</b> ile çıkarın. Tel kalırsa fotokopi makinesinin besleyicisi sıkışır ve tarayıcı camı çizilebilir.</li>
+   <li>Yırtık, buruşuk veya katlanmış sayfaları düzeltin.</li>
+  </ul></section><section class="sec" aria-labelledby="s2">
+  <h2 class="t-panel" id="s2">2. QR <mark class="">ayıraç</mark> sayfaları</h2>
+  <ul class="b">
+   <li><mark class="">Ayıraç</mark> sayfalarını sağdaki panelden yazdırın (<span class="kbd">Ctrl+P</span>). Komut satırında: <code>evrakci ayirac ayirac.pdf --adet 10</code>. QR kod yaprağın iki yüzüne de basılır, tek ve çift taraflı taramada aynı şekilde çalışır.</li>
+   <li><mark class="cur">Ayıraç</mark> sayfası yalnızca “burada yeni belge başlıyor” demektir. Çıktıya girmez.</li>
+   <li>Ayrılması gereken bir belgenin <b>önüne ve arkasına</b> birer <mark class="">ayıraç</mark> koyun. Örneğin 2 sayfalık kayıtların arasındaki 5 sayfalık bir kaydı <mark class="">ayıraç</mark>larla çevirin.</li>
+   <li>Hepsi aynı uzunlukta olan belgelerde <mark class="">ayıraç</mark> gerekmez: taramadan sonra o sayfaları seçip “her N sayfa bir belge” filtresini uygulayın.</li>
+   <li><mark class="">Ayıraç</mark>lar tekrar kullanılabilir. Taramadan sonra desteden çıkarıp saklayın.</li>
+  </ul>
+  <div class="infobar"><svg class="i"><use href="#info"/></svg><span class="msg"><b>Boş sayfalar hiçbir zaman belge ayırmaz.</b> Çift taraflı taramada oluşan boş arka yüzler, istenirse iş ayarından atılabilir.</span></div></section><section class="sec" aria-labelledby="s3">
+  <h2 class="t-panel" id="s3">3. Küçük makbuzlar</h2>
+  <ul class="b">
+   <li>Küçük ve ince makbuzlar besleyiciden düzgün geçmeyebilir.</li>
+   <li>Bunları <b>cam üzerinden</b> tarayın ya da birkaç tanesini bir A4 sayfaya bantlayıp öyle tarayın.</li>
+  </ul></section><section class="sec" aria-labelledby="s4">
+  <h2 class="t-panel" id="s4">4. Tarayıcı ayarları</h2>
+  <table class="table settings"><thead><tr><th>Ayar</th><th>Önerilen</th></tr></thead><tbody>
+   <tr><td>Çözünürlük</td><td><span class="num">300</span> dpi</td></tr>
+   <tr><td>Renk</td><td>Gri ton (renkli damga varsa renkli)</td></tr>
+   <tr><td>Çift taraflı</td><td>Belgeler iki yüzlüyse açık (boş arka yüzler iş ayarından atılabilir)</td></tr>
+   <tr><td>Dosya türü</td><td>PDF</td></tr>
+  </tbody></table>
+  <div class="row-actions"><button class="btn secondary"><svg class="i "><use href="#save"/></svg>Bu ayarı profil olarak kaydet</button></div></section><section class="sec" aria-labelledby="s5">
+  <h2 class="t-panel" id="s5">5. Yükleme</h2>
+  <ol class="steps">
+   <li>Her partiyi ayrı PDF olarak kaydedin ve hepsini aynı işe ekleyin, tarama sırasıyla.</li>
+   <li>Ayrımları kontrol edin, gerekirse kesim ekleyin veya kaldırın.</li>
+   <li><b>Dışa aktar</b> ile her belgeyi ayrı PDF olarak alın.</li>
+  </ol></section><section class="sec" aria-labelledby="s6">
+  <h2 class="t-panel" id="s6">6. Sonrası</h2>
+  <ul class="b"><li>Kurum kuralına göre orijinal evrakları yeniden zımbalayın ve arşive kaldırın.</li></ul></section><section class="sec" aria-labelledby="s7">
+  <h2 class="t-panel" id="s7">Kısayollar</h2>
+  <p class="lede t-2">Bu sekmede geçerli tuşlar. Diğer sekmelerin tuşları için <span class="kbd">Shift+F1</span> tuşuna basın.</p>
+  <table class="table keys"><thead><tr><th>Kısayol</th><th>Ne yapar</th></tr></thead><tbody><tr><td><span class="kbd">F1</span></td><td>Yardımı aç</td></tr><tr><td><span class="kbd">Ctrl+6</span></td><td>Rehber sekmesine geç</td></tr><tr><td><span class="kbd">Ctrl+F</span></td><td>Rehberde ara</td></tr><tr><td><span class="kbd">F3</span> / <span class="kbd">Shift+F3</span></td><td>Sonraki / önceki sonuç</td></tr><tr><td><span class="kbd">Ctrl+Num+</span> / <span class="kbd">Ctrl+-</span></td><td>Yazıyı büyüt / küçült (Ctrl+tekerlek de çalışır)</td></tr><tr><td><span class="kbd">Ctrl+P</span></td><td><mark class="">Ayıraç</mark> sayfasını yazdır</td></tr><tr><td><span class="kbd">Shift+F1</span></td><td>Klavye kısayollarını göster</td></tr><tr><td><span class="kbd">Ctrl+K</span></td><td>Komut ara</td></tr><tr><td><span class="kbd">Ctrl+Tab</span></td><td>Sonraki sekme</td></tr></tbody></table></section></div></div></div><div class="splitter"></div><aside class="inspector printp" aria-label="Ayıraç sayfası yazdır" id="print">
+      <div class="insp-head"><h2 class="t-panel">Ayıraç sayfası yazdır</h2>
+        <div class="t-2">Yaprağın iki yüzüne de aynı QR kod basılır.</div></div>
+      <div class="faces"><figure class="face"><div class="sheetp"><svg class="qr" viewBox="0 0 21 21" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h1v1h-1zM0 1h1v1h-1zM0 2h1v1h-1zM0 3h1v1h-1zM0 4h1v1h-1zM0 5h1v1h-1zM0 6h1v1h-1zM1 0h1v1h-1zM1 6h1v1h-1zM2 0h1v1h-1zM2 2h1v1h-1zM2 3h1v1h-1zM2 4h1v1h-1zM2 6h1v1h-1zM3 0h1v1h-1zM3 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM3 6h1v1h-1zM4 0h1v1h-1zM4 2h1v1h-1zM4 3h1v1h-1zM4 4h1v1h-1zM4 6h1v1h-1zM5 0h1v1h-1zM5 6h1v1h-1zM6 0h1v1h-1zM6 1h1v1h-1zM6 2h1v1h-1zM6 3h1v1h-1zM6 4h1v1h-1zM6 5h1v1h-1zM6 6h1v1h-1zM14 0h1v1h-1zM14 1h1v1h-1zM14 2h1v1h-1zM14 3h1v1h-1zM14 4h1v1h-1zM14 5h1v1h-1zM14 6h1v1h-1zM15 0h1v1h-1zM15 6h1v1h-1zM16 0h1v1h-1zM16 2h1v1h-1zM16 3h1v1h-1zM16 4h1v1h-1zM16 6h1v1h-1zM17 0h1v1h-1zM17 2h1v1h-1zM17 3h1v1h-1zM17 4h1v1h-1zM17 6h1v1h-1zM18 0h1v1h-1zM18 2h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1zM18 6h1v1h-1zM19 0h1v1h-1zM19 6h1v1h-1zM20 0h1v1h-1zM20 1h1v1h-1zM20 2h1v1h-1zM20 3h1v1h-1zM20 4h1v1h-1zM20 5h1v1h-1zM20 6h1v1h-1zM0 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM0 17h1v1h-1zM0 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM1 14h1v1h-1zM1 20h1v1h-1zM2 14h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1zM2 20h1v1h-1zM3 14h1v1h-1zM3 16h1v1h-1zM3 17h1v1h-1zM3 18h1v1h-1zM3 20h1v1h-1zM4 14h1v1h-1zM4 16h1v1h-1zM4 17h1v1h-1zM4 18h1v1h-1zM4 20h1v1h-1zM5 14h1v1h-1zM5 20h1v1h-1zM6 14h1v1h-1zM6 15h1v1h-1zM6 16h1v1h-1zM6 17h1v1h-1zM6 18h1v1h-1zM6 19h1v1h-1zM6 20h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM9 1h1v1h-1zM11 1h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM11 2h1v1h-1zM12 2h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM12 3h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM8 6h1v1h-1zM12 6h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM2 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM14 8h1v1h-1zM17 8h1v1h-1zM18 8h1v1h-1zM0 9h1v1h-1zM4 9h1v1h-1zM6 9h1v1h-1zM8 9h1v1h-1zM11 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM17 9h1v1h-1zM1 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM15 10h1v1h-1zM17 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM2 12h1v1h-1zM4 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM10 12h1v1h-1zM12 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM18 12h1v1h-1zM10 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM18 13h1v1h-1zM19 13h1v1h-1zM10 14h1v1h-1zM13 14h1v1h-1zM16 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM8 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM14 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM20 16h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM15 17h1v1h-1zM17 17h1v1h-1zM18 17h1v1h-1zM19 17h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM14 18h1v1h-1zM18 18h1v1h-1zM19 18h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM12 19h1v1h-1zM13 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM14 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM18 20h1v1h-1zM20 20h1v1h-1z" fill="currentColor"/></svg><b>Ayıraç</b><span>Burada yeni belge başlıyor</span></div><figcaption class="t-2">Ön yüz</figcaption></figure><figure class="face"><div class="sheetp"><svg class="qr" viewBox="0 0 21 21" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h1v1h-1zM0 1h1v1h-1zM0 2h1v1h-1zM0 3h1v1h-1zM0 4h1v1h-1zM0 5h1v1h-1zM0 6h1v1h-1zM1 0h1v1h-1zM1 6h1v1h-1zM2 0h1v1h-1zM2 2h1v1h-1zM2 3h1v1h-1zM2 4h1v1h-1zM2 6h1v1h-1zM3 0h1v1h-1zM3 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM3 6h1v1h-1zM4 0h1v1h-1zM4 2h1v1h-1zM4 3h1v1h-1zM4 4h1v1h-1zM4 6h1v1h-1zM5 0h1v1h-1zM5 6h1v1h-1zM6 0h1v1h-1zM6 1h1v1h-1zM6 2h1v1h-1zM6 3h1v1h-1zM6 4h1v1h-1zM6 5h1v1h-1zM6 6h1v1h-1zM14 0h1v1h-1zM14 1h1v1h-1zM14 2h1v1h-1zM14 3h1v1h-1zM14 4h1v1h-1zM14 5h1v1h-1zM14 6h1v1h-1zM15 0h1v1h-1zM15 6h1v1h-1zM16 0h1v1h-1zM16 2h1v1h-1zM16 3h1v1h-1zM16 4h1v1h-1zM16 6h1v1h-1zM17 0h1v1h-1zM17 2h1v1h-1zM17 3h1v1h-1zM17 4h1v1h-1zM17 6h1v1h-1zM18 0h1v1h-1zM18 2h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1zM18 6h1v1h-1zM19 0h1v1h-1zM19 6h1v1h-1zM20 0h1v1h-1zM20 1h1v1h-1zM20 2h1v1h-1zM20 3h1v1h-1zM20 4h1v1h-1zM20 5h1v1h-1zM20 6h1v1h-1zM0 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM0 17h1v1h-1zM0 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM1 14h1v1h-1zM1 20h1v1h-1zM2 14h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1zM2 20h1v1h-1zM3 14h1v1h-1zM3 16h1v1h-1zM3 17h1v1h-1zM3 18h1v1h-1zM3 20h1v1h-1zM4 14h1v1h-1zM4 16h1v1h-1zM4 17h1v1h-1zM4 18h1v1h-1zM4 20h1v1h-1zM5 14h1v1h-1zM5 20h1v1h-1zM6 14h1v1h-1zM6 15h1v1h-1zM6 16h1v1h-1zM6 17h1v1h-1zM6 18h1v1h-1zM6 19h1v1h-1zM6 20h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM9 1h1v1h-1zM11 1h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM11 2h1v1h-1zM12 2h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM12 3h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM8 6h1v1h-1zM12 6h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM2 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM14 8h1v1h-1zM17 8h1v1h-1zM18 8h1v1h-1zM0 9h1v1h-1zM4 9h1v1h-1zM6 9h1v1h-1zM8 9h1v1h-1zM11 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM17 9h1v1h-1zM1 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM15 10h1v1h-1zM17 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM2 12h1v1h-1zM4 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM10 12h1v1h-1zM12 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM18 12h1v1h-1zM10 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM18 13h1v1h-1zM19 13h1v1h-1zM10 14h1v1h-1zM13 14h1v1h-1zM16 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM8 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM14 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM20 16h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM15 17h1v1h-1zM17 17h1v1h-1zM18 17h1v1h-1zM19 17h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM14 18h1v1h-1zM18 18h1v1h-1zM19 18h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM12 19h1v1h-1zM13 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM14 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM18 20h1v1h-1zM20 20h1v1h-1z" fill="currentColor"/></svg><b>Ayıraç</b><span>Burada yeni belge başlıyor</span></div><figcaption class="t-2">Arka yüz</figcaption></figure></div>
+      <div class="panel-section">
+        <div class="field"><label>Kaç adet</label>
+          <div class="row-ctl"><span class="input num">20</span><span class="t-2">sayfa</span></div></div>
+        <dl class="kv" style="margin-top:var(--sp-3)"><dt>Kâğıt</dt><dd>A4</dd><dt>Dosya</dt><dd>ayirac-sayfalari.pdf</dd></dl>
+      </div>
+      <div class="panel-section actions">
+        <button class="btn primary wide"><svg class="i "><use href="#printer"/></svg>Yazdır<span class="kbd">Ctrl+P</span></button>
+        <button class="btn secondary wide"><svg class="i "><use href="#external-link"/></svg>PDF olarak aç</button>
+        <p class="t-2 note">Ayıraç sayfaları dışa aktarılmaz. PDF görüntüleyicide açılır; oradan da yazdırabilirsiniz.</p>
+      </div>
+    </aside></div>
+  <footer class="statusbar">
+    <span class="item">Bölüm <b class="num">2</b> / 7</span>
+    <span class="item check-none"><b class="num">8</b> sonuç “ayıraç”</span>
+    <span class="item"><b class="num">640</b> sayfa · <b class="num">96</b> belge</span>
+    <span class="spacer"></span>
+    <span class="zoom" aria-label="Yazı boyutu">
+      <button class="btn subtle icon" aria-label="Küçült (Ctrl+-)"><svg class="i "><use href="#minus"/></svg></button>
+      <span class="slider"><span class="track"><span class="fill" style="width:33%"></span><span class="thumb" style="left:33%"></span></span></span>
+      <button class="btn subtle icon" aria-label="Büyüt (Ctrl+Num+)"><svg class="i "><use href="#plus"/></svg></button>
+      <span class="value">%100</span>
+    </span></footer>
+  <div class="tooltip" id="tip-next">Sonraki sonuç <span class="kbd">F3</span></div>
+</div>
+
+<div class="window" data-state="empty" aria-label="Rehber · sonuç yok">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu"><span class="menu-item"><u>D</u>osya</span><span class="menu-item">Düz<u>e</u>n</span><span class="menu-item"><u>G</u>örünüm</span><span class="menu-item">Gi<u>t</u></span><span class="menu-item"><u>A</u>raçlar</span><span class="menu-item" data-menu="yardim"><u>Y</u>ardım</span></nav>
+    <div class="title"><b>Kasım 2026 kapasite raporları</b> · Evrakçı</div>
+    <span class="save-state"><svg class="i sm"><use href="#cloud-check"/></svg>Kaydedildi 14:32</span>
+    <div class="caption-buttons" aria-hidden="true"><span><svg class="i "><use href="#minus"/></svg></span><span><svg class="i "><use href="#square"/></svg></span><span><svg class="i "><use href="#x"/></svg></span></div>
+  </header>
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler"><span class="tab" role="tab" aria-selected="false">Yükle</span><span class="tab" role="tab" aria-selected="false">Kontrol</span><span class="tab" role="tab" aria-selected="false">Şablonlar</span><span class="tab" role="tab" aria-selected="false">Değerler</span><span class="tab" role="tab" aria-selected="false">Dışa Aktar</span><span class="tab" role="tab" aria-selected="true">Rehber</span></nav>
+  <div class="commandbar" role="toolbar" aria-label="Rehber komutları">
+    <button class="btn subtle" aria-label="Bul (Ctrl+F)"><svg class="i "><use href="#search"/></svg>Bul</button>
+    <button class="btn subtle icon" aria-label="Önceki sonuç (Shift+F3)" disabled><svg class="i "><use href="#chevron-up"/></svg></button>
+    <button class="btn subtle icon" aria-label="Sonraki sonuç (F3)" disabled><svg class="i "><use href="#chevron-down"/></svg></button>
+    <span class="sep"></span>
+    <button class="btn subtle" aria-label="Yazdır (Ctrl+P)"><svg class="i "><use href="#printer"/></svg>Yazdır</button>
+    <button class="btn subtle"><svg class="i "><use href="#external-link"/></svg>PDF olarak aç</button>
+    <span class="spacer"></span>
+    <button class="btn subtle" aria-label="Kısayolları göster (Shift+F1)"><svg class="i "><use href="#keyboard"/></svg>Kısayolları göster</button>
+    <button class="btn subtle" aria-label="Yardım (F1)"><svg class="i "><use href="#circle-help"/></svg>Yardım</button>
+    <button class="btn subtle icon" aria-label="Diğer komutlar"><svg class="i "><use href="#ellipsis"/></svg></button>
+  </div>
+  <div class="workspace"><aside class="toc" aria-label="İçindekiler">
+      <div class="toc-search"><div class="input search is-focus"><svg class="i "><use href="#search"/></svg><span class="q">laminasyon</span><button class="btn subtle icon xs" aria-label="Aramayı temizle (Esc)"><svg class="i "><use href="#x"/></svg></button></div><div class="toc-status"><span class="t-2"><b class="num">0</b> sonuç</span><span class="nav"><button class="btn subtle icon xs" aria-label="Önceki sonuç (Shift+F3)" disabled><svg class="i "><use href="#chevron-up"/></svg></button><button class="btn subtle icon xs" aria-label="Sonraki sonuç (F3)" disabled><svg class="i "><use href="#chevron-down"/></svg></button></span></div></div>
+      <nav class="toc-body"><div class="toc-h t-2">Tarama rehberi</div><ul class="list toc-list"><li class=zero><span class="lbl">Hazırlık</span></li><li class=zero><span class="lbl">QR ayıraç sayfaları</span></li><li class=zero><span class="lbl">Küçük makbuzlar</span></li><li class=zero><span class="lbl">Tarayıcı ayarları</span></li><li class=zero><span class="lbl">Yükleme</span></li><li class=zero><span class="lbl">Sonrası</span></li></ul>
+    <div class="toc-h t-2">Başvuru</div><ul class="list toc-list"><li><span class="lbl">Kısayollar</span></li><li><span class="lbl">Ayıraç sayfası yazdır</span><span class="meta"><span class="kbd">Ctrl+P</span></span></li></ul></nav></aside><div class="splitter"></div><div class="work"><div class="article"><div class="prose">
+ <div class="empty"><svg class="i lg"><use href="#search"/></svg>
+  <h2 class="t-panel">“laminasyon” için sonuç yok</h2>
+  <p>Rehberde bu sözcük geçmiyor. Yazımı kontrol edin ya da daha kısa bir sözcük deneyin; aramada büyük ve küçük harf, Türkçe karakterler fark etmez.</p>
+  <div class="actions"><button class="btn primary"><svg class="i "><use href="#x"/></svg>Aramayı temizle<span class="kbd">Esc</span></button>
+   <button class="btn secondary" aria-label="Kısayolları göster (Shift+F1)"><svg class="i "><use href="#keyboard"/></svg>Kısayolları göster</button></div>
+  <div class="suggest"><span class="t-2">Sık aranan konular</span>
+   <div class="chips"><button class="btn secondary" style="--control-h:28px">ayıraç</button><button class="btn secondary" style="--control-h:28px">çözünürlük</button><button class="btn secondary" style="--control-h:28px">zımba</button><button class="btn secondary" style="--control-h:28px">makbuz</button></div></div>
+ </div></div></div></div><div class="splitter"></div><aside class="inspector printp" aria-label="Ayıraç sayfası yazdır" id="print">
+      <div class="insp-head"><h2 class="t-panel">Ayıraç sayfası yazdır</h2>
+        <div class="t-2">Yaprağın iki yüzüne de aynı QR kod basılır.</div></div>
+      <div class="faces"><figure class="face"><div class="sheetp"><svg class="qr" viewBox="0 0 21 21" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h1v1h-1zM0 1h1v1h-1zM0 2h1v1h-1zM0 3h1v1h-1zM0 4h1v1h-1zM0 5h1v1h-1zM0 6h1v1h-1zM1 0h1v1h-1zM1 6h1v1h-1zM2 0h1v1h-1zM2 2h1v1h-1zM2 3h1v1h-1zM2 4h1v1h-1zM2 6h1v1h-1zM3 0h1v1h-1zM3 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM3 6h1v1h-1zM4 0h1v1h-1zM4 2h1v1h-1zM4 3h1v1h-1zM4 4h1v1h-1zM4 6h1v1h-1zM5 0h1v1h-1zM5 6h1v1h-1zM6 0h1v1h-1zM6 1h1v1h-1zM6 2h1v1h-1zM6 3h1v1h-1zM6 4h1v1h-1zM6 5h1v1h-1zM6 6h1v1h-1zM14 0h1v1h-1zM14 1h1v1h-1zM14 2h1v1h-1zM14 3h1v1h-1zM14 4h1v1h-1zM14 5h1v1h-1zM14 6h1v1h-1zM15 0h1v1h-1zM15 6h1v1h-1zM16 0h1v1h-1zM16 2h1v1h-1zM16 3h1v1h-1zM16 4h1v1h-1zM16 6h1v1h-1zM17 0h1v1h-1zM17 2h1v1h-1zM17 3h1v1h-1zM17 4h1v1h-1zM17 6h1v1h-1zM18 0h1v1h-1zM18 2h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1zM18 6h1v1h-1zM19 0h1v1h-1zM19 6h1v1h-1zM20 0h1v1h-1zM20 1h1v1h-1zM20 2h1v1h-1zM20 3h1v1h-1zM20 4h1v1h-1zM20 5h1v1h-1zM20 6h1v1h-1zM0 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM0 17h1v1h-1zM0 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM1 14h1v1h-1zM1 20h1v1h-1zM2 14h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1zM2 20h1v1h-1zM3 14h1v1h-1zM3 16h1v1h-1zM3 17h1v1h-1zM3 18h1v1h-1zM3 20h1v1h-1zM4 14h1v1h-1zM4 16h1v1h-1zM4 17h1v1h-1zM4 18h1v1h-1zM4 20h1v1h-1zM5 14h1v1h-1zM5 20h1v1h-1zM6 14h1v1h-1zM6 15h1v1h-1zM6 16h1v1h-1zM6 17h1v1h-1zM6 18h1v1h-1zM6 19h1v1h-1zM6 20h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM9 1h1v1h-1zM11 1h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM11 2h1v1h-1zM12 2h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM12 3h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM8 6h1v1h-1zM12 6h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM2 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM14 8h1v1h-1zM17 8h1v1h-1zM18 8h1v1h-1zM0 9h1v1h-1zM4 9h1v1h-1zM6 9h1v1h-1zM8 9h1v1h-1zM11 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM17 9h1v1h-1zM1 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM15 10h1v1h-1zM17 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM2 12h1v1h-1zM4 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM10 12h1v1h-1zM12 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM18 12h1v1h-1zM10 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM18 13h1v1h-1zM19 13h1v1h-1zM10 14h1v1h-1zM13 14h1v1h-1zM16 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM8 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM14 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM20 16h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM15 17h1v1h-1zM17 17h1v1h-1zM18 17h1v1h-1zM19 17h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM14 18h1v1h-1zM18 18h1v1h-1zM19 18h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM12 19h1v1h-1zM13 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM14 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM18 20h1v1h-1zM20 20h1v1h-1z" fill="currentColor"/></svg><b>Ayıraç</b><span>Burada yeni belge başlıyor</span></div><figcaption class="t-2">Ön yüz</figcaption></figure><figure class="face"><div class="sheetp"><svg class="qr" viewBox="0 0 21 21" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h1v1h-1zM0 1h1v1h-1zM0 2h1v1h-1zM0 3h1v1h-1zM0 4h1v1h-1zM0 5h1v1h-1zM0 6h1v1h-1zM1 0h1v1h-1zM1 6h1v1h-1zM2 0h1v1h-1zM2 2h1v1h-1zM2 3h1v1h-1zM2 4h1v1h-1zM2 6h1v1h-1zM3 0h1v1h-1zM3 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM3 6h1v1h-1zM4 0h1v1h-1zM4 2h1v1h-1zM4 3h1v1h-1zM4 4h1v1h-1zM4 6h1v1h-1zM5 0h1v1h-1zM5 6h1v1h-1zM6 0h1v1h-1zM6 1h1v1h-1zM6 2h1v1h-1zM6 3h1v1h-1zM6 4h1v1h-1zM6 5h1v1h-1zM6 6h1v1h-1zM14 0h1v1h-1zM14 1h1v1h-1zM14 2h1v1h-1zM14 3h1v1h-1zM14 4h1v1h-1zM14 5h1v1h-1zM14 6h1v1h-1zM15 0h1v1h-1zM15 6h1v1h-1zM16 0h1v1h-1zM16 2h1v1h-1zM16 3h1v1h-1zM16 4h1v1h-1zM16 6h1v1h-1zM17 0h1v1h-1zM17 2h1v1h-1zM17 3h1v1h-1zM17 4h1v1h-1zM17 6h1v1h-1zM18 0h1v1h-1zM18 2h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1zM18 6h1v1h-1zM19 0h1v1h-1zM19 6h1v1h-1zM20 0h1v1h-1zM20 1h1v1h-1zM20 2h1v1h-1zM20 3h1v1h-1zM20 4h1v1h-1zM20 5h1v1h-1zM20 6h1v1h-1zM0 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM0 17h1v1h-1zM0 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM1 14h1v1h-1zM1 20h1v1h-1zM2 14h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1zM2 20h1v1h-1zM3 14h1v1h-1zM3 16h1v1h-1zM3 17h1v1h-1zM3 18h1v1h-1zM3 20h1v1h-1zM4 14h1v1h-1zM4 16h1v1h-1zM4 17h1v1h-1zM4 18h1v1h-1zM4 20h1v1h-1zM5 14h1v1h-1zM5 20h1v1h-1zM6 14h1v1h-1zM6 15h1v1h-1zM6 16h1v1h-1zM6 17h1v1h-1zM6 18h1v1h-1zM6 19h1v1h-1zM6 20h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM9 1h1v1h-1zM11 1h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM11 2h1v1h-1zM12 2h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM12 3h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM8 6h1v1h-1zM12 6h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM2 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM14 8h1v1h-1zM17 8h1v1h-1zM18 8h1v1h-1zM0 9h1v1h-1zM4 9h1v1h-1zM6 9h1v1h-1zM8 9h1v1h-1zM11 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM17 9h1v1h-1zM1 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM15 10h1v1h-1zM17 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM2 12h1v1h-1zM4 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM10 12h1v1h-1zM12 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM18 12h1v1h-1zM10 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM18 13h1v1h-1zM19 13h1v1h-1zM10 14h1v1h-1zM13 14h1v1h-1zM16 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM8 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM14 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM20 16h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM15 17h1v1h-1zM17 17h1v1h-1zM18 17h1v1h-1zM19 17h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM14 18h1v1h-1zM18 18h1v1h-1zM19 18h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM12 19h1v1h-1zM13 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM14 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM18 20h1v1h-1zM20 20h1v1h-1z" fill="currentColor"/></svg><b>Ayıraç</b><span>Burada yeni belge başlıyor</span></div><figcaption class="t-2">Arka yüz</figcaption></figure></div>
+      <div class="panel-section">
+        <div class="field"><label>Kaç adet</label>
+          <div class="row-ctl"><span class="input num">20</span><span class="t-2">sayfa</span></div></div>
+        <dl class="kv" style="margin-top:var(--sp-3)"><dt>Kâğıt</dt><dd>A4</dd><dt>Dosya</dt><dd>ayirac-sayfalari.pdf</dd></dl>
+      </div>
+      <div class="panel-section actions">
+        <button class="btn primary wide"><svg class="i "><use href="#printer"/></svg>Yazdır<span class="kbd">Ctrl+P</span></button>
+        <button class="btn secondary wide"><svg class="i "><use href="#external-link"/></svg>PDF olarak aç</button>
+        <p class="t-2 note">Ayıraç sayfaları dışa aktarılmaz. PDF görüntüleyicide açılır; oradan da yazdırabilirsiniz.</p>
+      </div>
+    </aside></div>
+  <footer class="statusbar">
+    <span class="item">Bölüm <b class="num">2</b> / 7</span>
+    <span class="item"><b class="num">0</b> sonuç “laminasyon”</span>
+    <span class="item"><b class="num">640</b> sayfa · <b class="num">96</b> belge</span>
+    <span class="spacer"></span>
+    <span class="zoom" aria-label="Yazı boyutu">
+      <button class="btn subtle icon" aria-label="Küçült (Ctrl+-)"><svg class="i "><use href="#minus"/></svg></button>
+      <span class="slider"><span class="track"><span class="fill" style="width:33%"></span><span class="thumb" style="left:33%"></span></span></span>
+      <button class="btn subtle icon" aria-label="Büyüt (Ctrl+Num+)"><svg class="i "><use href="#plus"/></svg></button>
+      <span class="value">%100</span>
+    </span></footer>
+  
+</div>
+
+<div class="window" data-state="yardim" aria-label="Rehber · Yardım menüsü">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu"><span class="menu-item"><u>D</u>osya</span><span class="menu-item">Düz<u>e</u>n</span><span class="menu-item"><u>G</u>örünüm</span><span class="menu-item">Gi<u>t</u></span><span class="menu-item"><u>A</u>raçlar</span><span class="menu-item" data-menu="yardim"><u>Y</u>ardım</span></nav>
+    <div class="title"><b>Kasım 2026 kapasite raporları</b> · Evrakçı</div>
+    <span class="save-state"><svg class="i sm"><use href="#cloud-check"/></svg>Kaydedildi 14:35</span>
+    <div class="caption-buttons" aria-hidden="true"><span><svg class="i "><use href="#minus"/></svg></span><span><svg class="i "><use href="#square"/></svg></span><span><svg class="i "><use href="#x"/></svg></span></div>
+  </header>
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler"><span class="tab" role="tab" aria-selected="false">Yükle</span><span class="tab" role="tab" aria-selected="false">Kontrol</span><span class="tab" role="tab" aria-selected="false">Şablonlar</span><span class="tab" role="tab" aria-selected="false">Değerler</span><span class="tab" role="tab" aria-selected="false">Dışa Aktar</span><span class="tab" role="tab" aria-selected="true">Rehber</span></nav>
+  <div class="commandbar" role="toolbar" aria-label="Rehber komutları">
+    <button class="btn subtle" aria-label="Bul (Ctrl+F)"><svg class="i "><use href="#search"/></svg>Bul</button>
+    <button class="btn subtle icon" aria-label="Önceki sonuç (Shift+F3)" disabled><svg class="i "><use href="#chevron-up"/></svg></button>
+    <button class="btn subtle icon" aria-label="Sonraki sonuç (F3)" disabled><svg class="i "><use href="#chevron-down"/></svg></button>
+    <span class="sep"></span>
+    <button class="btn subtle" aria-label="Yazdır (Ctrl+P)"><svg class="i "><use href="#printer"/></svg>Yazdır</button>
+    <button class="btn subtle"><svg class="i "><use href="#external-link"/></svg>PDF olarak aç</button>
+    <span class="spacer"></span>
+    <button class="btn subtle" aria-label="Kısayolları göster (Shift+F1)"><svg class="i "><use href="#keyboard"/></svg>Kısayolları göster</button>
+    <button class="btn subtle" aria-label="Yardım (F1)"><svg class="i "><use href="#circle-help"/></svg>Yardım</button>
+    <button class="btn subtle icon" aria-label="Diğer komutlar"><svg class="i "><use href="#ellipsis"/></svg></button>
+  </div>
+  <div class="workspace"><aside class="toc" aria-label="İçindekiler">
+      <div class="toc-search"><div class="input search"><svg class="i sm"><use href="#search"/></svg><span class="placeholder">Rehberde ara</span><span class="kbd">Ctrl+F</span></div><div class="toc-status"><span class="t-2">7 bölüm · <span class="num">4</span> dk okuma</span></div></div>
+      <nav class="toc-body"><div class="toc-h t-2">Tarama rehberi</div><ul class="list toc-list"><li><span class="lbl">Hazırlık</span></li><li><span class="lbl">QR ayıraç sayfaları</span></li><li><span class="lbl">Küçük makbuzlar</span></li><li><span class="lbl">Tarayıcı ayarları</span></li><li><span class="lbl">Yükleme</span></li><li><span class="lbl">Sonrası</span></li></ul>
+    <div class="toc-h t-2">Başvuru</div><ul class="list toc-list"><li aria-selected="true"><span class="lbl">Kısayollar</span></li><li><span class="lbl">Ayıraç sayfası yazdır</span><span class="meta"><span class="kbd">Ctrl+P</span></span></li></ul></nav></aside><div class="splitter"></div><div class="work"><div class="article" tabindex="0" aria-label="Tarama rehberi" data-scroll="s7" data-zoom="1.15"><div class="prose"><section class="sec" aria-labelledby="s1">
+  <h2 class="t-panel" id="s1">1. Hazırlık</h2>
+  <ul class="b">
+   <li>Her desteyi masaya <b>orijinal sırasıyla</b> koyun.</li>
+   <li>Zımba tellerini <b>zımba sökücü</b> ile çıkarın. Tel kalırsa fotokopi makinesinin besleyicisi sıkışır ve tarayıcı camı çizilebilir.</li>
+   <li>Yırtık, buruşuk veya katlanmış sayfaları düzeltin.</li>
+  </ul></section><section class="sec" aria-labelledby="s2">
+  <h2 class="t-panel" id="s2">2. QR ayıraç sayfaları</h2>
+  <ul class="b">
+   <li>Ayıraç sayfalarını sağdaki panelden yazdırın (<span class="kbd">Ctrl+P</span>). Komut satırında: <code>evrakci ayirac ayirac.pdf --adet 10</code>. QR kod yaprağın iki yüzüne de basılır, tek ve çift taraflı taramada aynı şekilde çalışır.</li>
+   <li>Ayıraç sayfası yalnızca “burada yeni belge başlıyor” demektir. Çıktıya girmez.</li>
+   <li>Ayrılması gereken bir belgenin <b>önüne ve arkasına</b> birer ayıraç koyun. Örneğin 2 sayfalık kayıtların arasındaki 5 sayfalık bir kaydı ayıraçlarla çevirin.</li>
+   <li>Hepsi aynı uzunlukta olan belgelerde ayıraç gerekmez: taramadan sonra o sayfaları seçip “her N sayfa bir belge” filtresini uygulayın.</li>
+   <li>Ayıraçlar tekrar kullanılabilir. Taramadan sonra desteden çıkarıp saklayın.</li>
+  </ul>
+  <div class="infobar"><svg class="i"><use href="#info"/></svg><span class="msg"><b>Boş sayfalar hiçbir zaman belge ayırmaz.</b> Çift taraflı taramada oluşan boş arka yüzler, istenirse iş ayarından atılabilir.</span></div></section><section class="sec" aria-labelledby="s3">
+  <h2 class="t-panel" id="s3">3. Küçük makbuzlar</h2>
+  <ul class="b">
+   <li>Küçük ve ince makbuzlar besleyiciden düzgün geçmeyebilir.</li>
+   <li>Bunları <b>cam üzerinden</b> tarayın ya da birkaç tanesini bir A4 sayfaya bantlayıp öyle tarayın.</li>
+  </ul></section><section class="sec" aria-labelledby="s4">
+  <h2 class="t-panel" id="s4">4. Tarayıcı ayarları</h2>
+  <table class="table settings"><thead><tr><th>Ayar</th><th>Önerilen</th></tr></thead><tbody>
+   <tr><td>Çözünürlük</td><td><span class="num">300</span> dpi</td></tr>
+   <tr><td>Renk</td><td>Gri ton (renkli damga varsa renkli)</td></tr>
+   <tr><td>Çift taraflı</td><td>Belgeler iki yüzlüyse açık (boş arka yüzler iş ayarından atılabilir)</td></tr>
+   <tr><td>Dosya türü</td><td>PDF</td></tr>
+  </tbody></table>
+  <div class="row-actions"><button class="btn secondary"><svg class="i "><use href="#save"/></svg>Bu ayarı profil olarak kaydet</button></div></section><section class="sec" aria-labelledby="s5">
+  <h2 class="t-panel" id="s5">5. Yükleme</h2>
+  <ol class="steps">
+   <li>Her partiyi ayrı PDF olarak kaydedin ve hepsini aynı işe ekleyin, tarama sırasıyla.</li>
+   <li>Ayrımları kontrol edin, gerekirse kesim ekleyin veya kaldırın.</li>
+   <li><b>Dışa aktar</b> ile her belgeyi ayrı PDF olarak alın.</li>
+  </ol></section><section class="sec" aria-labelledby="s6">
+  <h2 class="t-panel" id="s6">6. Sonrası</h2>
+  <ul class="b"><li>Kurum kuralına göre orijinal evrakları yeniden zımbalayın ve arşive kaldırın.</li></ul></section><section class="sec" aria-labelledby="s7">
+  <h2 class="t-panel" id="s7">Kısayollar</h2>
+  <p class="lede t-2">Bu sekmede geçerli tuşlar. Diğer sekmelerin tuşları için <span class="kbd">Shift+F1</span> tuşuna basın.</p>
+  <table class="table keys"><thead><tr><th>Kısayol</th><th>Ne yapar</th></tr></thead><tbody><tr><td><span class="kbd">F1</span></td><td>Yardımı aç</td></tr><tr><td><span class="kbd">Ctrl+6</span></td><td>Rehber sekmesine geç</td></tr><tr><td><span class="kbd">Ctrl+F</span></td><td>Rehberde ara</td></tr><tr><td><span class="kbd">F3</span> / <span class="kbd">Shift+F3</span></td><td>Sonraki / önceki sonuç</td></tr><tr><td><span class="kbd">Ctrl+Num+</span> / <span class="kbd">Ctrl+-</span></td><td>Yazıyı büyüt / küçült (Ctrl+tekerlek de çalışır)</td></tr><tr><td><span class="kbd">Ctrl+P</span></td><td>Ayıraç sayfasını yazdır</td></tr><tr><td><span class="kbd">Shift+F1</span></td><td>Klavye kısayollarını göster</td></tr><tr><td><span class="kbd">Ctrl+K</span></td><td>Komut ara</td></tr><tr><td><span class="kbd">Ctrl+Tab</span></td><td>Sonraki sekme</td></tr></tbody></table></section></div></div></div><div class="splitter"></div><aside class="inspector printp" aria-label="Ayıraç sayfası yazdır" id="print">
+      <div class="insp-head"><h2 class="t-panel">Ayıraç sayfası yazdır</h2>
+        <div class="t-2">Yaprağın iki yüzüne de aynı QR kod basılır.</div></div>
+      <div class="faces"><figure class="face"><div class="sheetp"><svg class="qr" viewBox="0 0 21 21" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h1v1h-1zM0 1h1v1h-1zM0 2h1v1h-1zM0 3h1v1h-1zM0 4h1v1h-1zM0 5h1v1h-1zM0 6h1v1h-1zM1 0h1v1h-1zM1 6h1v1h-1zM2 0h1v1h-1zM2 2h1v1h-1zM2 3h1v1h-1zM2 4h1v1h-1zM2 6h1v1h-1zM3 0h1v1h-1zM3 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM3 6h1v1h-1zM4 0h1v1h-1zM4 2h1v1h-1zM4 3h1v1h-1zM4 4h1v1h-1zM4 6h1v1h-1zM5 0h1v1h-1zM5 6h1v1h-1zM6 0h1v1h-1zM6 1h1v1h-1zM6 2h1v1h-1zM6 3h1v1h-1zM6 4h1v1h-1zM6 5h1v1h-1zM6 6h1v1h-1zM14 0h1v1h-1zM14 1h1v1h-1zM14 2h1v1h-1zM14 3h1v1h-1zM14 4h1v1h-1zM14 5h1v1h-1zM14 6h1v1h-1zM15 0h1v1h-1zM15 6h1v1h-1zM16 0h1v1h-1zM16 2h1v1h-1zM16 3h1v1h-1zM16 4h1v1h-1zM16 6h1v1h-1zM17 0h1v1h-1zM17 2h1v1h-1zM17 3h1v1h-1zM17 4h1v1h-1zM17 6h1v1h-1zM18 0h1v1h-1zM18 2h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1zM18 6h1v1h-1zM19 0h1v1h-1zM19 6h1v1h-1zM20 0h1v1h-1zM20 1h1v1h-1zM20 2h1v1h-1zM20 3h1v1h-1zM20 4h1v1h-1zM20 5h1v1h-1zM20 6h1v1h-1zM0 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM0 17h1v1h-1zM0 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM1 14h1v1h-1zM1 20h1v1h-1zM2 14h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1zM2 20h1v1h-1zM3 14h1v1h-1zM3 16h1v1h-1zM3 17h1v1h-1zM3 18h1v1h-1zM3 20h1v1h-1zM4 14h1v1h-1zM4 16h1v1h-1zM4 17h1v1h-1zM4 18h1v1h-1zM4 20h1v1h-1zM5 14h1v1h-1zM5 20h1v1h-1zM6 14h1v1h-1zM6 15h1v1h-1zM6 16h1v1h-1zM6 17h1v1h-1zM6 18h1v1h-1zM6 19h1v1h-1zM6 20h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM9 1h1v1h-1zM11 1h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM11 2h1v1h-1zM12 2h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM12 3h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM8 6h1v1h-1zM12 6h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM2 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM14 8h1v1h-1zM17 8h1v1h-1zM18 8h1v1h-1zM0 9h1v1h-1zM4 9h1v1h-1zM6 9h1v1h-1zM8 9h1v1h-1zM11 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM17 9h1v1h-1zM1 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM15 10h1v1h-1zM17 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM2 12h1v1h-1zM4 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM10 12h1v1h-1zM12 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM18 12h1v1h-1zM10 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM18 13h1v1h-1zM19 13h1v1h-1zM10 14h1v1h-1zM13 14h1v1h-1zM16 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM8 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM14 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM20 16h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM15 17h1v1h-1zM17 17h1v1h-1zM18 17h1v1h-1zM19 17h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM14 18h1v1h-1zM18 18h1v1h-1zM19 18h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM12 19h1v1h-1zM13 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM14 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM18 20h1v1h-1zM20 20h1v1h-1z" fill="currentColor"/></svg><b>Ayıraç</b><span>Burada yeni belge başlıyor</span></div><figcaption class="t-2">Ön yüz</figcaption></figure><figure class="face"><div class="sheetp"><svg class="qr" viewBox="0 0 21 21" aria-hidden="true" shape-rendering="crispEdges"><path d="M0 0h1v1h-1zM0 1h1v1h-1zM0 2h1v1h-1zM0 3h1v1h-1zM0 4h1v1h-1zM0 5h1v1h-1zM0 6h1v1h-1zM1 0h1v1h-1zM1 6h1v1h-1zM2 0h1v1h-1zM2 2h1v1h-1zM2 3h1v1h-1zM2 4h1v1h-1zM2 6h1v1h-1zM3 0h1v1h-1zM3 2h1v1h-1zM3 3h1v1h-1zM3 4h1v1h-1zM3 6h1v1h-1zM4 0h1v1h-1zM4 2h1v1h-1zM4 3h1v1h-1zM4 4h1v1h-1zM4 6h1v1h-1zM5 0h1v1h-1zM5 6h1v1h-1zM6 0h1v1h-1zM6 1h1v1h-1zM6 2h1v1h-1zM6 3h1v1h-1zM6 4h1v1h-1zM6 5h1v1h-1zM6 6h1v1h-1zM14 0h1v1h-1zM14 1h1v1h-1zM14 2h1v1h-1zM14 3h1v1h-1zM14 4h1v1h-1zM14 5h1v1h-1zM14 6h1v1h-1zM15 0h1v1h-1zM15 6h1v1h-1zM16 0h1v1h-1zM16 2h1v1h-1zM16 3h1v1h-1zM16 4h1v1h-1zM16 6h1v1h-1zM17 0h1v1h-1zM17 2h1v1h-1zM17 3h1v1h-1zM17 4h1v1h-1zM17 6h1v1h-1zM18 0h1v1h-1zM18 2h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1zM18 6h1v1h-1zM19 0h1v1h-1zM19 6h1v1h-1zM20 0h1v1h-1zM20 1h1v1h-1zM20 2h1v1h-1zM20 3h1v1h-1zM20 4h1v1h-1zM20 5h1v1h-1zM20 6h1v1h-1zM0 14h1v1h-1zM0 15h1v1h-1zM0 16h1v1h-1zM0 17h1v1h-1zM0 18h1v1h-1zM0 19h1v1h-1zM0 20h1v1h-1zM1 14h1v1h-1zM1 20h1v1h-1zM2 14h1v1h-1zM2 16h1v1h-1zM2 17h1v1h-1zM2 18h1v1h-1zM2 20h1v1h-1zM3 14h1v1h-1zM3 16h1v1h-1zM3 17h1v1h-1zM3 18h1v1h-1zM3 20h1v1h-1zM4 14h1v1h-1zM4 16h1v1h-1zM4 17h1v1h-1zM4 18h1v1h-1zM4 20h1v1h-1zM5 14h1v1h-1zM5 20h1v1h-1zM6 14h1v1h-1zM6 15h1v1h-1zM6 16h1v1h-1zM6 17h1v1h-1zM6 18h1v1h-1zM6 19h1v1h-1zM6 20h1v1h-1zM8 0h1v1h-1zM10 0h1v1h-1zM9 1h1v1h-1zM11 1h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM11 2h1v1h-1zM12 2h1v1h-1zM8 3h1v1h-1zM11 3h1v1h-1zM12 3h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM8 6h1v1h-1zM12 6h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM11 7h1v1h-1zM2 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM9 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM14 8h1v1h-1zM17 8h1v1h-1zM18 8h1v1h-1zM0 9h1v1h-1zM4 9h1v1h-1zM6 9h1v1h-1zM8 9h1v1h-1zM11 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM17 9h1v1h-1zM1 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM15 10h1v1h-1zM17 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM2 12h1v1h-1zM4 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM10 12h1v1h-1zM12 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM18 12h1v1h-1zM10 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM18 13h1v1h-1zM19 13h1v1h-1zM10 14h1v1h-1zM13 14h1v1h-1zM16 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM8 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM14 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM20 16h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM15 17h1v1h-1zM17 17h1v1h-1zM18 17h1v1h-1zM19 17h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM14 18h1v1h-1zM18 18h1v1h-1zM19 18h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM12 19h1v1h-1zM13 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM18 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM14 20h1v1h-1zM16 20h1v1h-1zM17 20h1v1h-1zM18 20h1v1h-1zM20 20h1v1h-1z" fill="currentColor"/></svg><b>Ayıraç</b><span>Burada yeni belge başlıyor</span></div><figcaption class="t-2">Arka yüz</figcaption></figure></div>
+      <div class="panel-section">
+        <div class="field"><label>Kaç adet</label>
+          <div class="row-ctl"><span class="input num">20</span><span class="t-2">sayfa</span></div></div>
+        <dl class="kv" style="margin-top:var(--sp-3)"><dt>Kâğıt</dt><dd>A4</dd><dt>Dosya</dt><dd>ayirac-sayfalari.pdf</dd></dl>
+      </div>
+      <div class="panel-section actions">
+        <button class="btn primary wide"><svg class="i "><use href="#printer"/></svg>Yazdır<span class="kbd">Ctrl+P</span></button>
+        <button class="btn secondary wide"><svg class="i "><use href="#external-link"/></svg>PDF olarak aç</button>
+        <p class="t-2 note">Ayıraç sayfaları dışa aktarılmaz. PDF görüntüleyicide açılır; oradan da yazdırabilirsiniz.</p>
+      </div>
+    </aside></div>
+  <footer class="statusbar">
+    <span class="item">Bölüm <b class="num">7</b> / 7</span>
+    
+    <span class="item"><b class="num">640</b> sayfa · <b class="num">96</b> belge</span>
+    <span class="spacer"></span>
+    <span class="zoom" aria-label="Yazı boyutu">
+      <button class="btn subtle icon" aria-label="Küçült (Ctrl+-)"><svg class="i "><use href="#minus"/></svg></button>
+      <span class="slider"><span class="track"><span class="fill" style="width:43%"></span><span class="thumb" style="left:43%"></span></span></span>
+      <button class="btn subtle icon" aria-label="Büyüt (Ctrl+Num+)"><svg class="i "><use href="#plus"/></svg></button>
+      <span class="value">%115</span>
+    </span></footer>
+  <div class="menu" data-under="yardim" role="menu" aria-label="Yardım">
+    <div class="mi is-hover is-focus" role="menuitem"><svg class="i "><use href="#circle-help"/></svg><span><u>Y</u>ardım konuları</span><span class="acc">F1</span></div>
+    <div class="mi" role="menuitem"><svg class="i "><use href="#book-open"/></svg><span>Tarama <u>r</u>ehberi</span><span class="acc">Ctrl+6</span></div>
+    <div class="mi" role="menuitem"><svg class="i "><use href="#keyboard"/></svg><span>Klavye <u>k</u>ısayolları</span><span class="acc">Shift+F1</span></div>
+    <div class="msep"></div>
+    <div class="mi" role="menuitem"><svg class="i "><use href="#search"/></svg><span>Komut ara…</span><span class="acc">Ctrl+K</span></div>
+    <div class="msep"></div>
+    <div class="mi" role="menuitem"><svg class="i "><use href="#info"/></svg><span>Evrakçı <u>h</u>akkında</span></div>
+  </div>
+</div>
+</div>
+<script src="mockup.js"></script>
+<script>
+(function () {
+  document.querySelectorAll(".window").forEach(w => {
+    const wr = w.getBoundingClientRect();
+    const m = w.querySelector(".menu[data-under]");
+    if (m) { const it = w.querySelector('[data-menu="' + m.dataset.under + '"]').getBoundingClientRect(); m.style.left = (it.left - wr.left) + "px"; m.style.top = (it.bottom - wr.top + 2) + "px"; }
+    const z = w.querySelector(".article[data-zoom]"); if (z) z.querySelector(".prose").style.zoom = z.dataset.zoom;
+    const op = w.querySelector(".menu[data-under]"); if (op) w.querySelector('[data-menu="' + op.dataset.under + '"]').classList.add("is-open");
+    const a = w.querySelector(".article[data-scroll]");
+    if (a) { const t = a.querySelector("#" + a.dataset.scroll).getBoundingClientRect(); a.scrollTop = t.top - a.getBoundingClientRect().top + a.scrollTop - 112; }
+    const tip = w.querySelector("#tip-next");
+    if (tip) { const b = w.querySelector('.toc .nav .btn:last-child').getBoundingClientRect(); tip.style.left = (b.right - wr.left - tip.offsetWidth) + "px"; tip.style.top = (b.bottom - wr.top + 4) + "px"; }  /* stays inside the TOC column: never over the article */
+  });
+})();
+</script>
+</body>
+</html>

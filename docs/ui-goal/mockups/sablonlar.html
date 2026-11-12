@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-density="normal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1366">
+<title>Şablonlar · Evrakçı mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---- Şablonlar only (tokens only, no new colours) ----
+ * Scale: 3 px per mm (A4 = 630 x 891 px), page origin at (40, 16) inside the viewport. */
+.rail { width: 288px; flex: none; background: var(--bg-layer); display: flex; flex-direction: column; min-height: 0; }
+.rail-head { height: 48px; flex: none; display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-4); }
+.rail-head.sub { border-top: 1px solid var(--hairline); }
+.rail-tools { margin-left: auto; display: inline-flex; align-items: center; gap: var(--sp-1); margin-right: calc(var(--sp-2) * -1); }
+.rail .list { flex: none; padding: 0 0 var(--sp-1); }
+.rail .tree { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.rail .list li { gap: var(--sp-2); }
+.tpl li > span:first-child { font-weight: var(--fw-medium); }
+.tree .no, .bx .no {
+  min-width: 20px; height: 20px; padding: 0 var(--sp-1); border-radius: var(--r-control);
+  display: inline-grid; place-items: center; flex: none;
+  background: var(--brand-green); color: var(--bg-paper);
+  font-size: var(--fs-caption); line-height: 1; font-weight: var(--fw-semibold);
+}
+.tree .req { color: var(--text-2); margin-left: var(--sp-1); }
+.tree li.child { padding-left: var(--sp-6); }
+.tree li.child .grip { color: var(--icon-2); }
+.tree li.child[aria-selected="true"] .grip { color: var(--text); }
+.rail-hint { flex: none; margin: 0; padding: var(--sp-2) var(--sp-4) var(--sp-3); border-top: 1px solid var(--hairline); }
+.rail-hint b { color: var(--text); }
+.rail-empty { padding: var(--sp-2) var(--sp-4) var(--sp-4); max-width: 30ch; width: auto; }
+.rail-empty + .rail-head.sub { margin-top: var(--sp-2); }
+
+/* Canvas header + rulers + viewport */
+.cv-head { height: 48px; flex: none; display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-4);
+  background: var(--bg-layer); border-bottom: 1px solid var(--hairline); }
+.cv-head .spacer { flex: 1; }
+.cv-head .select { min-width: 0; }
+.cv-head > .t-2 { white-space: nowrap; }
+.cv-head .select > span { white-space: nowrap; }
+.cv-head .t-2 + .select { margin-right: var(--sp-2); }
+.readout b { color: var(--text); font-weight: var(--fw-medium); }
+.cv { flex: 1; min-height: 0; display: grid; grid-template-columns: 24px 1fr; grid-template-rows: 24px 1fr; background: var(--bg-canvas); }
+.corner { background: var(--bg-layer); border-right: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+  display: grid; place-items: center; font-size: var(--fs-caption); }
+.ruler { background: var(--bg-layer); overflow: hidden; position: relative; }
+.ruler.rh { border-bottom: 1px solid var(--hairline); }
+.ruler.rv { border-right: 1px solid var(--hairline); }
+.rl { display: block; }
+.rl .t { stroke: var(--icon-2); stroke-width: 1; }
+.rl .t.big { stroke: var(--icon); }
+.rl text { fill: var(--text-2); font: 400 13px/1 var(--font-ui); font-feature-settings: "tnum" 1; }
+.rl .band { fill: var(--bg-selected); }
+.rl .cur { stroke: var(--accent); stroke-width: 1; }
+.vp { position: relative; overflow: hidden; }
+.vp.is-focus { box-shadow: inset 0 0 0 2px var(--focus-outer), inset 0 0 0 3px var(--focus-inner); }
+.vscroll { position: absolute; right: var(--sp-1); top: var(--sp-2); bottom: var(--sp-2); width: 4px; }
+.vscroll i { display: block; width: 4px; height: 52%; border-radius: 2px; background: var(--edge); opacity: .7; }
+
+/* The A4 sheet: radius 2, paper ink for the scanned content (not UI text) */
+.sheet-a4 { --s: 3px; position: absolute; left: 40px; top: 16px; width: 630px; height: 891px;
+  background: var(--bg-paper); border-radius: var(--r-sheet); box-shadow: var(--shadow-sheet); color: var(--paper-ink-strong); }
+.sheet-a4.ghost { color: var(--text); height: 540px; background: transparent; box-shadow: none; border: 1px dashed var(--edge); }
+.ink { position: absolute; left: calc(var(--x) * var(--s)); top: calc(var(--y) * var(--s)); line-height: 24px; white-space: nowrap; color: var(--paper-ink-strong); }
+.ink.lbl { font-size: var(--fs-secondary); }
+.ink.val { padding-left: var(--sp-2); font-size: var(--fs-body); font-weight: var(--fw-medium); }
+.ink.h1, .ink.h2 { width: calc(var(--w) * var(--s)); text-align: center; font-weight: var(--fw-semibold); }
+.ink.h1 { font-size: var(--fs-secondary); letter-spacing: .04em; }
+.ink.h2 { font-size: var(--fs-section); letter-spacing: .06em; }
+.ink.body { width: calc(var(--w) * var(--s)); white-space: normal; font-size: var(--fs-secondary); line-height: 18px; }
+.ink.kase { font-size: var(--fs-secondary); letter-spacing: .04em; }
+.stamp { position: absolute; left: calc(var(--x) * var(--s)); top: calc(var(--y) * var(--s)); width: 108px; height: 108px;
+  border: 2px solid var(--paper-ink); border-radius: 50%; display: grid; place-items: center; text-align: center;
+  color: var(--paper-ink); font-style: normal; font-size: var(--fs-secondary); line-height: 18px; font-weight: var(--fw-semibold); box-shadow: inset 0 0 0 4px var(--bg-paper), inset 0 0 0 5px var(--paper-ink); }
+
+/* Boxes (brand green stays readable on paper in both themes), handles, live read labels */
+.bx { position: absolute; left: calc(var(--x) * var(--s)); top: calc(var(--y) * var(--s));
+  width: calc(var(--w) * var(--s)); height: calc(var(--h) * var(--s));
+  border: 2px solid var(--brand-green); border-radius: var(--r-sheet);
+  background: color-mix(in srgb, var(--brand-green) 8%, transparent); }
+.bx.alt { border-style: dashed; }
+.bx .no { position: absolute; right: calc(100% + var(--sp-1)); top: -2px; }
+.bx.sel { background: color-mix(in srgb, var(--brand-green) 16%, transparent); }
+.bx .h { position: absolute; left: calc(var(--hx) * 1%); top: calc(var(--hy) * 1%); width: 8px; height: 8px; margin: -4px 0 0 -4px;
+  background: var(--bg-paper); border: 2px solid var(--brand-green); border-radius: 2px; box-sizing: border-box; }
+.rd { position: absolute; left: calc(var(--x) * var(--s)); top: calc((var(--y) + var(--h)) * var(--s) + 8px);
+  height: 24px; display: inline-flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2) 0 var(--sp-2);
+  background: var(--bg-popover); border: 1px solid var(--edge); border-radius: var(--r-control); box-shadow: var(--shadow-sheet);
+  font-size: var(--fs-secondary); line-height: 18px; white-space: nowrap; color: var(--text); z-index: 2; }
+.rd .val { font-weight: var(--fw-medium); }
+.rd .status { font-size: var(--fs-secondary); }
+
+/* Inspector */
+.insp-head { padding: var(--sp-3) var(--sp-4) var(--sp-2); border-bottom: 1px solid var(--hairline); }
+.props { display: flex; flex-direction: column; gap: var(--sp-2); padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+.props .field > label { line-height: var(--lh-secondary); }
+.prow { display: flex; align-items: center; justify-content: space-between; }
+.field.inline { flex-direction: row; align-items: center; gap: var(--sp-2); }
+.chk-row { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.chk { width: 20px; height: 20px; border: 1px solid var(--edge); border-radius: var(--r-control); background: var(--bg-input); display: grid; place-items: center; }
+.chk.on { background: var(--accent); border-color: var(--accent); }
+.chk .i { width: 16px; height: 16px; color: var(--text-on-accent); stroke-width: 3; }
+.quad { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2); }
+.q { display: flex; flex-direction: column; gap: var(--sp-1); }
+.q .input { width: 100%; }
+.nudge { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
+.panel-section.reads { padding-top: var(--sp-2); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--hairline); }
+.rlist { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.rlist li { min-height: 44px; display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: var(--sp-2);
+  padding: 0 var(--sp-4); border-bottom: 1px solid var(--hairline); }
+.rlist li .rn { display: contents; }
+.rlist li .rn .t-caption { grid-column: 1; grid-row: 1; }
+.rlist li .rn .rv { grid-column: 1 / -1; grid-row: 2; }
+.rlist li .status, .rlist li .rider { grid-column: 2; grid-row: 1; }
+.rlist li[aria-selected="true"] { background: var(--bg-selected); box-shadow: inset 3px 0 0 var(--accent); }
+.rn { display: flex; flex-direction: column; min-width: 0; }
+
+.insp-foot { flex: none; margin-top: auto; padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--hairline); display: flex; flex-direction: column; gap: var(--sp-2); }
+.cv-head .btn.icon { --control-h: 32px; }
+.rn .rv { white-space: nowrap; }
+.rlist .status, .rlist .rider { flex: none; }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<div class="window" data-state="main" aria-label="Şablonlar · çalışma">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu">
+      <span class="menu-item"><u>D</u>osya</span><span class="menu-item">Düz<u>e</u>n</span><span class="menu-item"><u>G</u>örünüm</span><span class="menu-item">Gi<u>t</u></span><span class="menu-item"><u>A</u>raçlar</span><span class="menu-item"><u>Y</u>ardım</span>
+    </nav>
+    <div class="title"><b>Kasım 2026 kapasite raporları</b> · Evrakçı</div>
+    <span class="save-state"><svg class="i sm" ><use href="#cloud-check"/></svg>Kaydedildi 14:32</span>
+    <div class="caption-buttons" aria-hidden="true"><span><svg class="i" ><use href="#minus"/></svg></span><span><svg class="i" ><use href="#square"/></svg></span><span><svg class="i" ><use href="#x"/></svg></span></div>
+  </header>
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler">
+    <span class="tab" role="tab" aria-selected="false">Yükle</span><span class="tab" role="tab" aria-selected="false">Kontrol</span><span class="tab" role="tab" aria-selected="true">Şablonlar</span><span class="tab" role="tab" aria-selected="false">Değerler</span><span class="tab" role="tab" aria-selected="false">Dışa Aktar</span><span class="tab" role="tab" aria-selected="false">Rehber</span>
+  </nav>
+  <div class="commandbar" role="toolbar" aria-label="Şablonlar komutları">
+    <button class="btn subtle icon" aria-label="Geri al: Kutuyu taşı (Ctrl+Z)"><svg class="i" ><use href="#undo-2"/></svg></button>
+    <button class="btn subtle icon" aria-label="Yinele (Ctrl+Y)" disabled><svg class="i" ><use href="#redo-2"/></svg></button>
+    <span class="sep"></span>
+    <button class="btn subtle" aria-pressed="false" aria-label="Kutu çiz (B)"><svg class="i" ><use href="#square-dashed"/></svg>Kutu çiz</button>
+    <button class="btn subtle" aria-pressed="true" data-snap aria-label="Izgaraya oturt (G)"><svg class="i" ><use href="#magnet"/></svg>Izgaraya oturt</button>
+    <span class="sep"></span>
+    <button class="btn subtle" aria-label="Kutuyu çoğalt (Ctrl+D)"><svg class="i" ><use href="#copy"/></svg>Kutuyu çoğalt</button>
+    <button class="btn subtle" aria-label="Kutuyu sil (Del)"><svg class="i" ><use href="#trash-2"/></svg>Kutuyu sil</button>
+    <span class="spacer"></span>
+    <button class="btn subtle" aria-label="Bütün örneklerde dene (Ctrl+T)"><svg class="i" ><use href="#play"/></svg>Bütün örneklerde dene</button>
+    <button class="btn subtle icon" aria-label="Diğer komutlar"><svg class="i" ><use href="#ellipsis"/></svg></button>
+  </div>
+
+  <div class="workspace">
+    <aside class="rail" aria-label="Şablonlar ve değişkenler">
+      <div class="rail-head">
+        <h2 class="t-section">Şablonlar</h2><span class="t-2 num">3</span>
+        <button class="btn secondary" style="margin-left:auto"><svg class="i" ><use href="#plus"/></svg>Yeni şablon</button>
+      </div>
+      <ul class="list tpl" role="listbox" aria-label="Şablonlar">
+        <li aria-selected="true" role="option"><span>Faaliyet belgesi</span><span class="meta num" aria-label="Kaydedilmemiş değişiklik var">● kaydedilmedi</span></li>
+        <li role="option"><span>Ekspertiz raporu</span><span class="meta num">8 değişken</span></li>
+        <li role="option"><span>İmza sirküleri</span><span class="meta num">4 değişken</span></li>
+      </ul>
+      <div class="rail-head sub">
+        <h2 class="t-section">Değişkenler</h2>
+        <button class="btn secondary" style="margin-left:auto" aria-label="Değişken ekle (Ctrl+Shift+N); sırayı Alt+↑ / Alt+↓ değiştirir"><svg class="i" ><use href="#plus"/></svg>Değişken ekle</button>
+      </div>
+      <ul class="list tree" role="tree" aria-label="Değişkenler">
+        <li role="treeitem"><span class="no">1</span><span>Firma unvanı <span class="req" title="Zorunlu">*</span></span><span class="meta">2 bölüm</span></li>
+        <li class="child" role="treeitem" aria-selected="true"><svg class="i sm grip" ><use href="#grip-vertical"/></svg><span>Bölüm 1</span><span class="meta num">Sayfa 1</span></li>
+        <li class="child" role="treeitem"><svg class="i sm grip" ><use href="#grip-vertical"/></svg><span>Bölüm 2</span><span class="meta num">Sayfa 1</span></li>
+        <li role="treeitem"><span class="no">2</span><span>Oda sicil no <span class="req">*</span></span></li>
+        <li role="treeitem"><span class="no">3</span><span>Vergi no</span></li>
+        <li role="treeitem"><span class="no">4</span><span>Faaliyet konusu</span></li>
+        <li role="treeitem"><span class="no">5</span><span>Düzenleme tarihi <span class="req">*</span></span></li>
+      </ul>
+      <p class="rail-hint t-caption"><b>*</b> zorunlu. Bölümler yukarıdan aşağı denenir; ilk emin okuma kazanır.</p>
+    </aside>
+    <div class="splitter" role="separator"></div>
+
+    <div class="work">
+      <div class="cv-head">
+        <span class="t-2">Örnek</span>
+        <span class="select" style="min-width:272px"><span>Örnek 1 · Ege Kalıp San. Ltd.</span><svg class="i" ><use href="#chevron-down"/></svg></span>
+        <span class="t-2">Önizleme sayfası</span>
+        <span class="select" style="min-width:72px"><span class="num">1 / 2</span><svg class="i" ><use href="#chevron-down"/></svg></span>
+        <span class="spacer"></span>
+        <button class="btn subtle icon is-hover" data-tip-anchor aria-pressed="false" aria-label="Okumaları sayfada göster (Görünüm menüsü)"><svg class="i"><use href="#eye"/></svg></button>
+      </div>
+      <div class="cv">
+        <div class="corner t-caption">mm</div>
+        <div class="ruler rh" data-clip-ok data-sel="70,174" data-cur="84.5"></div>
+        <div class="ruler rv" data-clip-ok data-sel="34,42" data-cur="41"></div>
+        <div class="vp is-focus" data-clip-ok tabindex="0" aria-label="Şablon tuvali: Faaliyet belgesi, örnek 1, sayfa 1. Seçili kutu Firma unvanı. Ok tuşları kutuyu kaydırır.">
+
+<div class="sheet-a4" id="a4">
+  <span class="ink h1" style="--x:0;--y:12;--w:210">ÖRNEK İLİ TİCARET VE SANAYİ ODASI</span>
+  <span class="ink h2" style="--x:0;--y:19;--w:210">FAALİYET BELGESİ</span>
+  <i class="stamp" style="--x:96;--y:106"><span>ÖRNEK İLİ<br>T.S.O.</span></i>
+  <span class="ink lbl" style="--x:14;--y:34">Firma unvanı</span><span class="ink val " style="--x:70;--y:34">Ege Kalıp San. Ltd. Şti.</span>
+  <span class="ink lbl" style="--x:14;--y:54">Oda sicil no</span><span class="ink val " style="--x:70;--y:54">48213</span>
+  <span class="ink lbl" style="--x:14;--y:74">Vergi no</span><span class="ink val " style="--x:70;--y:74">7340915268</span>
+  <span class="ink lbl" style="--x:14;--y:94">Faaliyet konusu</span><span class="ink val " style="--x:70;--y:94">Plastik enjeksiyon kalıbı imalatı</span>
+  <span class="ink lbl" style="--x:14;--y:114">Düzenleme tarihi</span><span class="ink val " style="--x:70;--y:114">04.11.2026</span>
+  <span class="ink body" style="--x:14;--y:136;--w:182">Yukarıda unvanı yazılı firmanın odamıza kayıtlı olduğu ve faaliyetine devam ettiği onaylanır.</span>
+  <span class="ink lbl" style="--x:14;--y:150">Oda sicil memuru</span>
+  <span class="ink val kase" style="--x:104;--y:150">EGE KALIP SAN. LTD. ŞTİ.</span>
+  <div class="bx sel" style="--x:70;--y:34;--w:104;--h:8"><span class="no">1</span><i class="h" style="--hx:0;--hy:0"></i><i class="h" style="--hx:0;--hy:50"></i><i class="h" style="--hx:0;--hy:100"></i><i class="h" style="--hx:50;--hy:0"></i><i class="h" style="--hx:50;--hy:100"></i><i class="h" style="--hx:100;--hy:0"></i><i class="h" style="--hx:100;--hy:50"></i><i class="h" style="--hx:100;--hy:100"></i></div>
+  <div class="bx " style="--x:70;--y:54;--w:40;--h:8"><span class="no">2</span></div>
+  <div class="bx " style="--x:70;--y:74;--w:56;--h:8"><span class="no">3</span></div>
+  <div class="bx " style="--x:70;--y:94;--w:112;--h:8"><span class="no">4</span></div>
+  <div class="bx " style="--x:70;--y:114;--w:44;--h:8"><span class="no">5</span></div>
+  <div class="bx alt" style="--x:104;--y:150;--w:80;--h:8"><span class="no">1.2</span></div>
+  <div class="rd" aria-label="Seçili kutunun okuması" style="--x:70;--y:34;--h:8"><span class="val">Ege Kalıp San. Ltd. Şti.</span><span class="status ok"><svg class="i" ><use href="#signal-high"/></svg>Emin <span class="pct">%98</span></span></div>
+</div>
+          <span class="vscroll"><i></i></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="splitter" role="separator"></div>
+    <aside class="inspector" aria-label="Seçili değişken">
+      <div class="insp-head">
+        <h2 class="t-panel">Firma unvanı</h2>
+        <div class="t-2">Bölüm 1 · Sayfa 1 · Kutu 1 / 2</div>
+      </div>
+      <div class="panel-section props">
+        <div class="field"><label for="ad">Ad</label><span class="input" id="ad" style="width:100%">Firma unvanı</span></div>
+        <div class="prow">
+          <span class="chk-row"><i class="chk on"><svg class="i" ><use href="#check"/></svg></i>Zorunlu</span>
+          <span class="field inline"><label>Kutunun sayfası</label><span class="select" style="min-width:72px"><span class="num">1</span><svg class="i" ><use href="#chevron-down"/></svg></span></span>
+        </div>
+        <div class="field"><label>Kutu (mm)</label>
+          <div class="quad">
+            <span class="q"><span class="t-caption">X</span><span class="input num">70,0</span></span>
+            <span class="q"><span class="t-caption">Y</span><span class="input num">34,0</span></span>
+            <span class="q"><span class="t-caption">Genişlik</span><span class="input num">104,0</span></span>
+            <span class="q"><span class="t-caption">Yükseklik</span><span class="input num">8,0</span></span>
+          </div>
+        </div>
+        <p class="nudge t-caption"><span class="kbd">←↑→↓</span> 0,25 mm · <span class="kbd">Shift</span> + ok 1 mm</p>
+      </div>
+      <div class="panel-section reads">
+        <h3 class="t-section" title="">Bu kutular ne okuyor? <span class="t-caption" style="font-weight:var(--fw-regular)">Örnek 1</span></h3>
+      </div>
+      <ul class="rlist" aria-label="Okuma sonuçları">
+        <li aria-selected="true"><span class="rn"><span class="t-caption">Firma unvanı</span><span class="rv">Ege Kalıp San. Ltd. Şti.</span></span><span class="status ok"><svg class="i" ><use href="#signal-high"/></svg>Emin <span class="pct">%98</span></span></li>
+        <li><span class="rn"><span class="t-caption">Oda sicil no</span><span class="rv num">48213</span></span><span class="status ok"><svg class="i" ><use href="#signal-high"/></svg>Emin <span class="pct">%99</span></span></li>
+        <li><span class="rn"><span class="t-caption">Vergi no</span><span class="rv num">7340915268</span></span><span class="status ok"><svg class="i" ><use href="#signal-high"/></svg>Emin <span class="pct">%96</span></span></li>
+        <li><span class="rn"><span class="t-caption">Faaliyet konusu</span><span class="rv">Plastik enjeksiyon kalıbı imalatı</span></span><span class="status mid"><svg class="i" ><use href="#signal-medium"/></svg>Orta <span class="pct">%82</span></span></li>
+        <li><span class="rn"><span class="t-caption">Düzenleme tarihi</span><span class="rv num">04.11.2026</span></span><span class="status check"><svg class="i" ><use href="#triangle-alert"/></svg>Kontrol <span class="pct">%61</span></span></li>
+      </ul>
+      <div class="insp-foot">
+        <button class="btn primary wide"><svg class="i" ><use href="#save"/></svg>Şablonu kaydet<span class="kbd">Ctrl+S</span></button>
+      </div>
+    </aside>
+  </div>
+  <footer class="statusbar">
+    <span class="item"><b>Kasım 2026 kapasite raporları</b></span>
+    <span class="item">Örnek <b class="num">1</b> / 4</span>
+    <span class="item">Sayfa <b class="num">1</b> / 2</span>
+    <span class="item"><b class="num">6</b> kutu</span>
+    <span class="item num">İmleç <b>84,5</b> · <b>41,0</b> mm</span>
+    <span class="item check"><svg class="i sm" ><use href="#triangle-alert"/></svg>1 okuma kontrol bekliyor</span>
+    <span class="spacer"></span>
+    <span class="zoom" aria-label="Sayfa yakınlaştırma">
+      <button class="btn subtle icon" aria-label="Sayfaya sığdır (Ctrl+0)"><svg class="i" ><use href="#maximize"/></svg></button>
+      <button class="btn subtle icon" aria-label="Uzaklaştır (Ctrl+-)"><svg class="i" ><use href="#minus"/></svg></button>
+      <span class="slider"><span class="track"><span class="fill" style="width:38%"></span><span class="thumb" style="left:38%"></span></span></span>
+      <button class="btn subtle icon" aria-label="Yakınlaştır (Ctrl+Num+)"><svg class="i" ><use href="#plus"/></svg></button>
+      <span class="value">%135</span>
+    </span>
+  </footer>
+  <div class="tooltip" data-tip>Okumaları sayfada göster · şimdi yalnızca seçili kutu</div>
+</div>
+
+
+<div class="window" data-state="empty" aria-label="Şablonlar · boş">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu">
+      <span class="menu-item"><u>D</u>osya</span><span class="menu-item">Düz<u>e</u>n</span><span class="menu-item"><u>G</u>örünüm</span><span class="menu-item">Gi<u>t</u></span><span class="menu-item"><u>A</u>raçlar</span><span class="menu-item"><u>Y</u>ardım</span>
+    </nav>
+    <div class="title"><b>Kasım 2026 kapasite raporları</b> · Evrakçı</div>
+    <span class="save-state"><svg class="i sm" ><use href="#cloud-check"/></svg>Kaydedildi 14:32</span>
+    <div class="caption-buttons" aria-hidden="true"><span><svg class="i" ><use href="#minus"/></svg></span><span><svg class="i" ><use href="#square"/></svg></span><span><svg class="i" ><use href="#x"/></svg></span></div>
+  </header>
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler">
+    <span class="tab" role="tab" aria-selected="false">Yükle</span><span class="tab" role="tab" aria-selected="false">Kontrol</span><span class="tab" role="tab" aria-selected="true">Şablonlar</span><span class="tab" role="tab" aria-selected="false">Değerler</span><span class="tab" role="tab" aria-selected="false">Dışa Aktar</span><span class="tab" role="tab" aria-selected="false">Rehber</span>
+  </nav>
+  <div class="commandbar" role="toolbar" aria-label="Şablonlar komutları">
+    <button class="btn subtle icon" aria-label="Geri al: Kutuyu taşı (Ctrl+Z)" disabled><svg class="i" ><use href="#undo-2"/></svg></button>
+    <button class="btn subtle icon" aria-label="Yinele (Ctrl+Y)" disabled><svg class="i" ><use href="#redo-2"/></svg></button>
+    <span class="sep"></span>
+    <button class="btn subtle" aria-pressed="false" disabled aria-label="Kutu çiz (B)"><svg class="i" ><use href="#square-dashed"/></svg>Kutu çiz</button>
+    <button class="btn subtle" aria-pressed="false" disabled aria-label="Izgaraya oturt (G)"><svg class="i" ><use href="#magnet"/></svg>Izgaraya oturt</button>
+    <span class="sep"></span>
+    <button class="btn subtle" disabled aria-label="Kutuyu çoğalt (Ctrl+D)"><svg class="i" ><use href="#copy"/></svg>Kutuyu çoğalt</button>
+    <button class="btn subtle" disabled aria-label="Kutuyu sil (Del)"><svg class="i" ><use href="#trash-2"/></svg>Kutuyu sil</button>
+    <span class="spacer"></span>
+    <button class="btn subtle" disabled aria-label="Bütün örneklerde dene (Ctrl+T)"><svg class="i" ><use href="#play"/></svg>Bütün örneklerde dene</button>
+    <button class="btn subtle icon" aria-label="Diğer komutlar"><svg class="i" ><use href="#ellipsis"/></svg></button>
+  </div>
+
+  <div class="workspace">
+    <aside class="rail" aria-label="Şablonlar ve değişkenler">
+      <div class="rail-head">
+        <h2 class="t-section">Şablonlar</h2><span class="t-2 num">0</span>
+        <button class="btn secondary" style="margin-left:auto"><svg class="i" ><use href="#plus"/></svg>Yeni şablon</button>
+      </div>
+      <div class="rail-empty t-2">Kayıtlı şablon yok. Şablonlar bu bilgisayarda saklanır ve her işte kullanılabilir.</div>
+      <div class="rail-head sub">
+        <h2 class="t-section">Değişkenler</h2>
+        <button class="btn secondary" style="margin-left:auto" aria-label="Değişken ekle (Ctrl+Shift+N); sırayı Alt+↑ / Alt+↓ değiştirir" disabled><svg class="i" ><use href="#plus"/></svg>Değişken ekle</button>
+      </div>
+      <div class="rail-empty t-2">Bir şablon seçince değişkenleri (firma unvanı, sicil no gibi) burada sıralanır.</div>
+    </aside>
+    <div class="splitter" role="separator"></div>
+
+    <div class="work">
+      <div class="cv-head">
+        <span class="t-2">Örnek</span>
+        <span class="select" style="min-width:272px;color:var(--text-disabled)"><span>Örnek seçilmedi</span><svg class="i" ><use href="#chevron-down"/></svg></span>
+        <span class="t-2">Önizleme sayfası</span>
+        <span class="select" style="min-width:72px;color:var(--text-disabled)"><span class="num">–</span><svg class="i" ><use href="#chevron-down"/></svg></span>
+        <span class="spacer"></span>
+      </div>
+      <div class="cv">
+        <div class="corner t-caption">mm</div>
+        <div class="ruler rh" data-clip-ok></div>
+        <div class="ruler rv" data-clip-ok></div>
+        <div class="vp" data-clip-ok>
+          <div class="sheet-a4 ghost">
+            <div class="empty" style="margin:var(--sp-12) var(--sp-8)">
+              <svg class="i lg" ><use href="#square-dashed"/></svg>
+              <h2 class="t-panel">Henüz şablon yok</h2>
+              <p>Şablon, bir belgedeki bilgilerin (firma unvanı, sicil no, tarih) sayfanın neresinde durduğunu Evrakçı'ya öğretir. Örnek bir sayfa seçip her bilginin etrafına kutu çizersiniz; sonra bütün işlerde otomatik okunur.</p>
+              <div class="actions">
+                <button class="btn primary"><svg class="i" ><use href="#plus"/></svg>Yeni şablon oluştur</button>
+                <button class="btn secondary" aria-label="Rehber'i aç (Ctrl+6)"><svg class="i" ><use href="#file-text"/></svg>Rehber'i aç</button>
+              </div>
+              <p class="t-caption">Örnek sayfalar açık işten gelir: Kasım 2026 kapasite raporları.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="splitter" role="separator"></div>
+    <aside class="inspector" aria-label="Seçili değişken">
+      <div class="insp-head">
+        <h2 class="t-panel">Kutu seçilmedi</h2>
+        <div class="t-2">Adı, sayfası ve ölçüsü (mm) burada görünür.</div>
+      </div>
+      <div class="panel-section reads">
+        <h3 class="t-section">Bu kutular ne okuyor?</h3>
+        <div class="t-caption" style="margin-top:var(--sp-1)">Kutu çizince her kutunun okuduğu değer ve güveni burada canlı görünür; kaydetmeden önce yanlışı görürsünüz.</div>
+      </div>
+      <div class="insp-foot">
+        <button class="btn primary wide" disabled><svg class="i" ><use href="#save"/></svg>Şablonu kaydet<span class="kbd">Ctrl+S</span></button>
+      </div>
+    </aside>
+  </div>
+  <footer class="statusbar">
+    <span class="item"><b>Kasım 2026 kapasite raporları</b></span>
+    <span class="item">Şablon seçilmedi</span>
+    <span class="spacer"></span>
+    <span class="zoom" aria-label="Sayfa yakınlaştırma">
+      <button class="btn subtle icon" aria-label="Sayfaya sığdır (Ctrl+0)" disabled><svg class="i" ><use href="#maximize"/></svg></button>
+      <button class="btn subtle icon" aria-label="Uzaklaştır (Ctrl+-)" disabled><svg class="i" ><use href="#minus"/></svg></button>
+      <span class="slider"><span class="track"><span class="fill" style="width:30%"></span><span class="thumb" style="left:30%"></span></span></span>
+      <button class="btn subtle icon" aria-label="Yakınlaştır (Ctrl+Num+)" disabled><svg class="i" ><use href="#plus"/></svg></button>
+      <span class="value">%100</span>
+    </span>
+  </footer>
+</div>
+
+</div>
+<script src="mockup.js"></script>
+<script>
+/* Lucide icons used only on this tab (names as in lucide.dev) */
+(function () {
+  const P = {
+    "square-dashed": '<path d="M5 3a2 2 0 0 0-2 2"/><path d="M19 3a2 2 0 0 1 2 2"/><path d="M21 19a2 2 0 0 1-2 2"/><path d="M5 21a2 2 0 0 1-2-2"/><path d="M9 3h1"/><path d="M9 21h1"/><path d="M14 3h1"/><path d="M14 21h1"/><path d="M3 9v1"/><path d="M21 9v1"/><path d="M3 14v1"/><path d="M21 14v1"/>',
+    "magnet": '<path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/><path d="m5 8 4 4"/><path d="m12 15 4 4"/>',
+    "copy": '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    "play": '<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/>',
+    "save": '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+    "arrow-up": '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+    "arrow-down": '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+    "grip-vertical": '<circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/>'
+  };
+  const s = '<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">' + Object.entries(P).map(([id, d]) =>
+    `<symbol id="${id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</symbol>`).join("") + "</svg>";
+  document.body.insertAdjacentHTML("afterbegin", s);
+})();
+</script>
+
+<script>
+/* mm rulers: 0 mm sits on the page edge; scale 3 px/mm (zoom %135 of 96 dpi mockup) */
+(function(){
+  const S = 3, OX = 40, OY = 16, NS = "http://www.w3.org/2000/svg";
+  function el(n, a, t){ const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; }
+  document.querySelectorAll(".ruler").forEach(r => {
+    const horiz = r.classList.contains("rh"), len = horiz ? 732 : 544, o = horiz ? OX : OY, mmMax = horiz ? 210 : 178;
+    const svg = el("svg", {width: horiz ? len : 24, height: horiz ? 24 : len, class: "rl"});
+    const sel = r.dataset.sel; if (sel) { const [a, b] = sel.split(",").map(Number);
+      svg.appendChild(horiz ? el("rect", {x: o + a*S, y: 0, width: (b-a)*S, height: 24, class: "band"}) : el("rect", {x: 0, y: o + a*S, width: 24, height: (b-a)*S, class: "band"})); }
+    for (let m = 0; m <= mmMax; m++) {
+      const p = o + m*S, big = m % 10 === 0, mid = m % 5 === 0, L = big ? 10 : mid ? 6 : 3;
+      svg.appendChild(horiz ? el("line", {x1: p+.5, x2: p+.5, y1: 24-L, y2: 24, class: big ? "t big" : "t"}) : el("line", {y1: p+.5, y2: p+.5, x1: 24-L, x2: 24, class: big ? "t big" : "t"}));
+      if (big) { if (horiz) svg.appendChild(el("text", {x: p+4, y: 12}, m)); else { const t = el("text", {x: 0, y: 0, transform: `translate(12 ${p-4}) rotate(-90)`}, m); svg.appendChild(t); } }
+    }
+    const c = r.dataset.cur; if (c) { const p = o + Number(c)*S + .5;
+      svg.appendChild(horiz ? el("line", {x1: p, x2: p, y1: 0, y2: 24, class: "cur"}) : el("line", {y1: p, y2: p, x1: 0, x2: 24, class: "cur"})); }
+    r.appendChild(svg);
+  });
+})();
+</script>
+<script>
+(function () {
+  const w = document.querySelector('[data-state="main"]'), wr = w.getBoundingClientRect();
+  const b = w.querySelector("[data-tip-anchor]").getBoundingClientRect(), t = w.querySelector("[data-tip]");
+  t.style.left = (b.right - wr.left - t.offsetWidth) + "px"; t.style.top = (b.bottom - wr.top + 8) + "px";
+})();
+</script>
+</body>
+</html>

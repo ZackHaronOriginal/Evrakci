@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-density="normal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1366">
+<title>Dışa Aktar · Evrakçı mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---- Dışa Aktar only (tokens only, no new colours) ----
+ * Page pattern: Split Pane (8). Left = pre-flight + file-name preview (what will be written);
+ * right inspector = where and how (folder, pattern, options). The one filled primary sits at the
+ * foot of the inspector, next to the settings (same rule on every tab); the command bar is subtle.
+ * New shared pieces defined here: .cb (checkbox), .progress, .pf (pre-flight rows).
+ */
+.page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--sp-6) var(--sp-6) 0; gap: var(--sp-4); }
+.page-head { display: flex; align-items: baseline; gap: var(--sp-3); flex: none; }
+.page-head .t-2 { margin-left: 0; }
+
+/* Pre-flight: graded block / warn / inform. L1 frame with hairline rows. */
+.pf { flex: none; background: var(--bg-layer); border: 1px solid var(--hairline); border-radius: var(--r-control); }
+.pf-row { display: grid; grid-template-columns: 112px 1fr 56px auto; align-items: center; column-gap: var(--sp-3);
+  height: var(--row-h); padding: 0 var(--sp-2) 0 var(--sp-3); border-bottom: 1px solid var(--hairline); }
+.pf-row:last-child { border-bottom: 0; }
+.pf-row .count { text-align: right; font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.pf-row .act { min-width: 148px; display: flex; justify-content: flex-end; }
+.pf-row .btn { --control-h: 28px; color: var(--text-accent); }
+.pf-row.block { background: var(--danger-wash); }
+.status.block, .status.block .i { color: var(--danger); }
+.status.info, .status.info .i { color: var(--info); }
+.pf-row .msg b { font-weight: var(--fw-medium); }
+
+/* File-name preview: table in L1 frame, scrolls inside */
+.files { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.files-head { display: flex; align-items: center; gap: var(--sp-3); height: var(--control-h); margin-bottom: var(--sp-2); flex: none; }
+.files-head .spacer { flex: 1; }
+.tbl-wrap { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; background: var(--bg-layer);
+  border: 1px solid var(--hairline); border-radius: var(--r-control) var(--r-control) 0 0; border-bottom: 0; }
+.tbl-wrap .table { border: 0; border-radius: 0; }
+.tbl-wrap th { position: sticky; top: 0; background: var(--bg-layer); z-index: 1; }
+.fname { font-feature-settings: var(--font-features-code); white-space: nowrap; }
+.chg { background: var(--info-wash); box-shadow: 0 0 0 1px var(--info); border-radius: 2px; }
+.table td .status, .table td .rider { vertical-align: middle; }
+.table td .why { margin-left: var(--sp-2); color: var(--check-text); font-size: var(--fs-secondary); font-weight: var(--fw-medium); }
+.table td .why2 { margin-left: var(--sp-2); color: var(--text-2); font-size: var(--fs-secondary); }
+/* kontrol rows: rider + reason in Durum and a 3 px inset bar (shell .is-flag); no wash */
+.table td.mid, .table th.mid { text-align: right; }
+.table td.dim { color: var(--text-2); font-size: var(--fs-secondary); }
+
+/* Inspector */
+.inspector .panel-section { display: flex; flex-direction: column; gap: var(--sp-2); }
+.inspector .panel-section > h3 { margin: 0; }
+.inspector .input, .inspector .select { width: 100%; }
+.inspector .fld-row { display: flex; gap: var(--sp-2); }
+.inspector .fld-row .input { flex: 1; min-width: 0; }
+.input .mono { font-family: var(--font-mono); white-space: nowrap; overflow: hidden; }
+.input-text { white-space: nowrap; overflow: hidden; }
+.hint { display: flex; align-items: flex-start; gap: var(--sp-1); font-size: var(--fs-secondary); line-height: var(--lh-secondary); color: var(--text-2); }
+.hint .i { width: var(--icon-sm); height: var(--icon-sm); margin-top: 1px; }
+.hint.ok, .hint.ok .i { color: var(--ok); }
+.hint.block, .hint.block .i { color: var(--danger); }
+.insp-foot { margin-top: auto; padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--hairline); display: flex; flex-direction: column; gap: var(--sp-2); }
+.insp-foot .btn { width: 100%; justify-content: center; }
+.insp-foot .btn .kbd { margin-left: var(--sp-2); }
+.is-locked { opacity: 1; }
+.is-locked .input, .is-locked .select { background: var(--bg-chrome); color: var(--text-disabled); border-color: var(--hairline); }
+.is-locked .cb-row, .is-locked .cb-row .t-2 { color: var(--text-2); }
+.is-locked .cb.on { background: var(--bg-pressed); border-color: var(--edge); }
+.is-locked .cb.on .i { color: var(--text-2); }
+
+/* Checkbox row */
+.cb-row { display: flex; align-items: flex-start; gap: var(--sp-2); min-height: 28px; padding: var(--sp-1) 0 0; }
+.cb { width: 20px; height: 20px; flex: none; margin-top: 2px; border: 1px solid var(--edge); border-radius: var(--r-control); background: var(--bg-input);
+  display: grid; place-items: center; }
+.cb.on { background: var(--accent); border-color: var(--accent); }
+.cb .i { width: var(--icon-sm); height: var(--icon-sm); color: var(--text-on-accent); }
+.cb.on.dis { background: var(--bg-pressed); border-color: var(--edge); }
+.cb.on.dis .i { color: var(--text-2); }
+.cb-row.dis { color: var(--text-2); }
+.input.is-bad { border-color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
+.select.is-dis { color: var(--text-2); border-color: var(--hairline); background: var(--bg-chrome); }
+.inspector .sec-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.inspector .sec-head .btn { --control-h: 28px; }
+.inspector .btn .chev { margin-left: 0; }
+.inspector .btn.sm { --control-h: 28px; }
+.input.multi { height: auto; min-height: var(--control-h); padding: var(--sp-1) var(--sp-2); }
+.input.multi .input-text { white-space: normal; overflow-wrap: anywhere; overflow: visible; }
+.cb-row .t-2 { display: block; }
+
+/* Progress */
+.run { flex: none; background: var(--bg-layer); border: 1px solid var(--hairline); border-radius: var(--r-control); padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
+.run-top { display: flex; align-items: center; gap: var(--sp-3); }
+.run-top .grow { flex: 1; }
+.progress { height: 8px; border-radius: var(--r-control); background: var(--bg-pressed); border: 1px solid var(--edge); overflow: hidden; }
+.progress > i { display: block; height: 100%; background: var(--accent); }
+.run-meta { display: flex; gap: var(--sp-4); }
+.spin { color: var(--accent); }
+
+/* Done / empty */
+.done-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.infobar.big { padding: var(--sp-3) var(--sp-3); align-items: flex-start; }
+.infobar.big .i { margin-top: 2px; }
+.infobar.ok { background: var(--bg-selected); }
+.infobar.ok .i { color: var(--ok); }
+.empty-in { padding: var(--sp-8) var(--sp-6); }
+.tbl-empty { flex: 1; min-height: 0; background: var(--bg-layer); border: 1px solid var(--hairline); border-radius: var(--r-control); display: flex; flex-direction: column; }
+.tbl-empty .th { height: var(--row-h); display: flex; align-items: center; padding: 0 var(--pad-x); gap: var(--sp-6); border-bottom: 1px solid var(--edge); font-size: var(--fs-secondary); font-weight: var(--fw-semibold); color: var(--text-2); }
+.tbl-empty .th span:nth-child(1) { width: 250px; } .tbl-empty .th span:nth-child(2) { flex: 1; }
+.note { position: absolute; z-index: 20; max-width: 280px; padding: var(--sp-2) var(--sp-3); background: var(--bg-popover); border: 1px solid var(--edge); border-radius: var(--r-control);
+  font-size: var(--fs-secondary); line-height: var(--lh-secondary); color: var(--text); box-shadow: var(--shadow-flyout); }
+.note b { font-weight: var(--fw-semibold); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- Lucide icons used only here (ISC); not yet in mockup.js sprite -->
+  <symbol id="x-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="x-external-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+  <symbol id="x-circle-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></symbol>
+  <symbol id="x-ban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol>
+  <symbol id="x-sheet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></symbol>
+  <symbol id="x-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="x-loader" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
+  <symbol id="x-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="x-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
+</svg>
+
+<div class="sheet" id="sheet"></div>
+
+<script src="mockup.js"></script>
+<script>
+/* ---------- tiny template helpers (mockup only) ---------- */
+const ic = (n, c = "") => `<svg class="i ${c}"><use href="#${n}"/></svg>`;
+const kbd = k => `<span class="kbd">${k}</span>`;
+const TABS = ["Yükle", "Kontrol", "Şablonlar", "Değerler", "Dışa Aktar", "Rehber"];
+const MENU = '<span class="menu-item"><u>D</u>osya</span><span class="menu-item">Düz<u>e</u>n</span><span class="menu-item"><u>G</u>örünüm</span><span class="menu-item">Gi<u>t</u></span><span class="menu-item"><u>A</u>raçlar</span><span class="menu-item"><u>Y</u>ardım</span>';
+const JOB = "Kasım 2026 kapasite raporları";
+const FOLDER = "D:\\Muhasebe\\Çıktı\\Kasım";
+
+function win(state, label, o) {
+  const empty = o.empty;
+  return `<div class="window" data-state="${state}" aria-label="${label}">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu">${MENU}</nav>
+    <div class="title"><b>${empty ? "Evrakçı" : JOB}</b>${empty ? "" : " · Evrakçı"}</div>
+    ${empty ? "" : `<span class="save-state">${ic("cloud-check", "sm")}Kaydedildi 14:32</span>`}
+    <div class="caption-buttons" aria-hidden="true"><span>${ic("minus")}</span><span>${ic("square")}</span><span>${ic("x")}</span></div>
+  </header>
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler">${TABS.map(t => `<span class="tab" role="tab" aria-selected="${t === "Dışa Aktar"}">${t}</span>`).join("")}</nav>
+  <div class="commandbar" role="toolbar" aria-label="Dışa Aktar komutları">${o.cmd}</div>
+  <div class="workspace">
+    <div class="work"><div class="page">${o.left}</div></div>
+    <div class="splitter" role="separator" aria-orientation="vertical"></div>
+    <aside class="inspector ${o.locked ? "is-locked" : ""}" aria-label="Hedef ve seçenekler">${o.insp}</aside>
+  </div>
+  <footer class="statusbar">${o.status}</footer>
+  ${o.extra || ""}
+</div>`;
+}
+
+const statusBar = (a) => `
+  <span class="item"><b>${a.job}</b></span>
+  ${a.pages ? `<span class="item num">${a.pages}</span>` : ""}
+  ${a.flag ? `<span class="item check">${ic("triangle-alert", "sm")}${a.flag}</span>` : ""}
+  ${a.extra || ""}`;
+const SB = statusBar({ job: JOB, pages: "640 sayfa · 96 belge", flag: "7 belge kontrol bekliyor" });
+const SB_EMPTY = statusBar({ job: "İş açılmadı", extra: '<span class="spacer"></span><span class="item">Ctrl+O ile bir iş açabilirsiniz</span>' });
+
+/* ---------- command bars ---------- */
+const sepc = '<span class="sep"></span>', spc = '<span class="spacer"></span>';
+const cmd = (o = {}) => `
+  <button class="btn subtle" aria-label="Dışa aktar (Ctrl+E)" ${o.noExport ? "disabled" : ""}>${ic("x-download")}Dışa aktar</button>
+  <button class="btn subtle" aria-label="Dışa aktarmayı durdur (Ctrl+.)" ${o.noStop ? "disabled" : ""}>${ic("x-circle-x")}Durdur</button>
+  ${sepc}
+  <button class="btn subtle ${o.hoverRefresh ? "is-hover" : ""}" id="refresh" aria-label="Önizlemeyi yenile (F5)" ${o.lock ? "disabled" : ""}>${ic("x-refresh")}Önizlemeyi yenile</button>
+  ${spc}
+  <button class="btn subtle" ${o.noFiles ? "disabled" : ""}>${ic("x-external-link")}Dosyayı aç</button>
+  <button class="btn subtle" ${o.noFolder ? "disabled" : ""}>${ic("folder-open")}Klasörü aç</button>
+  <button class="btn subtle" aria-label="Dosya Gezgini'nde göster (Ctrl+Shift+O)" ${o.noFiles ? "disabled" : ""}>${ic("search")}Dosya Gezgini'nde göster</button>
+  <button class="btn subtle icon" aria-label="Diğer komutlar">${ic("ellipsis")}</button>`;
+
+/* ---------- inspector ---------- */
+const cb = (on, label, sub, dis) => `<div class="cb-row ${dis ? "dis" : ""}"><span class="cb ${on ? "on" : ""} ${dis ? "dis" : ""}">${on ? ic("check") : ""}</span><span>${label}${sub ? `<span class="t-2">${sub}</span>` : ""}</span></div>`;
+function insp(o = {}) {
+  const folderHint = o.empty
+    ? `<div class="hint">${ic("info", "sm")}<span>Boş bir klasör seçin. İş açılınca seçilebilir.</span></div>`
+    : o.blocked
+      ? `<div class="hint block">${ic("x-ban", "sm")}<span><b class="t-strong">Klasör boş değil.</b> Boş bir klasör seçin.</span></div>`
+      : `<div class="hint ok">${ic("circle-check", "sm")}<span>Klasör boş, yazılabilir.</span></div>`;
+  const sel = "Süresiz";
+  return `
+  <div class="panel-section">
+    <div class="sec-head"><h3 class="t-section">Hedef klasör</h3>
+      <button class="btn secondary" ${o.locked || o.empty ? "disabled" : ""}>${ic("x-folder")}Klasör seç…</button></div>
+    <span class="input multi ${o.focusFolder ? "is-focus" : ""}" aria-label="Hedef klasör"><span class="input-text">${o.empty ? "" : FOLDER}</span></span>
+    ${folderHint}
+  </div>
+  <div class="panel-section">
+    <h3 class="t-section">Dosya adı kalıbı</h3>
+    <span class="input multi ${o.focusPattern ? "is-focus" : ""} ${o.badPattern ? "is-bad" : ""}" aria-label="Dosya adı kalıbı"><span class="input-text code">${o.badPattern ? "{Oda sicil no}_{Firma adı}.pdf" : "{Oda sicil no}_{Firma unvanı}.pdf"}</span></span>
+    <div><button class="btn secondary sm" aria-label="Değişken ekle: şablondaki değişkenlerden seçip kalıba ekler" ${o.locked || o.empty ? "disabled" : ""}>${ic("braces")}Değişken ekle${ic("chevron-down", "chev")}</button></div>
+    ${o.empty ? `<div class="hint">${ic("info", "sm")}<span>Değişkenler açık işin şablonlarından gelir.</span></div>`
+      : o.badPattern ? `<div class="hint block">${ic("x-ban", "sm")}<span><b class="t-strong">“Firma adı” diye bir değişken yok.</b> Değişken ekle menüsünden seçin.</span></div>`
+      : `<div class="hint">${ic("info", "sm")}<span>Örnek: <span class="code">10517_Akdeniz Ambalaj.pdf</span></span></div>`}
+  </div>
+  <div class="panel-section">
+    <h3 class="t-section">Seçenekler</h3>
+    ${o.locked ? `<div class="hint">${ic("lock", "sm")}<span>Yazma sürerken değiştirilemez.</span></div>` : ""}
+    ${cb(true, "Aranabilir metin katmanı ekle (OCR)", "", o.empty)}
+    ${cb(true, "index.xlsx her zaman yazılır", "Her dosya bir satır: adı, sayfaları, değerleri", true)}
+    ${cb(true, "Geçersiz karakterleri değiştir", "", o.empty)}
+    <div class="fld-row" style="align-items:center;margin-top:var(--sp-1)"><span style="white-space:nowrap">İşi sakla</span><span class="select ${o.empty || o.locked ? "is-dis" : ""}" style="min-width:0"><span>${sel}</span>${ic("chevron-down")}</span></div>
+  </div>
+  <div class="insp-foot">
+    ${o.foot || `<button class="btn primary" ${o.noExport ? "disabled" : ""}>${ic("x-download")}Dışa aktar${kbd("Ctrl+E")}</button>
+    ${o.footNote ? `<div class="hint">${ic("info", "sm")}<span>${o.footNote}</span></div>` : ""}`}
+  </div>`;
+}
+
+/* ---------- data (invented) ---------- */
+const chg = s => `<span class="chg">${s}</span>`;
+const FLAG = (n, why) => ({ s: "check", why, n });
+const ROWS = [
+  { st: "check", why: "Sicil No eksik", n: "Belge 41.pdf", p: "128–129", t: "Ekspertiz Raporu" },
+  { st: "check", why: "Sicil No eksik", n: "Belge 77.pdf", p: "392–393", t: "Ekspertiz Raporu" },
+  { st: "check", why: "Firma adı belirsiz", n: "10517_Akdeniz Ambalaj.pdf", p: "180–181", t: "Kapasite Raporu" },
+  { st: "check", why: "Sicil No belirsiz", n: "10630_Marmara Gıda.pdf", p: "301–302", t: "Kapasite Raporu" },
+  { st: "info", why: "/ yerine - yazıldı", n: `10533_Demir${chg("-")}Çelik Tic. A.Ş.pdf`, p: "212–213", t: "Kapasite Raporu" },
+  { st: "info", why: "Ad çakışması, _2 eklendi", n: `10482_Ege Kalıp Sanayi Ltd. Şti${chg("_2")}.pdf`, p: "14–15", t: "Ekspertiz Raporu" },
+  { st: "ok", n: "10482_Ege Kalıp Sanayi Ltd. Şti.pdf", p: "1–2", t: "Ekspertiz Raporu" },
+  { st: "ok", n: "10491_Karadeniz Tekstil A.Ş.pdf", p: "3–4", t: "Kapasite Raporu" },
+  { st: "ok", n: "10495_Trakya Plastik Ltd. Şti.pdf", p: "5–7", t: "Kapasite Raporu" },
+  { st: "ok", n: "10503_Bozkır Makine San. A.Ş.pdf", p: "8–9", t: "Ekspertiz Raporu" },
+  { st: "ok", n: "10508_Toros Yem Gıda Ltd. Şti.pdf", p: "10–11", t: "Kapasite Raporu" },
+  { st: "ok", n: "10511_Güney Boru Profil A.Ş.pdf", p: "12–13", t: "Kapasite Raporu" },
+];
+const stCell = (r, mode) => {
+  if (mode === "run") {
+    const flag = r.st === "check" ? ` <span class="rider">${ic("triangle-alert")}Kontrol</span><span class="why">${r.why}</span>` : "";
+    if (r.run === "done") return `<span class="status ok">${ic("circle-check")}Yazıldı</span>${flag}`;
+    if (r.run === "now") return `<span class="status" style="color:var(--text-accent)">${ic("x-loader", "spin")}Yazılıyor</span>${flag}`;
+    return `<span class="status todo">${ic("circle-dashed")}Bekliyor</span>${flag}`;
+  }
+  if (r.st === "check") return `<span class="rider">${ic("triangle-alert")}Kontrol</span><span class="why">${r.why}</span>`;
+  if (r.st === "info") return `<span class="status info">${ic("info")}Bilgi</span><span class="why2">${r.why}</span>`;
+  if (mode === "done") return `<span class="status ok">${ic("circle-check")}Yazıldı</span>`;
+  return `<span class="status ok">${ic("circle-check")}Tamam</span>`;
+};
+function table(rows, mode, selIdx) {
+  return `<div class="tbl-wrap"><table class="table"><thead><tr>
+    <th style="width:${mode === "run" ? 352 : 272}px">Durum</th><th>${mode === "done" || mode === "run" ? "Yazılan dosya" : "Yazılacak dosya adı"}</th><th class="mid" style="width:104px">Sayfalar</th><th style="width:168px">Şablon</th></tr></thead><tbody>
+    ${rows.map((r, i) => `<tr class="${r.st === "check" ? "is-flag" : ""}" ${i === selIdx ? 'aria-selected="true"' : ""}>
+      <td>${stCell(r, mode)}</td><td><span class="fname">${r.n}</span></td><td class="mid num">${r.p}</td><td class="dim">${r.t}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+
+/* ---------- pre-flight ---------- */
+const sev = {
+  block: `<span class="status block">${ic("x-ban")}Engel</span>`,
+  warn: `<span class="status check">${ic("triangle-alert")}Uyarı</span>`,
+  info: `<span class="status info">${ic("info")}Bilgi</span>`,
+  ok: `<span class="status ok">${ic("circle-check")}Tamam</span>`,
+};
+const pfRow = (cls, s, msg, count, act, actK, act2) => `<div class="pf-row ${cls}">${sev[s]}<span class="msg">${msg}</span><span class="count">${count}</span><span class="act">${act2 ? `<button class="btn subtle">${act2}</button>` : ""}${act ? `<button class="btn subtle" ${actK ? `aria-label="${act} (${actK})"` : ""}>${act}</button>` : ""}</span></div>`;
+function preflight(blocked) {
+  return `<div class="pf" role="list" aria-label="Yazılmadan önce">
+    ${blocked
+      ? pfRow("block", "block", "<b>Hedef klasör boş değil.</b> Eski dosyaların üzerine yazılmaz.", "1", "Klasör seç…", "", "Yeni alt klasör oluştur") +
+        pfRow("block", "block", "<b>Dosya adı kalıbında bilinmeyen değişken:</b> “Firma adı”.", "1", "Kalıbı düzelt")
+      : pfRow("", "ok", "<b>Yazmayı engelleyen sorun yok.</b> Hedef klasör boş ve yazılabilir.", "0", "")}
+    ${pfRow("", "warn", "<b>Kontrol gerekiyor.</b> Yine de yazılır; index.xlsx'te işaretlenir, nedeni yazılır.", "7", "Sonraki kontrol", "N")}
+    ${pfRow("", "warn", "<b>Zorunlu değer eksik: Sicil No.</b> Dosya adı “Belge 41” biçiminde numaralanır.", "2", "Değerler'e git", "Ctrl+4")}
+    ${pfRow("", "info", "<b>Örnek kontrol: 12 / 20 incelendi.</b> Şimdiye kadar hata yok.", "8", "Örneğe devam et", "Ctrl+4")}
+    ${pfRow("", "info", "<b>Dosya adı değişti.</b> Geçersiz karakter ya da çakışma; aşağıda işaretli.", "2", "Adları göster")}
+  </div>`;
+}
+/* no page H1 on work tabs: the work-area title is panel 20/28, pane titles section 17/24 */
+const head = (sub, title = "Ön kontrol") => `<div class="page-head"><h2 class="t-panel">${title}</h2><span class="t-2 num">${sub}</span></div>`;
+const filesHead = (title, right) => `<div class="files-head"><h2 class="t-section">${title}</h2><span class="t-2">kontrol gerekenler üstte</span><span class="spacer"></span>${right || ""}</div>`;
+const filterBtns = `<button class="btn secondary" style="--control-h:28px" aria-pressed="false">${ic("funnel", "sm")}Yalnızca kontrol gerekenler (7)</button><span class="t-2 num">12 / 96 satır</span>`;
+
+/* ---------- states ---------- */
+const sheet = document.getElementById("sheet");
+let html = "";
+
+/* 1 · main: ready, one warning acknowledged by design (still exportable) */
+html += win("main", "Dışa Aktar · hazır", {
+  cmd: cmd({ noStop: true, hoverRefresh: true, noFiles: true, noFolder: false }),
+  left: head("96 belge · 640 sayfa") + preflight(false) +
+    `<section class="files" aria-label="Dosya adı önizleme">${filesHead("Dosya adları", filterBtns)}${table(ROWS, "pre", 2)}</section>`,
+  insp: insp({ focusPattern: true }),
+  status: SB,
+  extra: `<div class="tooltip" style="left:300px;top:124px">Önizlemeyi yenile ${kbd("F5")}</div>`,
+});
+
+/* 2 · blocked: folder not empty, Dışa aktar disabled */
+html += win("blocked", "Dışa Aktar · engel", {
+  cmd: cmd({ noExport: true, noStop: true, noFiles: true }),
+  left: head("96 belge · 640 sayfa") + preflight(true) +
+    `<section class="files" aria-label="Dosya adı önizleme">${filesHead("Dosya adları", filterBtns)}${table(ROWS, "pre")}</section>`,
+  insp: insp({ blocked: true, noExport: true, focusFolder: true, badPattern: true, footNote: "Önce iki engeli giderin." }),
+  status: SB,
+});
+
+/* 3 · running */
+const RUN = ROWS.slice().sort((a, b) => 0).map((r, i) => ({ ...r, run: i < 8 ? "done" : i === 8 ? "now" : "wait" }));
+html += win("running", "Dışa Aktar · yazılıyor", {
+  cmd: cmd({ noExport: true, lock: true, noFiles: true, noFolder: false }),
+  left: head("96 belge · 640 sayfa", "Dışa aktarım") +
+    `<section class="run" aria-live="polite" aria-label="İlerleme">
+      <div class="run-top">${ic("x-loader", "spin")}<span class="t-section grow">Yazılıyor: <span class="num">58</span> / <span class="num">96</span> <span class="t-2" style="font-weight:var(--fw-regular)">· metin katmanı ekleniyor</span></span>
+        <button class="btn secondary is-focus" aria-label="Dışa aktarmayı durdur (Ctrl+.)">${ic("x-circle-x")}Durdur</button></div>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60"><i style="width:60%"></i></div>
+      <div class="run-meta t-2"><span class="num"><b class="t-strong" style="color:var(--text)">%60</b> · yaklaşık 2 dk kaldı</span><span>Dışa aktarma durdurulursa yazılan dosyalar kalır, index.xlsx yazılmaz.</span></div>
+    </section>` +
+    `<section class="files" aria-label="Yazılan dosyalar">${filesHead("Yazılan dosyalar", `<span class="t-2 num">${FOLDER}</span>`)}${table(RUN, "run")}</section>`,
+  insp: insp({ locked: true, noExport: true }),
+  status: SB,
+});
+
+/* 4 · done */
+html += win("done", "Dışa Aktar · bitti", {
+  cmd: cmd({ noExport: true, noStop: true }),
+  left: head("96 belge · 640 sayfa", "Dışa aktarıldı") +
+    `<div class="infobar check big" role="status">${ic("triangle-alert")}<div class="msg"><b>96 belge yazıldı; 7'si kontrol gerektiriyor.</b><br><span class="t-2">index.xlsx'te işaretli, nedeni yazılı · 14:41'de bitti · İş saklandı (süresiz).</span></div></div>` +
+    `<section class="files" aria-label="Yazılan dosyalar">${filesHead("Yazılan dosyalar", `<span class="t-2 num">${FOLDER}</span>`)}${table(ROWS, "done", 6)}</section>`,
+  insp: insp({ foot: `<button class="btn primary">${ic("x-sheet")}index.xlsx'i aç</button>
+      <button class="btn secondary" aria-label="Yeniden dışa aktar: yeni klasör sorar, önerilen Kasım (2)">${ic("x-refresh")}Yeniden dışa aktar…</button>
+` }).replace("Klasör boş, yazılabilir.", "Klasörde 96 PDF ve index.xlsx var."),
+  status: SB,
+});
+
+/* 5 · empty */
+html += win("empty", "Dışa Aktar · boş", {
+  empty: true,
+  cmd: cmd({ noExport: true, noStop: true, lock: true, noFiles: true, noFolder: true }),
+  left: head("belge yok") + `<div class="pf" aria-label="Yazılmadan önce">
+      ${pfRow("", "info", "Belge, kontrol ve eksik değer denetimi iş açılınca burada görünür.", "–", "")}
+    </div>
+    <section class="files" aria-label="Dosya adı önizleme">${filesHead("Dosya adları")}
+      <div class="tbl-empty"><div class="th"><span>Durum</span><span>Yazılacak dosya adı</span></div>
+        <div class="empty-in"><div class="empty">${ic("x-download", "lg")}
+          <h2 class="t-panel">Dışa aktarılacak belge yok</h2>
+          <p>Dosya adları ve denetim sonuçları, bir işte belgeler bölünüp okunduktan sonra burada listelenir. Önce Yükle sekmesinde bir iş açın.</p>
+          <div class="actions"><button class="btn primary">Yükle'ye git${kbd("Ctrl+1")}</button><button class="btn secondary" aria-label="Kontrol'e git (Ctrl+2)">${ic("arrow-right-to-line")}Kontrol'e git</button></div>
+        </div></div></div></section>`,
+  insp: insp({ empty: true, noExport: true }),
+  status: SB_EMPTY,
+});
+
+sheet.innerHTML = html;
+</script>
+</body>
+</html>

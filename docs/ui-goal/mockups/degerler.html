@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-density="normal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1366">
+<title>Değerler · Evrakçı mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---- Değerler only (tokens only, no new colours, no new radii) ----
+ * Pattern: Split Pane (8) = values table | page crop. States: main (kontrol gerekenler, F2 edit,
+ * undo toast), empty, all (Tümünü incele), ornek (spot-check sample before export).
+ * Two separate markers per row: İnceleme (human: circle-check İncelendi / circle-dashed
+ * İncelenmedi, the Kontrol tab glyphs) and Güven (machine: Emin / Orta / Kontrol / Okunamadı). */
+.window { --inspector-w: 384px; }
+[data-text="130"] .window, [data-text="150"] .window { --inspector-w: 432px; }
+.work { position: relative; }
+
+/* Work-area title (panel 20/28) + template scope */
+.vhead { height: 56px; flex: none; display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-6) 0; }
+.vhead .spacer { flex: 1; }
+.vhead .select { min-width: 0; white-space: nowrap; }
+.filterbar { min-height: 48px; flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-6); }
+.filterbar > :not(.spacer) { flex-shrink: 0; }
+.filterbar .spacer { flex: 1; }
+.input.search { width: calc(208px * var(--text-scale)); }
+.input.search .placeholder { white-space: nowrap; }
+.input.search.is-off, .input.search.is-off .placeholder { color: var(--text-disabled); border-color: var(--hairline); }
+.seg { display: inline-flex; border: 1px solid var(--edge); border-radius: var(--r-control); overflow: hidden; background: var(--bg-input); }
+.seg .btn { border: 0; border-radius: 0; height: calc(var(--control-h) - 2px); padding-right: var(--sp-2); }
+.seg .btn + .btn { box-shadow: inset 1px 0 0 var(--hairline); }
+.seg .btn[aria-pressed="true"] { background: var(--bg-selected); box-shadow: inset 0 0 0 2px var(--accent-edge-selected); }
+.seg .btn:disabled .badge { color: var(--text-2); }
+
+/* Values table: L1 frame with hairlines, sticky header, rows 40 px */
+.tablewrap {
+  flex: 1; min-height: 0; margin: 0 var(--sp-6);
+  overflow: auto; scrollbar-width: thin;
+  background: var(--bg-layer); border: 1px solid var(--hairline); border-radius: var(--r-control);
+}
+.vt { table-layout: fixed; min-width: 100%; width: auto; border: 0; border-radius: 0; background: transparent; }
+.vt th { position: sticky; top: 0; z-index: 2; background: var(--bg-layer); border-bottom: 0; box-shadow: inset 0 -1px 0 var(--edge); white-space: nowrap; }
+.vt th .th { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.vt th .th .i { color: var(--icon-2); }
+.vt th.sorted { color: var(--text); }
+.vt td { white-space: nowrap; position: relative; font-feature-settings: var(--font-features-code); }
+.vt td.rev { padding: 0; text-align: center; }
+.vt td.rev .i { width: var(--icon-sm); height: var(--icon-sm); color: var(--text-2); vertical-align: middle; }
+.vt td.rev .i.done { color: var(--ok); }
+.vt th.rev { padding: 0; text-align: center; }
+.v { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.v.check .i { color: var(--check-text); }
+.v.bad, .v.bad .i { color: var(--danger); font-weight: var(--fw-semibold); }
+.more { margin-left: var(--sp-2); font-size: var(--fs-secondary); color: var(--text-2); }
+.elle { margin-left: var(--sp-2); }
+
+/* Uncertain character: wash + 2px underline, text stays full contrast (icon + word sit in the row) */
+mark.u {
+  background: var(--check-wash); color: inherit; font-weight: var(--fw-semibold);
+  box-shadow: inset 0 -2px 0 var(--rider-edge); border-radius: var(--r-sheet); padding: 0 1px;
+}
+
+/* F2: the cell turns into an input in the same box (no layout shift) */
+.edit {
+  position: absolute; inset: var(--sp-1);
+  display: flex; align-items: center; padding: 0 var(--sp-2);
+  background: var(--bg-input); border: 1px solid var(--accent); border-radius: var(--r-control);
+}
+.edit .caret { width: 1px; height: 20px; margin-left: 1px; background: var(--text); }
+.edit .tooltip { top: calc(100% + var(--sp-2)); left: 0; }
+
+/* Key hints under the table */
+.hintbar { height: 40px; flex: none; display: flex; align-items: center; gap: var(--sp-4); padding: 0 var(--sp-6); }
+.hintbar .spacer { flex: 1; }
+.hint { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-secondary); line-height: var(--lh-secondary); color: var(--text-2); white-space: nowrap; }
+.statusbar .bad, .statusbar .bad .i { color: var(--danger); font-weight: var(--fw-medium); }
+
+/* Page crop pane */
+.insp-head { padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--hairline); }
+.insp-title { display: flex; align-items: center; justify-content: space-between; min-height: var(--control-h); }
+.cropsec { padding: var(--sp-4); }
+.crop {
+  position: relative; height: 168px; overflow: hidden;
+  background: var(--bg-paper); color: var(--manila-ink);
+  border-radius: var(--r-sheet); box-shadow: var(--shadow-sheet);
+}
+.crop .ink-line { position: absolute; left: var(--sp-4); height: 6px; background: var(--paper-ink-strong); }
+.crop .ink-line.a { top: 12px; width: 144px; }
+.crop .ink-line.b { top: 148px; width: 264px; background: var(--paper-ink); }
+.ink-row { position: absolute; left: var(--sp-4); right: var(--sp-4); display: flex; align-items: baseline; gap: var(--sp-4); font-size: calc(var(--fs-body) / var(--text-scale)); line-height: 28px; } /* page image: fixed size */
+.ink-row .lbl { width: 72px; flex: none; }
+.ink-row.r1 { top: 28px; } .ink-row.r2 { top: 68px; } .ink-row.r3 { top: 112px; }
+.ink-row .mono { font-family: var(--font-mono); font-size: calc(var(--fs-panel) / var(--text-scale)); }
+.uc { outline: 2px solid var(--rider-edge); outline-offset: 1px; border-radius: var(--r-sheet); }
+.spot { position: absolute; border: 2px solid var(--manila-ink); border-radius: var(--r-sheet); box-shadow: 0 0 0 400px var(--scrim); }
+.crop-cap { display: flex; align-items: center; justify-content: space-between; margin-top: var(--sp-2); }
+.crop.blank { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); background: transparent; box-shadow: none; border: 1px dashed var(--edge); color: var(--text-2); }
+.crop.blank .i.lg { color: var(--icon-2); stroke-width: 1.5; }
+.vals { grid-template-columns: 64px 1fr; row-gap: var(--sp-2); align-items: baseline; }
+.vals dd.mono { font-family: var(--font-mono); font-size: var(--fs-panel); line-height: var(--lh-panel); }
+.chg { color: var(--text-accent); font-weight: var(--fw-semibold); box-shadow: inset 0 -2px 0 var(--accent); border-radius: var(--r-sheet); padding: 0 1px; }
+.note { margin: var(--sp-2) 0 0; }
+.stack-actions { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-4); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+
+/* Empty state sits inside the table frame (pattern skeleton stays) */
+.emptywrap { display: flex; flex-direction: column; }
+.emptywrap .vt { flex: none; }
+.emptywrap .empty { padding: var(--sp-12) var(--sp-6); max-width: 608px; }
+
+/* Marker gutter: value columns keep one text edge; the cell icon sits in the gutter */
+.vt td.val { padding-left: 36px; }
+.vt th.val { padding-left: 36px; }
+.vt td.val .v > .i { position: absolute; left: var(--sp-3); top: 50%; margin-top: -8px; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <!-- Lucide icons (ISC) used only on this tab -->
+  <symbol id="pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
+  <symbol id="arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+  <symbol id="list-checks" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></symbol>
+  <symbol id="scan-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8h8"/><path d="M7 12h10"/><path d="M7 16h6"/></symbol>
+  <symbol id="play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></symbol>
+</svg>
+<div class="sheet" id="sheet"></div>
+<script src="mockup.js"></script>
+<script>
+/* ---------- tiny template helpers (mockup only) ---------- */
+const ic = (n, c = "") => `<svg class="i ${c}"><use href="#${n}"/></svg>`;
+const kbd = k => `<span class="kbd">${k}</span>`;
+const TABS = ["Yükle", "Kontrol", "Şablonlar", "Değerler", "Dışa Aktar", "Rehber"];
+const MENU = '<span class="menu-item"><u>D</u>osya</span><span class="menu-item">Düz<u>e</u>n</span><span class="menu-item"><u>G</u>örünüm</span><span class="menu-item">Gi<u>t</u></span><span class="menu-item"><u>A</u>raçlar</span><span class="menu-item"><u>Y</u>ardım</span>';
+const JOB = "Kasım 2026 kapasite raporları";
+
+/* one vocabulary on every tab (README "Durum sözlüğü") */
+const CONF = {
+  emin: p => `<span class="status ok">${ic("signal-high")}Emin <span class="pct">%${p}</span></span>`,
+  orta: p => `<span class="status mid">${ic("signal-medium")}Orta <span class="pct">%${p}</span></span>`,
+  kontrol: p => `<span class="status check">${ic("triangle-alert")}Kontrol <span class="pct">%${p}</span></span>`,
+  bad: () => `<span class="status bad">${ic("circle-x")}Okunamadı</span>`,
+};
+const REV = d => d ? `<svg class="i done" aria-label="İncelendi"><use href="#circle-check"/></svg>`
+                   : `<svg class="i" aria-label="İncelenmedi"><use href="#circle-dashed"/></svg>`;
+const K = v => `<span class="v check" aria-label="Kontrol: emin değil">${ic("triangle-alert", "sm")}<span>${v}</span></span>`;
+const BAD = `<span class="v bad">${ic("circle-x", "sm")}<span>Okunamadı</span></span>`;
+const u = c => `<mark class="u">${c}</mark>`;
+
+function win(state, label, o) {
+  return `<div class="window" data-state="${state}" aria-label="${label}">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu">${MENU}</nav>
+    <div class="title"><b>${JOB}</b> · Evrakçı</div>
+    <span class="save-state">${ic("cloud-check", "sm")}Kaydedildi 14:32</span>
+    <div class="caption-buttons" aria-hidden="true"><span>${ic("minus")}</span><span>${ic("square")}</span><span>${ic("x")}</span></div>
+  </header>
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler">${TABS.map(t => `<span class="tab" role="tab" aria-selected="${t === "Değerler"}">${t}</span>`).join("")}</nav>
+  <div class="commandbar" role="toolbar" aria-label="Değerler komutları">${o.cmd}</div>
+  <div class="workspace">
+    <div class="work">${o.work}</div>
+    <div class="splitter" role="separator" aria-orientation="vertical"></div>
+    <aside class="inspector" aria-label="Sayfa kesiti ve değer">${o.insp}</aside>
+  </div>
+  <footer class="statusbar">${o.status}</footer>
+  ${o.extra || ""}
+</div>`;
+}
+
+/* ---------- command bar: no filled primary here; the one primary is "Onayla ve sonrakine geç" ---------- */
+const cmd = (o = {}) => {
+  const d = o.empty ? "disabled" : "";
+  return `
+  <button class="btn subtle icon" aria-label="${o.empty ? "Geri al" : "Geri al: 8 değeri onayla (Ctrl+Z)"}" ${d}>${ic("undo-2")}</button>
+  <button class="btn subtle icon" aria-label="Yinele (Ctrl+Y)" disabled>${ic("redo-2")}</button>
+  <span class="sep"></span>
+  <button class="btn subtle">${ic("play")}Değerleri oku</button>
+  <button class="btn subtle" ${d}>${ic("scan-text")}Yalnızca eksikleri oku</button>
+  <span class="spacer"></span>
+  <button class="btn subtle" aria-pressed="${!!o.all}" aria-label="Tümünü incele: emin olanlar dahil her değeri sırayla göster" ${d}>${ic("list-checks")}Tümünü incele</button>
+  <button class="btn subtle" aria-pressed="${!!o.sample}" aria-label="Örnek kontrol: emin okunan değerlerden rastgele 20 değer, dışa aktarmadan önce" ${d}>${ic("shuffle")}Örnek kontrol</button>
+  <span class="sep"></span>
+  <button class="btn subtle" aria-label="Önceki kontrol (Shift+N)" ${d}>${ic("chevron-up")}Önceki</button>
+  <button class="btn subtle" aria-label="Sonraki kontrol (N)" ${d}>${o.empty ? ic("triangle-alert") : `<svg class="i" style="color:var(--check-text)"><use href="#triangle-alert"/></svg>`}Sonraki kontrol</button>
+  <span class="sep"></span>
+  <button class="btn subtle" aria-label="Seçilen ${o.sel || 0} değeri onayla (Ctrl+Enter)" ${o.sel ? "" : "disabled"}>${ic("check")}Seçilenleri onayla (${o.sel || 0})</button>`;
+};
+
+const vhead = (title, sub) => `<div class="vhead"><h2 class="t-panel">${title}</h2><span class="t-2 num">${sub}</span><span class="spacer"></span>
+  <span class="select" role="combobox" aria-label="Şablon">Şablon: Ekspertiz Raporu${ic("chevron-down")}</span></div>`;
+
+const seg = (on, o = {}) => {
+  const b = (key, icon, color, label, n) => `<button class="btn subtle" aria-pressed="${on === key}" ${o.empty ? "disabled" : ""}>${color ? `<svg class="i" style="color:${color}"><use href="#${icon}"/></svg>` : ic(icon)}${label}<span class="badge num">${n}</span></button>`;
+  return `<div class="filterbar" role="search" aria-label="Süz ve sırala">
+    <span class="input search ${o.empty ? "is-off" : ""}">${ic("search", "sm")}<span class="placeholder">Firma, sicil no…</span><span class="kbd" style="margin-left:auto">Ctrl+F</span></span>
+    <span class="seg" role="group" aria-label="Göster">
+      ${b("kontrol", "triangle-alert", o.empty ? "" : "var(--check-text)", "Kontrol gerekenler", o.empty ? 0 : 14)}
+      ${b("todo", "circle-dashed", "", "İncelenmemiş", o.empty ? 0 : 105)}
+      ${o.sample ? b("sample", "shuffle", "", "Örnek", 20) : ""}
+      ${b("all", "list-checks", "", "Tümü", o.empty ? 0 : 152)}
+    </span>
+    <span class="spacer"></span>
+    ${o.sample ? `<span class="t-2">Rastgele sıra</span>` : `<span class="select" role="combobox" aria-label="Sırala" style="min-width:0;white-space:nowrap">Sırala: Belge no${ic("chevron-down")}</span>`}
+  </div>`;
+};
+
+const COLS = `<colgroup><col style="width:calc(40px * var(--text-scale))"><col style="width:calc(64px * var(--text-scale))"><col style="width:calc(80px * var(--text-scale))"><col style="width:calc(208px * var(--text-scale))"><col style="width:calc(144px * var(--text-scale))"><col style="width:calc(120px * var(--text-scale))"><col style="width:calc(136px * var(--text-scale))"><col></colgroup>`;
+const HEAD = `<thead><tr><th class="rev" aria-label="İnceleme">${ic("circle-check", "sm")}</th><th class="num sorted" aria-sort="ascending"><span class="th">Belge${ic("arrow-up", "sm")}</span></th><th class="num">Sayfalar</th><th class="val">Firma</th><th class="val">Sicil no</th><th class="val">Rapor tarihi</th><th class="num">Kapasite (ton/yıl)</th><th>Güven</th></tr></thead>`;
+const row = (r, sel) => `<tr ${sel ? 'aria-selected="true"' : ""}><td class="rev">${REV(r.rev)}</td><td class="num">${r.b}</td><td class="num">${r.p}</td><td class="val">${r.f}</td><td class="val ${r.edit ? "editcell" : ""}">${r.s}</td><td class="val">${r.t}</td><td class="num">${r.k}</td><td>${r.c}${r.more ? `<span class="more">${r.more}</span>` : ""}</td></tr>`;
+const table = (rows, selB) => `<div class="tablewrap" tabindex="0" aria-label="Değerler tablosu. Tab sonraki değer; F6 sonraki bölge"><table class="table vt">${COLS}${HEAD}<tbody>${rows.map(r => row(r, r.b === selB)).join("")}</tbody></table></div>`;
+
+const EDIT = `<div class="edit is-focus" role="textbox" aria-label="Sicil no, düzenleniyor"><span>34-0172-K/8</span><i class="caret"></i><span class="tooltip" role="tooltip">${kbd("Enter")}Onayla, sonraki kontrol${kbd("Esc")}Vazgeç</span></div>`;
+const KROWS = [
+  { b: 4, p: "13–14", f: "Gediz Tekstil San. A.Ş.", s: "35-0211-G/1", t: "22.09.2026", k: K(`1.25${u("O")}`), c: CONF.kontrol(58) },
+  { b: 7, p: "29–30", f: K(`Marmara D${u("o")}k${u("u")}m A.Ş.`), s: "34-1127-D/4", t: "03.10.2026", k: "840", c: CONF.kontrol(64) },
+  { b: 10, p: "45–46", f: "Anadolu Pres Makina", s: BAD, t: "08.10.2026", k: "1.640", c: CONF.bad() },
+  { b: 13, p: "61–64", f: "Karadeniz Metal Ltd.", s: K(`${u("O")}6-2210-K/1`), t: "19.10.2026", k: "960", c: CONF.kontrol(61) },
+  { b: 16, p: "72–73", f: "Ege Kalıp San. Ltd.", s: EDIT, edit: true, t: "05.11.2026", k: "1.250", c: CONF.kontrol(55) },
+  { b: 19, p: "82–83", f: `<span class="v">Trakya Boru A.Ş.<span class="status todo elle">${ic("pencil", "sm")}elle</span></span>`, s: "16-0093-T/7", t: K(`1${u("S")}.10.2026`), k: "2.100", c: CONF.kontrol(63) },
+  { b: 23, p: "99–100", f: "Akdeniz Soğutma Ltd.", s: "07-0555-S/3", t: "28.10.2026", k: K(`2.1${u("B")}0`), c: CONF.kontrol(60) },
+  { b: 27, p: "118–120", f: K(`${u("C")}ukurova Ambalaj A.Ş.`), s: BAD, t: "26.10.2026", k: "780", c: CONF.bad() },
+  { b: 31, p: "139–140", f: "Bursa Yan Sanayi A.Ş.", s: "16-0840-B/2", t: K(`${u("O")}4.11.2026`), k: "1.500", c: CONF.kontrol(62) },
+  { b: 35, p: "158–159", f: K(`${u("l")}zmir Vana ve Pompa`), s: "35-0932-İ/6", t: "30.10.2026", k: "1.320", c: CONF.kontrol(57) },
+  { b: 38, p: "174–175", f: "Konya Dişli Sanayi", s: K(`42-0671-${u("O")}/5`), t: "02.11.2026", k: "1.080", c: CONF.kontrol(59) },
+  { b: 41, p: "186–188", f: "Sivas Makina Ltd.", s: "58-0114-M/2", t: "09.11.2026", k: K(`7${u("B")}0`), c: CONF.kontrol(66) },
+  { b: 44, p: "205–206", f: "Edirne Un ve Gıda A.Ş.", s: K(`22-0307-${u("Q")}/1`), t: "10.11.2026", k: "1.060", c: CONF.kontrol(54) },
+];
+const AROWS = [
+  { rev: 1, b: 1, p: "1–2", f: "Bornova Kablo San. A.Ş.", s: "35-0107-B/3", t: "01.09.2026", k: "1.480", c: CONF.emin(98) },
+  { rev: 1, b: 2, p: "3–4", f: "Gebze Plastik Ltd.", s: "41-0662-G/2", t: "02.09.2026", k: "920", c: CONF.emin(97) },
+  { rev: 1, b: 4, p: "13–14", f: "Gediz Tekstil San. A.Ş.", s: "35-0211-G/1", t: "22.09.2026", k: "1.250", c: CONF.emin(99) },
+  { rev: 1, b: 5, p: "19–20", f: "Denizli Havlu San. A.Ş.", s: "20-0319-D/6", t: "25.09.2026", k: "1.120", c: CONF.orta(84) },
+  { rev: 1, b: 7, p: "29–30", f: "Marmara Döküm A.Ş.", s: "34-1127-D/4", t: "03.10.2026", k: "840", c: CONF.emin(96) },
+  { rev: 1, b: 8, p: "35–36", f: "Kayseri Mobilya Ltd.", s: "38-0845-K/1", t: "05.10.2026", k: "710", c: CONF.emin(98) },
+  { rev: 0, b: 10, p: "45–46", f: "Anadolu Pres Makina", s: BAD, t: "08.10.2026", k: "1.640", c: CONF.bad() },
+  { rev: 1, b: 11, p: "51–52", f: "Samsun Gemi Teçhizat", s: "55-0208-S/4", t: "12.10.2026", k: "1.900", c: CONF.emin(97) },
+  { rev: 0, b: 13, p: "61–64", f: "Karadeniz Metal Ltd.", s: K(`${u("O")}6-2210-K/1`), t: "19.10.2026", k: "960", c: CONF.kontrol(61) },
+  { rev: 0, b: 14, p: "65–66", f: "Tekirdağ Gıda San. A.Ş.", s: "59-0731-T/2", t: "20.10.2026", k: "1.350", c: CONF.orta(81) },
+  { rev: 0, b: 16, p: "72–73", f: "Ege Kalıp San. Ltd.", s: K(`34-0${u("I")}72-K/${u("B")}`), t: "05.11.2026", k: "1.250", c: CONF.kontrol(55) },
+  { rev: 0, b: 17, p: "74–75", f: "Eskişehir Raylı Sist.", s: "26-0450-E/1", t: "06.11.2026", k: "2.240", c: CONF.emin(95) },
+];
+
+/* spot-check sample: one value per row, drawn at random per template and variable from "Emin" values */
+const SCOLS = `<colgroup><col style="width:calc(40px * var(--text-scale))"><col style="width:calc(64px * var(--text-scale))"><col style="width:calc(80px * var(--text-scale))"><col style="width:calc(160px * var(--text-scale))"><col style="width:calc(280px * var(--text-scale))"><col></colgroup>`;
+const SHEAD = `<thead><tr><th class="rev" aria-label="İnceleme">${ic("circle-check", "sm")}</th><th class="num">Belge</th><th class="num">Sayfa</th><th>Değişken</th><th class="val">Okunan değer</th><th>Güven</th></tr></thead>`;
+const SROWS = [
+  [1, 3, 5, "Firma", "Denizli Havlu San. A.Ş.", 97], [1, 8, 35, "Sicil no", "38-0845-K/1", 98], [1, 11, 51, "Rapor tarihi", "12.10.2026", 99],
+  [1, 14, 65, "Kapasite", "1.350", 96], [1, 22, 95, "Firma", "Çorlu Boya Kimya Ltd.", 95], [0, 58, 266, "Firma", "Kocaeli Kauçuk San. Ltd.", 97],
+  [1, 25, 108, "Sicil no", "59-1102-Ç/3", 97], [1, 29, 128, "Rapor tarihi", "27.10.2026", 98], [0, 61, 281, "Sicil no", "41-0930-K/5", 96],
+  [1, 33, 146, "Kapasite", "2.400", 99], [1, 36, 163, "Firma", "Aydın İncir Kurutma A.Ş.", 96], [0, 66, 302, "Rapor tarihi", "07.11.2026", 98],
+  [1, 40, 182, "Sicil no", "09-0417-A/2", 97], [1, 47, 217, "Rapor tarihi", "03.11.2026", 98], [1, 52, 240, "Kapasite", "860", 95],
+];
+const stable = selB => `<div class="tablewrap" tabindex="0" aria-label="Örnek kontrol tablosu"><table class="table vt">${SCOLS}${SHEAD}<tbody>${SROWS.map(([r, b, p, n, v, c]) =>
+  `<tr ${b === selB ? 'aria-selected="true"' : ""}><td class="rev">${REV(r)}</td><td class="num">${b}</td><td class="num">${p}</td><td>${n}</td><td class="val">${v}</td><td>${CONF.emin(c)}</td></tr>`).join("")}</tbody></table></div>`;
+
+const hints = (empty) => `<div class="hintbar" aria-label="Klavye kısayolları">${empty ? `<span class="hint">${kbd("Ctrl+F")}Ara</span><span class="hint">${kbd("F6")}Sonraki bölge</span>` :
+  `<span class="hint">${kbd("Tab")}Sonraki değer</span><span class="hint">${kbd("Enter")}Onayla, sonrakine geç</span><span class="hint">${kbd("F2")}Elle yaz</span><span class="hint">${kbd("Esc")}Vazgeç</span><span class="hint">${kbd("F6")}Sonraki bölge</span>`}
+  <span class="spacer"></span><span class="hint">${kbd("Shift+F1")}Tüm kısayollar</span></div>`;
+
+/* ---------- inspector ---------- */
+const crop = (spot, rows, cap) => `<div class="panel-section cropsec">
+  <div class="crop" role="img" aria-label="Sayfa kesiti">
+    <span class="ink-line a"></span><span class="ink-line b"></span>${rows}<span class="spot" style="${spot}"></span>
+  </div>
+  <div class="crop-cap t-caption">${cap}</div></div>`;
+const SICIL_ROWS = `<span class="ink-row r1"><span class="lbl">Firma</span><span class="val">Ege Kalıp San. Ltd.</span></span>
+    <span class="ink-row r2"><span class="lbl">Sicil No</span><span class="val mono">34-0<span class="uc">I</span>72-K/<span class="uc">B</span></span></span>
+    <span class="ink-row r3"><span class="lbl">Tarih</span><span class="val">05.11.2026</span></span>`;
+const actions = (dis) => `<div class="stack-actions">
+    <button class="btn primary wide" aria-label="Onayla ve sonrakine geç (Enter): öneriyi kabul et, İncelendi işaretle" ${dis ? "disabled" : ""}>${ic("check")}Onayla ve sonrakine geç${kbd("Enter")}</button>
+    <div class="pair">
+      <button class="btn secondary wide" aria-label="Elle yaz (F2)" ${dis ? "disabled" : ""}>${ic("pencil")}Elle yaz</button>
+      <button class="btn secondary wide" aria-label="Yeni varyant çiz (V)" ${dis ? "disabled" : ""}>Yeni varyant çiz</button>
+    </div></div>`;
+const inspSicil = `
+  <div class="insp-head"><div class="insp-title"><h2 class="t-panel">Sicil no</h2>
+    <button class="btn subtle icon" aria-label="Tüm sayfayı göster (Boşluk)">${ic("maximize")}</button></div>
+    <div class="t-2">Belge 16 · Ekspertiz Raporu · Sayfa 72</div></div>
+  ${crop("left:96px;top:60px;width:188px;height:44px", SICIL_ROWS, `<span>${CONF.kontrol(55)}</span><span class="num">2 karakter belirsiz · Yakınlık %200</span>`)}
+  <div class="panel-section">
+    <dl class="kv vals"><dt>Okunan</dt><dd class="mono">34-0${u("I")}72-K/${u("B")}</dd><dt>Öneri</dt><dd class="mono">34-0<b class="chg">1</b>72-K/<b class="chg">8</b></dd></dl>
+    <p class="t-2 note">Öneri, Varyant 2'den okundu: I yerine 1, B yerine 8.</p>
+    ${actions(false)}
+  </div>
+  <div class="panel-section">
+    <button class="btn subtle" aria-pressed="true">${ic("eye")}Belirsiz karakterleri vurgula</button>
+    <p class="t-2 note">Belirsizlik eşiği Ayarlar'dan değiştirilir.</p>
+  </div>`;
+const inspSample = `
+  <div class="insp-head"><div class="insp-title"><h2 class="t-panel">Firma</h2>
+    <button class="btn subtle icon" aria-label="Tüm sayfayı göster (Boşluk)">${ic("maximize")}</button></div>
+    <div class="t-2">Belge 58 · Ekspertiz Raporu · Sayfa 266 · örnek 13 / 20</div></div>
+  ${crop("left:96px;top:20px;width:236px;height:44px", `<span class="ink-row r1"><span class="lbl">Firma</span><span class="val">Kocaeli Kauçuk San. Ltd.</span></span>
+    <span class="ink-row r2"><span class="lbl">Sicil No</span><span class="val">41-0930-K/5</span></span>
+    <span class="ink-row r3"><span class="lbl">Tarih</span><span class="val">07.11.2026</span></span>`, `<span>${CONF.emin(97)}</span><span class="num">Yakınlık %200</span>`)}
+  <div class="panel-section">
+    <dl class="kv vals"><dt>Okunan</dt><dd class="mono" style="font-size:var(--fs-section)">Kocaeli Kauçuk San. Ltd.</dd></dl>
+    <p class="t-2 note">Sayfadakiyle aynıysa onaylayın; değilse elle yazın. Örnekte bulunan her hata, aynı değişkenin bütün değerlerini “Kontrol”e alır.</p>
+    ${actions(false)}
+  </div>`;
+const inspEmpty = `
+  <div class="insp-head"><div class="insp-title"><h2 class="t-panel">Bir değer seçin</h2></div>
+    <div class="t-2">Seçtiğiniz değerin sayfadaki yeri burada görünür.</div></div>
+  <div class="panel-section cropsec"><div class="crop blank" aria-hidden="true">${ic("scan-text", "lg")}<span class="t-2">Sayfa kesiti yok</span></div></div>
+  <div class="panel-section"><p class="t-2 note" style="margin-top:0">Okunan değer ve öneri, tablodan bir hücre seçilince görünür. Önce değerleri okuyun.</p>${actions(true)}</div>`;
+
+const zoom = (dis) => `<span class="zoom" aria-label="Sayfa kesiti yakınlığı">
+  <button class="btn subtle icon" aria-label="Kesiti uzaklaştır (Ctrl+-)" ${dis}>${ic("minus")}</button>
+  <span class="slider"><span class="track"><span class="fill" style="width:50%"></span><span class="thumb" style="left:50%"></span></span></span>
+  <button class="btn subtle icon" aria-label="Kesiti yakınlaştır (Ctrl+Num+)" ${dis}>${ic("plus")}</button>
+  <span class="value">%200</span></span>`;
+const SB = (extra) => `<span class="item">Belge <b class="num">16</b> / 96</span><span class="item">Sayfa <b class="num">72</b> / 640</span>${extra}<span class="spacer"></span>${zoom("")}`;
+
+/* ---------- states ---------- */
+let html = "";
+html += win("main", "Değerler · kontrol gerekenler", {
+  cmd: cmd({ sel: 1 }),
+  work: vhead("Kontrol gereken değerler", "13 belge · 14 değer") + seg("kontrol") + table(KROWS, 16) + hints(false),
+  insp: inspSicil,
+  status: SB(`<span class="item check">${ic("triangle-alert", "sm")}12 değer kontrol bekliyor</span><span class="item bad">${ic("circle-x", "sm")}2 okunamadı</span><span class="item">${ic("circle-check", "sm")}<b class="num">47</b> / 152 incelendi</span>`),
+  extra: `<div class="toast" role="status">${ic("circle-check")}<span class="msg">8 değer onaylandı</span><button class="btn subtle" aria-label="Geri al (Ctrl+Z)">Geri al</button><button class="btn subtle icon" aria-label="Kapat">${ic("x", "sm")}</button></div>`,
+});
+
+html += win("empty", "Değerler · boş", {
+  cmd: cmd({ empty: true }),
+  work: vhead("Değerler", "38 belge · 0 değer") + seg("kontrol", { empty: true }) +
+    `<div class="tablewrap emptywrap" aria-label="Değerler tablosu"><table class="table vt">${COLS}${HEAD}</table>
+      <div class="empty">${ic("scan-text", "lg")}
+        <h2 class="t-panel">Değerler henüz okunmadı</h2>
+        <p>Değerler, şablon uygulanmış belgelerden okunur. 38 belgede Ekspertiz Raporu şablonu var; okuyunca firma, sicil no ve tarih burada tablo olur ve yalnızca emin olunmayanları siz kontrol edersiniz.</p>
+        <div class="actions"><button class="btn primary">${ic("play")}38 belgeyi oku</button><button class="btn secondary" aria-label="Şablonlar'a git (Ctrl+3)">${ic("stamp")}Şablonlar'a git</button></div>
+        <p class="t-2">Elle yazdıklarınız yeniden okumada korunur.</p>
+      </div></div>` + hints(true),
+  insp: inspEmpty,
+  status: `<span class="item">Belge <b class="num">1</b> / 96</span><span class="item"><b class="num">38</b> belgede şablon var</span><span class="item">Değer okunmadı</span><span class="spacer"></span>${zoom("disabled")}`,
+});
+
+html += win("all", "Değerler · tümünü incele", {
+  cmd: cmd({ all: true, sel: 1 }),
+  work: vhead("Tüm değerler", "38 belge · 152 değer · sırayla") + seg("all") + table(AROWS, 16) + hints(false),
+  insp: inspSicil,
+  status: SB(`<span class="item">${ic("circle-check", "sm")}<b class="num">47</b> / 152 değer incelendi</span><span class="item check">${ic("triangle-alert", "sm")}12 değer kontrol bekliyor</span><span class="item bad">${ic("circle-x", "sm")}2 okunamadı</span>`),
+});
+
+html += win("ornek", "Değerler · örnek kontrol", {
+  cmd: cmd({ sample: true, sel: 1 }),
+  work: vhead("Örnek kontrol", "emin okunan 138 değerden 20'si · her şablon ve değişkenden rastgele") + seg("sample", { sample: true }) + stable(58) + hints(false),
+  insp: inspSample,
+  status: SB(`<span class="item">${ic("shuffle", "sm")}Örnek kontrol: <b class="num">12</b> / 20 incelendi</span><span class="item">${ic("circle-check", "sm")}0 hata</span>`).replace('<b class="num">16</b>', '<b class="num">58</b>').replace('<b class="num">72</b>', '<b class="num">266</b>'),
+});
+
+document.getElementById("sheet").innerHTML = html;
+</script>
+</body>
+</html>

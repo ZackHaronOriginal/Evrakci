@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-density="normal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1366">
+<title>Yükle · Evrakçı mockup</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---- Yükle only (tokens only, no new colours). Pattern: Split Pane = jobs list | batch list | inspector ---- */
+.yk { flex: 1; min-height: 0; display: flex; }
+
+/* Jobs panel (left) */
+.jobs { width: 336px; flex: none; background: var(--bg-layer); display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--hairline); }
+.jobs-head { padding: var(--sp-4) var(--sp-4) var(--sp-2); display: flex; flex-direction: column; gap: var(--sp-2); }
+.jobs-head .row { display: flex; align-items: center; height: 32px; }
+.jobs-head .input.search { width: 100%; min-width: 0; }
+.jobs-head .input.search .placeholder { flex: 1; }
+.jobs-head .input[aria-disabled="true"] { border-color: var(--hairline); color: var(--text-disabled); }
+.jobs-head .input[aria-disabled="true"] .i, .jobs-head .input[aria-disabled="true"] .placeholder { color: var(--text-disabled); }
+.jobs-sort { padding: 0 var(--sp-4); height: 24px; display: flex; align-items: center; }
+.jl { list-style: none; margin: 0; padding: var(--sp-1) 0; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.jl li { position: relative; display: flex; align-items: center; gap: var(--sp-2); height: calc(var(--row-h) + var(--sp-2)); margin: 0 var(--sp-1); padding: 0 var(--pad-x); border-radius: var(--r-control); }
+.jl li:hover, .jl li.is-hover { background: var(--bg-hover); }
+.jl li[aria-selected="true"] { background: var(--bg-selected); }
+.jl li[aria-selected="true"]::before { content: ""; position: absolute; left: 0; top: 25%; bottom: 25%; width: 3px; border-radius: 2px; background: var(--accent); }
+.jl li[aria-selected="true"] > .i { color: var(--text-accent); }
+.jl .jt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.jl .nm { white-space: nowrap; }
+.jl li[aria-selected="true"] .nm { font-weight: var(--fw-semibold); }
+.jl .l2 { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-secondary); line-height: var(--lh-secondary); color: var(--text-2); white-space: nowrap; }
+.jl .l2 .status, .jl .l2 .rider { margin-left: auto; }
+.jl li[aria-selected="true"] .l2 { color: var(--text-2); }
+.jobs-hint { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--hairline); }
+.jobs-none { padding: var(--sp-4); }
+
+/* Batches (middle) */
+.batches { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: var(--sp-4) var(--sp-6); position: relative; }
+.b-head { display: flex; align-items: baseline; gap: var(--sp-3); height: 32px; line-height: 1; margin-bottom: var(--sp-3); }
+.b-head .t-2 { white-space: nowrap; }
+.bt { position: relative; border: 1px solid var(--hairline); border-radius: var(--r-control); background: var(--bg-layer); }
+.bt-row {
+  position: relative; display: grid; align-items: center;
+  grid-template-columns: 32px 40px minmax(0, 1fr) 72px 96px 128px 40px;
+  height: var(--row-h); border-bottom: 1px solid var(--hairline);
+}
+.bt-row:last-child { border-bottom: 0; }
+.bt-row.hd { border-bottom: 1px solid var(--edge); font-size: var(--fs-secondary); line-height: var(--lh-secondary); font-weight: var(--fw-semibold); color: var(--text-2); }
+.bt-row > * { min-width: 0; }
+.bt-row .c-num { text-align: right; padding-right: var(--pad-x); font-variant-numeric: tabular-nums; }
+.bt-row .c-no { padding-left: var(--sp-2); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.bt-row .c-name { white-space: nowrap; padding-right: var(--sp-2); }
+.bt-row .c-st { display: flex; align-items: center; padding-left: var(--sp-2); }
+.grip { display: grid; place-items: center; height: 100%; cursor: grab; }
+.grip .i { width: var(--icon-sm); height: var(--icon-sm); color: var(--icon-2); }
+.bt-row[aria-selected="true"] { background: var(--bg-selected); }
+.bt-row[aria-selected="true"]::before { content: ""; position: absolute; left: 0; top: 25%; bottom: 25%; width: 3px; border-radius: 2px; background: var(--accent); }
+.bt-row[aria-selected="true"] .c-no { color: var(--text); font-weight: var(--fw-semibold); }
+.bt-row.is-focus { box-shadow: inset 0 0 0 2px var(--focus-outer), inset 0 0 0 3px var(--focus-inner); z-index: 2; }
+.bt-row:not(.hd):hover { background: var(--bg-hover); }
+.bt-row[aria-selected="true"]:hover { background: var(--bg-selected); }
+.bt.busy .bt-row .grip .i, .bt.busy .bt-row .c-no { color: var(--text-disabled); }
+.bt.busy .bt-row .grip { cursor: default; }
+.bt.busy .bt-row:not([aria-selected="true"]) .c-name, .bt.busy .bt-row:not([aria-selected="true"]) .c-num { color: var(--text); }
+.status.is-run, .status.is-run .i { color: var(--text-accent); }
+.status.info, .status.info .i { color: var(--info); }
+.mini { flex: 1; display: flex; flex-direction: column; gap: var(--sp-1); }
+.mini .status { line-height: var(--lh-secondary); }
+.mini .track { height: 4px; border-radius: 2px; background: var(--bg-pressed); box-shadow: inset 0 0 0 1px var(--edge); position: relative; }
+.mini .track i { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: var(--accent); }
+.hintline { margin-top: var(--sp-3); display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
+
+/* Reorder by drag: ghost row, insertion line, placeholder */
+.ins { position: absolute; left: 0; right: 0; height: 2px; background: var(--accent); z-index: 3; }
+.ins::before { content: ""; position: absolute; left: -1px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.bt-row.ph > * { visibility: hidden; }
+.bt-row.ph::after { content: ""; position: absolute; inset: var(--sp-1) var(--sp-2); border: 1px dashed var(--edge); border-radius: var(--r-control); }
+/* the ghost hangs off the cursor, right of the file-name column, centred on the insertion line,
+ * so all four rows stay readable: 1, insertion line, 2, dashed slot where 3 was, 4 */
+.ghost { position: absolute; z-index: 4; right: var(--sp-2); display: grid; align-items: center; grid-template-columns: 24px 16px auto; column-gap: var(--sp-2); padding-right: var(--sp-3); height: var(--control-h);
+  background: var(--bg-popover); border: 1px solid var(--edge); border-radius: var(--r-control); box-shadow: var(--shadow-flyout); }
+.ghost .grip { cursor: grabbing; }
+.ghost .c-no { padding-left: 0; font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.ghost .c-num { text-align: right; padding-right: var(--pad-x); font-variant-numeric: tabular-nums; }
+.ghost .c-name { white-space: nowrap; }
+.ghost .c-to { text-align: right; padding-right: var(--pad-x); color: var(--text-accent); font-size: var(--fs-secondary); font-weight: var(--fw-semibold); white-space: nowrap; }
+
+/* Progress */
+.prog { margin-top: var(--sp-4); padding: var(--sp-4); border: 1px solid var(--hairline); border-radius: var(--r-control); background: var(--bg-layer); display: flex; flex-direction: column; gap: var(--sp-2); }
+.prog-head { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--control-h); }
+.prog-head .i { color: var(--text-accent); }
+.prog-head .t-2 { white-space: nowrap; }
+.bar { height: 8px; border-radius: var(--r-control); background: var(--bg-pressed); box-shadow: inset 0 0 0 1px var(--edge); position: relative; overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); }
+.prog-foot { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); }
+.prog-foot .note { flex-basis: 100%; }
+.prog-foot b { color: var(--text); font-weight: var(--fw-medium); }
+.cancelwrap { position: relative; }
+.cancelwrap .tooltip { right: 0; bottom: calc(100% + var(--sp-1)); }
+
+/* Drop zone (always visible hint) */
+.dz { margin-top: auto; height: 64px; border: 1px dashed var(--edge); border-radius: var(--r-control); display: flex; align-items: center; justify-content: center; gap: var(--sp-3); }
+.dz .i { color: var(--icon-2); }
+.dz[aria-disabled="true"] { border-color: var(--hairline); color: var(--text-disabled); }
+.dz[aria-disabled="true"] .i { color: var(--text-disabled); }
+
+/* Window-wide drop overlay (state 4) */
+.dropveil { position: absolute; z-index: 50; left: 0; right: 0; top: var(--titlebar-h); bottom: 0; background: var(--scrim); display: grid; place-items: center; }
+.dropveil-frame { position: absolute; inset: var(--sp-4); border: 2px dashed var(--accent-edge-selected); border-radius: var(--r-overlay); }
+.dropcard { position: relative; width: 480px; padding: var(--sp-6); background: var(--bg-popover); border: 1px solid var(--hairline); border-radius: var(--r-overlay); box-shadow: var(--shadow-dialog); display: flex; flex-direction: column; gap: var(--sp-3); }
+.dropcard .i.lg { color: var(--text-accent); stroke-width: 1.5; }
+.dropcard p { margin: 0; }
+.dropcard ul { list-style: none; margin: 0; padding: var(--sp-2) 0; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
+.dropcard li { display: flex; align-items: center; gap: var(--sp-2); height: var(--control-h); }
+.dropcard li .meta { margin-left: auto; color: var(--text-2); font-size: var(--fs-secondary); font-variant-numeric: tabular-nums; }
+.dropcard .foot { display: flex; align-items: center; gap: var(--sp-2); }
+
+/* Inspector (right): İş özeti */
+.insp-head { padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--hairline); }
+.insp-head .t-2 { margin-top: 2px; }
+.kv .u { color: var(--text-2); font-size: var(--fs-secondary); margin-left: var(--sp-1); }
+.chk { display: flex; align-items: flex-start; gap: var(--sp-2); margin-top: var(--sp-3); font-size: var(--fs-secondary); line-height: var(--lh-secondary); }
+.chk > span:last-child { flex: 1; min-width: 0; }
+.chk .status { flex: none; }
+.chk.first { margin-top: var(--sp-3); }
+.profile { display: flex; gap: var(--sp-3); align-items: flex-start; }
+.profile .i { margin-top: 2px; color: var(--icon-2); }
+.profile p { margin: 0; }
+.insp-actions { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: auto; padding: var(--sp-4); border-top: 1px solid var(--hairline); }
+.insp-actions .t-2 { margin-top: var(--sp-1); }
+.inspector .panel-section { border-bottom: 1px solid var(--hairline); }
+
+/* Empty state */
+.empty-wrap { flex: 1; min-height: 0; padding: var(--sp-8) var(--sp-8) var(--sp-4); display: flex; flex-direction: column; }
+.empty-body { flex: 1; display: flex; gap: var(--sp-12); align-items: flex-start; padding-top: var(--sp-6); }
+.steps { list-style: none; margin: 0; padding: 0; width: 320px; flex: none; display: flex; flex-direction: column; gap: var(--sp-3); }
+.steps li { display: flex; gap: var(--sp-3); align-items: flex-start; }
+.steps .n { flex: none; width: 24px; height: 24px; border: 1px solid var(--edge); border-radius: var(--r-control); display: grid; place-items: center; font-size: var(--fs-secondary); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.steps .t-2 { display: block; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+<!-- Yükle-only Lucide icons (ISC, lucide.dev); ids prefixed y- so shared mockup.js stays untouched -->
+<symbol id="y-grip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></symbol>
+<symbol id="y-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+<symbol id="y-arrow-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+<symbol id="y-file-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></symbol>
+<symbol id="y-folder-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+<symbol id="y-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+<symbol id="y-scan-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></symbol>
+<symbol id="y-scan-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8h8"/><path d="M7 12h10"/><path d="M7 16h6"/></symbol>
+<symbol id="y-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+<symbol id="y-circle-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></symbol>
+<symbol id="y-external-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+<symbol id="y-book-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+</svg>
+<div class="sheet">
+
+<!-- STATE 1 · main: job open, 4 batches, row 2 focused, context menu (shortcuts) -->
+
+<div class="window" data-state="main" aria-label="Yükle · iş açık">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu">
+      <span class="menu-item"><u>D</u>osya</span>
+      <span class="menu-item">Düz<u>e</u>n</span>
+      <span class="menu-item"><u>G</u>örünüm</span>
+      <span class="menu-item">Gi<u>t</u></span>
+      <span class="menu-item"><u>A</u>raçlar</span>
+      <span class="menu-item"><u>Y</u>ardım</span>
+    </nav>
+    <div class="title"><b>Kasım 2026 kapasite raporları</b> · Evrakçı</div>
+    <span class="save-state"><svg class="i sm"><use href="#cloud-check"/></svg>Kaydedildi 14:32</span>
+    <div class="caption-buttons" aria-hidden="true">
+      <span><svg class="i"><use href="#minus"/></svg></span><span><svg class="i"><use href="#square"/></svg></span><span><svg class="i"><use href="#x"/></svg></span>
+    </div>
+  </header>
+
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler">
+    <span class="tab" role="tab" aria-selected="true">Yükle</span>
+    <span class="tab" role="tab" aria-selected="false">Kontrol</span>
+    <span class="tab" role="tab" aria-selected="false">Şablonlar</span>
+    <span class="tab" role="tab" aria-selected="false">Değerler</span>
+    <span class="tab" role="tab" aria-selected="false">Dışa Aktar</span>
+    <span class="tab" role="tab" aria-selected="false">Rehber</span>
+  </nav>
+
+  <div class="commandbar" role="toolbar" aria-label="Yükle komutları">
+    <button class="btn subtle" aria-label="Yeni iş oluştur (Ctrl+N)"><svg class="i"><use href="#file-plus"/></svg>Yeni iş oluştur</button>
+    <button class="btn subtle" aria-label="Parti ekle… (Ctrl+O)"><svg class="i"><use href="#y-file-up"/></svg>Parti ekle…</button>
+    <button class="btn subtle"><svg class="i"><use href="#y-folder-plus"/></svg>Klasör seç…</button>
+    <span class="sep"></span>
+    <button class="btn subtle" aria-label="Yukarı (Alt+↑)"><svg class="i"><use href="#y-arrow-up"/></svg>Yukarı</button>
+    <button class="btn subtle" aria-label="Aşağı (Alt+↓)"><svg class="i"><use href="#y-arrow-down"/></svg>Aşağı</button>
+    <button class="btn subtle" aria-label="Partiyi çıkar (Del)"><svg class="i"><use href="#trash-2"/></svg>Partiyi çıkar</button>
+    <span class="spacer"></span>
+    <button class="btn subtle icon" aria-label="Diğer komutlar"><svg class="i"><use href="#ellipsis"/></svg></button>
+  </div>
+
+  <div class="workspace">
+    <div class="yk">
+    <aside class="jobs" aria-label="İşler">
+      <div class="jobs-head">
+        <div class="row"><h2 class="t-section">İşler</h2></div>
+        <span class="input search"><svg class="i"><use href="#search"/></svg><span class="placeholder">İşlerde ara</span><span class="kbd">Ctrl+F</span></span>
+      </div>
+      <div class="jobs-sort t-caption">Son açılana göre · 6 iş</div>
+      <ul class="jl" role="listbox" aria-label="İşler">
+        <li role="option" aria-selected="true"><svg class="i"><use href="#folder-open"/></svg><div class="jt"><span class="nm">Kasım 2026 kapasite raporları</span><span class="l2"><span class="num">640 sayfa · dün</span><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>7 Kontrol</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ekim 2026 faaliyet belgeleri</span><span class="l2"><span class="num">212 sayfa · 3 gün önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ege Kalıp San. Ltd. sicil dosyaları</span><span class="l2"><span class="num">304 sayfa · 1 hafta önce</span><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>3 Kontrol</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ekspertiz dosyaları, 2. parti</span><span class="l2"><span class="num">88 sayfa · 2 hafta önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Eylül 2026 ihracat evrakları</span><span class="l2"><span class="num">540 sayfa · 5 hafta önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ağustos 2026 yeni üye başvuruları</span><span class="l2"><span class="num">132 sayfa · 3 ay önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li>
+      </ul>
+      <div class="jobs-hint t-2">Bir işi açmak için seçip Enter'a basın. İşler bu bilgisayarda kalır.</div>
+    </aside>
+    <section class="batches" aria-label="Partiler">
+      <div class="b-head"><h2 class="t-panel">Partiler</h2><span class="t-2">Bu sırayla tek yığın olur</span></div><div class="bt" role="grid" aria-label="Partiler"><div class="bt-row hd" role="row"><span aria-label="Taşı"></span><span class="c-no">No</span><span>Dosya</span><span class="c-num">Sayfa</span><span class="c-num">QR ayıraç</span><span class="c-st">Durum</span><span></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">1</span><span class="c-name">tarama-2026-11-03-0912.pdf</span><span class="c-num">180</span><span class="c-num">27</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row is-focus" role="row" aria-selected="true"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">2</span><span class="c-name">tarama-2026-11-03-1044.pdf</span><span class="c-num">176</span><span class="c-num">26</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">3</span><span class="c-name">tarama-2026-11-04-0856.pdf</span><span class="c-num">160</span><span class="c-num">24</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">4</span><span class="c-name">tarama-2026-11-04-1130.pdf</span><span class="c-num">124</span><span class="c-num">0</span><div class="c-st"><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>Kontrol</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div></div><div class="hintline t-2">Sırayı değiştirmek için satırı sürükleyin ya da <span class="kbd">Alt+↑</span><span class="kbd">Alt+↓</span> kullanın. Sayfalar bu sırayla tek yığın olur.</div><div class="dz t-2"><svg class="i"><use href="#y-upload"/></svg><span>PDF'leri buraya bırakın veya Parti ekle… (Ctrl+O). Pencerenin herhangi bir yerine de bırakabilirsiniz.</span></div>
+    </section><div class="splitter" role="separator" aria-orientation="vertical"></div>
+    <aside class="inspector" aria-label="İş özeti">
+      <div class="insp-head">
+        <h2 class="t-panel">İş özeti</h2>
+        <div class="t-2"><b style="color:var(--text);font-weight:var(--fw-medium)">Kasım 2026 kapasite raporları</b></div>
+      </div>
+      <div class="panel-section">
+        <h3 class="t-section">Ön kontrol</h3>
+        <dl class="kv"><dt>Parti</dt><dd class="num">4</dd><dt>Sayfa</dt><dd class="num">640</dd><dt>QR ayıraç</dt><dd class="num">77</dd><dt>Belge</dt><dd class="num">96</dd></dl>
+        <div class="chk first"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Tamam</span><span>3 parti QR ayıraçlı; 77 belge başlangıcı bulundu.</span></div>
+        <div class="chk"><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>Kontrol</span><span>4. partide QR ayıraç yok. 124 sayfa filtreyle bölünecek.</span></div>
+      </div>
+      <div class="panel-section">
+        <h3 class="t-section">Tarama profili</h3>
+        <div class="profile"><svg class="i"><use href="#y-scan-line"/></svg>
+          <p class="t-2"><b style="color:var(--text);font-weight:var(--fw-medium)">300 dpi · siyah-beyaz · iki yüzlü</b><br>Dosyalardan okundu. Ayrılması gereken belgelerin önüne bir QR ayıraç koyun; eşit uzunluktakiler için filtre yeter.</p></div>
+        <button class="btn secondary wide" style="margin-top:var(--sp-3)" aria-label="Rehber'de ayarları aç (Ctrl+6)"><svg class="i"><use href="#y-book-open"/></svg>Rehber'de ayarları aç</button>
+      </div>
+      <div class="insp-actions">
+        <button class="btn primary wide"><svg class="i"><use href="#arrow-right-to-line"/></svg>Kontrol'e geç<span class="kbd">Ctrl+2</span></button>
+        <button class="btn secondary wide" aria-label="İşi kapat (Ctrl+W)"><svg class="i"><use href="#x"/></svg>İşi kapat</button>
+      </div>
+    </aside>
+    </div>
+  </div>
+  <footer class="statusbar">
+    <span class="item"><b>Kasım 2026 kapasite raporları</b></span>
+    <span class="item"><b class="num">4</b> parti</span>
+    <span class="item"><b class="num">640</b> sayfa</span>
+    <span class="item check"><svg class="i sm"><use href="#triangle-alert"/></svg>7 belge kontrol bekliyor</span>
+    <span class="spacer"></span>
+  </footer>
+  <div class="menu" role="menu" aria-label="Parti 2" style="left:640px;top:292px">
+    <div class="mhead">Parti 2 · tarama-2026-11-03-1044.pdf</div>
+    <div class="mi is-hover" role="menuitem"><svg class="i"><use href="#y-arrow-up"/></svg>Yukarı taşı<span class="acc">Alt+↑</span></div>
+    <div class="mi" role="menuitem"><svg class="i"><use href="#y-arrow-down"/></svg>Aşağı taşı<span class="acc">Alt+↓</span></div>
+    <div class="msep"></div>
+    <div class="mi" role="menuitem"><svg class="i"><use href="#y-external-link"/></svg>Dosyayı klasörde göster<span class="acc">Ctrl+Shift+O</span></div>
+    <div class="msep"></div>
+    <div class="mi danger" role="menuitem"><svg class="i"><use href="#trash-2"/></svg>Partiyi çıkar<span class="acc">Del</span></div>
+  </div>
+</div>
+
+<!-- STATE 2 · reorder: dragging batch 3 above batch 2 -->
+
+<div class="window" data-state="reorder" aria-label="Yükle · sıralama">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu">
+      <span class="menu-item"><u>D</u>osya</span>
+      <span class="menu-item">Düz<u>e</u>n</span>
+      <span class="menu-item"><u>G</u>örünüm</span>
+      <span class="menu-item">Gi<u>t</u></span>
+      <span class="menu-item"><u>A</u>raçlar</span>
+      <span class="menu-item"><u>Y</u>ardım</span>
+    </nav>
+    <div class="title"><b>Kasım 2026 kapasite raporları</b> · Evrakçı</div>
+    <span class="save-state"><svg class="i sm"><use href="#cloud-check"/></svg>Kaydedildi 14:32</span>
+    <div class="caption-buttons" aria-hidden="true">
+      <span><svg class="i"><use href="#minus"/></svg></span><span><svg class="i"><use href="#square"/></svg></span><span><svg class="i"><use href="#x"/></svg></span>
+    </div>
+  </header>
+
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler">
+    <span class="tab" role="tab" aria-selected="true">Yükle</span>
+    <span class="tab" role="tab" aria-selected="false">Kontrol</span>
+    <span class="tab" role="tab" aria-selected="false">Şablonlar</span>
+    <span class="tab" role="tab" aria-selected="false">Değerler</span>
+    <span class="tab" role="tab" aria-selected="false">Dışa Aktar</span>
+    <span class="tab" role="tab" aria-selected="false">Rehber</span>
+  </nav>
+
+  <div class="commandbar" role="toolbar" aria-label="Yükle komutları">
+    <button class="btn subtle" aria-label="Yeni iş oluştur (Ctrl+N)"><svg class="i"><use href="#file-plus"/></svg>Yeni iş oluştur</button>
+    <button class="btn subtle" aria-label="Parti ekle… (Ctrl+O)"><svg class="i"><use href="#y-file-up"/></svg>Parti ekle…</button>
+    <button class="btn subtle"><svg class="i"><use href="#y-folder-plus"/></svg>Klasör seç…</button>
+    <span class="sep"></span>
+    <button class="btn subtle" aria-label="Yukarı (Alt+↑)"><svg class="i"><use href="#y-arrow-up"/></svg>Yukarı</button>
+    <button class="btn subtle" aria-label="Aşağı (Alt+↓)"><svg class="i"><use href="#y-arrow-down"/></svg>Aşağı</button>
+    <button class="btn subtle" aria-label="Partiyi çıkar (Del)"><svg class="i"><use href="#trash-2"/></svg>Partiyi çıkar</button>
+    <span class="spacer"></span>
+    <button class="btn subtle icon" aria-label="Diğer komutlar"><svg class="i"><use href="#ellipsis"/></svg></button>
+  </div>
+
+  <div class="workspace">
+    <div class="yk">
+    <aside class="jobs" aria-label="İşler">
+      <div class="jobs-head">
+        <div class="row"><h2 class="t-section">İşler</h2></div>
+        <span class="input search"><svg class="i"><use href="#search"/></svg><span class="placeholder">İşlerde ara</span><span class="kbd">Ctrl+F</span></span>
+      </div>
+      <div class="jobs-sort t-caption">Son açılana göre · 6 iş</div>
+      <ul class="jl" role="listbox" aria-label="İşler">
+        <li role="option" aria-selected="true"><svg class="i"><use href="#folder-open"/></svg><div class="jt"><span class="nm">Kasım 2026 kapasite raporları</span><span class="l2"><span class="num">640 sayfa · dün</span><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>7 Kontrol</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ekim 2026 faaliyet belgeleri</span><span class="l2"><span class="num">212 sayfa · 3 gün önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ege Kalıp San. Ltd. sicil dosyaları</span><span class="l2"><span class="num">304 sayfa · 1 hafta önce</span><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>3 Kontrol</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ekspertiz dosyaları, 2. parti</span><span class="l2"><span class="num">88 sayfa · 2 hafta önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Eylül 2026 ihracat evrakları</span><span class="l2"><span class="num">540 sayfa · 5 hafta önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ağustos 2026 yeni üye başvuruları</span><span class="l2"><span class="num">132 sayfa · 3 ay önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li>
+      </ul>
+      <div class="jobs-hint t-2">Bir işi açmak için seçip Enter'a basın. İşler bu bilgisayarda kalır.</div>
+    </aside>
+    <section class="batches" aria-label="Partiler">
+      <div class="b-head"><h2 class="t-panel">Partiler</h2><span class="t-2">Bu sırayla tek yığın olur</span></div><div class="bt" role="grid" aria-label="Partiler"><div class="bt-row hd" role="row"><span aria-label="Taşı"></span><span class="c-no">No</span><span>Dosya</span><span class="c-num">Sayfa</span><span class="c-num">QR ayıraç</span><span class="c-st">Durum</span><span></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">1</span><span class="c-name">tarama-2026-11-03-0912.pdf</span><span class="c-num">180</span><span class="c-num">27</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">2</span><span class="c-name">tarama-2026-11-03-1044.pdf</span><span class="c-num">176</span><span class="c-num">26</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row ph" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">3</span><span class="c-name">tarama-2026-11-04-0856.pdf</span><span class="c-num">160</span><span class="c-num">24</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">4</span><span class="c-name">tarama-2026-11-04-1130.pdf</span><span class="c-num">124</span><span class="c-num">0</span><div class="c-st"><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>Kontrol</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="ins" style="top:80px" aria-hidden="true"></div>
+        <div class="ghost" style="top:64px" aria-hidden="true"><span class="grip"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">3</span><span class="c-name">tarama-2026-11-04-0856.pdf</span></div></div><div class="hintline t-2"><b style="color:var(--text);font-weight:var(--fw-medium)">Bırakınca 3. parti 2. sıraya geçer.</b> Vazgeçmek için <span class="kbd">Esc</span>; klavyeyle <span class="kbd">Alt+↑</span><span class="kbd">Alt+↓</span>.</div><div class="dz t-2"><svg class="i"><use href="#y-upload"/></svg><span>PDF'leri buraya bırakın veya Parti ekle… (Ctrl+O). Pencerenin herhangi bir yerine de bırakabilirsiniz.</span></div>
+    </section><div class="splitter" role="separator" aria-orientation="vertical"></div>
+    <aside class="inspector" aria-label="İş özeti">
+      <div class="insp-head">
+        <h2 class="t-panel">İş özeti</h2>
+        <div class="t-2"><b style="color:var(--text);font-weight:var(--fw-medium)">Kasım 2026 kapasite raporları</b></div>
+      </div>
+      <div class="panel-section">
+        <h3 class="t-section">Ön kontrol</h3>
+        <dl class="kv"><dt>Parti</dt><dd class="num">4</dd><dt>Sayfa</dt><dd class="num">640</dd><dt>QR ayıraç</dt><dd class="num">77</dd><dt>Belge</dt><dd class="num">96</dd></dl>
+        <div class="chk first"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Tamam</span><span>3 parti QR ayıraçlı; 77 belge başlangıcı bulundu.</span></div>
+        <div class="chk"><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>Kontrol</span><span>4. partide QR ayıraç yok. 124 sayfa filtreyle bölünecek.</span></div>
+      </div>
+      <div class="panel-section">
+        <h3 class="t-section">Tarama profili</h3>
+        <div class="profile"><svg class="i"><use href="#y-scan-line"/></svg>
+          <p class="t-2"><b style="color:var(--text);font-weight:var(--fw-medium)">300 dpi · siyah-beyaz · iki yüzlü</b><br>Dosyalardan okundu. Ayrılması gereken belgelerin önüne bir QR ayıraç koyun; eşit uzunluktakiler için filtre yeter.</p></div>
+        <button class="btn secondary wide" style="margin-top:var(--sp-3)" aria-label="Rehber'de ayarları aç (Ctrl+6)"><svg class="i"><use href="#y-book-open"/></svg>Rehber'de ayarları aç</button>
+      </div>
+      <div class="insp-actions">
+        <button class="btn primary wide"><svg class="i"><use href="#arrow-right-to-line"/></svg>Kontrol'e geç<span class="kbd">Ctrl+2</span></button>
+        <button class="btn secondary wide" aria-label="İşi kapat (Ctrl+W)"><svg class="i"><use href="#x"/></svg>İşi kapat</button>
+      </div>
+    </aside>
+    </div>
+  </div>
+  <footer class="statusbar">
+    <span class="item"><b>Kasım 2026 kapasite raporları</b></span>
+    <span class="item"><b class="num">4</b> parti</span>
+    <span class="item"><b class="num">640</b> sayfa</span>
+    <span class="item check"><svg class="i sm"><use href="#triangle-alert"/></svg>7 belge kontrol bekliyor</span>
+    <span class="spacer"></span>
+  </footer>
+</div>
+
+<!-- STATE 3 · running: batch 4 is read, progress with time left and cancel; edits are locked -->
+
+<div class="window" data-state="running" aria-label="Yükle · okunuyor">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu">
+      <span class="menu-item"><u>D</u>osya</span>
+      <span class="menu-item">Düz<u>e</u>n</span>
+      <span class="menu-item"><u>G</u>örünüm</span>
+      <span class="menu-item">Gi<u>t</u></span>
+      <span class="menu-item"><u>A</u>raçlar</span>
+      <span class="menu-item"><u>Y</u>ardım</span>
+    </nav>
+    <div class="title"><b>Kasım 2026 kapasite raporları</b> · Evrakçı</div>
+    <span class="save-state"><svg class="i sm"><use href="#cloud-check"/></svg>Kaydedildi 14:32</span>
+    <div class="caption-buttons" aria-hidden="true">
+      <span><svg class="i"><use href="#minus"/></svg></span><span><svg class="i"><use href="#square"/></svg></span><span><svg class="i"><use href="#x"/></svg></span>
+    </div>
+  </header>
+
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler">
+    <span class="tab" role="tab" aria-selected="true">Yükle</span>
+    <span class="tab" role="tab" aria-selected="false">Kontrol</span>
+    <span class="tab" role="tab" aria-selected="false">Şablonlar</span>
+    <span class="tab" role="tab" aria-selected="false">Değerler</span>
+    <span class="tab" role="tab" aria-selected="false">Dışa Aktar</span>
+    <span class="tab" role="tab" aria-selected="false">Rehber</span>
+  </nav>
+
+  <div class="commandbar" role="toolbar" aria-label="Yükle komutları">
+    <button class="btn subtle" disabled aria-label="Yeni iş oluştur (Ctrl+N)"><svg class="i"><use href="#file-plus"/></svg>Yeni iş oluştur</button>
+    <button class="btn subtle" disabled aria-label="Parti ekle… (Ctrl+O)"><svg class="i"><use href="#y-file-up"/></svg>Parti ekle…</button>
+    <button class="btn subtle" disabled><svg class="i"><use href="#y-folder-plus"/></svg>Klasör seç…</button>
+    <span class="sep"></span>
+    <button class="btn subtle" disabled aria-label="Yukarı (Alt+↑)"><svg class="i"><use href="#y-arrow-up"/></svg>Yukarı</button>
+    <button class="btn subtle" disabled aria-label="Aşağı (Alt+↓)"><svg class="i"><use href="#y-arrow-down"/></svg>Aşağı</button>
+    <button class="btn subtle" disabled aria-label="Partiyi çıkar (Del)"><svg class="i"><use href="#trash-2"/></svg>Partiyi çıkar</button>
+    <span class="spacer"></span>
+    <button class="btn subtle icon" aria-label="Diğer komutlar"><svg class="i"><use href="#ellipsis"/></svg></button>
+  </div>
+
+  <div class="workspace">
+    <div class="yk">
+    <aside class="jobs" aria-label="İşler">
+      <div class="jobs-head">
+        <div class="row"><h2 class="t-section">İşler</h2></div>
+        <span class="input search"><svg class="i"><use href="#search"/></svg><span class="placeholder">İşlerde ara</span><span class="kbd">Ctrl+F</span></span>
+      </div>
+      <div class="jobs-sort t-caption">Son açılana göre · 6 iş</div>
+      <ul class="jl" role="listbox" aria-label="İşler">
+        <li role="option" aria-selected="true"><svg class="i"><use href="#folder-open"/></svg><div class="jt"><span class="nm">Kasım 2026 kapasite raporları</span><span class="l2"><span class="num">640 sayfa · dün</span><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>7 Kontrol</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ekim 2026 faaliyet belgeleri</span><span class="l2"><span class="num">212 sayfa · 3 gün önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ege Kalıp San. Ltd. sicil dosyaları</span><span class="l2"><span class="num">304 sayfa · 1 hafta önce</span><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>3 Kontrol</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ekspertiz dosyaları, 2. parti</span><span class="l2"><span class="num">88 sayfa · 2 hafta önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Eylül 2026 ihracat evrakları</span><span class="l2"><span class="num">540 sayfa · 5 hafta önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ağustos 2026 yeni üye başvuruları</span><span class="l2"><span class="num">132 sayfa · 3 ay önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li>
+      </ul>
+      <div class="jobs-hint t-2">Bir işi açmak için seçip Enter'a basın. İşler bu bilgisayarda kalır.</div>
+    </aside>
+    <section class="batches" aria-label="Partiler">
+      <div class="b-head"><h2 class="t-panel">Partiler</h2><span class="t-2">Bu sırayla tek yığın olur</span></div><div class="bt busy" role="grid" aria-label="Partiler"><div class="bt-row hd" role="row"><span aria-label="Taşı"></span><span class="c-no">No</span><span>Dosya</span><span class="c-num">Sayfa</span><span class="c-num">QR ayıraç</span><span class="c-st">Durum</span><span></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">1</span><span class="c-name">tarama-2026-11-03-0912.pdf</span><span class="c-num">180</span><span class="c-num">27</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri" disabled><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">2</span><span class="c-name">tarama-2026-11-03-1044.pdf</span><span class="c-num">176</span><span class="c-num">26</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri" disabled><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">3</span><span class="c-name">tarama-2026-11-04-0856.pdf</span><span class="c-num">160</span><span class="c-num">24</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri" disabled><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row" role="row" aria-selected="true"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">4</span><span class="c-name">tarama-2026-11-04-1130.pdf</span><span class="c-num">124</span><span class="c-num">—</span><div class="c-st"><div class="mini"><span class="status is-run"><svg class="i"><use href="#y-scan-text"/></svg>Okunuyor %62</span><span class="track"><i style="width:62%"></i></span></div></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri" disabled><svg class="i"><use href="#ellipsis"/></svg></button></span></div></div><section class="prog" role="status" aria-live="polite" aria-label="İlerleme">
+        <div class="prog-head">
+          <svg class="i"><use href="#y-scan-text"/></svg>
+          <b>Sayfalar okunuyor: 77 / 124</b>
+          <span class="t-2">tarama-2026-11-04-1130.pdf</span>
+          <span style="flex:1"></span>
+          <span class="cancelwrap"><button class="btn secondary is-focus" aria-label="Okumayı iptal et (Ctrl+.)"><svg class="i"><use href="#y-circle-x"/></svg>İptal</button>
+            <span class="tooltip" role="tooltip">Okumayı iptal et<span class="kbd">Ctrl+.</span></span></span>
+        </div>
+        <div class="bar" role="progressbar" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100"><i style="width:62%"></i></div>
+        <div class="prog-foot t-2"><b class="num">%62</b><span class="num">Yaklaşık <b>40 sn</b> kaldı</span><span class="num">3,2 sayfa/sn</span><span class="note">Ayıraçlar aranıyor, metin okunuyor (OCR). İptal ederseniz hiçbir şey değişmez.</span></div>
+      </section><div class="dz t-2"><svg class="i"><use href="#y-upload"/></svg><span>PDF'leri buraya bırakın veya Parti ekle… (Ctrl+O). Pencerenin herhangi bir yerine de bırakabilirsiniz.</span></div>
+    </section><div class="splitter" role="separator" aria-orientation="vertical"></div>
+    <aside class="inspector" aria-label="İş özeti">
+      <div class="insp-head">
+        <h2 class="t-panel">İş özeti</h2>
+        <div class="t-2"><b style="color:var(--text);font-weight:var(--fw-medium)">Kasım 2026 kapasite raporları</b></div>
+      </div>
+      <div class="panel-section">
+        <h3 class="t-section">Ön kontrol</h3>
+        <dl class="kv"><dt>Parti</dt><dd class="num">4</dd><dt>Sayfa</dt><dd class="num">640</dd><dt>QR ayıraç</dt><dd class="num">77<span class="u">şimdilik</span></dd><dt>Belge</dt><dd class="num">—</dd></dl>
+        <div class="chk first"><span class="status is-run"><svg class="i"><use href="#y-scan-text"/></svg>Okunuyor</span><span>4. parti bitince belge sayısı ve uyarılar burada görünür.</span></div>
+      </div>
+      <div class="panel-section">
+        <h3 class="t-section">Tarama profili</h3>
+        <div class="profile"><svg class="i"><use href="#y-scan-line"/></svg>
+          <p class="t-2"><b style="color:var(--text);font-weight:var(--fw-medium)">300 dpi · siyah-beyaz · iki yüzlü</b><br>Dosyalardan okundu. Ayrılması gereken belgelerin önüne bir QR ayıraç koyun; eşit uzunluktakiler için filtre yeter.</p></div>
+        <button class="btn secondary wide" style="margin-top:var(--sp-3)" aria-label="Rehber'de ayarları aç (Ctrl+6)"><svg class="i"><use href="#y-book-open"/></svg>Rehber'de ayarları aç</button>
+      </div>
+      <div class="insp-actions">
+        <button class="btn primary wide" disabled><svg class="i"><use href="#arrow-right-to-line"/></svg>Kontrol'e geç<span class="kbd">Ctrl+2</span></button>
+        <button class="btn secondary wide" disabled aria-label="İşi kapat (Ctrl+W)"><svg class="i"><use href="#x"/></svg>İşi kapat</button>
+        <div class="t-2">Okuma bitince açılır.</div>
+      </div>
+    </aside>
+    </div>
+  </div>
+  <footer class="statusbar">
+    <span class="item"><b>Kasım 2026 kapasite raporları</b></span>
+    <span class="item"><b class="num">4</b> parti</span>
+    <span class="item"><b class="num">640</b> sayfa</span>
+    <span class="item" style="color:var(--text-accent);font-weight:var(--fw-medium)"><svg class="i sm" style="color:var(--text-accent)"><use href="#y-scan-text"/></svg>Sayfalar okunuyor: <span class="num">77 / 124</span></span>
+    <span class="spacer"></span>
+  </footer>
+</div>
+
+<!-- STATE 4 · drop: window-wide drop overlay -->
+
+<div class="window" data-state="drop" aria-label="Yükle · bırakma">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu">
+      <span class="menu-item"><u>D</u>osya</span>
+      <span class="menu-item">Düz<u>e</u>n</span>
+      <span class="menu-item"><u>G</u>örünüm</span>
+      <span class="menu-item">Gi<u>t</u></span>
+      <span class="menu-item"><u>A</u>raçlar</span>
+      <span class="menu-item"><u>Y</u>ardım</span>
+    </nav>
+    <div class="title"><b>Kasım 2026 kapasite raporları</b> · Evrakçı</div>
+    <span class="save-state"><svg class="i sm"><use href="#cloud-check"/></svg>Kaydedildi 14:32</span>
+    <div class="caption-buttons" aria-hidden="true">
+      <span><svg class="i"><use href="#minus"/></svg></span><span><svg class="i"><use href="#square"/></svg></span><span><svg class="i"><use href="#x"/></svg></span>
+    </div>
+  </header>
+
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler">
+    <span class="tab" role="tab" aria-selected="true">Yükle</span>
+    <span class="tab" role="tab" aria-selected="false">Kontrol</span>
+    <span class="tab" role="tab" aria-selected="false">Şablonlar</span>
+    <span class="tab" role="tab" aria-selected="false">Değerler</span>
+    <span class="tab" role="tab" aria-selected="false">Dışa Aktar</span>
+    <span class="tab" role="tab" aria-selected="false">Rehber</span>
+  </nav>
+
+  <div class="commandbar" role="toolbar" aria-label="Yükle komutları">
+    <button class="btn subtle" aria-label="Yeni iş oluştur (Ctrl+N)"><svg class="i"><use href="#file-plus"/></svg>Yeni iş oluştur</button>
+    <button class="btn subtle" aria-label="Parti ekle… (Ctrl+O)"><svg class="i"><use href="#y-file-up"/></svg>Parti ekle…</button>
+    <button class="btn subtle"><svg class="i"><use href="#y-folder-plus"/></svg>Klasör seç…</button>
+    <span class="sep"></span>
+    <button class="btn subtle" aria-label="Yukarı (Alt+↑)"><svg class="i"><use href="#y-arrow-up"/></svg>Yukarı</button>
+    <button class="btn subtle" aria-label="Aşağı (Alt+↓)"><svg class="i"><use href="#y-arrow-down"/></svg>Aşağı</button>
+    <button class="btn subtle" aria-label="Partiyi çıkar (Del)"><svg class="i"><use href="#trash-2"/></svg>Partiyi çıkar</button>
+    <span class="spacer"></span>
+    <button class="btn subtle icon" aria-label="Diğer komutlar"><svg class="i"><use href="#ellipsis"/></svg></button>
+  </div>
+
+  <div class="workspace">
+    <div class="yk">
+    <aside class="jobs" aria-label="İşler">
+      <div class="jobs-head">
+        <div class="row"><h2 class="t-section">İşler</h2></div>
+        <span class="input search"><svg class="i"><use href="#search"/></svg><span class="placeholder">İşlerde ara</span><span class="kbd">Ctrl+F</span></span>
+      </div>
+      <div class="jobs-sort t-caption">Son açılana göre · 6 iş</div>
+      <ul class="jl" role="listbox" aria-label="İşler">
+        <li role="option" aria-selected="true"><svg class="i"><use href="#folder-open"/></svg><div class="jt"><span class="nm">Kasım 2026 kapasite raporları</span><span class="l2"><span class="num">640 sayfa · dün</span><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>7 Kontrol</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ekim 2026 faaliyet belgeleri</span><span class="l2"><span class="num">212 sayfa · 3 gün önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ege Kalıp San. Ltd. sicil dosyaları</span><span class="l2"><span class="num">304 sayfa · 1 hafta önce</span><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>3 Kontrol</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ekspertiz dosyaları, 2. parti</span><span class="l2"><span class="num">88 sayfa · 2 hafta önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Eylül 2026 ihracat evrakları</span><span class="l2"><span class="num">540 sayfa · 5 hafta önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li><li role="option"><svg class="i"><use href="#y-folder"/></svg><div class="jt"><span class="nm">Ağustos 2026 yeni üye başvuruları</span><span class="l2"><span class="num">132 sayfa · 3 ay önce</span><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Dışa aktarıldı</span></span></div></li>
+      </ul>
+      <div class="jobs-hint t-2">Bir işi açmak için seçip Enter'a basın. İşler bu bilgisayarda kalır.</div>
+    </aside>
+    <section class="batches" aria-label="Partiler">
+      <div class="b-head"><h2 class="t-panel">Partiler</h2><span class="t-2">Bu sırayla tek yığın olur</span></div><div class="bt" role="grid" aria-label="Partiler"><div class="bt-row hd" role="row"><span aria-label="Taşı"></span><span class="c-no">No</span><span>Dosya</span><span class="c-num">Sayfa</span><span class="c-num">QR ayıraç</span><span class="c-st">Durum</span><span></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">1</span><span class="c-name">tarama-2026-11-03-0912.pdf</span><span class="c-num">180</span><span class="c-num">27</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">2</span><span class="c-name">tarama-2026-11-03-1044.pdf</span><span class="c-num">176</span><span class="c-num">26</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">3</span><span class="c-name">tarama-2026-11-04-0856.pdf</span><span class="c-num">160</span><span class="c-num">24</span><div class="c-st"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Hazır</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div><div class="bt-row" role="row"><span class="grip" aria-label="Sürükleyerek taşı"><svg class="i"><use href="#y-grip"/></svg></span><span class="c-no">4</span><span class="c-name">tarama-2026-11-04-1130.pdf</span><span class="c-num">124</span><span class="c-num">0</span><div class="c-st"><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>Kontrol</span></div><span class="more"><button class="btn subtle icon" aria-label="Parti işlemleri"><svg class="i"><use href="#ellipsis"/></svg></button></span></div></div><div class="hintline t-2">Sırayı değiştirmek için satırı sürükleyin ya da <span class="kbd">Alt+↑</span><span class="kbd">Alt+↓</span> kullanın. Sayfalar bu sırayla tek yığın olur.</div><div class="dz t-2"><svg class="i"><use href="#y-upload"/></svg><span>PDF'leri buraya bırakın veya Parti ekle… (Ctrl+O). Pencerenin herhangi bir yerine de bırakabilirsiniz.</span></div>
+    </section><div class="splitter" role="separator"></div>
+    <aside class="inspector" aria-label="İş özeti">
+      <div class="insp-head">
+        <h2 class="t-panel">İş özeti</h2>
+        <div class="t-2"><b style="color:var(--text);font-weight:var(--fw-medium)">Kasım 2026 kapasite raporları</b></div>
+      </div>
+      <div class="panel-section">
+        <h3 class="t-section">Ön kontrol</h3>
+        <dl class="kv"><dt>Parti</dt><dd class="num">4</dd><dt>Sayfa</dt><dd class="num">640</dd><dt>QR ayıraç</dt><dd class="num">77</dd><dt>Belge</dt><dd class="num">96</dd></dl>
+        <div class="chk first"><span class="status ok"><svg class="i"><use href="#circle-check"/></svg>Tamam</span><span>3 parti QR ayıraçlı; 77 belge başlangıcı bulundu.</span></div>
+        <div class="chk"><span class="rider"><svg class="i"><use href="#triangle-alert"/></svg>Kontrol</span><span>4. partide QR ayıraç yok. 124 sayfa filtreyle bölünecek.</span></div>
+      </div>
+      <div class="panel-section">
+        <h3 class="t-section">Tarama profili</h3>
+        <div class="profile"><svg class="i"><use href="#y-scan-line"/></svg>
+          <p class="t-2"><b style="color:var(--text);font-weight:var(--fw-medium)">300 dpi · siyah-beyaz · iki yüzlü</b><br>Dosyalardan okundu. Ayrılması gereken belgelerin önüne bir QR ayıraç koyun; eşit uzunluktakiler için filtre yeter.</p></div>
+        <button class="btn secondary wide" style="margin-top:var(--sp-3)" aria-label="Rehber'de ayarları aç (Ctrl+6)"><svg class="i"><use href="#y-book-open"/></svg>Rehber'de ayarları aç</button>
+      </div>
+      <div class="insp-actions">
+        <button class="btn primary wide"><svg class="i"><use href="#arrow-right-to-line"/></svg>Kontrol'e geç<span class="kbd">Ctrl+2</span></button>
+        <button class="btn secondary wide" aria-label="İşi kapat (Ctrl+W)"><svg class="i"><use href="#x"/></svg>İşi kapat</button>
+      </div>
+    </aside>
+    </div>
+  </div>
+  <footer class="statusbar">
+    <span class="item"><b>Kasım 2026 kapasite raporları</b></span>
+    <span class="item"><b class="num">4</b> parti</span>
+    <span class="item"><b class="num">640</b> sayfa</span>
+    <span class="item check"><svg class="i sm"><use href="#triangle-alert"/></svg>7 belge kontrol bekliyor</span>
+    <span class="spacer"></span>
+  </footer>
+  <div class="dropveil" role="dialog" aria-label="Dosyaları bırakın">
+    <div class="dropveil-frame"></div>
+    <div class="dropcard">
+      <svg class="i lg"><use href="#y-upload"/></svg>
+      <h2 class="t-panel">PDF'leri bırakın</h2>
+      <p>3 parti, “<b>Kasım 2026 kapasite raporları</b>” işinin sonuna eklenir.</p>
+      <ul>
+        <li><svg class="i"><use href="#file-text"/></svg>tarama-2026-11-05-0910.pdf<span class="meta">18,4 MB</span></li>
+        <li><svg class="i"><use href="#file-text"/></svg>tarama-2026-11-05-1032.pdf<span class="meta">22,1 MB</span></li>
+        <li><svg class="i"><use href="#file-text"/></svg>tarama-2026-11-05-1415.pdf<span class="meta">9,7 MB</span></li>
+      </ul>
+      <div class="foot t-2"><svg class="i sm"><use href="#info"/></svg><span>Klasörlerdeki PDF'ler de eklenir; diğer dosya türleri atlanır.</span><span style="flex:1"></span><span>Vazgeç</span><span class="kbd">Esc</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- STATE 5 · empty: no jobs yet -->
+
+<div class="window" data-state="empty" aria-label="Yükle · boş">
+  <header class="titlebar">
+    <img class="app-icon" src="../../logo/kit/evrakci-app-icon-16.svg" alt="">
+    <nav class="menubar" aria-label="Menü çubuğu">
+      <span class="menu-item"><u>D</u>osya</span>
+      <span class="menu-item">Düz<u>e</u>n</span>
+      <span class="menu-item"><u>G</u>örünüm</span>
+      <span class="menu-item">Gi<u>t</u></span>
+      <span class="menu-item"><u>A</u>raçlar</span>
+      <span class="menu-item"><u>Y</u>ardım</span>
+    </nav>
+    <div class="title"><b>Evrakçı</b></div>
+    
+    <div class="caption-buttons" aria-hidden="true">
+      <span><svg class="i"><use href="#minus"/></svg></span><span><svg class="i"><use href="#square"/></svg></span><span><svg class="i"><use href="#x"/></svg></span>
+    </div>
+  </header>
+
+  <nav class="tabstrip" role="tablist" aria-label="Sekmeler">
+    <span class="tab" role="tab" aria-selected="true">Yükle</span>
+    <span class="tab" role="tab" aria-selected="false">Kontrol</span>
+    <span class="tab" role="tab" aria-selected="false">Şablonlar</span>
+    <span class="tab" role="tab" aria-selected="false">Değerler</span>
+    <span class="tab" role="tab" aria-selected="false">Dışa Aktar</span>
+    <span class="tab" role="tab" aria-selected="false">Rehber</span>
+  </nav>
+
+  <div class="commandbar" role="toolbar" aria-label="Yükle komutları">
+    <button class="btn subtle" aria-label="Yeni iş oluştur (Ctrl+N)"><svg class="i"><use href="#file-plus"/></svg>Yeni iş oluştur</button>
+    <button class="btn subtle" aria-label="Parti ekle… (Ctrl+O)"><svg class="i"><use href="#y-file-up"/></svg>Parti ekle…</button>
+    <button class="btn subtle"><svg class="i"><use href="#y-folder-plus"/></svg>Klasör seç…</button>
+    <span class="sep"></span>
+    <button class="btn subtle" disabled aria-label="Yukarı (Alt+↑)"><svg class="i"><use href="#y-arrow-up"/></svg>Yukarı</button>
+    <button class="btn subtle" disabled aria-label="Aşağı (Alt+↓)"><svg class="i"><use href="#y-arrow-down"/></svg>Aşağı</button>
+    <button class="btn subtle" disabled aria-label="Partiyi çıkar (Del)"><svg class="i"><use href="#trash-2"/></svg>Partiyi çıkar</button>
+    <span class="spacer"></span>
+    <button class="btn subtle icon" aria-label="Diğer komutlar"><svg class="i"><use href="#ellipsis"/></svg></button>
+  </div>
+
+  <div class="workspace">
+    <div class="yk">
+    <aside class="jobs" aria-label="İşler">
+      <div class="jobs-head">
+        <div class="row"><h2 class="t-section">İşler</h2></div>
+        <span class="input search" aria-disabled="true"><svg class="i"><use href="#search"/></svg><span class="placeholder">İşlerde ara</span><span class="kbd" style="color:var(--text-disabled)">Ctrl+F</span></span>
+      </div>
+      <div class="jobs-none t-2" style="flex:1">Kayıtlı iş yok. Oluşturduğunuz işler burada, son açılan başta olacak şekilde listelenir.</div>
+      
+    </aside>
+    <section class="batches" style="padding:0" aria-label="Partiler">
+      <div class="empty-wrap">
+        <div class="empty-body">
+          <div class="empty">
+            <svg class="i lg"><use href="#y-folder-plus"/></svg>
+            <h2 class="t-panel">Henüz iş yok</h2>
+            <p>Bir iş, taradığınız PDF'leri tek yığın olarak toplar; sonra belgelere bölünür, okunur ve dışa aktarılır. PDF'leri pencereye bırakın ya da yeni bir iş oluşturun.</p>
+            <div class="actions">
+              <button class="btn primary"><svg class="i"><use href="#file-plus"/></svg>Yeni iş oluştur<span class="kbd">Ctrl+N</span></button>
+              <button class="btn secondary" aria-label="Parti ekle… (Ctrl+O)"><svg class="i"><use href="#y-file-up"/></svg>Parti ekle…</button>
+            </div>
+          </div>
+          <ol class="steps" aria-label="Üç adım">
+            <li><span class="n">1</span><span>Tarayın<span class="t-2">Ayrılması gereken belgelerin önüne bir QR ayıraç koyun (eşit uzunluktakiler için filtre yeter) ve yığın hâlinde tarayın.</span></span></li>
+            <li><span class="n">2</span><span>Bırakın<span class="t-2">Dosyalar tek bir PDF olsa da olur; pencerenin herhangi bir yerine bırakın.</span></span></li>
+            <li><span class="n">3</span><span>Kontrol edin<span class="t-2">Kontrol sekmesinde kesimleri gözden geçirin, gerisini Evrakçı yapar.</span></span></li>
+          </ol>
+        </div>
+        <div class="dz t-2"><svg class="i"><use href="#y-upload"/></svg><span>PDF'leri buraya bırakın veya Parti ekle… (Ctrl+O). Tarama ayarları için <u>Rehber</u>'e bakın (Ctrl+6).</span></div>
+      </div>
+    </section>
+    </div>
+  </div>
+  <footer class="statusbar"><span class="item">İş açılmadı</span><span class="spacer"></span><span class="item">Ctrl+N ile yeni iş oluşturabilirsiniz</span></footer>
+</div>
+
+
+</div>
+<script src="mockup.js"></script>
+</body>
+</html>

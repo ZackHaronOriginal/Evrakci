@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>C: three filed documents seen from above; tabs left, centre, right (the app's cut positions)</title>
+  <path d="M40 76a10 10 0 0 1 10-10h4l6-20h44l6 20h96a10 10 0 0 1 10 10v24H40z"/>
+  <path d="M40 138a10 10 0 0 1 10-10h56l6-20h44l6 20h44a10 10 0 0 1 10 10v24H40z"/>
+  <path d="M40 200a10 10 0 0 1 10-10h108l6-20h44l6 20a10 10 0 0 1 10 10v24H40z"/>
+</svg>

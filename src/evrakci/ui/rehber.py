@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.pipeline.ocr.models import app_dir, data_dir
 from evrakci.pipeline.separator import make_separator_pdf
-from evrakci.ui.kontrol import index_rule, key_button
+from evrakci.ui.widgets import index_rule, key_button
 
 
 def guide_text() -> str:

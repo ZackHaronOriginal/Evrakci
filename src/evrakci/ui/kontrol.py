@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -23,6 +22,7 @@ from evrakci.ui import theme
 from evrakci.ui.controller import JobController
 from evrakci.ui.thumbnails import ThumbnailService
 from evrakci.ui.timeline import Roles, TimelineModel, TimelineView
+from evrakci.ui.widgets import index_rule, key_button
 
 KIND_TEXT = {
     "qr": "QR ayıraç",
@@ -30,22 +30,6 @@ KIND_TEXT = {
     "manual": "Elle kesim",
     "start": "İşin başı",
 }
-
-
-def key_button(text: str, key: str, primary: bool = False) -> QPushButton:
-    """A button that shows its shortcut key (drawn by the stylesheet as plain text)."""
-    button = QPushButton(f"{text}   {key}" if key else text)
-    button.setToolTip(f"{text} ({key})" if key else text)
-    if primary:
-        button.setProperty("primary", True)
-    return button
-
-
-def index_rule() -> QFrame:
-    rule = QFrame()
-    rule.setProperty("role", "index-rule")
-    rule.setFixedHeight(1)
-    return rule
 
 
 class WholeJobStrip(QWidget):

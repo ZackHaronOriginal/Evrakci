@@ -40,7 +40,7 @@ from evrakci.pipeline.templates.model import Template, template_revision
 from evrakci.pipeline.templates.read import read_document
 from evrakci.ui import theme
 from evrakci.ui.controller import JobController
-from evrakci.ui.kontrol import index_rule, key_button
+from evrakci.ui.widgets import index_rule, key_button
 from evrakci.ui.workers import Task, start
 
 DOC_ROLE = Qt.ItemDataRole.UserRole + 1

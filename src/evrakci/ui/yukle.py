@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 from evrakci.pipeline.job import Job, job_from_dict, job_to_dict
 from evrakci.pipeline.store import JobStore
 from evrakci.ui.controller import JobController
-from evrakci.ui.kontrol import index_rule, key_button
+from evrakci.ui.widgets import index_rule, key_button
 from evrakci.ui.workers import Task, start
 
 

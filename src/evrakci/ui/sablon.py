@@ -48,8 +48,8 @@ from evrakci.pipeline.templates.read import read_document
 from evrakci.pipeline.templates.store import TemplateStore
 from evrakci.ui import theme
 from evrakci.ui.controller import JobController
-from evrakci.ui.kontrol import index_rule, key_button
 from evrakci.ui.thumbnails import to_qimage
+from evrakci.ui.widgets import index_rule, key_button
 from evrakci.ui.workers import Task, start
 
 CANVAS_DPI = 100

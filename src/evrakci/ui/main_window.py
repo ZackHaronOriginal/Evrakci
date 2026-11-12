@@ -2,17 +2,25 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QLabel, QMainWindow, QMessageBox, QTabWidget
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QTabWidget,
+    QWidget,
+)
 
 from evrakci import __version__
 from evrakci.pipeline.store import JobFileError, JobStore
 from evrakci.pipeline.templates.model import TemplateError
 from evrakci.pipeline.templates.store import TemplateStore
-from evrakci.ui import theme
+from evrakci.ui import icons, theme
 from evrakci.ui.controller import JobController
 from evrakci.ui.degerler import DegerlerScreen
 from evrakci.ui.disa_aktar import DisaAktarScreen
@@ -24,6 +32,54 @@ from evrakci.ui.yukle import YukleScreen
 
 TAB_NAMES = ["Yükle", "Kontrol", "Şablonlar", "Değerler", "Dışa Aktar", "Rehber"]
 LAST_JOB = "son-is.txt"
+
+# The key list at the right of the status bar, per tab (DESIGN.md: Status bar).
+TAB_KEYS = [
+    [("Ctrl+N", "yeni iş"), ("Ctrl+O", "dosya seç"), ("Alt+↑ ↓", "sırala")],
+    [("Ctrl+1…5", "sekmeler"), ("← →", "sayfa"), ("Shift", "seçimi genişlet"),
+     ("N", "sonraki kontrol")],
+    [("B", "kutu çiz"), ("Ctrl+T", "dene"), ("Ctrl+S", "kaydet")],
+    [("Enter", "öneriyi kabul et"), ("F2", "elle yaz"), ("N", "sonraki kontrol")],
+    [("Ctrl+E", "dışa aktar"), ("Esc", "iptal")],
+    [("Ctrl+1…5", "sekmeler"), ("F1", "rehber")],
+]
+
+
+def _keys_html(keys: list[tuple[str, str]]) -> str:
+    white = theme.TOKENS["on_shell"]
+    return "&nbsp;&nbsp;&nbsp;&nbsp;".join(
+        f'<b style="color:{white}">{key}</b> {word}' for key, word in keys)
+
+
+class HeaderBar(QWidget):
+    """The 40px shell band: app name, the open job, and when it was last saved."""
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.setObjectName("header")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setFixedHeight(40)
+        row = QHBoxLayout(self)
+        row.setContentsMargins(20, 0, 20, 0)
+        row.setSpacing(14)
+        mark = QLabel()
+        mark.setPixmap(icons.app_icon().pixmap(22, 22))
+        name = QLabel("Evrakçı")
+        name.setObjectName("app-name")
+        self.job = QLabel("İş açılmadı")
+        row.addWidget(mark)
+        row.addWidget(name)
+        row.addWidget(self.job, 1)
+        self.saved_icon = QLabel()
+        self.saved_icon.setPixmap(icons.pixmap("save", "on_shell_2", 16))
+        self.saved = QLabel("")
+        row.addWidget(self.saved_icon)
+        row.addWidget(self.saved)
+        self.saved_icon.hide()
+
+    def set_saved(self, when: datetime) -> None:
+        self.saved.setText(f"Kaydedildi {when:%H:%M}")
+        self.saved_icon.show()
 
 
 class MainWindow(QMainWindow):
@@ -37,8 +93,13 @@ class MainWindow(QMainWindow):
         self.store = store
         self.template_store = templates
         self.setWindowTitle(f"Evrakçı {__version__}")
+        self.setWindowIcon(icons.app_icon())
         self.resize(1366, 768)
+        self.setMinimumSize(1100, 640)
+        self.setPalette(theme.palette())
         self.setStyleSheet(theme.stylesheet())
+        self.header = HeaderBar()
+        self.setMenuWidget(self.header)
         self.kontrol: KontrolScreen | None = None
         self.thumbnails: ThumbnailService | None = None
         self._closing = False
@@ -57,7 +118,9 @@ class MainWindow(QMainWindow):
         self.disa_aktar.finished.connect(self._work_stopped)
         self.yukle.task_finished.connect(self._work_stopped)
         self.degerler.finished.connect(self._work_stopped)
-        self._kontrol_placeholder = QLabel("Önce Yükle sekmesinden bir iş açın.")
+        self._kontrol_placeholder = self._empty_state(
+            "Henüz açık iş yok",
+            "Kontrol için önce Yükle sekmesinden bir iş açın ya da yeni bir iş oluşturun.")
         for name, widget in zip(TAB_NAMES, (self.yukle, self._kontrol_placeholder, self.sablon,
                                             self.degerler, self.disa_aktar, self.rehber),
                                 strict=True):
@@ -72,11 +135,49 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.tabs)
 
         self.counts = QLabel("")
+        self.check_icon = QLabel()
+        self.check_icon.setPixmap(icons.pixmap("warn", "rider_on_shell", 16))
+        self.check_icon.hide()
+        self.checks = QLabel("")
         self.message = QLabel("")
-        self.statusBar().addWidget(self.counts)
-        self.statusBar().addPermanentWidget(self.message)
+        self.message.setProperty("role", "keys")
+        self.keys = QLabel("")
+        self.keys.setProperty("role", "keys")
+        bar = self.statusBar()
+        bar.setSizeGripEnabled(False)
+        bar.setContentsMargins(14, 0, 14, 0)
+        bar.addWidget(self.counts)
+        bar.addWidget(self.check_icon)
+        bar.addWidget(self.checks)
+        bar.addWidget(self.message, 1)
+        bar.addPermanentWidget(self.keys)
+        self._tab_changed(self.tabs.currentIndex())
         self.yukle.refused.connect(self.message.setText)
         self._open_last_job()
+
+    def _empty_state(self, title: str, text: str) -> QWidget:
+        from PySide6.QtWidgets import QVBoxLayout
+
+        from evrakci.ui.widgets import key_button
+
+        page = QWidget()
+        page.setObjectName("page")
+        layout = QVBoxLayout(page)
+        layout.addStretch(2)
+        for widget in (QLabel(), QLabel(title), QLabel(text)):
+            widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(widget)
+        picture, heading, words = (layout.itemAt(i).widget() for i in (1, 2, 3))
+        picture.setPixmap(icons.pixmap("folder", "rule_strong", 56, stroke=1.25))
+        heading.setProperty("role", "panel-title")
+        words.setProperty("role", "muted")
+        words.setWordWrap(True)
+        go = key_button("Yükle'ye git", "Ctrl+1", icon="chl")
+        go.clicked.connect(lambda: self.tabs.setCurrentIndex(0))
+        layout.addSpacing(8)
+        layout.addWidget(go, 0, Qt.AlignmentFlag.AlignCenter)
+        layout.addStretch(3)
+        return page
 
     # Shared state
     def controller(self) -> JobController | None:
@@ -117,6 +218,7 @@ class MainWindow(QMainWindow):
         self.kontrol = kontrol
         controller.status.connect(self.message.setText)
         controller.job_changed.connect(self._update_counts)
+        controller.job_changed.connect(self._saved)
         self.setWindowTitle(f"Evrakçı {__version__} – {job.name}")
         self._update_counts()
 
@@ -124,21 +226,31 @@ class MainWindow(QMainWindow):
         (self.store.root / LAST_JOB).unlink(missing_ok=True)
         self.yukle.refresh_jobs()
 
+    def _saved(self) -> None:
+        self.header.set_saved(datetime.now())
+
     def _update_counts(self) -> None:
         controller = self.controller()
         if controller is None:
             self.counts.setText("")
+            self.checks.setText("")
+            self.check_icon.hide()
+            self.header.job.setText("İş açılmadı")
             return
         job = controller.job
         pages = sum(b.page_count for b in job.batches)
         documents = len(controller.documents())
         checks = len(self.kontrol.strip.check_rows) if self.kontrol else 0
-        text = f"{documents} belge · {pages} sayfa"
-        if checks:
-            text += f" · {checks} belge kontrol bekliyor"
-        self.counts.setText(text)
+        text = f"{documents} belge  ·  {pages} sayfa"
+        self.counts.setText(text + ("  ·" if checks else ""))
+        self.check_icon.setVisible(bool(checks))
+        self.checks.setText(f"{checks} belge kontrol bekliyor" if checks else "")
+        self.header.job.setText(
+            f"{job.name}  ·  {len(job.batches)} parti  ·  {pages} sayfa")
 
     def _tab_changed(self, index: int) -> None:
+        if hasattr(self, "keys") and 0 <= index < len(TAB_KEYS):
+            self.keys.setText(_keys_html(TAB_KEYS[index]))
         if index == 2:
             self.sablon.refresh_templates()
         elif index == 3:

@@ -39,7 +39,7 @@ from evrakci.pipeline.settings import (
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
 from evrakci.ui.controller import JobController
-from evrakci.ui.kontrol import index_rule, key_button
+from evrakci.ui.widgets import index_rule, key_button
 from evrakci.ui.workers import Task, start
 
 RETENTION = [

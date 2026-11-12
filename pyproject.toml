@@ -40,6 +40,8 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 100
+# Throwaway mockup-render helper scripts (not shipped); keep them out of the lint gate.
+extend-exclude = ["docs/ui-goal/mockups"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

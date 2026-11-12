@@ -31,13 +31,17 @@ of that phase — pass the instruction "load skill X first" in each agent prompt
 brackets are the plugin; if a plugin isn't installed, say so in the phase report and carry on
 with the research files instead. Never skip silently.
 
-| Phase | Skills |
+| Phase | Skills (exact names) |
 |---|---|
-| Direction & system | `design:design-system`, `frontend-design` [frontend-design], `typography`, `colour-palette`, `spacing`, `surfaces`, `anti-slop`, `defaults` [VectorLab UI/UX Skills], `no-ui-slop` (only if UXKIN is installed) |
-| Motion | `motion`, `transitions`, `reduced-motion`, `loaders` [VectorLab] |
-| Interaction & QoL | `keyboard`, `icon-buttons`, `forms`, `errors`, `empty-states`, `labels`, `verbs`, `page-patterns` [VectorLab]; `ui-ux`, `ui-ux-table`, `ui-ux-dialog`, `ui-ux-form`, `ui-ux-tabs`, `ui-ux-active`, `ui-ux-passive` [UI/UX Behaves]; `design:ux-copy` |
-| Review (every phase) | `ui-review`, `ui-polish`, `ui-compare` [UI Design Review]; `design:design-critique`; `design:accessibility-review`; `ux-audit` [VectorLab]; `code-review` |
+| Direction & system | `frontend-design:frontend-design`, `design:design-system`, `vectorlab-ux-skills:typography`, `vectorlab-ux-skills:colour-palette`, `vectorlab-ux-skills:spacing`, `vectorlab-ux-skills:surfaces`, `vectorlab-ux-skills:anti-slop`, `vectorlab-ux-skills:page-patterns`, `vectorlab-ux-skills:defaults` |
+| Motion | `vectorlab-ux-skills:motion`, `vectorlab-ux-skills:transitions`, `vectorlab-ux-skills:reduced-motion`, `vectorlab-ux-skills:loaders` |
+| Interaction & QoL | `vectorlab-ux-skills:keyboard`, `vectorlab-ux-skills:icon-buttons`, `vectorlab-ux-skills:forms`, `vectorlab-ux-skills:errors`, `vectorlab-ux-skills:empty-states`, `vectorlab-ux-skills:labels`, `vectorlab-ux-skills:verbs`, `ui-ux-behaves:ui-ux`, `ui-ux-behaves:ui-ux-table`, `ui-ux-behaves:ui-ux-dialog`, `ui-ux-behaves:ui-ux-form`, `ui-ux-behaves:ui-ux-tabs`, `ui-ux-behaves:ui-ux-active`, `ui-ux-behaves:ui-ux-passive`, `design:ux-copy` |
+| Review (every phase) | `ui-design-review:ui-review`, `ui-design-review:ui-polish`, `ui-design-review:ui-compare`, `ui-ux-behaves:review`, `ui-ux-behaves:walkthrough`, `ui-ux-behaves:copy-check`, `vectorlab-ux-skills:ux-audit`, `design:design-critique`, `design:accessibility-review`, `code-review` |
 | Logo/icon touches | `logo-design:logo-design` (assets mode only; the logo is final) |
+
+Not for this app: `vectorlab-ux-skills:viewports` (browser widths; our canvas is 1366×768+ desktop)
+and `ui-ux-behaves:ui-ux-chart`/`ui-ux-date` unless a chart or date field is added. The UXKIN MCP
+server does not connect in this environment; `ui-compare` falls back to platform conventions.
 
 The skills are written for web stacks. Translate their rules to Qt (QSS + QPalette + QPainter),
 and where a skill rule conflicts with §2 or a research rule, §2 then the research wins; note the

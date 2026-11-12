@@ -1,0 +1,29 @@
+Evrakçı — Linux sürümü
+=======================
+
+Gerekenler: Tesseract. Çoğu masaüstünde pencere kütüphaneleri zaten vardır; en sade
+kurulumlarda (Debian, Ubuntu, Pardus) hepsi birden:
+
+    sudo apt install tesseract-ocr libxcb-cursor0 libxcb-icccm4 libxcb-util1 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxcb-shape0 libxkbcommon-x11-0 libegl1 libgl1 libdbus-1-3
+
+Türkçe OCR verisi (tur_best) uygulamayla gelir; ayrıca dil paketi kurmanız gerekmez.
+
+Kurmak (yalnızca bu kullanıcı için; sudo ile çalıştırmayın):
+
+    ./kur.sh
+
+Uygulama menüsünde "Evrakçı" görünür. Komut satırı: evrakci, pencere: evrakci-arayuz.
+kur.sh eksik bir sistem kütüphanesi görürse söyler ve kaldırma komutunu yazar.
+Yeni sürümü kurmadan önce Evrakçı'yı kapatın.
+
+Kurmadan çalıştırmak:
+
+    ./uygulama/evrakci-arayuz
+
+Kaldırmak (işleriniz ve şablonlarınız silinmez); kur.sh'nin yazdığı komut, genellikle:
+
+    ~/.local/share/evrakci-uygulama/kaldir.sh
+
+Lisanslar: uygulama/licenses/NOTICE.txt. Qt kütüphaneleri uygulama/lib/PySide6/ altında ayrı
+dosyalardır (LGPL); kendi derlediğiniz uyumlu bir sürümle değiştirebilirsiniz. Yalnızca GPL
+lisanslı Qt parçaları (Qt Virtual Keyboard, Qt Wayland Compositor) derlemeden çıkarılmıştır.

@@ -46,10 +46,18 @@ def qr_page(scale: float = 1.0, angle: float = 0.0) -> Image.Image:
     return image
 
 
-def make_pdf(path: Path, pages: list[Image.Image]) -> Path:
+def make_pdf(path: Path, pages: list[Image.Image], dpi: int = DPI) -> Path:
     path = Path(path)
-    pages[0].save(path, save_all=True, append_images=pages[1:], resolution=DPI)
+    pages[0].save(path, save_all=True, append_images=pages[1:], resolution=dpi)
     return path
+
+
+def a4_300(lines: list[tuple[str, tuple[float, float]]]) -> Image.Image:
+    """A 300 dpi A4 page with text lines placed at (x, y) millimetres."""
+    page = Image.new("L", (2480, 3508), 255)
+    for text, (x_mm, y_mm) in lines:
+        page.paste(render_line(text, 60), (round(x_mm / 25.4 * 300), round(y_mm / 25.4 * 300)))
+    return page
 
 
 _KINDS = {
@@ -73,7 +81,9 @@ def render_line(text: str, size: int = 40) -> Image.Image:
     """One line of text on white, like a cropped field."""
     from PIL import ImageFont
 
-    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", size)
+    from evrakci.pipeline.ocr.synthetic import find_font
+
+    font = ImageFont.truetype(str(find_font()), size)  # DejaVu on Linux, Arial on Windows
     left, top, right, bottom = font.getbbox(text)
     image = Image.new("L", (right - left + 40, bottom - top + 40), 255)
     ImageDraw.Draw(image).text((20 - left, 20 - top), text, fill=0, font=font)
@@ -85,3 +95,17 @@ def a4_with(image: Image.Image, at_mm: tuple[float, float]) -> Image.Image:
     page = Image.new("L", A4, 255)
     page.paste(image, (round(at_mm[0] / 25.4 * DPI), round(at_mm[1] / 25.4 * DPI)))
     return page
+
+
+def page_text(path: Path, index: int) -> str:
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(str(path))
+    try:
+        page = pdf[index]
+        try:
+            return page.get_textpage().get_text_range()
+        finally:
+            page.close()
+    finally:
+        pdf.close()

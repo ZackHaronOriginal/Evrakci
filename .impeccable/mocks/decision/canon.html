@@ -1,0 +1,120 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Evrakçı – Kontrol</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f3f3;--card:#fff;--line:#e5e5e5;--tx:#1b1b1b;--tx2:#5d5d5d;--ac:#005fb8;--acbg:#e6f0f9;--wtx:#9d5d00;--wbg:#fff4ce;--otx:#0e700e;--obg:#dff6dd;--sub:#f9f9f9;--hov:#eaeaea}
+*{box-sizing:border-box}html,body{width:1440px;height:900px;overflow:hidden;margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.4 "Segoe UI Variable","Segoe UI","Noto Sans",sans-serif;display:grid;grid-template-rows:40px 1fr 32px}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.tb{display:flex;align-items:center;padding-left:14px;gap:10px;font-size:13px}.tb b{font-weight:600;font-size:13px}.tb .job{color:var(--tx2)}.tb .sv{margin-left:auto;display:flex;gap:6px;align-items:center;color:var(--tx2);padding-right:12px}
+.wc{display:flex;height:40px}.wc span{width:46px;display:grid;place-items:center}.wc svg{width:14px;height:14px;stroke-width:1}
+.logo{width:20px;height:20px;border-radius:4px;background:var(--ac);color:#fff;display:grid;place-items:center}.logo svg{width:14px;height:14px}
+.mid{display:grid;grid-template-columns:208px minmax(0,1fr);min-height:0}
+nav{padding:4px 8px;display:flex;flex-direction:column;gap:3px}
+nav a{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:5px;color:var(--tx);text-decoration:none;position:relative}
+nav a kbd{margin-left:auto}nav a.on{background:#e9e9e9;font-weight:600}nav a.on::before{content:"";position:absolute;left:0;top:12px;width:3px;height:16px;border-radius:2px;background:var(--ac)}
+nav .sp{flex:1}
+kbd{font:12.5px/1 "Segoe UI Variable","Segoe UI","Noto Sans",sans-serif;color:var(--tx2);font-size:13px}
+.page{overflow:hidden;min-width:0;background:#f9f9f9;border:1px solid var(--line);border-right:0;border-bottom:0;border-top-left-radius:8px;padding:14px 20px 16px;display:grid;grid-template-rows:auto auto 1fr;gap:12px;min-height:0}
+h1{font-size:24px;font-weight:600;margin:0;line-height:32px}.ph{display:flex;align-items:center;gap:16px}.ph span{color:var(--tx2)}
+.cmd{display:flex;align-items:center;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 8px;height:52px}
+.b{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 11px;border-radius:5px;border:1px solid transparent;background:none;font:inherit;color:var(--tx);white-space:nowrap}
+.b.std{background:#fff;border-color:#e0e0e0;border-bottom-color:#cdcdcd}.b.pri{background:var(--ac);color:#fff}.b.pri kbd{color:#dce9f6}.b.ico{padding:0 9px}
+.sep{width:1px;height:28px;background:var(--line);margin:0 6px}
+.nb{display:inline-flex;align-items:center;gap:8px;padding:0 6px;white-space:nowrap}.nb i{font-style:normal;width:46px;height:32px;border:1px solid #e0e0e0;border-bottom:2px solid var(--ac);border-radius:5px;display:grid;place-items:center;font-weight:600}
+.sel{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--tx2);padding-right:6px;white-space:nowrap}.sel b{color:var(--tx);font-weight:600}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 344px;gap:12px;min-height:0}.col{display:grid;grid-template-rows:auto auto 1fr;gap:12px;min-height:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+h2{font-size:15px;font-weight:600;margin:0}.ch{display:flex;align-items:center;gap:12px;margin-bottom:12px}.ch span{color:var(--tx2)}
+.ov{position:relative;height:28px;background:var(--sub);border:1px solid var(--line);border-radius:4px}
+.ov .tk{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--wtx)}.ov .tk::after{content:"";position:absolute;top:-7px;left:-5px;border:6px solid transparent;border-top:7px solid var(--wtx)}
+.ov .vw{position:absolute;top:-4px;bottom:-4px;width:12px;border:2px solid var(--ac);border-radius:3px;background:rgba(0,95,184,.12)}
+.ovl{display:flex;justify-content:space-between;font-size:13px;color:var(--tx2);margin-top:6px}
+.kl{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center}.kl span{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 8px;border-radius:14px;border:1px solid var(--line);font-size:13px;background:#fff}.kl span.on{background:var(--acbg);border-color:#b3cfea;font-weight:600}.kl svg{width:14px;height:14px;color:var(--wtx)}
+.st{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px;border-radius:4px;font-size:13px;font-weight:600;white-space:nowrap}.st svg{width:14px;height:14px;stroke-width:1.8}
+.st.k{background:var(--wbg);color:var(--wtx)}.st.t{background:var(--obg);color:var(--otx)}.st.n{background:#f0f0f0;color:var(--tx2)}
+.fs{display:flex;align-items:flex-end;padding-top:4px}.grp{display:flex;flex-direction:column}.grp+.grp{margin-left:8px}
+.hd{width:0;min-width:100%;height:76px;font-size:13px;display:flex;flex-direction:column;justify-content:flex-end;gap:3px;padding:0 2px 6px;border-bottom:1px solid #8a8a8a;position:relative;margin-bottom:10px;white-space:nowrap;overflow:hidden}
+.hd::before,.hd::after{content:"";position:absolute;bottom:0;width:1px;height:8px;background:#8a8a8a;left:0}.hd::after{left:auto;right:0}.hd.open::before{display:none}.hd.mut{border-bottom-style:dashed;color:var(--tx2)}
+.hd b{font-weight:600;font-size:13px;display:flex;align-items:center;gap:5px}.hd b svg{width:14px;height:14px}.hd em{font-style:normal;color:var(--tx2);overflow:hidden;text-overflow:ellipsis}
+.pg{display:flex;gap:8px}.th{width:66px;text-align:center;font-size:13px;color:var(--tx2)}
+.sh{width:66px;height:94px;background:#fff;border:1px solid #d6d6d6;border-radius:2px;box-shadow:0 1px 2px rgba(0,0,0,.08);padding:12px 9px;display:flex;flex-direction:column;gap:5px;position:relative;margin-bottom:6px}
+.sh i{display:block;height:4px;border-radius:2px;background:#cfcfcf}.sh i.h{height:6px;width:70%;background:#9e9e9e;margin-bottom:4px}.sh i.s{width:55%}
+.th.sl .sh{outline:2px solid var(--ac);outline-offset:1px}.th.sl{color:var(--tx);font-weight:600}
+.th.sl .sh::after{content:"";position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;background:var(--ac) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat;border:2px solid #fff}
+.th.fc .sh{box-shadow:0 0 0 4px #fff,0 0 0 6px #1b1b1b}
+.th.em .sh{background:#fafafa;border-style:dashed;align-items:center;justify-content:center;color:#8a8a8a}
+.sh.qr{align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:700;color:var(--tx);letter-spacing:.04em}
+.cut{width:44px;display:flex;flex-direction:column;align-items:center;align-self:stretch;justify-content:flex-end;position:relative;margin:0 0 0 8px;font-size:13px;color:var(--tx);font-weight:600}
+.cut .ln{position:absolute;top:66px;bottom:24px;width:0;border-left:2px dashed #616161}
+.cut .bd{position:relative;z-index:1;width:30px;height:30px;display:grid;place-items:center;background:#fff;border:1.5px solid #616161;margin-bottom:36px}.cut .bd svg{width:16px;height:16px}
+.cut.q .bd{border-radius:2px}.cut.f .bd{border-radius:15px;width:38px}.cut.m .bd{border-radius:50%}
+.cut small{font-size:13px;position:absolute;bottom:0;white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:15px}th{text-align:left;font-weight:600;color:var(--tx2);font-size:13px;padding:0 10px 8px;border-bottom:1px solid var(--line)}
+td{padding:0 10px;height:41px;border-bottom:1px solid #f0f0f0;white-space:nowrap}tr.on td{background:#f0f6fc}tr.on td:first-child{box-shadow:inset 3px 0 0 -0px transparent}
+td.m{color:var(--tx2)}td code{font:600 14px "Cascadia Mono",Consolas,monospace}
+.pane{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:hidden}.pane .card{padding:14px 16px}
+.pt{font-size:20px;font-weight:600;margin:0}.ps{color:var(--tx2);margin-top:2px}
+.ib{background:var(--wbg);border:1px solid #f2dc94;border-radius:6px;padding:12px 14px;display:grid;grid-template-columns:20px 1fr;gap:4px 10px;margin-top:14px}.ib svg{color:var(--wtx);width:20px;height:20px}.ib b{color:var(--wtx);font-weight:600}.ib p{grid-column:2;margin:0}.ib .b{grid-column:2;justify-self:start;margin-top:6px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 12px;margin-top:12px;font-size:15px}.kv dt{color:var(--tx2)}.kv dd{margin:0;display:flex;gap:8px;align-items:center}
+.why{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}.why li{display:grid;grid-template-columns:18px 1fr;gap:10px}.why li span{color:var(--tx2);display:block;font-size:14px}
+.acts{display:flex;flex-direction:column;gap:8px;margin-bottom:2px}.acts .b{justify-content:flex-start}.acts kbd{margin-left:auto}
+.sb{display:flex;align-items:center;gap:18px;padding:0 16px;font-size:13px;color:var(--tx2);border-top:1px solid var(--line);background:var(--bg)}.sb b{color:var(--tx);font-weight:600}.sb .w{color:var(--wtx);display:flex;align-items:center;gap:5px;font-weight:600}.sb .w svg{width:14px;height:14px}.sb .r{margin-left:auto;display:flex;gap:16px}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="up" viewBox="0 0 20 20"><path d="M10 13V3M6 7l4-4 4 4M4 13v3h12v-3"/></symbol><symbol id="chk" viewBox="0 0 20 20"><path d="M4 4h12v12H4zM7 10l2 2 4-4"/></symbol>
+<symbol id="tpl" viewBox="0 0 20 20"><path d="M3 3h14v14H3zM3 8h14M8 8v9"/></symbol><symbol id="tab" viewBox="0 0 20 20"><path d="M3 4h14v12H3zM3 8h14M3 12h14M8 4v12"/></symbol>
+<symbol id="exp" viewBox="0 0 20 20"><path d="M11 3h6v6M17 3l-8 8M14 12v5H3V6h5"/></symbol><symbol id="book" viewBox="0 0 20 20"><path d="M3 4h5a2 2 0 012 2v11a2 2 0 00-2-2H3zM17 4h-5a2 2 0 00-2 2v11a2 2 0 012-2h5z"/></symbol>
+<symbol id="undo" viewBox="0 0 20 20"><path d="M7 5L3 9l4 4M3 9h9a5 5 0 010 10h-2"/></symbol><symbol id="redo" viewBox="0 0 20 20"><path d="M13 5l4 4-4 4M17 9H8a5 5 0 000 10h2"/></symbol>
+<symbol id="flt" viewBox="0 0 20 20"><path d="M3 4h14l-5.5 6.5V16l-3 1.5v-7z"/></symbol><symbol id="sci" viewBox="0 0 20 20"><circle cx="5.5" cy="5.5" r="2.5"/><circle cx="5.5" cy="14.5" r="2.5"/><path d="M7.5 7l9.5 9M7.5 13L17 4"/></symbol>
+<symbol id="qr" viewBox="0 0 20 20"><path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h2v2h-2zM16 12v5h-4M5 5h1M14 5h1M5 14h1"/></symbol><symbol id="rot" viewBox="0 0 20 20"><path d="M15 4v4h-4M15 8a6 6 0 10.5 5"/></symbol>
+<symbol id="del" viewBox="0 0 20 20"><path d="M3 5h14M8 5V3h4v2M5 5l1 12h8l1-12M8.5 8.5v5M11.5 8.5v5"/></symbol><symbol id="warn" viewBox="0 0 20 20"><path d="M10 2.5L18 17H2zM10 8v4M10 14.5v.1"/></symbol>
+<symbol id="ok" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="M6.5 10l2.5 2.5 4.5-5"/></symbol><symbol id="nr" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" stroke-dasharray="2.5 2.5"/><path d="M7 10h6"/></symbol>
+<symbol id="open" viewBox="0 0 20 20"><path d="M4 4h12v12H4zM4 8h12M8 12h5M8 14h3"/></symbol><symbol id="mrg" viewBox="0 0 20 20"><path d="M5 3v4a5 5 0 005 5 5 5 0 005-5V3M10 12v5M7 14l3 3 3-3"/></symbol>
+<symbol id="pg" viewBox="0 0 20 20"><path d="M5 2.5h7l3 3v12H5zM12 2.5v3h3"/></symbol><symbol id="sav" viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9"/></symbol>
+</defs></svg>
+<header class="tb"><span class="logo"><svg class="i"><use href="#pg"/></svg></span><b>Evrakçı</b><span class="job">Kasım 2026 – Faaliyet belgeleri · 3 parti · 812 sayfa</span>
+<span class="sv"><svg class="i" style="width:15px;height:15px"><use href="#sav"/></svg>Kaydedildi 14:32</span>
+<span class="wc"><span><svg viewBox="0 0 14 14" fill="none" stroke="#1b1b1b"><path d="M2 7h10"/></svg></span><span><svg viewBox="0 0 14 14" fill="none" stroke="#1b1b1b"><rect x="2.5" y="2.5" width="9" height="9" rx="1.5"/></svg></span><span><svg viewBox="0 0 14 14" fill="none" stroke="#1b1b1b"><path d="M3 3l8 8M11 3l-8 8"/></svg></span></span></header>
+<div class="mid">
+<nav><a><svg class="i"><use href="#up"/></svg>Yükle<kbd>Ctrl+1</kbd></a><a class="on"><svg class="i"><use href="#chk"/></svg>Kontrol<kbd>Ctrl+2</kbd></a><a><svg class="i"><use href="#tpl"/></svg>Şablonlar<kbd>Ctrl+3</kbd></a><a><svg class="i"><use href="#tab"/></svg>Değerler<kbd>Ctrl+4</kbd></a><a><svg class="i"><use href="#exp"/></svg>Dışa Aktar<kbd>Ctrl+5</kbd></a><span class="sp"></span><a><svg class="i"><use href="#book"/></svg>Rehber<kbd>F1</kbd></a></nav>
+<main class="page">
+<div class="ph"><h1>Kontrol</h1><span>Kesimleri ve okunan değerleri gözden geçirin</span><span class="sel"><svg class="i" style="color:var(--ac)"><use href="#chk"/></svg><b>Sayfa 214–218 seçili</b>· 5 sayfa · Belge 41 ve 42</span></div>
+<div class="cmd"><button class="b"><svg class="i"><use href="#undo"/></svg>Geri al<kbd>Ctrl+Z</kbd></button><button class="b"><svg class="i"><use href="#redo"/></svg>Yinele<kbd>Ctrl+Y</kbd></button><span class="sep"></span>
+<span class="nb">Her <i>3</i> sayfada bir belge</span><button class="b std"><svg class="i"><use href="#flt"/></svg>Filtreyi uygula<kbd>F</kbd></button><button class="b"><svg class="i"><use href="#sci"/></svg>Kesim<kbd>K</kbd></button><button class="b"><svg class="i"><use href="#tpl"/></svg>Şablon uygula<kbd>T</kbd></button><span class="sep"></span>
+<button class="b ico" title="Döndür (R)"><svg class="i"><use href="#rot"/></svg><kbd>R</kbd></button><button class="b ico" title="Sil (Del)"><svg class="i"><use href="#del"/></svg><kbd>Del</kbd></button></div>
+<div class="work"><div class="col">
+<section class="card"><div class="ch"><h2>Tüm iş</h2><span>287 belge · 812 sayfa</span><span class="st k" style="margin-left:auto"><svg class="i"><use href="#warn"/></svg>6 belge kontrol bekliyor</span></div>
+<div class="ov"><span class="tk" style="left:10.84%"></span><span class="tk" style="left:14.41%"></span><span class="tk" style="left:26.35%"></span><span class="tk" style="left:37.07%"></span><span class="tk" style="left:56.03%"></span><span class="tk" style="left:74.14%"></span><span class="vw" style="left:25.6%"></span></div>
+<div class="ovl"><span>s.1</span><span>Görünen: s.211–220</span><span>s.812</span></div>
+<div class="kl"><span>Belge 17 · s.88</span><span>Belge 23 · s.117</span><span class="on">Belge 41 · s.214</span><span>Belge 58 · s.301</span><span>Belge 96 · s.455</span><span>Belge 131 · s.602</span></div></section>
+<section class="card"><div class="ch" style="margin-bottom:0"><h2>Sayfalar</h2><span>s.212–219</span></div>
+<div class="fs">
+<div class="grp"><div class="hd open"><b>Belge 40</b><em>Faaliyet Belgesi</em><span class="st t" style="align-self:flex-start" title="Tamam"><svg class="i"><use href="#ok"/></svg></span></div><div class="pg"><div class="th"><div class="sh"><i class="h"></i><i></i><i></i><i class="s"></i><i></i><i class="s"></i></div>212</div></div></div>
+<div class="cut q"><span class="ln"></span><span class="bd"><svg class="i"><use href="#qr"/></svg></span><small>QR</small></div>
+<div class="grp" style="margin-left:2px"><div class="hd mut"><b>Ayıraç</b><em>atlandı</em><span class="st" style="visibility:hidden"></span></div><div class="pg"><div class="th"><div class="sh qr"><svg viewBox="0 0 7 7" width="40" height="40" shape-rendering="crispEdges"><path fill="#1b1b1b" d="M0 0h3v3H0zM4 0h3v3H4zM0 4h3v3H0zM4 4h1v1H4zM6 4h1v1H6zM5 5h1v1H5zM4 6h1v1H4zM6 6h1v1H6z"/><path fill="#fff" d="M1 1h1v1H1zM5 1h1v1H5zM1 5h1v1H1z"/></svg>AYIRAÇ</div>213</div></div></div>
+<div class="grp"><div class="hd"><b>Belge 41</b><em>Kapasite Raporu</em><span class="st k" style="align-self:flex-start"><svg class="i"><use href="#warn"/></svg>Kontrol</span></div><div class="pg">
+<div class="th sl fc"><div class="sh"><i class="h"></i><i></i><i></i><i class="s"></i><i></i><i></i><i class="s"></i></div>214</div><div class="th sl"><div class="sh"><i></i><i></i><i class="s"></i><i></i><i></i><i></i><i class="s"></i></div>215</div><div class="th sl"><div class="sh"><i></i><i></i><i></i><i class="s"></i><i></i><i class="s"></i></div>216</div></div></div>
+<div class="cut f"><span class="ln"></span><span class="bd"><svg class="i"><use href="#flt"/></svg></span><small>Filtre 3</small></div>
+<div class="grp" style="margin-left:2px"><div class="hd"><b>Belge 42</b><em>Faaliyet Belgesi</em><span class="st t" style="align-self:flex-start"><svg class="i"><use href="#ok"/></svg>Tamam</span></div><div class="pg">
+<div class="th sl em"><div class="sh">boş</div>217</div><div class="th sl"><div class="sh"><i class="h"></i><i></i><i></i><i class="s"></i><i></i><i class="s"></i></div>218</div></div></div>
+<div class="cut m"><span class="ln"></span><span class="bd"><svg class="i"><use href="#sci"/></svg></span><small>Elle</small></div>
+<div class="grp" style="margin-left:2px"><div class="hd"><b>Belge 43</b><em>Şablon yok</em><span class="st n" style="align-self:flex-start" title="Okunmadı"><svg class="i"><use href="#nr"/></svg></span></div><div class="pg"><div class="th"><div class="sh"><i class="h"></i><i></i><i class="s"></i><i></i><i></i></div>219</div></div></div>
+</div></section>
+<section class="card" style="padding-top:12px"><table><tr><th>Belge</th><th>Şablon</th><th>Sayfalar</th><th>Değerler</th><th>Sicil_No</th><th>Firma_Adi</th></tr>
+<tr><td>Belge 40</td><td>Faaliyet Belgesi</td><td class="m">209–212</td><td><span class="st t"><svg class="i"><use href="#ok"/></svg>Tamam</span></td><td><code>47706</code></td><td>Yıldız Tekstil Ltd. Şti.</td></tr>
+<tr class="on"><td><b>Belge 41</b></td><td>Kapasite Raporu</td><td class="m">214–216</td><td><span class="st k"><svg class="i"><use href="#warn"/></svg>Kontrol</span></td><td><code>48Z13</code></td><td>Kaya Makine San. A.Ş.</td></tr>
+<tr class="on"><td><b>Belge 42</b></td><td>Faaliyet Belgesi</td><td class="m">217–218</td><td><span class="st t"><svg class="i"><use href="#ok"/></svg>Tamam</span></td><td><code>39154</code></td><td>Demir Gıda Paz. Ltd. Şti.</td></tr>
+<tr><td>Belge 43</td><td class="m">Şablon yok</td><td class="m">219</td><td><span class="st n"><svg class="i"><use href="#nr"/></svg>Okunmadı</span></td><td class="m">—</td><td class="m">—</td></tr></table></section>
+</div>
+<aside class="pane"><section class="card"><p class="pt">Belge 41</p><div class="ps">Kapasite Raporu · 3 sayfa · s.214–216</div>
+<div class="ib"><svg class="i"><use href="#warn"/></svg><b>Kontrol gerekli</b><p>Sicil_No emin değil: “48Z13” okundu, öneri <b style="color:inherit">48213</b>.</p><button class="b std"><svg class="i"><use href="#open"/></svg>Değerlerde aç<kbd>Ctrl+4</kbd></button></div>
+<dl class="kv"><dt>Sicil_No</dt><dd><code style="font:600 15px Consolas,monospace">48Z13</code><span class="st k"><svg class="i"><use href="#warn"/></svg>Emin değil</span></dd><dt>Firma_Adi</dt><dd>Kaya Makine San. A.Ş.</dd><dt>Belge_Tarihi</dt><dd>04.11.2026</dd></dl></section>
+<section class="card"><h2>Neden burada başlıyor?</h2><ul class="why">
+<li><svg class="i"><use href="#qr"/></svg><div>Önceki kesim<span>QR ayıraç · s.213</span></div></li>
+<li><svg class="i"><use href="#flt"/></svg><div>Sonraki kesim<span>Filtre · her 3 sayfa</span></div></li>
+<li><svg class="i"><use href="#pg"/></svg><div>Boş sayfa<span>1 sayfa atlandı · s.217</span></div></li></ul></section>
+<section class="card acts"><button class="b std"><svg class="i"><use href="#del"/></svg>Baştaki kesimi kaldır<kbd>Del</kbd></button><button class="b std"><svg class="i"><use href="#mrg"/></svg>Öncekiyle birleştir<kbd>M</kbd></button></section>
+</aside></div></main></div>
+<footer class="sb"><span><b>287</b> belge</span><span><b>812</b> sayfa</span><span>14 boş sayfa atlandı</span><span class="w"><svg class="i"><use href="#warn"/></svg>6 belge kontrol bekliyor</span>
+<span class="r"><span>←/→ sayfa</span><span>Shift+← seçimi genişlet</span><span>N sonraki kontrol</span><span>K kesim</span></span></footer>
+</body></html>

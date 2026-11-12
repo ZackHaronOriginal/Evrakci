@@ -9,8 +9,7 @@ def ids(docs):
 
 def test_qr_fences_and_is_dropped():
     job = job_from_kinds({"a": "ppqpppqpp"})
-    assert ids(compute_documents(job)) == [
-        ["a/0", "a/1"], ["a/3", "a/4", "a/5"], ["a/7", "a/8"]]
+    assert ids(compute_documents(job)) == [["a/0", "a/1"], ["a/3", "a/4", "a/5"], ["a/7", "a/8"]]
 
 
 def test_empty_pages_never_cut():
@@ -35,7 +34,12 @@ def test_filter_restarts_after_qr_and_manual_cut():
     job.apply_filter(job.ordered_page_ids(), 2)
     job.manual_cuts.add("a/8")
     assert ids(compute_documents(job)) == [
-        ["a/0", "a/1"], ["a/2", "a/3"], ["a/5", "a/6"], ["a/7"], ["a/8", "a/9"]]
+        ["a/0", "a/1"],
+        ["a/2", "a/3"],
+        ["a/5", "a/6"],
+        ["a/7"],
+        ["a/8", "a/9"],
+    ]
 
 
 def test_last_filter_wins():
@@ -78,3 +82,25 @@ def test_cut_survives_dropping_its_empty_page():
     job.manual_cuts.add("a/2")
     job.drop_empty = True
     assert ids(compute_documents(job)) == [["a/0", "a/1"], ["a/3"]]
+
+
+def test_cut_kinds_names_what_starts_each_document():
+    from fakes import job_from_kinds
+
+    from evrakci.pipeline.cuts import compute_documents, cut_kinds
+    from evrakci.pipeline.job import page_id
+
+    job = job_from_kinds({"a": "pqpppppp"})
+    job.apply_filter([page_id("a", i) for i in (2, 3, 4, 5)], 2)
+    job.add_cut(page_id("a", 7))
+    docs = compute_documents(job)
+    kinds = cut_kinds(job)
+    assert [kinds[d.page_ids[0]] for d in docs] == ["start", "qr", "filter", "filter", "manual"]
+
+
+def test_cut_kinds_first_document_after_a_leading_qr_page_is_qr():
+    from fakes import job_from_kinds
+
+    from evrakci.pipeline.cuts import cut_kinds
+
+    assert cut_kinds(job_from_kinds({"a": "qpp"})) == {"a/1": "qr"}

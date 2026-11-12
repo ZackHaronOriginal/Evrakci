@@ -1,0 +1,855 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-07T00:00:00Z",
+  "title": "Design System: Evrakçı",
+  "extensions": {
+    "colorMeta": {
+      "shell": {
+        "role": "primary",
+        "displayName": "Cabinet Green",
+        "canonical": "#3f5a4c",
+        "cssVar": "--shell",
+        "tonalRamp": [
+          "#050e09",
+          "#182921",
+          "#32483c",
+          "#4f685b",
+          "#70897c",
+          "#96ab9f",
+          "#becdc5",
+          "#ebf0ed"
+        ]
+      },
+      "shell-2": {
+        "role": "primary",
+        "displayName": "Cabinet Green Dark",
+        "canonical": "#344b3f",
+        "cssVar": "--shell-2",
+        "tonalRamp": [
+          "#050d09",
+          "#1a2921",
+          "#33473d",
+          "#52675c",
+          "#72897c",
+          "#97aba0",
+          "#bfcdc5",
+          "#ebf0ed"
+        ]
+      },
+      "shell-3": {
+        "role": "primary",
+        "displayName": "Cabinet Green Light",
+        "canonical": "#5a7566",
+        "cssVar": "--shell-3",
+        "tonalRamp": [
+          "#050e09",
+          "#192921",
+          "#32483c",
+          "#50685a",
+          "#71897c",
+          "#96ab9f",
+          "#bfcdc5",
+          "#ebf0ed"
+        ]
+      },
+      "on-shell": {
+        "role": "primary",
+        "displayName": "On Shell",
+        "canonical": "#ffffff",
+        "cssVar": "--on-shell",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "on-shell-2": {
+        "role": "primary",
+        "displayName": "On Shell Muted",
+        "canonical": "#cddbd2",
+        "cssVar": "--on-shell-2",
+        "tonalRamp": [
+          "#050d08",
+          "#1e2822",
+          "#3b453e",
+          "#59645d",
+          "#7a867e",
+          "#9da9a1",
+          "#c0cdc5",
+          "#eaf0ec"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "#e6ebe7",
+        "cssVar": "--ground",
+        "tonalRamp": [
+          "#090c0a",
+          "#232623",
+          "#3f4340",
+          "#5e625f",
+          "#7f8380",
+          "#a2a6a3",
+          "#c6cac7",
+          "#ecefed"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Card",
+        "canonical": "#fbfaf6",
+        "cssVar": "--card",
+        "tonalRamp": [
+          "#0c0b09",
+          "#262522",
+          "#43423f",
+          "#62615e",
+          "#83827f",
+          "#a6a5a2",
+          "#cac9c6",
+          "#efeeeb"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#ffffff",
+        "cssVar": "--paper",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1d2a23",
+        "cssVar": "--ink",
+        "tonalRamp": [
+          "#070d09",
+          "#1d2822",
+          "#39453f",
+          "#58655e",
+          "#78867e",
+          "#9ba9a1",
+          "#c2ccc6",
+          "#ecefed"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "#4f5d55",
+        "cssVar": "--ink-2",
+        "tonalRamp": [
+          "#080c0a",
+          "#1f2723",
+          "#3a453f",
+          "#58655d",
+          "#79867f",
+          "#9da8a2",
+          "#c3cbc7",
+          "#ecefed"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "#c9d1cb",
+        "cssVar": "--rule",
+        "tonalRamp": [
+          "#080d09",
+          "#212723",
+          "#3e443f",
+          "#5d635e",
+          "#7e847f",
+          "#a0a7a2",
+          "#c4cbc6",
+          "#ecefed"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Rule Strong",
+        "canonical": "#74817a",
+        "cssVar": "--rule-strong",
+        "tonalRamp": [
+          "#080c0a",
+          "#1f2722",
+          "#3b453f",
+          "#59645e",
+          "#7a867f",
+          "#9da8a1",
+          "#c4cbc7",
+          "#ecefed"
+        ]
+      },
+      "control-edge": {
+        "role": "neutral",
+        "displayName": "Control Edge",
+        "canonical": "#7f8c84",
+        "cssVar": "--control-edge",
+        "tonalRamp": [
+          "#080c0a",
+          "#1f2722",
+          "#3c443f",
+          "#5b645e",
+          "#7c857f",
+          "#9ea8a2",
+          "#c4cbc6",
+          "#ecefed"
+        ]
+      },
+      "manila": {
+        "role": "secondary",
+        "displayName": "Manila",
+        "canonical": "#e9d9a6",
+        "cssVar": "--manila",
+        "tonalRamp": [
+          "#140900",
+          "#302400",
+          "#4d4117",
+          "#6d6037",
+          "#8f8257",
+          "#b2a579",
+          "#d7c99c",
+          "#f5eed9"
+        ]
+      },
+      "manila-edge": {
+        "role": "secondary",
+        "displayName": "Manila Edge",
+        "canonical": "#b9a66a",
+        "cssVar": "--manila-edge",
+        "tonalRamp": [
+          "#120a00",
+          "#312300",
+          "#504006",
+          "#70602c",
+          "#92814d",
+          "#b5a46f",
+          "#d5c9a4",
+          "#f2eee1"
+        ]
+      },
+      "manila-ink": {
+        "role": "secondary",
+        "displayName": "Manila Ink",
+        "canonical": "#2b2410",
+        "cssVar": "--manila-ink",
+        "tonalRamp": [
+          "#0e0b03",
+          "#2b2413",
+          "#48422f",
+          "#68614d",
+          "#89826d",
+          "#aca58f",
+          "#cec9b9",
+          "#f0eee9"
+        ]
+      },
+      "index-red": {
+        "role": "functional",
+        "displayName": "Index Red",
+        "canonical": "#c8372d",
+        "cssVar": "--index-red",
+        "tonalRamp": [
+          "#250000",
+          "#540000",
+          "#820001",
+          "#ab2c24",
+          "#d15548",
+          "#ed8274",
+          "#ffb3a7",
+          "#ffe7e3"
+        ]
+      },
+      "rider": {
+        "role": "tertiary",
+        "displayName": "Signal Orange",
+        "canonical": "#e8731a",
+        "cssVar": "--rider",
+        "tonalRamp": [
+          "#240000",
+          "#520000",
+          "#7c1800",
+          "#a13e00",
+          "#c86112",
+          "#ea884c",
+          "#fdb790",
+          "#ffe9db"
+        ]
+      },
+      "rider-edge": {
+        "role": "tertiary",
+        "displayName": "Rider Edge",
+        "canonical": "#9c4a0b",
+        "cssVar": "--rider-edge",
+        "tonalRamp": [
+          "#1d0200",
+          "#451200",
+          "#6d2c00",
+          "#934a19",
+          "#b66d42",
+          "#d49470",
+          "#ecbea5",
+          "#fbebe2"
+        ]
+      },
+      "rider-ink": {
+        "role": "tertiary",
+        "displayName": "Rider Ink",
+        "canonical": "#2a1400",
+        "cssVar": "--rider-ink",
+        "tonalRamp": [
+          "#150800",
+          "#34200c",
+          "#533d29",
+          "#745c47",
+          "#967d67",
+          "#ba9f89",
+          "#dbc5b2",
+          "#f5ede6"
+        ]
+      },
+      "check-ink": {
+        "role": "tertiary",
+        "displayName": "Check Ink",
+        "canonical": "#8a3d00",
+        "cssVar": "--check-ink",
+        "tonalRamp": [
+          "#1c0300",
+          "#441300",
+          "#6c2d00",
+          "#914c20",
+          "#b56e46",
+          "#d39573",
+          "#ebbea7",
+          "#fbebe2"
+        ]
+      },
+      "check-wash": {
+        "role": "tertiary",
+        "displayName": "Check Wash",
+        "canonical": "#fde7d3",
+        "cssVar": "--check-wash",
+        "tonalRamp": [
+          "#140800",
+          "#302214",
+          "#4e3f30",
+          "#6f5e4e",
+          "#907f6e",
+          "#b4a190",
+          "#d9c5b4",
+          "#fcebdc"
+        ]
+      },
+      "row-cur": {
+        "role": "neutral",
+        "displayName": "Current Row",
+        "canonical": "#f3efe0",
+        "cssVar": "--row-cur",
+        "tonalRamp": [
+          "#0e0b04",
+          "#28251b",
+          "#454237",
+          "#646156",
+          "#868276",
+          "#a8a598",
+          "#cdc9bc",
+          "#f2efe1"
+        ]
+      },
+      "qr": {
+        "role": "functional",
+        "displayName": "QR Blue",
+        "canonical": "#1f5fbf",
+        "cssVar": "--qr",
+        "tonalRamp": [
+          "#00072a",
+          "#001f5b",
+          "#063d8a",
+          "#265eb3",
+          "#4b81d5",
+          "#77a6ef",
+          "#aacbfe",
+          "#e3efff"
+        ]
+      },
+      "filter": {
+        "role": "functional",
+        "displayName": "Filter Amber",
+        "canonical": "#b45200",
+        "cssVar": "--filter",
+        "tonalRamp": [
+          "#1f0000",
+          "#490b00",
+          "#732500",
+          "#9a4500",
+          "#be6834",
+          "#dc9066",
+          "#f2bc9f",
+          "#feeae0"
+        ]
+      },
+      "manual": {
+        "role": "functional",
+        "displayName": "Manual Red",
+        "canonical": "#b42318",
+        "cssVar": "--manual",
+        "tonalRamp": [
+          "#250000",
+          "#530000",
+          "#800200",
+          "#ab2d22",
+          "#cf5647",
+          "#ec8373",
+          "#feb3a7",
+          "#ffe7e2"
+        ]
+      },
+      "ok": {
+        "role": "functional",
+        "displayName": "Done Green",
+        "canonical": "#1e6b3a",
+        "cssVar": "--ok",
+        "tonalRamp": [
+          "#001102",
+          "#002f10",
+          "#0e4f28",
+          "#307144",
+          "#559266",
+          "#80b48d",
+          "#b0d4b8",
+          "#e6f2e8"
+        ]
+      },
+      "focus": {
+        "role": "neutral",
+        "displayName": "Focus",
+        "canonical": "#1d2a23",
+        "cssVar": "--focus",
+        "tonalRamp": [
+          "#070d09",
+          "#1d2822",
+          "#39453f",
+          "#58655e",
+          "#78867e",
+          "#9ba9a1",
+          "#c2ccc6",
+          "#ecefed"
+        ]
+      },
+      "v1": {
+        "role": "functional",
+        "displayName": "Variable Teal",
+        "canonical": "#0f7b78",
+        "cssVar": "--v1",
+        "tonalRamp": [
+          "#00100f",
+          "#002e2d",
+          "#004e4c",
+          "#166f6c",
+          "#45918e",
+          "#75b2af",
+          "#a9d3d0",
+          "#e4f2f1"
+        ]
+      },
+      "v2": {
+        "role": "functional",
+        "displayName": "Variable Violet",
+        "canonical": "#6b3fb3",
+        "cssVar": "--v2",
+        "tonalRamp": [
+          "#100028",
+          "#2d0d58",
+          "#4c2785",
+          "#6c47ae",
+          "#8d6cd1",
+          "#ad93eb",
+          "#cebefc",
+          "#f0ebff"
+        ]
+      },
+      "v3": {
+        "role": "functional",
+        "displayName": "Variable Rust",
+        "canonical": "#9a4a12",
+        "cssVar": "--v3",
+        "tonalRamp": [
+          "#1c0200",
+          "#441300",
+          "#6c2c00",
+          "#924b1e",
+          "#b56e45",
+          "#d39472",
+          "#ebbea6",
+          "#fbebe2"
+        ]
+      },
+      "v4": {
+        "role": "functional",
+        "displayName": "Variable Plum",
+        "canonical": "#a3245f",
+        "cssVar": "--v4",
+        "tonalRamp": [
+          "#21000b",
+          "#4c0025",
+          "#770d42",
+          "#a03161",
+          "#c45882",
+          "#e283a5",
+          "#f7b3c9",
+          "#ffe7ee"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "page-title": {
+        "displayName": "Page Title",
+        "purpose": "Screen heading on the index rule."
+      },
+      "panel-title": {
+        "displayName": "Panel Title",
+        "purpose": "Detail panel heading."
+      },
+      "section-title": {
+        "displayName": "Section Title",
+        "purpose": "Section headings with an index rule; app name; big summary figures."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All running text, table cells, field values."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Button labels, window tabs, guide-tab first line, emphasised values."
+      },
+      "secondary": {
+        "displayName": "Secondary",
+        "purpose": "Meta lines, hints, status bar, state text (600)."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Table headers, riders, flag numbers, variable labels, key hints (600). The 13px floor."
+      },
+      "mono-value": {
+        "displayName": "Mono Value",
+        "purpose": "Misread OCR values and output file names only."
+      }
+    },
+    "typeScaleCssVars": {
+      "--t-s": "13px",
+      "--t-m": "14px",
+      "--t": "15px",
+      "--t-l": "17px",
+      "--t-xl": "20px",
+      "--t-xxl": "24px",
+      "--font": "Atkinson Hyperlegible Next, Segoe UI, system-ui, sans-serif",
+      "--mono": "ui-monospace, Consolas, monospace",
+      "--r": "5px"
+    },
+    "fontLicence": {
+      "family": "Atkinson Hyperlegible Next",
+      "licence": "SIL OFL 1.1",
+      "status": "needs owner approval (OFL is not on the MIT/BSD/Apache/MPL/HPND/LGPL list)",
+      "fallback": "Segoe UI",
+      "mono": "ui-monospace, Consolas (misread values and file names only)"
+    },
+    "shadows": [
+      {
+        "name": "sheet",
+        "value": "0 1px 2px rgba(29,42,35,.12)",
+        "purpose": "Page sheets and scan crops (0 1px 3px at .18 for large canvas page and Rehber thumbnail)."
+      },
+      {
+        "name": "rider-lip",
+        "value": "inset 0 -3px 0 rgba(0,0,0,.14)",
+        "purpose": "Lower lip of a signal rider."
+      },
+      {
+        "name": "toggle-pressed",
+        "value": "inset 0 1px 2px rgba(29,42,35,.18)",
+        "purpose": "Toggled tool button."
+      }
+    ],
+    "focus": [
+      {
+        "name": "focus-ring",
+        "value": "outline: 3px solid var(--focus); outline-offset: 2px",
+        "purpose": "Buttons (painted in KeyHintButton in Qt)."
+      },
+      {
+        "name": "focus-ring-page",
+        "value": "box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--focus)",
+        "purpose": "Focused page thumbnail."
+      },
+      {
+        "name": "focus-ring-cell",
+        "value": "box-shadow: inset 0 0 0 2px var(--focus)",
+        "purpose": "Focused table cell, list item or job."
+      }
+    ],
+    "motion": [],
+    "breakpoints": [
+      {
+        "name": "design-canvas",
+        "value": "1366x768"
+      }
+    ],
+    "pictograms": {
+      "grid": "24px",
+      "displaySize": "18px",
+      "strokeWidth": "1.75",
+      "caps": "round",
+      "joins": "round",
+      "source": "docs/superpowers/mockups/kartotek/_icons.html"
+    },
+    "cutTypes": {
+      "qr": {
+        "tabPosition": "left",
+        "pictogram": "qr",
+        "marker": "round badge, solid line"
+      },
+      "filter": {
+        "tabPosition": "centre",
+        "pictogram": "funnel",
+        "marker": "round badge, dashed line, dashed tab"
+      },
+      "manual": {
+        "tabPosition": "right",
+        "pictogram": "scissors",
+        "marker": "square badge, solid line"
+      }
+    },
+    "qt": {
+      "palette": {
+        "Window": "ground",
+        "Base": "paper",
+        "AlternateBase": "card",
+        "WindowText": "ink",
+        "Text": "ink",
+        "ButtonText": "ink",
+        "PlaceholderText": "ink-2",
+        "Button": "paper",
+        "Highlight": "row-cur",
+        "HighlightedText": "ink",
+        "Mid": "rule",
+        "Dark": "rule-strong",
+        "BrightText": "on-shell",
+        "Disabled.Text": "ink-2"
+      },
+      "stylesheet": {
+        "header, QTabBar, QStatusBar": "background shell; text on-shell / on-shell-2",
+        "QTabBar::tab:selected": "background card; color ink; radius 6px top",
+        "toolbar frame, side panels": "background card; 1px rule border bottom/left",
+        "QPushButton": "paper; 1px control-edge; radius 5px; min-height 34px; weight 600",
+        "QPushButton[primary=\"true\"]": "shell; white text",
+        "QLineEdit, QComboBox, QSpinBox": "paper; 1px rule-strong; radius 4px; min-height 34px; focus 2px focus border",
+        "QCheckBox::indicator": "18px; radius 3px; 1.5px rule-strong; checked shell",
+        "QHeaderView::section": "13px/700 ink-2; bottom 1px ink-2; no vertical lines",
+        "QTableView": "gridline rule; row 36px; selection row-cur",
+        "QProgressBar": "1px rule-strong; radius 3px; chunk shell",
+        "QSplitter::handle": "rule, 1px"
+      },
+      "customPainted": [
+        "KeyHintButton (QPushButton subclass: icon + label + key cap + focus ring)",
+        "guide tab",
+        "signal rider and track flag",
+        "cut marker",
+        "page thumbnail delegate",
+        "index rule under headings"
+      ],
+      "shortcutsShownIn": [
+        "button key caps (KeyHintButton)",
+        "window-tab tooltips",
+        "status bar key list"
+      ]
+    },
+    "drift": [
+      "#5a2a00 (dark rider ink on check-wash) hard-coded in kartotek.css code.bad and td.ck, kontrol .flag, sablonlar .why, disa-aktar tr.k: reused, needs a token",
+      "#ffb27a (warn on shell) in kartotek.css status bar and sablonlar unsaved dot: needs a token",
+      "#b8c1bb sheet edge in kartotek.css .sheet, sablonlar .pg, degerler .crop, rehber .thumb: needs a token",
+      "kbd #c3cbc5 border / #f1f3ef fill, primary kbd border #6d8778, disabled text #7d8a82 (3.45:1 on card), literal #fff for on-shell in kartotek.css",
+      "sheet placeholder lines #cfd5d1/#dde2de; kontrol track #7f8c84, empty page #f3f4f1, window rgba(63,90,76,.18); sablonlar stage #dfe5e1, page ink #2a2f2c, bars #d5dbd7/#bfc7c2, table #b9c0bb, stamp #3a5a96/#2f4f8c, literal #74817a (= rule-strong); degerler crop #2b2b2b/#d9ddd9, stamp #4b5d7a/#3c4e6b; yukle guide-tab icon #6b5c2c, busy tab #f3ecd4, drop wash rgba(251,250,246,.6)",
+      "literal font sizes off the scale: degerler 17px/14px/18px/28px, rehber prose 16px",
+      "contrast: control-edge 2.11:1 and rule-strong 2.86:1 on paper are below 3:1 for control/field boundaries"
+    ]
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Default toolbar and panel button: paper, control-edge border, 5px corners, icon then label.",
+      "html": "<button class=\"ds-btn\"><svg class=\"ds-i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/></svg>Geri al</button>",
+      "css": ":host{--shell:#3f5a4c;--shell-2:#344b3f;--shell-3:#5a7566;--on-shell:#ffffff;--on-shell-2:#cddbd2;--ground:#e6ebe7;--card:#fbfaf6;--paper:#ffffff;--ink:#1d2a23;--ink-2:#4f5d55;--rule:#c9d1cb;--rule-strong:#74817a;--control-edge:#7f8c84;--manila:#e9d9a6;--manila-edge:#b9a66a;--manila-ink:#2b2410;--index-red:#c8372d;--rider:#e8731a;--rider-edge:#9c4a0b;--rider-ink:#2a1400;--check-ink:#8a3d00;--check-wash:#fde7d3;--row-cur:#f3efe0;--qr:#1f5fbf;--filter:#b45200;--manual:#b42318;--ok:#1e6b3a;--focus:#1d2a23;--v1:#0f7b78;--v2:#6b3fb3;--v3:#9a4a12;--v4:#a3245f;--font:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;--mono:ui-monospace,Consolas,monospace;--t-s:13px;--t-m:14px;--t:15px;--t-l:17px;--t-xl:20px;--t-xxl:24px;--r:5px;} .ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;} .ds-btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 9px;border:1px solid var(--control-edge);border-radius:var(--r);background:var(--paper);color:var(--ink);font:600 var(--t)/1.4 var(--font);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer;} .ds-btn:hover{background:var(--card);border-color:var(--rule-strong);} .ds-btn:focus-visible{outline:3px solid var(--focus);outline-offset:2px;} .ds-btn:disabled{color:#7d8a82;border-color:var(--rule);background:var(--card);} .ds-kbd{font:600 var(--t-s)/1 var(--font);padding:3px 5px;border:1px solid #c3cbc5;border-bottom-width:2px;border-radius:4px;background:#f1f3ef;color:var(--ink-2);} "
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one action the area is waiting for; cabinet green.",
+      "html": "<button class=\"ds-btn ds-pri\"><svg class=\"ds-i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 4h18l-7 8.5V19l-4 2v-8.5z\"/></svg>Filtreyi uygula<kbd class=\"ds-kbd\">F</kbd></button>",
+      "css": ":host{--shell:#3f5a4c;--shell-2:#344b3f;--shell-3:#5a7566;--on-shell:#ffffff;--on-shell-2:#cddbd2;--ground:#e6ebe7;--card:#fbfaf6;--paper:#ffffff;--ink:#1d2a23;--ink-2:#4f5d55;--rule:#c9d1cb;--rule-strong:#74817a;--control-edge:#7f8c84;--manila:#e9d9a6;--manila-edge:#b9a66a;--manila-ink:#2b2410;--index-red:#c8372d;--rider:#e8731a;--rider-edge:#9c4a0b;--rider-ink:#2a1400;--check-ink:#8a3d00;--check-wash:#fde7d3;--row-cur:#f3efe0;--qr:#1f5fbf;--filter:#b45200;--manual:#b42318;--ok:#1e6b3a;--focus:#1d2a23;--v1:#0f7b78;--v2:#6b3fb3;--v3:#9a4a12;--v4:#a3245f;--font:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;--mono:ui-monospace,Consolas,monospace;--t-s:13px;--t-m:14px;--t:15px;--t-l:17px;--t-xl:20px;--t-xxl:24px;--r:5px;} .ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;} .ds-btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 9px;border:1px solid var(--control-edge);border-radius:var(--r);background:var(--paper);color:var(--ink);font:600 var(--t)/1.4 var(--font);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer;} .ds-btn:hover{background:var(--card);border-color:var(--rule-strong);} .ds-btn:focus-visible{outline:3px solid var(--focus);outline-offset:2px;} .ds-btn:disabled{color:#7d8a82;border-color:var(--rule);background:var(--card);} .ds-kbd{font:600 var(--t-s)/1 var(--font);padding:3px 5px;border:1px solid #c3cbc5;border-bottom-width:2px;border-radius:4px;background:#f1f3ef;color:var(--ink-2);} .ds-pri{background:var(--shell);border-color:var(--shell);color:var(--on-shell);} .ds-pri:hover{background:var(--shell-2);border-color:var(--shell-2);} .ds-pri .ds-kbd{background:var(--shell-3);color:var(--on-shell);border-color:#6d8778;}"
+    },
+    {
+      "name": "KeyHintButton",
+      "kind": "custom",
+      "refersTo": "key-hint",
+      "description": "Button with its key cap painted inside; in Qt one custom-painted QPushButton subclass.",
+      "html": "<button class=\"ds-btn\"><svg class=\"ds-i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10a6 6 0 0 1 0 12h-3\"/></svg>Geri al<kbd class=\"ds-kbd\">Ctrl+Z</kbd></button>",
+      "css": ":host{--shell:#3f5a4c;--shell-2:#344b3f;--shell-3:#5a7566;--on-shell:#ffffff;--on-shell-2:#cddbd2;--ground:#e6ebe7;--card:#fbfaf6;--paper:#ffffff;--ink:#1d2a23;--ink-2:#4f5d55;--rule:#c9d1cb;--rule-strong:#74817a;--control-edge:#7f8c84;--manila:#e9d9a6;--manila-edge:#b9a66a;--manila-ink:#2b2410;--index-red:#c8372d;--rider:#e8731a;--rider-edge:#9c4a0b;--rider-ink:#2a1400;--check-ink:#8a3d00;--check-wash:#fde7d3;--row-cur:#f3efe0;--qr:#1f5fbf;--filter:#b45200;--manual:#b42318;--ok:#1e6b3a;--focus:#1d2a23;--v1:#0f7b78;--v2:#6b3fb3;--v3:#9a4a12;--v4:#a3245f;--font:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;--mono:ui-monospace,Consolas,monospace;--t-s:13px;--t-m:14px;--t:15px;--t-l:17px;--t-xl:20px;--t-xxl:24px;--r:5px;} .ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;} .ds-btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 9px;border:1px solid var(--control-edge);border-radius:var(--r);background:var(--paper);color:var(--ink);font:600 var(--t)/1.4 var(--font);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer;} .ds-btn:hover{background:var(--card);border-color:var(--rule-strong);} .ds-btn:focus-visible{outline:3px solid var(--focus);outline-offset:2px;} .ds-btn:disabled{color:#7d8a82;border-color:var(--rule);background:var(--card);} .ds-kbd{font:600 var(--t-s)/1 var(--font);padding:3px 5px;border:1px solid #c3cbc5;border-bottom-width:2px;border-radius:4px;background:#f1f3ef;color:var(--ink-2);} "
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "34px paper field with rule-strong border and 4px corners.",
+      "html": "<input class=\"ds-input\" value=\"Faaliyet_{Sicil_No}\">",
+      "css": ":host{--shell:#3f5a4c;--shell-2:#344b3f;--shell-3:#5a7566;--on-shell:#ffffff;--on-shell-2:#cddbd2;--ground:#e6ebe7;--card:#fbfaf6;--paper:#ffffff;--ink:#1d2a23;--ink-2:#4f5d55;--rule:#c9d1cb;--rule-strong:#74817a;--control-edge:#7f8c84;--manila:#e9d9a6;--manila-edge:#b9a66a;--manila-ink:#2b2410;--index-red:#c8372d;--rider:#e8731a;--rider-edge:#9c4a0b;--rider-ink:#2a1400;--check-ink:#8a3d00;--check-wash:#fde7d3;--row-cur:#f3efe0;--qr:#1f5fbf;--filter:#b45200;--manual:#b42318;--ok:#1e6b3a;--focus:#1d2a23;--v1:#0f7b78;--v2:#6b3fb3;--v3:#9a4a12;--v4:#a3245f;--font:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;--mono:ui-monospace,Consolas,monospace;--t-s:13px;--t-m:14px;--t:15px;--t-l:17px;--t-xl:20px;--t-xxl:24px;--r:5px;} .ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;} .ds-input{height:34px;border:1px solid var(--rule-strong);border-radius:4px;padding:0 8px;font:var(--t)/1.4 var(--font);background:var(--paper);color:var(--ink);width:240px;} .ds-input:focus-visible{outline:none;border:2px solid var(--focus);padding:0 7px;}"
+    },
+    {
+      "name": "Window Tabs",
+      "kind": "nav",
+      "refersTo": "nav-tab",
+      "description": "Cabinet-green strip; active tab is a card-coloured folder tab. Shortcuts live in tooltips.",
+      "html": "<nav class=\"ds-tabs\"><a title=\"Ctrl+1\">Yükle</a><a class=\"on\" title=\"Ctrl+2\">Kontrol</a><a title=\"Ctrl+3\">Şablonlar</a><a title=\"Ctrl+4\">Değerler</a></nav>",
+      "css": ":host{--shell:#3f5a4c;--shell-2:#344b3f;--shell-3:#5a7566;--on-shell:#ffffff;--on-shell-2:#cddbd2;--ground:#e6ebe7;--card:#fbfaf6;--paper:#ffffff;--ink:#1d2a23;--ink-2:#4f5d55;--rule:#c9d1cb;--rule-strong:#74817a;--control-edge:#7f8c84;--manila:#e9d9a6;--manila-edge:#b9a66a;--manila-ink:#2b2410;--index-red:#c8372d;--rider:#e8731a;--rider-edge:#9c4a0b;--rider-ink:#2a1400;--check-ink:#8a3d00;--check-wash:#fde7d3;--row-cur:#f3efe0;--qr:#1f5fbf;--filter:#b45200;--manual:#b42318;--ok:#1e6b3a;--focus:#1d2a23;--v1:#0f7b78;--v2:#6b3fb3;--v3:#9a4a12;--v4:#a3245f;--font:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;--mono:ui-monospace,Consolas,monospace;--t-s:13px;--t-m:14px;--t:15px;--t-l:17px;--t-xl:20px;--t-xxl:24px;--r:5px;} .ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;} .ds-tabs{display:flex;align-items:flex-end;gap:2px;height:40px;padding:0 12px;background:var(--shell);font:600 var(--t)/1.4 var(--font);} .ds-tabs a{color:var(--on-shell-2);padding:8px 16px 9px;border-radius:6px 6px 0 0;cursor:pointer;} .ds-tabs a:hover{color:var(--on-shell);} .ds-tabs a:focus-visible{outline:3px solid var(--on-shell);outline-offset:-3px;} .ds-tabs a.on{background:var(--card);color:var(--ink);}"
+    },
+    {
+      "name": "Guide Tab with Rider",
+      "kind": "custom",
+      "refersTo": "guide-tab",
+      "description": "Manila tab marking a document start; cut pictogram first; orange rider only when it needs a check.",
+      "html": "<div class=\"ds-gt\"><span class=\"ds-rider\"><svg class=\"ds-i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3 2 20h20z\"/><path d=\"M12 10v4M12 17v.5\"/></svg>Kontrol</span><div class=\"t1\"><svg class=\"ds-i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\"/><path d=\"M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3h-3z\"/></svg>Belge 41 · Kapasite Raporu</div><div class=\"t2\">QR ile başlar · 3 sayfa</div></div>",
+      "css": ":host{--shell:#3f5a4c;--shell-2:#344b3f;--shell-3:#5a7566;--on-shell:#ffffff;--on-shell-2:#cddbd2;--ground:#e6ebe7;--card:#fbfaf6;--paper:#ffffff;--ink:#1d2a23;--ink-2:#4f5d55;--rule:#c9d1cb;--rule-strong:#74817a;--control-edge:#7f8c84;--manila:#e9d9a6;--manila-edge:#b9a66a;--manila-ink:#2b2410;--index-red:#c8372d;--rider:#e8731a;--rider-edge:#9c4a0b;--rider-ink:#2a1400;--check-ink:#8a3d00;--check-wash:#fde7d3;--row-cur:#f3efe0;--qr:#1f5fbf;--filter:#b45200;--manual:#b42318;--ok:#1e6b3a;--focus:#1d2a23;--v1:#0f7b78;--v2:#6b3fb3;--v3:#9a4a12;--v4:#a3245f;--font:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;--mono:ui-monospace,Consolas,monospace;--t-s:13px;--t-m:14px;--t:15px;--t-l:17px;--t-xl:20px;--t-xxl:24px;--r:5px;} .ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;} .ds-gt{position:relative;display:inline-block;margin-top:18px;height:42px;padding:4px 10px 0;background:var(--manila);color:var(--manila-ink);border:1px solid var(--manila-edge);border-bottom:0;border-radius:7px 7px 0 0;font:var(--t)/1.25 var(--font);} .ds-gt .t1{display:flex;gap:6px;align-items:center;font-weight:700;margin-top:4px;} .ds-gt .t1 .ds-i{color:var(--qr);} .ds-gt .t2{font-size:var(--t-s);} .ds-rider{position:absolute;top:-14px;left:14px;height:21px;padding:0 7px 0 5px;display:flex;gap:4px;align-items:center;background:var(--rider);color:var(--rider-ink);font:700 var(--t-s)/1 var(--font);border:1px solid var(--rider-edge);border-radius:3px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.14);} .ds-rider .ds-i{width:14px;height:14px;}"
+    },
+    {
+      "name": "Heading on the Index Rule",
+      "kind": "custom",
+      "refersTo": "page-title",
+      "description": "Screen heading with a 1px index-red rule beneath; subtitle in ink-2.",
+      "html": "<div class=\"ds-gw\"><h1>Belge 40 — Belge 43</h1><span>Sayfa 212–220</span></div>",
+      "css": ":host{--shell:#3f5a4c;--shell-2:#344b3f;--shell-3:#5a7566;--on-shell:#ffffff;--on-shell-2:#cddbd2;--ground:#e6ebe7;--card:#fbfaf6;--paper:#ffffff;--ink:#1d2a23;--ink-2:#4f5d55;--rule:#c9d1cb;--rule-strong:#74817a;--control-edge:#7f8c84;--manila:#e9d9a6;--manila-edge:#b9a66a;--manila-ink:#2b2410;--index-red:#c8372d;--rider:#e8731a;--rider-edge:#9c4a0b;--rider-ink:#2a1400;--check-ink:#8a3d00;--check-wash:#fde7d3;--row-cur:#f3efe0;--qr:#1f5fbf;--filter:#b45200;--manual:#b42318;--ok:#1e6b3a;--focus:#1d2a23;--v1:#0f7b78;--v2:#6b3fb3;--v3:#9a4a12;--v4:#a3245f;--font:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;--mono:ui-monospace,Consolas,monospace;--t-s:13px;--t-m:14px;--t:15px;--t-l:17px;--t-xl:20px;--t-xxl:24px;--r:5px;} .ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;} .ds-gw{display:flex;align-items:center;gap:14px;padding-bottom:8px;border-bottom:1px solid var(--index-red);font:var(--t)/1.4 var(--font);font-variant-numeric:tabular-nums;color:var(--ink);} .ds-gw h1{margin:0;font-size:var(--t-xxl);font-weight:700;} .ds-gw span{color:var(--ink-2);}"
+    },
+    {
+      "name": "Value Table",
+      "kind": "card",
+      "refersTo": "table-row",
+      "description": "Rule-separated rows, no vertical lines; current row, misread value and state text with icon + word.",
+      "html": "<table class=\"ds-list\"><thead><tr><th>Belge</th><th>Sicil_No</th><th>Değerler</th></tr></thead><tbody><tr><td>40</td><td>48197</td><td><span class=\"ds-st ok\"><svg class=\"ds-i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m8 12 3 3 5-6\"/></svg>Tamam</span></td></tr><tr class=\"cur\"><td><b>41</b></td><td><code class=\"ds-bad\">48Z13</code> → 48213?</td><td><span class=\"ds-st ck\"><svg class=\"ds-i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3 2 20h20z\"/><path d=\"M12 10v4M12 17v.5\"/></svg>Kontrol</span></td></tr></tbody></table>",
+      "css": ":host{--shell:#3f5a4c;--shell-2:#344b3f;--shell-3:#5a7566;--on-shell:#ffffff;--on-shell-2:#cddbd2;--ground:#e6ebe7;--card:#fbfaf6;--paper:#ffffff;--ink:#1d2a23;--ink-2:#4f5d55;--rule:#c9d1cb;--rule-strong:#74817a;--control-edge:#7f8c84;--manila:#e9d9a6;--manila-edge:#b9a66a;--manila-ink:#2b2410;--index-red:#c8372d;--rider:#e8731a;--rider-edge:#9c4a0b;--rider-ink:#2a1400;--check-ink:#8a3d00;--check-wash:#fde7d3;--row-cur:#f3efe0;--qr:#1f5fbf;--filter:#b45200;--manual:#b42318;--ok:#1e6b3a;--focus:#1d2a23;--v1:#0f7b78;--v2:#6b3fb3;--v3:#9a4a12;--v4:#a3245f;--font:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;--mono:ui-monospace,Consolas,monospace;--t-s:13px;--t-m:14px;--t:15px;--t-l:17px;--t-xl:20px;--t-xxl:24px;--r:5px;} .ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;} .ds-list{border-collapse:collapse;width:420px;font:var(--t)/1.4 var(--font);font-variant-numeric:tabular-nums;color:var(--ink);background:var(--paper);} .ds-list th{text-align:left;font-size:var(--t-s);font-weight:700;color:var(--ink-2);padding:0 10px 6px;border-bottom:1px solid var(--ink-2);} .ds-list td{padding:0 10px;height:36px;border-bottom:1px solid var(--rule);} .ds-list tr:hover td{background:var(--card);} .ds-list tr.cur td{background:var(--row-cur);} .ds-st{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:var(--t-m);} .ds-st.ok{color:var(--ok);} .ds-st.ck{color:var(--check-ink);} .ds-bad{font:700 var(--t)/1 var(--mono);background:var(--check-wash);color:#5a2a00;padding:2px 5px;border-radius:3px;}"
+    },
+    {
+      "name": "Status Bar",
+      "kind": "custom",
+      "refersTo": "status-bar",
+      "description": "Shell bar with counts, pending checks, and the keyboard list including tab shortcuts.",
+      "html": "<footer class=\"ds-sb\"><span>287 belge</span><span class=\"d\">·</span><span>812 sayfa</span><span class=\"d\">·</span><span class=\"w\"><svg class=\"ds-i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3 2 20h20z\"/><path d=\"M12 10v4M12 17v.5\"/></svg>6 belge kontrol bekliyor</span><span class=\"k\"><span><b>Ctrl+1…5</b> sekmeler</span><span><b>N</b> sonraki kontrol</span></span></footer>",
+      "css": ":host{--shell:#3f5a4c;--shell-2:#344b3f;--shell-3:#5a7566;--on-shell:#ffffff;--on-shell-2:#cddbd2;--ground:#e6ebe7;--card:#fbfaf6;--paper:#ffffff;--ink:#1d2a23;--ink-2:#4f5d55;--rule:#c9d1cb;--rule-strong:#74817a;--control-edge:#7f8c84;--manila:#e9d9a6;--manila-edge:#b9a66a;--manila-ink:#2b2410;--index-red:#c8372d;--rider:#e8731a;--rider-edge:#9c4a0b;--rider-ink:#2a1400;--check-ink:#8a3d00;--check-wash:#fde7d3;--row-cur:#f3efe0;--qr:#1f5fbf;--filter:#b45200;--manual:#b42318;--ok:#1e6b3a;--focus:#1d2a23;--v1:#0f7b78;--v2:#6b3fb3;--v3:#9a4a12;--v4:#a3245f;--font:\"Atkinson Hyperlegible Next\",\"Segoe UI\",system-ui,sans-serif;--mono:ui-monospace,Consolas,monospace;--t-s:13px;--t-m:14px;--t:15px;--t-l:17px;--t-xl:20px;--t-xxl:24px;--r:5px;} .ds-i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none;} .ds-sb{display:flex;align-items:center;gap:10px;height:30px;padding:0 20px;background:var(--shell);color:var(--on-shell);font:var(--t-m)/1.4 var(--font);} .ds-sb .d{color:var(--on-shell-2);} .ds-sb .w{display:flex;gap:6px;align-items:center;} .ds-sb .w .ds-i{color:#ffb27a;} .ds-sb .k{margin-left:auto;display:flex;gap:14px;color:var(--on-shell-2);} .ds-sb .k b{color:var(--on-shell);}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Kartotek",
+    "overview": "Evrakçı looks like the card-index cabinet every chamber office already owns. A deep cabinet-green shell (header, window tabs, status bar) holds pale index cards; each document start is a manila guide tab standing above its pages; anything that needs a human check carries a bright orange signal rider clipped to its tab; and a thin red index rule runs under each heading, exactly like a printed index card. The metaphor is borrowed for palette, type, density and these four signatures only. Every control stays a standard Windows widget, because the product ships as a PySide6/Qt window.\n\nThe screen is dense but calm: 1366×768 is the design canvas, body text is 15px, nothing is smaller than 13px, and a working screen shows the timeline, a value table and a detail panel at once without scrolling. Groups are separated by thin rules on a single card surface, not by stacked boxes, so long sessions read as one sheet of paper rather than a dashboard. Meaning never rides on colour alone: every state has an icon and a word, and every cut type has a position and a pictogram before it has a colour.\n\nThe source of truth is the shipped mockup set in `docs/superpowers/mockups/kartotek/` (`kartotek.css` holds the shared tokens; six screens: yukle, kontrol, sablonlar, degerler, disa-aktar, rehber). It replaces the earlier metro-line (\"Hat Haritası\") world in full; nothing from that world carries over except the cut-type and variable hues, which were kept on purpose.",
+    "keyCharacteristics": [
+      "Cabinet-green chrome around pale card surfaces; one flat, quiet working sheet.",
+      "Manila guide tabs mark where a document starts; orange riders mark \"kontrol\" and nothing else.",
+      "Thin red index rule under headings; thin grey rules between groups; no nested boxes.",
+      "One readable sans (Atkinson Hyperlegible Next) with tabular figures everywhere; mono only for misread values and file names.",
+      "Keyboard first: key hints sit inside the buttons they trigger; tab shortcuts live in tooltips and the status bar.",
+      "Every colour and size is a role-named token so the Qt build maps them to a palette and stylesheet, and later themes swap values, not roles."
+    ],
+    "rules": [
+      {
+        "name": "The Rider Means Kontrol Rule",
+        "body": "Signal orange (rider) appears only on things that need a human check, always with the warn pictogram and the word \"Kontrol\" (or \"N kontrol\"). It is never a brand accent, a hover colour, or a generic warning.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Job Per Warm Rule",
+        "body": "Manila marks where a document or section is filed; orange marks what needs checking. They never swap roles and nothing else on the screen is warm.",
+        "section": "colors"
+      },
+      {
+        "name": "The Variable Names Itself Rule",
+        "body": "A variable colour never appears without the variable's name beside it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Under Headings Rule",
+        "body": "Index red draws only the 1px rule under a heading (screen heading, panel meta line, section heading) and a Rehber chapter number. Rows, panels and groups take the grey rule; red never fills, outlines or flags anything.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Figures are tabular everywhere (`font-variant-numeric: tabular-nums` on the body); page numbers, counts and ranges must line up in columns and never jitter while a count runs.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Means Literal Rule",
+        "body": "Monospace marks text the machine read or will write verbatim (misread values, file names, literal separators in name patterns). It is never used for decoration or headings.",
+        "section": "typography"
+      },
+      {
+        "name": "The 13px Floor Rule",
+        "body": "No text below 13px; body text never below 15px.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rules Not Boxes Rule",
+        "body": "Groups are separated by 1px rules (rule) on one surface. A panel never contains a bordered box; a list item never sits in its own card. The only bordered rectangles are controls, page sheets, and the drop zone.",
+        "section": "layout"
+      },
+      {
+        "name": "The No Scroll Rule",
+        "body": "Each screen's default state fits 1366×768 without scrolling the window; long data scrolls inside its own table or list.",
+        "section": "layout"
+      },
+      {
+        "name": "The Paper Only Rule",
+        "body": "Only paper objects (page sheets, riders, key caps) have depth. Panels, toolbars and dialogs-as-panels are flat.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Position Before Colour Rule",
+        "body": "A cut type must be identifiable in greyscale: tab position and pictogram (plus dashed line for filter) carry it; the cut colour only confirms.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "**Do** take every colour and size from the role tokens; a new screen adds layout only, never a new colour.",
+      "**Do** show \"needs a check\" with the orange rider, the warn pictogram and the word \"Kontrol\", and nothing else in orange.",
+      "**Do** mark cut type by tab position and pictogram first, colour second; dash the filter cut.",
+      "**Do** put the 1px index-red rule under headings only (screen, panel meta, section).",
+      "**Do** separate groups with 1px rules on one surface.",
+      "**Do** keep figures tabular; right-align count columns (pages, QR counts, summary totals).",
+      "**Do** put the key hint inside the button it triggers (one `KeyHintButton`), and tab shortcuts in tooltips and the status bar.",
+      "**Do** pair every state colour with an icon and a word (Tamam, Kontrol, Okunmadı).",
+      "**Do** use mono only for misread values, file names and literal name-pattern text."
+    ],
+    "donts": [
+      "**Don't** use orange for brand, hover, emphasis or generic errors.",
+      "**Don't** draw the index rule as a divider between rows or panels; rows and panels take the grey rule.",
+      "**Don't** nest boxes: no bordered card inside a panel, no card per list item.",
+      "**Don't** put eyebrow labels above headings, gradient text, or thick coloured side borders.",
+      "**Don't** use emoji or Unicode glyphs as icons; icons come from the 18px, 1.75-stroke round-cap sprite.",
+      "**Don't** set text below 13px or body text below 15px.",
+      "**Don't** show a variable colour without the variable's name."
+    ]
+  }
+}

@@ -108,7 +108,7 @@ def test_rotated_letter_page_box(tmp_path):
     entry["beklenen"] = "Örnek Kayıt 2026"
     boxes = _boxes(tmp_path, [entry])
     assert _run(tmp_path, [pdf], boxes) == 0
-    assert "| tesseract-tur | " in (tmp_path / "r.md").read_text(encoding="utf-8")
+    assert "| tesseract-tur (sistem) | " in (tmp_path / "r.md").read_text(encoding="utf-8")
     assert "1/1" in (tmp_path / "r.md").read_text(encoding="utf-8")
 
 
@@ -154,3 +154,35 @@ def test_download_exit_code_on_errors(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("EVRAKCI_TESSDATA_BEST", str(tmp_path / "d"))
     assert main(["ocr-modelleri-indir"]) == 1
     assert "hata" in capsys.readouterr().out
+
+
+@needs_tesseract
+def test_ocr_command(tmp_path, capsys):
+    import pikepdf
+
+    src = make_pdf(tmp_path / "g.pdf", [a4_with(render_line("Örnek Kayıt 2026", 30), (20, 30))])
+    out = tmp_path / "c.pdf"
+    assert main(["ocr", str(src), str(out)]) == 0
+    assert "Metin katmanı eklendi: c.pdf (PDF/A-2b)" in capsys.readouterr().out
+    with pikepdf.open(out) as pdf:
+        assert pdf.open_metadata().pdfa_status == "2B"
+
+
+def test_ocr_command_missing_input(tmp_path, capsys):
+    assert main(["ocr", str(tmp_path / "yok.pdf"), str(tmp_path / "c.pdf")]) == 2
+    err = capsys.readouterr().err
+    assert "Dosya bulunamadı:" in err and "yok.pdf" in err
+
+
+def test_ocr_refuses_overwrite_and_same_file(tmp_path, capsys):
+    src = make_pdf(tmp_path / "g.pdf", [text_page()])
+    existing = make_pdf(tmp_path / "c.pdf", [text_page()])
+    assert main(["ocr", str(src), str(existing)]) == 2
+    assert "zaten var" in capsys.readouterr().err
+    assert main(["ocr", str(src), str(src)]) == 2
+    assert "aynı dosya" in capsys.readouterr().err
+
+
+def test_ocr_missing_input_shows_folder(tmp_path, capsys):
+    assert main(["ocr", str(tmp_path / "yok.pdf"), str(tmp_path / "c.pdf")]) == 2
+    assert str(tmp_path / "yok.pdf") in capsys.readouterr().err

@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
+import time
 import uuid
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 import platformdirs
@@ -22,7 +25,18 @@ class JobFileError(Exception):
 
 
 def default_root() -> Path:
-    return platformdirs.user_data_path("Evrakci", appauthor=False) / "jobs"
+    configured = os.environ.get("EVRAKCI_KOK")
+    return Path(configured) if configured else (
+        platformdirs.user_data_path("Evrakci", appauthor=False) / "jobs")
+
+
+_JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+
+
+@dataclass(frozen=True)
+class PreparedBatch:
+    batch: Batch
+    pages: list[PageInfo]
 
 
 class JobStore:
@@ -30,6 +44,9 @@ class JobStore:
         self.root = Path(root)
 
     def _job_dir(self, job_id: str) -> Path:
+        # A job id is a plain folder name: never "..", a path or anything outside the root.
+        if not isinstance(job_id, str) or not _JOB_ID.fullmatch(job_id):
+            raise KeyError(job_id)
         return self.root / job_id
 
     def _job_file(self, job_id: str) -> Path:
@@ -80,6 +97,22 @@ class JobStore:
             raise
         return batch
 
+    def prepare_batch(self, job: Job, pdf_path: Path) -> PreparedBatch:
+        """Analyze a PDF and copy it into the job folder, without changing `job`.
+
+        Attach it afterwards with `job.attach_batch`, so slow analysis can run on the side
+        while the job is still being edited.
+        """
+        infos = analyze_pdf(Path(pdf_path))
+        number = max((int(b.id[1:]) for b in job.batches), default=0) + 1
+        while self.batch_file(job, Batch(f"b{number}", "", 0)).exists():
+            number += 1  # a file left by an undone earlier batch keeps its name
+        batch = Batch(f"b{number}", Path(pdf_path).name, len(infos))
+        target = self.batch_file(job, batch)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(pdf_path, target)
+        return PreparedBatch(batch, infos)
+
     def _attach(self, job: Job, path: Path, infos: list[PageInfo]) -> Batch:
         number = max((int(b.id[1:]) for b in job.batches), default=0) + 1
         batch = Batch(f"b{number}", path.name, len(infos))
@@ -105,9 +138,12 @@ class JobStore:
         if not path.is_file():
             raise KeyError(job_id)
         try:
-            return job_from_dict(json.loads(path.read_text(encoding="utf-8")))
+            job = job_from_dict(json.loads(path.read_text(encoding="utf-8")))
         except (ValueError, KeyError, TypeError, OSError) as error:
             raise JobFileError(f"İş dosyası okunamadı: {job_id}") from error
+        # The folder is the job: a copied folder must never save into, or delete, the original.
+        job.id = job_id
+        return job
 
     def list_jobs(self, on_error: Callable[[str], None] | None = None) -> list[Job]:
         """Readable jobs, most recently edited first. Unreadable ones go to `on_error`."""
@@ -130,6 +166,40 @@ class JobStore:
         job.remove_batch(batch_id)
         self.save(job)
         path.unlink(missing_ok=True)
+
+    def delete_older_than(
+        self,
+        days: int,
+        now: float | None = None,
+        on_error: Callable[[str], None] | None = None,
+    ) -> list[str]:
+        """Delete Evrakçı jobs whose job.json was last changed more than `days` days ago.
+
+        Only real job folders are touched: not links, and only when job.json is a readable
+        Evrakçı job whose id matches its folder. Anything else is left alone.
+        """
+        if not self.root.is_dir():
+            return []
+        limit = (time.time() if now is None else now) - days * 86400
+        deleted = []
+        for folder in sorted(self.root.iterdir()):
+            path = folder / "job.json"
+            try:
+                if folder.is_symlink() or not folder.is_dir() or not path.is_file():
+                    continue
+                if path.stat().st_mtime >= limit:
+                    continue
+                if self.load(folder.name).id != folder.name:
+                    continue
+            except (JobFileError, KeyError, OSError):
+                continue
+            try:
+                shutil.rmtree(folder)
+                deleted.append(folder.name)
+            except OSError as error:
+                if on_error:
+                    on_error(f"{folder.name}: {error}")
+        return deleted
 
     def delete(self, job_id: str) -> None:
         if not self._job_file(job_id).is_file():

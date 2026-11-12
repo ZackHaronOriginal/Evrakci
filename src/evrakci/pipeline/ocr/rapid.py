@@ -78,7 +78,7 @@ class RapidOcrEngine:
             from rapidocr import LangRec, ModelType, OCRVersion, RapidOCR
         except ImportError as error:
             raise EngineUnavailable(
-                "RapidOCR kurulu değil (pip install \"evrakci[rapidocr]\")"
+                'RapidOCR kurulu değil (pip install "evrakci[rapidocr]")'
             ) from error
         try:
             det = ensure_model(official_model(*_DET), download=self.download)

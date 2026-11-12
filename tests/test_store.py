@@ -94,3 +94,20 @@ def test_add_batch_rolls_back_when_save_fails(tmp_path, monkeypatch):
         store.add_batch(job, src)
     assert [b.id for b in job.batches] == ["b1"] and "b2/0" not in job.pages
     assert not (tmp_path / "jobs" / job.id / "batches" / "b2.pdf").exists()
+
+
+def test_prepared_batch_is_attached_as_a_separate_step(tmp_path):
+    from fakes import make_pdf, qr_page, text_page
+
+    from evrakci.pipeline.store import JobStore
+
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("İş", [make_pdf(tmp_path / "a.pdf", [text_page()])])
+    prepared = store.prepare_batch(job, make_pdf(tmp_path / "b.pdf", [qr_page(), text_page()]))
+    assert len(job.batches) == 1  # preparing never changes the job
+    assert store.batch_file(job, prepared.batch).is_file()
+    job.attach_batch(prepared.batch, prepared.pages)
+    assert [b.id for b in job.batches] == ["b1", "b2"]
+    assert job.pages["b2/0"].is_separator
+    with pytest.raises(ValueError):
+        job.attach_batch(prepared.batch, prepared.pages)

@@ -1,0 +1,92 @@
+<title>Evrakçı Window Looks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&display=swap">
+<style>
+  /* Layout: a single reading column of five numbered options, each a large screenshot with its notes beside or under it. */
+  :root {
+    --bg: #eef1f5; --panel: #ffffff; --fg: #17202c; --muted: #4a5568; --rule: #d3d9e2; --accent: #13294b; --mark: #f5c518;
+    --body: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #10161f; --panel: #19212d; --fg: #e6ebf2; --muted: #a7b2c2; --rule: #2c3644; --accent: #9cb8e6; --mark: #f5c518; color-scheme: dark } }
+  :root[data-theme="dark"] { --bg: #10161f; --panel: #19212d; --fg: #e6ebf2; --muted: #a7b2c2; --rule: #2c3644; --accent: #9cb8e6; --mark: #f5c518; color-scheme: dark }
+  body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5;
+         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; }
+  main { max-width: 1180px; margin: 0 auto; display: grid; gap: 40px; }
+  header h1 { font-size: 2rem; margin: 0 0 8px; text-wrap: balance; }
+  header p { margin: 0; max-width: 68ch; color: var(--muted); }
+  .opt { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+  .opt figure { margin: 0; border-bottom: 1px solid var(--rule); }
+  .opt img { display: block; width: 100%; height: auto; }
+  .txt { padding: 18px 22px 22px; display: grid; gap: 10px; }
+  .txt h2 { margin: 0; font-size: 1.45rem; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .num { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--accent); color: var(--bg); font-size: 1.1rem; }
+  .tag { font-size: .85rem; font-weight: 600; padding: 2px 10px; border-radius: 99px; border: 1px solid var(--rule); color: var(--muted); }
+  .tag.roll { background: var(--mark); color: #2b2200; border-color: transparent; }
+  .txt p { margin: 0; max-width: 75ch; }
+  dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; }
+  dt { font-weight: 700; } dd { margin: 0; color: var(--muted); min-width: 0; }
+  .how { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px 22px; }
+  .how h2 { margin: 0 0 6px; font-size: 1.2rem; }
+  .how p { margin: 0; color: var(--muted); max-width: 70ch; }
+  @media (max-width: 560px) { dl { grid-template-columns: 1fr; } dd { margin-bottom: 6px; } }
+</style>
+
+<main>
+  <header>
+    <h1>Kartotek: all six screens</h1>
+    <p>The look you chose, drawn for every tab at 1366×768 (an older office monitor) with invented data. The same 6 documents need checking on every screen. Click an image for full size. If it all looks right, I build the real window in this look. If not, tell me what to change.</p>
+  </header>
+
+  <section class="opt">
+    <figure><a href="yukle.png"><img src="yukle.png" alt="Yükle screen in the Kartotek look"></a></figure>
+    <div class="txt">
+      <h2><span class="num">1</span>Yükle</h2>
+      <p>Jobs on the left. The job's scan batches are index-card rows you can drag into order. A 4th batch is still being read, with a progress bar and an İptal (cancel) button, and you can keep working meanwhile. Drop new PDFs at the bottom.</p>
+    </div>
+  </section>
+
+  <section class="opt">
+    <figure><a href="kontrol.png"><img src="kontrol.png" alt="Kontrol screen in the Kartotek look"></a></figure>
+    <div class="txt">
+      <h2><span class="num">2</span>Kontrol</h2>
+      <p>The main screen. The strip at the top is the whole job, one thin line per page, with an orange clip on each of the 6 documents that need a check. Below it, each document starts with a manila tab whose position shows how it was cut: left for QR, centre for filter, right for manual. Side panel: why this document starts here, and what needs checking.</p>
+    </div>
+  </section>
+
+  <section class="opt">
+    <figure><a href="sablonlar.png"><img src="sablonlar.png" alt="Şablonlar screen in the Kartotek look"></a></figure>
+    <div class="txt">
+      <h2><span class="num">3</span>Şablonlar</h2>
+      <p>Template maker. Draw boxes on an example page over a millimetre grid. Each variable has its own colour and name. Here a second variant of Sicil_No is being drawn on another example, where the number sits in a stamp. The right panel shows what every box reads, live.</p>
+    </div>
+  </section>
+
+  <section class="opt">
+    <figure><a href="degerler.png"><img src="degerler.png" alt="Değerler screen in the Kartotek look"></a></figure>
+    <div class="txt">
+      <h2><span class="num">4</span>Değerler</h2>
+      <p>Review table, filtered to the 6 documents that need a check while reading continues. The side panel shows the misread spot (48Z13) next to the variant's clear reading (48213). Press Enter to accept, F2 to type.</p>
+    </div>
+  </section>
+
+  <section class="opt">
+    <figure><a href="disa-aktar.png"><img src="disa-aktar.png" alt="Dışa Aktar screen in the Kartotek look"></a></figure>
+    <div class="txt">
+      <h2><span class="num">5</span>Dışa Aktar</h2>
+      <p>Export settings on the left, files being written on the right. Documents that need a check are written with [kontrol] in the name and listed first. A PDF/A note and a no-template file are shown too. Nothing passes silently.</p>
+    </div>
+  </section>
+
+  <section class="opt">
+    <figure><a href="rehber.png"><img src="rehber.png" alt="Rehber screen in the Kartotek look"></a></figure>
+    <div class="txt">
+      <h2><span class="num">6</span>Rehber</h2>
+      <p>Scanning guide: where to put QR separator sheets, with a drawing of the stack, plus a button to print separator pages.</p>
+    </div>
+  </section>
+
+  <section class="how">
+    <h2>To approve</h2>
+    <p>Reply in the chat with "onay" (approved) or with what to change. The earlier five-way comparison is kept in the repository.</p>
+  </section>
+</main>

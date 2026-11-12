@@ -1,0 +1,116 @@
+Evrakçı — bundled components and their licences
+================================================
+
+Evrakçı itself is licensed under the GNU Affero General Public License v3.0 or later
+(AGPL-3.0.txt). Source: https://github.com/ZackHaronOriginal/Evrakci
+
+This installation is a folder build: every library below is a separate, replaceable file.
+Paths are written the Windows way; on Linux the same files sit under lib/ and licenses/.
+
+Component                         Licence                        Source
+--------------------------------  -----------------------------  ------------------------------------------
+Qt 6 / PySide6 / Shiboken6        LGPL-3.0 (LGPL-3.0.txt,        https://code.qt.io  https://pypi.org/project/PySide6
+                                  GPL-3.0.txt)                   The Qt libraries (Qt6*.dll, PySide6 folder) can
+                                                                 be replaced with your own compatible build.
+Tesseract OCR                     Apache-2.0 (Apache-2.0.txt)    https://github.com/tesseract-ocr/tesseract
+Tesseract Turkish data (tur_best) Apache-2.0                     https://github.com/tesseract-ocr/tessdata_best
+OCRmyPDF                          MPL-2.0                        https://github.com/ocrmypdf/OCRmyPDF
+pikepdf / qpdf                    MPL-2.0 / Apache-2.0           https://github.com/pikepdf/pikepdf
+pypdfium2 / PDFium                Apache-2.0 / BSD-3-Clause      https://github.com/pypdfium2-team/pypdfium2
+Pillow                            MIT-CMU (HPND family)          https://github.com/python-pillow/Pillow
+openpyxl                          MIT                            https://foss.heptapod.net/openpyxl/openpyxl
+segno                             BSD-3-Clause                   https://github.com/heuer/segno
+zxing-cpp                         Apache-2.0                     https://github.com/zxing-cpp/zxing-cpp
+platformdirs                      MIT                            https://github.com/platformdirs/platformdirs
+jsonschema(-specifications),      MIT                            (via pikepdf[pdfa])
+referencing,
+fonttools, rpds-py, attrs
+cx_Freeze (runtime stubs)         PSF-2.0                        https://github.com/marcelotduarte/cx_Freeze
+fpdf2 (via OCRmyPDF; img2pdf     LGPL-3.0 (LGPL-3.0.txt)        https://github.com/py-pdf/fpdf2
+is not in the build)
+cryptography                      Apache-2.0 OR BSD-3-Clause     https://github.com/pyca/cryptography
+cffi                              MIT-0                          https://github.com/python-cffi/cffi
+
+Every bundled Python package, with its exact version and its own licence files (including the
+libraries built into pypdfium2/PDFium and pikepdf/qpdf):
+  licenses\VERSIONS.txt and licenses\python\<package>\
+
+
+Python runtime
+--------------
+Python (python3*.dll and the modules in lib\): PSF-2.0. Python-LICENSE.txt is Python's own
+licence file; it also carries the notices of the libraries built into Python (expat, zlib,
+libffi, bzip2, xz, mpdecimal, OpenSSL and others).
+
+Windows only: the Microsoft Visual C++ runtime files (vcruntime140*.dll, msvcp140*.dll and
+related) are redistributed under Microsoft's Visual C++ Redistributable licence terms, which
+cx_Freeze places in share\licenses\.
+
+
+Tesseract for Windows (tesseract\tesseract.exe)
+------------------------------------------------
+Built from source by vcpkg (pinned in packaging\vcpkg\vcpkg.json) as one static program,
+without curl, libarchive or JBIG-KIT. The libraries built into it, each with its licence text
+in tesseract\licenses\<name>.txt:
+
+  tesseract        Apache-2.0
+  leptonica        BSD-2-Clause
+  cpu-features     Apache-2.0
+  giflib           MIT
+  libjpeg-turbo    IJG, BSD-3-Clause and Zlib. This software is based in part on the work of
+                   the Independent JPEG Group.
+  libpng           libpng-2.0
+  libspng          BSD-2-Clause
+  libwebp          BSD-3-Clause
+  openjpeg         BSD-2-Clause
+  tiff (libtiff)   libtiff (BSD-style)
+  liblzma (xz)     0BSD
+  zlib             Zlib
+
+On Linux, Tesseract is not bundled (it comes from the system package); only its small output
+config files (configs\, tessconfigs\, Apache-2.0) and English data for Tesseract 4 are in
+tessdata_best\.
+
+
+Qt's own third-party parts
+--------------------------
+Qt Core, Gui and Widgets contain third-party code under permissive licences, among them:
+double-conversion (BSD-3-Clause), FreeType (FreeType Licence), harfbuzz (MIT), libpng
+(libpng), libjpeg (IJG), md4c (MIT), pcre2 (BSD-3-Clause), zlib (Zlib), tinycbor (MIT) and the
+Unicode Character Database (Unicode licence). ICU (libicu*, Linux build) is under the Unicode
+licence (licenses\linux\ICU.txt). The complete list with every licence text is at
+https://doc.qt.io/qt-6/licenses-used-in-qt.html (for the Qt version in VERSIONS.txt).
+
+Portions of this software are copyright © The FreeType Project (www.freetype.org). All rights
+reserved.
+
+
+Linux build: libraries of the Python runtime
+--------------------------------------------
+In lib/, with licence and copyright texts in licenses/linux/:
+  OpenSSL 3 (libssl, libcrypto)   Apache-2.0 (Apache-2.0.txt)
+  libffi                          MIT (libffi.txt)
+  bzip2 (libbz2)                  bzip2 licence, BSD-style (bzip2.txt)
+  xz (liblzma)                    0BSD / public domain (xz.txt; its GPL parts are the xz tools,
+                                  which are not included)
+  mpdecimal (libmpdec)            BSD-2-Clause (mpdecimal.txt)
+  libuuid (util-linux)            BSD-3-Clause (libuuid.txt; only libuuid is included)
+
+
+Left out on purpose
+-------------------
+GPL-only parts never ship: GNU Readline, GDBM, JBIG-KIT, Qt Virtual Keyboard and Qt Wayland
+Compositor. Qt's PDF module (Qt Pdf and its image plugin) is not used and is removed. The
+build fails if any GPL-only part remains. Ghostscript, PyMuPDF and PyQt are not used and not
+included.
+
+
+Source code
+-----------
+Qt / PySide6 source (LGPL): the exact PySide6 version is listed in VERSIONS.txt. Its source is
+available from https://download.qt.io/official_releases/QtForPython/ and
+https://pypi.org/project/PySide6/ (source distribution). img2pdf and fpdf2 (LGPL-3.0) are
+plain Python files in lib\; their source is the files themselves and https://pypi.org. For at
+least three years, the Evrakçı maintainer also provides the source of every LGPL part listed
+here on written request. To use your own Qt build, replace the files in lib\PySide6\ with a
+compatible build.

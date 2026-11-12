@@ -35,3 +35,12 @@ dist/
 Thumbs.db
 .idea/
 .vscode/
+
+# Packaging
+packaging/stage/
+build/
+packaging/tesseract-bundle/
+dist/
+!docs/superpowers/mockups/*.png
+!docs/screenshots/*.png
+docs/superpowers/mockups/fonts/

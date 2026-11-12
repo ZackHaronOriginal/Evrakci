@@ -1,0 +1,12 @@
+{
+  "name": "evrakci-tesseract",
+  "version-string": "1",
+  "description": "Tesseract for the Windows build: static, without curl, libarchive or JBIG-KIT.",
+  "dependencies": [
+    {
+      "name": "tesseract",
+      "default-features": false
+    }
+  ],
+  "builtin-baseline": "ec48c11eae9448c8c6e7739d93e06fa2433aa95f"
+}

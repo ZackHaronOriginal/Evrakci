@@ -1,0 +1,44 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "docs/superpowers/mockups/plan-5-window.html"
+        ],
+        "createdAt": "2026-11-06T15:00:13.896Z",
+        "reason": "Claude: static approval mockup; flagged .sheet elements depict scanned paper pages with text bars placed like printed lines"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          "docs/superpowers/mockups/plan-5-window.html"
+        ],
+        "createdAt": "2026-11-07T17:22:54.387Z",
+        "reason": "Claude: 9.5–11px text depicts printed text on scanned paper pages inside the mockup, not UI text"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/*"
+        ],
+        "createdAt": "2026-11-07T17:24:57.852Z",
+        "reason": "Claude: throwaway decision sketches; flagged elements are CSS-drawn paper pages and tiny pictogram squares"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "docs/superpowers/mockups/kartotek/*"
+        ],
+        "createdAt": "2026-11-07T23:07:40.810Z",
+        "reason": "Claude: flagged items are key-cap chips and page-number pills sized like native Qt shortcut hints; CSS-drawn paper sheets"
+      }
+    ]
+  }
+}

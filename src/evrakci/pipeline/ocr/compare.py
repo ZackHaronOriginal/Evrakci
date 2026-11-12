@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import subprocess
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -11,10 +10,10 @@ from pathlib import Path
 
 from evrakci.pipeline.ocr.engine import EngineUnavailable, OcrEngine
 from evrakci.pipeline.ocr.metrics import box_hit, cer, exact, turkish_char_errors
-from evrakci.pipeline.ocr.models import data_dir, model_dir
+from evrakci.pipeline.ocr.models import model_dir
 from evrakci.pipeline.ocr.preprocess import prepare_page, prepare_region
 from evrakci.pipeline.ocr.synthetic import SyntheticPage
-from evrakci.pipeline.ocr.tesseract import find_tesseract
+from evrakci.pipeline.ocr.tesseract import find_tesseract, system_tessdata, tessdata_dir
 
 _SAMPLE_LIMIT = 15
 
@@ -95,31 +94,23 @@ def _package_dir(module: str) -> Path | None:
     return Path(next(iter(spec.submodule_search_locations)))
 
 
-def _system_tessdata() -> Path | None:
-    binary = find_tesseract()
-    if binary is None:
-        return None
-    out = subprocess.run([str(binary), "--list-langs"], capture_output=True, text=True).stdout
-    first = out.splitlines()[0] if out else ""
-    if '"' in first:
-        return Path(first.split('"')[1])
-    return None
-
-
 def install_sizes() -> dict[str, int]:
     """Rough install size per engine, in bytes. Engines that aren't installed are left out."""
     sizes: dict[str, int] = {}
     binary = find_tesseract()
-    tessdata = _system_tessdata()
+    tessdata = system_tessdata()
     if binary is not None:
-        base = _tree_size(binary.parent) if binary.parent.name == "Tesseract-OCR" else _tree_size(
-            binary
+        base = (
+            _tree_size(binary.parent)
+            if binary.parent.name == "Tesseract-OCR"
+            else _tree_size(binary)
         )
         if tessdata is not None:
-            sizes["tesseract-tur"] = base + _tree_size(tessdata / "tur.traineddata")
-        best = data_dir() / "tessdata_best" / "tur.traineddata"
-        if best.is_file():
-            sizes["tesseract-tur_best"] = base + _tree_size(best)
+            sizes["tesseract-tur (sistem)"] = base + _tree_size(tessdata / "tur.traineddata")
+        for variant in ("fast", "standard", "best"):
+            data = tessdata_dir(variant) / "tur.traineddata"
+            if data.is_file():
+                sizes[f"tesseract-tur_{variant}"] = base + _tree_size(data)
     runtime = [_package_dir(m) for m in ("onnxruntime", "rapidocr", "cv2")]
     if all(runtime):
         base = sum(_tree_size(path) for path in runtime if path)

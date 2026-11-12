@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Evrakçı – Kontrol</title>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--y:#ffcc00;--k:#111111;--g:#e9eaec;--w:#fff;--line:#c9ccd1;--mut:#4a4f57;--sel:#1f5fbf;--selbg:#dde8f8}
+*{box-sizing:border-box}html,body{width:1440px;height:900px;overflow:hidden;margin:0}
+body{font:15px/1.35 "Atkinson Hyperlegible Next","Source Sans 3",system-ui,sans-serif;color:var(--k);background:var(--g);display:flex;flex-direction:column}
+svg{display:block;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.sq{width:30px;height:30px;background:var(--k);color:#fff;display:grid;place-items:center;flex:none}.sq svg{width:18px;height:18px}
+.sq.s{width:24px;height:24px}.sq.s svg{width:15px;height:15px}
+kbd{font:600 13px/1 inherit;font-family:inherit;border:1px solid #9aa0a8;border-bottom-width:2px;border-radius:3px;padding:2px 5px;background:#f6f7f8;color:var(--k)}
+header{height:44px;background:var(--k);color:#fff;display:flex;align-items:center;gap:20px;padding:0 20px;flex:none}
+header b{font-size:17px}header .job{color:#e3e5e8}header .sv{margin-left:auto;display:flex;gap:8px;align-items:center;color:#e3e5e8}
+nav{height:42px;background:var(--w);display:flex;align-items:flex-end;padding:0 16px;border-bottom:1px solid var(--line);flex:none}
+nav a{padding:0 18px;height:42px;display:flex;align-items:center;color:var(--mut);border-bottom:3px solid transparent;font-weight:600}
+nav a.on{color:var(--k);border-bottom-color:var(--k)}
+.band{height:54px;background:var(--y);display:flex;align-items:center;gap:14px;padding:0 0 0 16px;flex:none;font-size:18px}
+.band .msg b{font-weight:800}.band .rt{margin-left:auto;display:flex;align-items:center;height:100%;gap:14px}
+.band .go{height:100%;background:var(--k);color:var(--y);display:flex;align-items:center;gap:10px;padding:0 20px;font-weight:700}
+.band .go svg{width:22px;height:22px;stroke-width:2.25}
+.tb{height:54px;background:var(--w);display:flex;align-items:center;gap:6px;white-space:nowrap;padding:0 16px;border-bottom:1px solid var(--line);flex:none}
+.btn{height:36px;display:inline-flex;align-items:center;gap:7px;padding:0 10px;border:1px solid #a9aeb5;border-radius:4px;background:var(--w);font:inherit;font-weight:600;white-space:nowrap}
+.btn svg{width:18px;height:18px}.btn.pri{background:var(--k);color:#fff;border-color:var(--k)}.btn.pri kbd{background:#2b2e33;color:#fff;border-color:#5b6068}
+.btn.ic{padding:0 9px}.sep{width:1px;height:28px;background:var(--line);margin:0 3px}
+.selinfo{padding:0 10px;font-weight:400!important;height:36px;display:flex;align-items:center;background:var(--selbg);border:1px solid #b5c9ea;border-radius:4px;font-weight:600}
+input.n{width:46px;height:36px;font:inherit;font-weight:700;text-align:center;border:1px solid #8b9098;border-radius:4px}
+.ov{height:70px;background:var(--w);margin:12px 16px 0;border:1px solid var(--line);padding:10px 16px;display:flex;gap:18px;align-items:center;flex:none}
+.ov .lbl{width:150px;font-size:14px;color:var(--mut)}.ov .lbl b{display:block;font-size:16px;color:var(--k)}
+.trk{position:relative;flex:1;height:44px}
+.rail{position:absolute;left:0;right:0;top:28px;height:10px;background:repeating-linear-gradient(90deg,#b7bbc1 0 1px,#eceef0 1px 4px);border:1px solid #9aa0a8}
+.win{position:absolute;top:22px;height:22px;left:26%;width:1.4%;border:2px solid var(--k);background:rgba(17,17,17,.12)}
+.km{position:absolute;top:0;transform:translateX(-50%);min-width:30px;height:22px;background:var(--y);border:1px solid #9e7f00;font-weight:800;font-size:14px;display:grid;place-items:center;padding:0 4px}
+.km.cur{outline:2px solid var(--k);outline-offset:1px}
+.ax{position:absolute;bottom:-17px;font-size:13px;color:var(--mut)}
+main{flex:1;display:flex;gap:12px;padding:12px 16px;min-height:0}
+.tl{flex:1;background:var(--w);border:1px solid var(--line);padding:14px 14px 0;display:flex;flex-direction:column;min-width:0}
+.row{display:flex;align-items:stretch;gap:0}
+.doc{display:flex;flex-direction:column;padding:0 8px 10px;border:1px solid transparent}
+.doc.dest{background:#fffbe6;border-color:#e6b800;box-shadow:inset 0 6px 0 var(--y)}
+.dh{height:88px;padding-top:10px;display:flex;flex-direction:column;gap:2px}
+.dh .nm{display:flex;align-items:baseline;gap:8px}.dh .big{font-size:32px;font-weight:800;line-height:1}
+.dh .t{font-weight:700;font-size:15px;white-space:nowrap}.dh .tp{font-size:13px;color:var(--mut);white-space:nowrap}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;margin-top:3px;white-space:nowrap}
+.st i{width:16px;height:16px;display:grid;place-items:center;background:var(--k);color:#fff}.st i svg{width:11px;height:11px;stroke-width:2.5}
+.st.k i{background:var(--y);color:var(--k);outline:1px solid var(--k)}.st.o i{background:#fff;outline:1.5px solid var(--k)}
+.pgs{display:flex;gap:8px}
+.pg{width:88px;display:flex;flex-direction:column;align-items:center;gap:5px;padding:4px;border:2px solid transparent;border-radius:3px}
+.pg.sl{background:var(--selbg);border-color:var(--sel)}.pg.fc{outline:3px solid var(--k);outline-offset:2px}
+.sh{width:76px;height:104px;background:#fff;border:1px solid #9aa0a8;box-shadow:0 1px 2px rgba(0,0,0,.18);padding:10px 8px;display:flex;flex-direction:column;gap:5px}
+.sh i{display:block;height:4px;background:#c4c8ce}.sh i.h{height:7px;width:70%;background:#8d939b}.sh i.s{width:55%}
+.sh.e{opacity:.45;border-style:dashed}.sh.qr{align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:800}
+.qrp{width:46px;height:46px;background:conic-gradient(#111 25%,#fff 0 50%,#111 0 75%,#fff 0) 0 0/11.5px 11.5px;outline:4px solid #111;outline-offset:-4px}
+.pn{font-size:16px;font-weight:700}.pn small{font-size:13px;color:var(--mut);font-weight:400}
+.cut{width:46px;display:flex;flex-direction:column;align-items:center;padding-top:28px;gap:6px}
+.cut .r{flex:1;width:0;margin-bottom:10px}.r.qr{border-left:4px solid var(--k)}.r.fl{border-left:4px dashed var(--k)}.r.mn{width:9px;border-left:3px solid var(--k);border-right:3px solid var(--k)}
+.cut span{font-size:13px;font-weight:700;text-align:center;line-height:1.15}
+.leg{margin-top:auto;border-top:1px solid var(--line);display:flex;gap:28px;align-items:center;height:62px;font-size:14px;color:var(--mut)}
+.leg div{display:flex;align-items:center;gap:10px}.leg .r{height:26px;width:0}
+.prev{display:flex;gap:18px;padding:14px 4px 0;border-top:1px solid var(--line);margin-top:4px;flex:1;min-height:0}
+.ocr{flex:1;display:grid;grid-template-columns:150px 1fr 1fr 110px;align-content:start;font-size:15px}
+.ocr>*{padding:8px 10px;border-bottom:1px solid #e0e2e5}.ocr .hd{font-size:13px;color:var(--mut);font-weight:600}
+.ocr .kk{background:#fff6cc;font-weight:700}.mono{font-variant-numeric:tabular-nums;font-weight:700;letter-spacing:.02em}
+aside{width:384px;background:var(--w);border:1px solid var(--line);display:flex;flex-direction:column;flex:none}
+.ah{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:center}
+.ah .big{font-size:44px;font-weight:800;line-height:1}.ah b{font-size:18px;display:block}.ah span{color:var(--mut);font-size:14px}
+.kn{margin:14px 18px 0;background:var(--y);padding:12px 14px;display:flex;gap:12px}
+.kn p{margin:0}.kn .v{margin-top:6px;font-size:15px}.kn .v b{font-size:18px}
+.sec{padding:14px 18px 0}.sec h3{margin:0 0 8px;font-size:16px}
+.why{display:grid;grid-template-columns:24px 1fr auto;gap:8px 10px;align-items:center;font-size:15px}.why em{font-style:normal;color:var(--mut);font-size:14px}
+.acts{margin-top:auto;padding:14px 18px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}.acts .btn{justify-content:space-between;height:40px}
+footer{height:32px;background:var(--k);color:#e9eaec;display:flex;align-items:center;gap:18px;padding:0 16px;font-size:14px;flex:none}
+footer b{color:#fff}footer .k{color:var(--k);background:var(--y);padding:1px 8px;font-weight:700}footer .h{margin-left:auto;color:#c9ccd1}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="warn" viewBox="0 0 24 24"><path d="M12 3 22 20H2Z"/><path d="M12 10v4.5M12 17.5v.01"/></symbol>
+<symbol id="qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M21 14v.01M14 21h7M21 17v4"/></symbol>
+<symbol id="fun" viewBox="0 0 24 24"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5Z"/></symbol>
+<symbol id="sci" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.2 8.2 20 20M8.2 15.8 20 4"/></symbol>
+<symbol id="ok" viewBox="0 0 24 24"><path d="m4 12.5 5 5L20 6.5"/></symbol>
+<symbol id="arr" viewBox="0 0 24 24"><path d="M4 12h16M14 6l6 6-6 6"/></symbol>
+<symbol id="und" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+<symbol id="red" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></symbol>
+<symbol id="rot" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></symbol>
+<symbol id="del" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+<symbol id="tpl" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18"/><path d="M8 8h8M8 12h8M8 16h4"/></symbol>
+<symbol id="mrg" viewBox="0 0 24 24"><path d="M6 4v6a4 4 0 0 0 4 4h8M14 10l4 4-4 4"/></symbol>
+<symbol id="open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></symbol>
+</defs></svg>
+<header><b>Evrakçı</b><span class="job">Kasım 2026 – Faaliyet belgeleri · 3 parti · 812 sayfa</span><span class="sv"><svg width="16" height="16"><use href="#ok"/></svg>Kaydedildi 14:32</span></header>
+<nav><a>Yükle</a><a class="on">Kontrol</a><a>Şablonlar</a><a>Değerler</a><a>Dışa Aktar</a><a>Rehber</a></nav>
+<div class="band"><span class="sq"><svg><use href="#warn"/></svg></span><span class="msg">Sıradaki kontrol: <b>Belge 41</b> · Sicil_No emin değil</span>
+<span class="rt"><span>6 kontrol kaldı</span><span class="go">Sonraki <kbd>N</kbd><svg><use href="#arr"/></svg></span></span></div>
+<div class="tb"><button class="btn ic" title="Geri al"><svg><use href="#und"/></svg>Geri al <kbd>Ctrl+Z</kbd></button><button class="btn ic"><svg><use href="#red"/></svg>Yinele <kbd>Ctrl+Y</kbd></button><span class="sep"></span>
+<span class="selinfo"><b>214–218</b>&nbsp;seçili · 5 sayfa · Belge 41 ve 42</span><span class="sep"></span>
+<span>Her</span><input class="n" value="3"><span>sayfada bir belge</span><button class="btn pri"><svg><use href="#fun"/></svg>Filtreyi uygula <kbd>F</kbd></button>
+<button class="btn"><svg><use href="#sci"/></svg>Kesim <kbd>K</kbd></button><button class="btn"><svg><use href="#tpl"/></svg>Şablon uygula <kbd>T</kbd></button><span class="sep"></span>
+<button class="btn ic" aria-label="Döndür"><svg><use href="#rot"/></svg></button><button class="btn ic" aria-label="Sil"><svg><use href="#del"/></svg></button></div>
+<div class="ov"><div class="lbl"><b>287 belge</b>812 sayfa · 6 kontrol</div><div class="trk"><div class="rail"></div><div class="win"></div>
+<span class="km" style="left:10.8%">17</span><span class="km" style="left:14.4%">23</span><span class="km cur" style="left:26.4%">41</span><span class="km" style="left:37.1%">58</span><span class="km" style="left:56%">96</span><span class="km" style="left:74.1%">131</span>
+<span class="ax" style="left:0">s.1</span><span class="ax" style="left:24.2%">s.211–220</span><span class="ax" style="right:0">s.812</span></div></div>
+<main><section class="tl"><div class="row">
+<div class="doc"><div class="dh"><div class="nm"><span class="big">40</span></div><span class="tp">Faaliyet Belgesi</span><span class="st"><i><svg><use href="#ok"/></svg></i>Tamam</span></div><div class="pgs"><div class="pg"><div class="sh"><i class="h"></i><i></i><i></i><i class="s"></i><i></i><i></i></div><span class="pn">212 <small>son</small></span></div></div></div>
+<div class="cut"><span class="sq s"><svg><use href="#qr"/></svg></span><div class="r qr"></div></div>
+<div class="doc"><div class="dh"><span class="tp" style="margin-top:auto">Ayıraç</span></div><div class="pgs"><div class="pg"><div class="sh qr"><div class="qrp"></div>AYIRAÇ</div><span class="pn">213</span></div></div></div>
+<div class="doc dest"><div class="dh"><div class="nm"><span class="big">41</span><span class="t">Kapasite Raporu</span></div><span class="tp">Şablon: Kapasite raporu · 3 sayfa</span><span class="st k"><i><svg><use href="#warn"/></svg></i>Kontrol · Sicil_No</span></div>
+<div class="pgs"><div class="pg sl fc"><div class="sh"><i class="h"></i><i></i><i class="s"></i><i></i><i></i><i class="s"></i></div><span class="pn">214</span></div><div class="pg sl"><div class="sh"><i></i><i></i><i class="s"></i><i></i><i></i><i></i></div><span class="pn">215</span></div><div class="pg sl"><div class="sh"><i></i><i class="s"></i><i></i><i></i><i class="s"></i></div><span class="pn">216</span></div></div></div>
+<div class="cut"><span class="sq s"><svg><use href="#fun"/></svg></span><div class="r fl"></div></div>
+<div class="doc"><div class="dh"><div class="nm"><span class="big">42</span><span class="t">Faaliyet Belgesi</span></div><span class="tp">Şablon: Faaliyet belgesi</span><span class="st"><i><svg><use href="#ok"/></svg></i>Tamam</span></div>
+<div class="pgs"><div class="pg sl"><div class="sh e"></div><span class="pn">217 <small>boş</small></span></div><div class="pg sl"><div class="sh"><i class="h"></i><i></i><i></i><i class="s"></i><i></i></div><span class="pn">218</span></div></div></div>
+<div class="cut"><span class="sq s"><svg><use href="#sci"/></svg></span><div class="r mn"></div></div>
+<div class="doc"><div class="dh"><div class="nm"><span class="big">43</span></div><span class="tp">Şablon yok</span><span class="st o"><i></i>Okunmadı</span></div><div class="pgs"><div class="pg"><div class="sh"><i class="h"></i><i></i><i class="s"></i><i></i></div><span class="pn">219</span></div></div></div>
+</div>
+<div class="prev"><div class="ocr"><span class="hd">Değişken</span><span class="hd">Okunan (s.214)</span><span class="hd">Öneri</span><span class="hd">Durum</span>
+<span>Firma_Adi</span><span>Ege Tekstil Ltd. Şti.</span><span>—</span><span>Tamam</span>
+<span class="kk">Sicil_No</span><span class="kk mono">48Z13</span><span class="kk mono">48213</span><span class="kk">Kontrol</span>
+<span>Belge_Tarihi</span><span class="mono">03.11.2026</span><span>—</span><span>Tamam</span></div></div>
+<div class="leg"><div><span class="sq s"><svg><use href="#qr"/></svg></span><span class="r qr"></span>QR ayıraç · düz çizgi</div><div><span class="sq s"><svg><use href="#fun"/></svg></span><span class="r fl"></span>Filtre · kesik çizgi</div><div><span class="sq s"><svg><use href="#sci"/></svg></span><span class="r mn" style="width:9px"></span>Elle kesim · çift çizgi</div><div style="margin-left:auto">Seçim: mavi çerçeve · Odak: siyah çerçeve</div></div>
+</section>
+<aside><div class="ah"><span class="big">41</span><div><b>Kapasite Raporu</b><span>3 sayfa · s.214–216 · Şablon: Kapasite raporu</span></div></div>
+<div class="kn"><span class="sq"><svg><use href="#warn"/></svg></span><div><p><b>Sicil_No emin değil</b></p><p class="v">Okundu <b class="mono">48Z13</b> · öneri <b class="mono">48213</b></p></div></div>
+<div class="sec"><button class="btn pri" style="width:100%;justify-content:space-between;height:40px"><span style="display:flex;gap:8px;align-items:center"><svg width="18" height="18"><use href="#open"/></svg>Değerlerde aç</span><kbd>Ctrl+4</kbd></button></div>
+<div class="sec"><h3>Neden burada başlıyor?</h3><div class="why">
+<span class="sq s"><svg><use href="#qr"/></svg></span><span>Önceki kesim: QR ayıraç</span><em>s.213</em>
+<span class="sq s"><svg><use href="#fun"/></svg></span><span>Sonraki kesim: Filtre her 3 s.</span><em>s.216</em>
+<span class="sq s" style="background:#fff;color:var(--k);outline:1.5px dashed var(--k)"><svg><use href="#tpl"/></svg></span><span>Boş sayfa: 1 atlandı</span><em>s.217</em></div></div>
+<div class="acts"><button class="btn"><span style="display:flex;gap:8px;align-items:center"><svg><use href="#del"/></svg>Baştaki kesimi kaldır</span><kbd>Del</kbd></button><button class="btn"><span style="display:flex;gap:8px;align-items:center"><svg><use href="#mrg"/></svg>Öncekiyle birleştir</span><kbd>M</kbd></button></div></aside></main>
+<footer><b>287 belge</b><span>812 sayfa</span><span>14 boş sayfa atlandı</span><span class="k">6 belge kontrol bekliyor</span><span class="h">N sonraki kontrol · K kesim · F filtre · Ctrl+4 değerler</span></footer>
+</body></html>

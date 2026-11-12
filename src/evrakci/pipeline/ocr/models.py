@@ -7,7 +7,9 @@ publishes for that model.
 from __future__ import annotations
 
 import hashlib
+import http.client
 import os
+import sys
 import urllib.request
 from dataclasses import dataclass
 from importlib import resources
@@ -24,6 +26,16 @@ class ModelFile:
     url: str
     sha256: str
     file_name: str
+
+
+def app_dir() -> Path | None:
+    """The installed app's own folder (where bundled tools live), or None when not frozen."""
+    configured = os.environ.get("EVRAKCI_UYGULAMA_KLASORU")
+    if configured:
+        return Path(configured)
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return None
 
 
 def data_dir() -> Path:
@@ -70,9 +82,9 @@ def ensure_model(model: ModelFile, download: bool = True) -> Path:
         with urllib.request.urlopen(model.url, timeout=60) as response, open(partial, "wb") as out:
             for chunk in iter(lambda: response.read(1 << 20), b""):
                 out.write(chunk)
-    except OSError as error:
+    except (OSError, http.client.HTTPException) as error:  # a cut-off transfer is the latter
         partial.unlink(missing_ok=True)
-        raise EngineUnavailable(f"Model indirilemedi: {model.file_name} ({error})") from error
+        raise EngineUnavailable(f"Model indirilemedi: {model.file_name} ({error!r})") from error
     if _sha256(partial) != model.sha256:
         partial.unlink(missing_ok=True)
         raise EngineUnavailable(f"İndirilen model doğrulanamadı: {model.file_name}")

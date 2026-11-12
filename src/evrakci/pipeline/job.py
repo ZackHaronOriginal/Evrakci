@@ -11,8 +11,9 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from evrakci.pipeline.analyze import PageInfo
+from evrakci.pipeline.templates.values import SectionReading, VariableValue
 
-JOB_FORMAT_VERSION = 1
+JOB_FORMAT_VERSION = 2
 
 
 def page_id(batch_id: str, index: int) -> str:
@@ -37,6 +38,24 @@ class FilterApplication:
     every_n: int
 
 
+NO_TEMPLATE = ""  # a template application that takes the template off its pages
+
+
+@dataclass(frozen=True)
+class TemplateApplication:
+    template_id: str
+    page_ids: frozenset[str]
+
+
+@dataclass(frozen=True)
+class ValueSource:
+    """What the stored values were read from: the document's pages and its template."""
+
+    page_ids: tuple[str, ...]
+    template_id: str
+    revision: str = ""  # template_revision() when read; "" for jobs saved before it existed
+
+
 @dataclass
 class Job:
     id: str
@@ -50,12 +69,15 @@ class Job:
     manual_cuts: set[str] = field(default_factory=set)
     removed_cuts: set[str] = field(default_factory=set)
     filters: list[FilterApplication] = field(default_factory=list)
+    templates: list[TemplateApplication] = field(default_factory=list)
+    # Read variable values and reading errors, keyed by each document's first page id.
+    values: dict[str, dict[str, VariableValue]] = field(default_factory=dict)
+    read_errors: dict[str, str] = field(default_factory=dict)
+    value_sources: dict[str, ValueSource] = field(default_factory=dict)
 
     def ordered_page_ids(self) -> list[str]:
         return [
-            page_id(batch.id, index)
-            for batch in self.batches
-            for index in range(batch.page_count)
+            page_id(batch.id, index) for batch in self.batches for index in range(batch.page_count)
         ]
 
     def _check(self, pid: str) -> str:
@@ -77,6 +99,17 @@ class Job:
             raise ValueError("every_n must be at least 1")
         ids = frozenset(self._check(pid) for pid in page_ids)
         self.filters.append(FilterApplication(ids, every_n))
+
+    def apply_template(self, page_ids: Iterable[str], template_id: str) -> None:
+        if not template_id:
+            raise ValueError("template_id must not be empty (use remove_template)")
+        ids = frozenset(self._check(pid) for pid in page_ids)
+        self.templates.append(TemplateApplication(template_id, ids))
+
+    def remove_template(self, page_ids: Iterable[str]) -> None:
+        """Take the template off these pages (a later application, so undo stays simple)."""
+        ids = frozenset(self._check(pid) for pid in page_ids)
+        self.templates.append(TemplateApplication(NO_TEMPLATE, ids))
 
     def rotate(self, pid: str, degrees: int) -> None:
         if degrees % 90:
@@ -124,6 +157,20 @@ class Job:
             edits -= gone
         kept = [FilterApplication(f.page_ids - gone, f.every_n) for f in self.filters]
         self.filters = [f for f in kept if f.page_ids]
+        applied = [TemplateApplication(t.template_id, t.page_ids - gone) for t in self.templates]
+        self.templates = [t for t in applied if t.page_ids]
+        for pid in gone:
+            self.values.pop(pid, None)
+            self.read_errors.pop(pid, None)
+            self.value_sources.pop(pid, None)
+
+    def attach_batch(self, batch: Batch, pages: list[PageInfo]) -> None:
+        """Add an analyzed batch (see JobStore.prepare_batch) at the end."""
+        if any(b.id == batch.id for b in self.batches):
+            raise ValueError(f"batch {batch.id} already in the job")
+        self.batches.append(batch)
+        for index, info in enumerate(pages):
+            self.pages[page_id(batch.id, index)] = info
 
     def get_batch(self, batch_id: str) -> Batch:
         for batch in self.batches:
@@ -150,8 +197,7 @@ def job_to_dict(job: Job) -> dict:
         "id": job.id,
         "name": job.name,
         "batches": [
-            {"id": b.id, "file_name": b.file_name, "page_count": b.page_count}
-            for b in job.batches
+            {"id": b.id, "file_name": b.file_name, "page_count": b.page_count} for b in job.batches
         ],
         "pages": {
             pid: {"ink_ratio": info.ink_ratio, "is_separator": info.is_separator}
@@ -163,22 +209,62 @@ def job_to_dict(job: Job) -> dict:
         "rotations": dict(sorted(job.rotations.items())),
         "manual_cuts": sorted(job.manual_cuts),
         "removed_cuts": sorted(job.removed_cuts),
-        "filters": [
-            {"page_ids": sorted(f.page_ids), "every_n": f.every_n} for f in job.filters
+        "filters": [{"page_ids": sorted(f.page_ids), "every_n": f.every_n} for f in job.filters],
+        "templates": [
+            {"template_id": t.template_id, "page_ids": sorted(t.page_ids)} for t in job.templates
+        ],
+        "values": {
+            pid: {name: _value_to_dict(value) for name, value in values.items()}
+            for pid, values in job.values.items()
+        },
+        "read_errors": dict(job.read_errors),
+        "value_sources": {
+            pid: {"page_ids": list(s.page_ids), "template_id": s.template_id,
+                  "revision": s.revision}
+            for pid, s in job.value_sources.items()
+        },
+    }
+
+
+def _value_to_dict(value: VariableValue) -> dict:
+    return {
+        "value": value.value,
+        "confidence": value.confidence,
+        "section": value.section,
+        "flagged": value.flagged,
+        "suggestion": value.suggestion,
+        "edited": value.edited,
+        "readings": [
+            {"section": r.section, "text": r.text, "confidence": r.confidence, "problem": r.problem}
+            for r in value.readings
         ],
     }
 
 
+def _value_from_dict(data: dict) -> VariableValue:
+    return VariableValue(
+        value=data["value"],
+        confidence=data["confidence"],
+        section=data["section"],
+        flagged=data["flagged"],
+        suggestion=data.get("suggestion", ""),
+        readings=tuple(
+            SectionReading(r["section"], r["text"], r["confidence"], r.get("problem"))
+            for r in data.get("readings", [])
+        ),
+        edited=data.get("edited", False),
+    )
+
+
 def job_from_dict(data: dict) -> Job:
-    if data.get("version") != JOB_FORMAT_VERSION:
+    if data.get("version") not in (1, JOB_FORMAT_VERSION):  # version 1 had no templates
         raise ValueError(f"unsupported job format version: {data.get('version')}")
     return Job(
         id=data["id"],
         name=data["name"],
         batches=[Batch(b["id"], b["file_name"], b["page_count"]) for b in data["batches"]],
         pages={
-            pid: PageInfo(p["ink_ratio"], p["is_separator"])
-            for pid, p in data["pages"].items()
+            pid: PageInfo(p["ink_ratio"], p["is_separator"]) for pid, p in data["pages"].items()
         },
         drop_empty=data["drop_empty"],
         deleted=set(data["deleted"]),
@@ -189,4 +275,17 @@ def job_from_dict(data: dict) -> Job:
         filters=[
             FilterApplication(frozenset(f["page_ids"]), f["every_n"]) for f in data["filters"]
         ],
+        templates=[
+            TemplateApplication(t["template_id"], frozenset(t["page_ids"]))
+            for t in data.get("templates", [])
+        ],
+        values={
+            pid: {name: _value_from_dict(v) for name, v in values.items()}
+            for pid, values in data.get("values", {}).items()
+        },
+        read_errors=dict(data.get("read_errors", {})),
+        value_sources={
+            pid: ValueSource(tuple(s["page_ids"]), s["template_id"], s.get("revision", ""))
+            for pid, s in data.get("value_sources", {}).items()
+        },
     )

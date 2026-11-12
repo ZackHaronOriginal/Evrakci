@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import http.client
 import json
+import os
 import time
 import urllib.request
 from pathlib import Path
@@ -19,11 +22,15 @@ from evrakci.pipeline.ocr.preprocess import prepare_page, prepare_region
 from evrakci.pipeline.ocr.rapid import RapidOcrEngine
 from evrakci.pipeline.ocr.synthetic import make_pages
 from evrakci.pipeline.ocr.tesseract import (
+    TESSDATA_VARIANTS,
     TUR_BEST_URL,
     TesseractEngine,
-    tessdata_best_dir,
-    verify_tur_best,
+    default_tessdata,
+    prepare_tessdata,
+    tessdata_dir,
+    verify_tessdata,
 )
+from evrakci.pipeline.ocr.textlayer import add_text_layer
 
 _DPI = 300
 _TUR_BEST_URL = TUR_BEST_URL
@@ -45,31 +52,59 @@ _SYNTHETIC_NOTES = [
 
 def all_engines() -> list[OcrEngine]:
     return [
-        TesseractEngine("tur", name="tesseract-tur"),
-        TesseractEngine("tur", tessdata_dir=tessdata_best_dir(), name="tesseract-tur_best"),
+        TesseractEngine("tur", name="tesseract-tur (sistem)"),
+        *(
+            TesseractEngine("tur", tessdata_dir=tessdata_dir(v), name=f"tesseract-tur_{v}")
+            for v in ("fast", "standard", "best")
+        ),
         RapidOcrEngine(),
         RapidOcrEngine("multi_PP-OCRv6_rec_small", "PP-OCRv6", name="rapidocr-v6-multi"),
     ]
 
 
-def _render_pages(path: Path) -> list:
+# The one page image kept at a time: real scans are rendered page by page, never all at once.
+_RENDERED: dict[tuple[str, int], object] = {}
+
+
+def _open_pdf(path: Path):
     if not path.is_file():
         raise UserError(f"Dosya bulunamadı: {path.name}")
     try:
-        pdf = pdfium.PdfDocument(str(path))
+        return pdfium.PdfDocument(str(path))
     except pdfium.PdfiumError:
         raise UserError(f"PDF açılamadı: {path.name}") from None
-    try:
-        images = []
-        for index in range(len(pdf)):
-            page = pdf[index]
+
+
+class _Pages:
+    """The pages of the real scans, rendered at 300 dpi only when needed."""
+
+    def __init__(self, pdfs: list[Path]) -> None:
+        self.paths = {path.name: path for path in pdfs}
+        self.counts = {}
+        for path in pdfs:
+            pdf = _open_pdf(path)
             try:
-                images.append(page.render(scale=_DPI / 72, grayscale=True).to_pil().convert("L"))
+                self.counts[path.name] = len(pdf)
             finally:
-                page.close()
-        return images
-    finally:
-        pdf.close()
+                pdf.close()
+            if not self.counts[path.name]:
+                raise UserError(f"PDF'de sayfa yok: {path.name}")
+
+    def image(self, name: str, number: int):
+        key = (name, number)
+        if key not in _RENDERED:
+            _RENDERED.clear()  # let the previous page go first
+            pdf = _open_pdf(self.paths[name])
+            try:
+                page = pdf[number - 1]
+                try:
+                    bitmap = page.render(scale=_DPI / 72, grayscale=True)
+                    _RENDERED[key] = bitmap.to_pil().convert("L")
+                finally:
+                    page.close()
+            finally:
+                pdf.close()
+        return _RENDERED[key]
 
 
 def _load_boxes(path: Path) -> list[dict]:
@@ -105,12 +140,12 @@ def _real_report(
     if duplicates:
         names_text = ", ".join(duplicates)
         raise UserError(f"Aynı adlı PDF'ler var: {names_text}. Lütfen yeniden adlandırın.")
-    pages = {path.name: _render_pages(path) for path in pdfs}
+    pages = _Pages(pdfs)
     for box in boxes:
-        images = pages.get(Path(box["pdf"]).name)
-        if images is None or int(box["sayfa"]) > len(images):
+        name = Path(box["pdf"]).name
+        if not 1 <= int(box["sayfa"]) <= pages.counts.get(name, 0):
             raise UserError(f"Kutudaki PDF veya sayfa yok: {box['pdf']} sayfa {box['sayfa']}")
-        box["_px"] = _box_pixels(box["kutu_mm"], images[int(box["sayfa"]) - 1].size)
+        box["_px"] = _box_pixels(box["kutu_mm"], pages.image(name, int(box["sayfa"])).size)
 
     usable = []
     lines = ["# OCR motor karşılaştırması: gerçek taramalar", ""]
@@ -150,8 +185,9 @@ def _real_report(
                 + " | ".join(cells)
                 + " |"
             )
-    for name, images in pages.items():
-        for number in range(1, len(images) + 1):
+    _RENDERED.clear()
+    for name, count in pages.counts.items():
+        for number in range(1, count + 1):
             lines += ["", f"## {name}, sayfa {number}", ""]
             for engine in usable:
                 lines.append(f"- **{engine.name}:** {texts[engine.name][(name, number)]}")
@@ -160,19 +196,20 @@ def _real_report(
 
 def _read_all(
     engine: OcrEngine,
-    pages: dict[str, list],
+    pages: _Pages,
     boxes: list[dict],
     texts: dict[str, dict[tuple[str, int], str]],
     readings: dict[str, list[str]],
     preprocess: bool,
 ) -> tuple[float, int]:
     """Read every page and box with one engine. Returns (seconds, pages read)."""
-    first = next(iter(pages.values()))[0]
+    first = pages.image(next(iter(pages.counts)), 1)
     engine.read_region(first.crop((0, 0, min(400, first.width), min(100, first.height))))  # warm-up
     seconds, count = 0.0, 0
     page_texts = {}
-    for name, images in pages.items():
-        for number, image in enumerate(images, start=1):
+    for name, count in pages.counts.items():
+        for number in range(1, count + 1):
+            image = pages.image(name, number)
             prepared = prepare_page(image) if preprocess else image
             started = time.perf_counter()
             words = engine.read_page(prepared)
@@ -181,7 +218,7 @@ def _read_all(
             page_texts[(name, number)] = " ".join(w.text for w in words)[:400]
     box_readings = []
     for box in boxes:
-        crop = pages[Path(box["pdf"]).name][box["sayfa"] - 1].crop(box["_px"])
+        crop = pages.image(Path(box["pdf"]).name, box["sayfa"]).crop(box["_px"])
         box_readings.append(engine.read_region(prepare_region(crop) if preprocess else crop).text)
     texts[engine.name] = page_texts
     readings[engine.name] = box_readings
@@ -219,35 +256,81 @@ def download_models(args: argparse.Namespace, store) -> int:
         try:
             path = ensure_model(official_model(version, kind, key))
             print(f"{key}: hazır ({path})")
-        except (EngineUnavailable, ImportError, KeyError) as error:
+        except ImportError:  # e.g. the installed app: RapidOCR is only for the comparison
+            print("RapidOCR kurulu değil; yalnızca motor karşılaştırması için gerekir, atlandı.")
+            break
+        except (EngineUnavailable, KeyError) as error:
             failed = True
             print(f"{key}: hata: {error}")
-    folder = data_dir_for_tur_best()
-    target = folder / "tur.traineddata"
-    if verify_tur_best(folder):
-        print(f"tur_best: hazır ({target})")
-    else:
-        folder.mkdir(parents=True, exist_ok=True)
-        partial = target.with_name(target.name + ".part")
-        try:
-            with urllib.request.urlopen(_TUR_BEST_URL, timeout=120) as response:
-                partial.write_bytes(response.read())
-            partial.replace(target)
-            if not verify_tur_best(folder):
-                raise OSError("indirilen dosya doğrulanamadı")
-            print(f"tur_best: indirildi ({target})")
-        except OSError as error:
-            partial.unlink(missing_ok=True)
-            failed = True
-            print(f"tur_best: hata: {error}")
+    for variant in ("fast", "standard", "best"):
+        failed |= not _download_tessdata(variant)
     return 1 if failed else 0
 
 
-def data_dir_for_tur_best() -> Path:
-    return tessdata_best_dir()
+def _download_tessdata(variant: str) -> bool:
+    folder = tessdata_dir(variant)
+    target = folder / "tur.traineddata"
+    label = f"tur_{variant}"
+    partial = target.with_name(target.name + ".part")
+    try:
+        if verify_tessdata(variant, folder):
+            prepare_tessdata(folder)
+            print(f"{label}: hazır ({target})")
+            return True
+        folder.mkdir(parents=True, exist_ok=True)
+        url = _TUR_BEST_URL if variant == "best" else TESSDATA_VARIANTS[variant].url
+        with urllib.request.urlopen(url, timeout=120) as response:
+            data = response.read()
+        # Checked before it takes the real name, so an unverified file never sits there.
+        if hashlib.sha256(data).hexdigest() != TESSDATA_VARIANTS[variant].sha256:
+            raise OSError("indirilen dosya doğrulanamadı")
+        partial.write_bytes(data)
+        partial.replace(target)
+        prepare_tessdata(folder)
+        print(f"{label}: indirildi ({target})")
+        return True
+    except (OSError, EngineUnavailable, http.client.HTTPException) as error:
+        partial.unlink(missing_ok=True)
+        print(f"{label}: hata: {error!r}" if not str(error) else f"{label}: hata: {error}")
+        return False
+
+
+def ocr_file(args: argparse.Namespace, store) -> int:
+    if not args.giris.is_file():
+        raise UserError(f"Dosya bulunamadı: {args.giris}")
+    if args.cikti.resolve() == args.giris.resolve():
+        raise UserError("Giriş ve çıktı aynı dosya olamaz.")
+    if args.cikti.exists() and not args.uzerine_yaz:
+        raise UserError(
+            f"Çıktı dosyası zaten var: {args.cikti} (üzerine yazmak için --uzerine-yaz)"
+        )
+    # Written beside the target and moved into place only when complete, so a failed run
+    # never damages an existing output file.
+    temporary = args.cikti.with_name(args.cikti.name + ".gecici")
+    tessdata = default_tessdata()
+    try:
+        result = add_text_layer(args.giris, temporary, tessdata=tessdata, pdfa=not args.pdf)
+        os.replace(temporary, args.cikti)
+    except EngineUnavailable as error:
+        raise UserError(str(error)) from None
+    finally:
+        temporary.unlink(missing_ok=True)
+    kind = "PDF/A-2b" if result.pdfa else f"normal PDF: {result.note}" if result.note else "PDF"
+    print(f"Metin katmanı eklendi: {args.cikti.name} ({kind})")
+    print(f"OCR verisi: {'tur_best' if tessdata.folder else 'sistemdeki tur'}")
+    return 0
 
 
 def add_commands(commands: argparse._SubParsersAction) -> None:
+    p = commands.add_parser("ocr", help="bir PDF'e aranabilir Türkçe metin katmanı ekler")
+    p.add_argument("giris", type=Path, metavar="GIRIS.pdf", help="taranmış PDF")
+    p.add_argument("cikti", type=Path, metavar="CIKTI.pdf", help="yazılacak PDF")
+    p.add_argument("--pdf", action="store_true", help="PDF/A yerine normal PDF yaz")
+    p.add_argument(
+        "--uzerine-yaz", action="store_true", help="var olan çıktı dosyasının üzerine yaz"
+    )
+    p.set_defaults(handler=ocr_file)
+
     p = commands.add_parser("ocr-karsilastir", help="OCR motorlarını karşılaştırır, rapor yazar")
     p.add_argument("pdf", type=Path, nargs="*", help="gerçek taramalar (PDF)")
     p.add_argument("--sentetik", type=int, default=0, metavar="N", help="N sentetik sayfa kullan")
@@ -266,6 +349,8 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.set_defaults(handler=compare)
 
     p = commands.add_parser(
-        "ocr-modelleri-indir", help="RapidOCR modellerini ve tur_best verisini indirir"
+        "ocr-modelleri-indir",
+        help="Türkçe OCR verilerini (tur_fast, tur, tur_best) ve varsa RapidOCR "
+             "modellerini indirir",
     )
     p.set_defaults(handler=download_models)

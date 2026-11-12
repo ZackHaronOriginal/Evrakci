@@ -1,0 +1,204 @@
+name: Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+    branches: ["main", "claude/**"]
+    paths:
+      - "packaging/**"
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "docs/tarama-rehberi.md"
+      - ".github/workflows/windows-installer.yml"
+  pull_request:
+    paths:
+      - "packaging/**"
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "docs/tarama-rehberi.md"
+      - ".github/workflows/windows-installer.yml"
+
+permissions:
+  contents: read
+
+env:
+  # vcpkg commit that builds Tesseract (also the baseline in packaging/vcpkg/vcpkg.json).
+  VCPKG_COMMIT: ec48c11eae9448c8c6e7739d93e06fa2433aa95f
+  TRIPLET: x64-windows-static-release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: A release tag must match evrakci.__version__
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version=$(python -c "import sys; sys.path.insert(0, 'src'); import evrakci; print(evrakci.__version__)")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Etiket $GITHUB_REF_NAME ama sürüm $version"; exit 1
+          fi
+
+      - name: Build dependencies from the hashed lock
+        timeout-minutes: 15
+        run: |
+          python -m pip install --require-hashes -r packaging/requirements-build.txt
+          python -m pip install --no-deps -e .
+
+      - name: vcpkg at a pinned commit
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          git clone --filter=blob:none https://github.com/microsoft/vcpkg "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout --detach "$VCPKG_COMMIT"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.bat" -disableMetrics
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/vcpkg-cache
+          key: vcpkg-${{ env.VCPKG_COMMIT }}-${{ hashFiles('packaging/vcpkg/**') }}
+
+      - name: Build Tesseract from source (static, no curl, libarchive or JBIG-KIT)
+        timeout-minutes: 120
+        shell: pwsh
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}/vcpkg-cache
+        run: |
+          New-Item -ItemType Directory -Force $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+          & "$env:RUNNER_TEMP\vcpkg\vcpkg.exe" install `
+            --x-manifest-root=packaging\vcpkg `
+            --x-install-root="$env:RUNNER_TEMP\vcpkg-installed" `
+            --overlay-triplets=packaging\vcpkg\triplets `
+            --triplet=$env:TRIPLET --disable-metrics
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg çıkış kodu $LASTEXITCODE" }
+
+      - name: Stage Tesseract (allow-list of libraries, every licence text)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python packaging/stage_tesseract.py --vcpkg "$env:RUNNER_TEMP\vcpkg-installed\$env:TRIPLET" packaging\tesseract-bundle
+
+      - name: Download and verify Turkish data (tur_fast for tests, tur_best for tests and the build)
+        shell: pwsh
+        run: |
+          $files = @{
+            "tur_fast" = @("https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/tur.traineddata", "7393381111e1152420fc4092cb44eef4237580d21b92bf30d7d221aad192c6b7")
+            "tur_best" = @("https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/main/tur.traineddata", "e0c3338dc17503dc7d335a507c9ae01b2b46cfd07561171e1e1ac55d85e8e438")
+          }
+          foreach ($name in $files.Keys) {
+            Invoke-WebRequest $files[$name][0] -OutFile "$name.traineddata"
+            $hash = (Get-FileHash "$name.traineddata" -Algorithm SHA256).Hash.ToLower()
+            if ($hash -ne $files[$name][1]) { throw "$name checksum mismatch: $hash" }
+          }
+          # A test copy of the bundle with tur_fast; the bundle itself never gets it.
+          Copy-Item packaging\tesseract-bundle "$env:RUNNER_TEMP\tesseract-test" -Recurse
+          Copy-Item tur_fast.traineddata "$env:RUNNER_TEMP\tesseract-test\tessdata\tur.traineddata"
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\tessdata_best" | Out-Null
+          Copy-Item tur_best.traineddata "$env:RUNNER_TEMP\tessdata_best\tur.traineddata"
+
+      - name: Tests (nothing skipped for want of tur_best)
+        timeout-minutes: 30
+        shell: bash
+        env:
+          PYTHONUTF8: "1"
+          QT_QPA_PLATFORM: offscreen
+          # Tests must not write into the real ProgramData ("runner" is only allowed per step).
+          EVRAKCI_ASCII_KOK: ${{ runner.temp }}\ascii-kok
+          EVRAKCI_TESSDATA_BEST: ${{ runner.temp }}\tessdata_best
+        run: |
+          export PATH="$(cygpath "$RUNNER_TEMP")/tesseract-test:$PATH"
+          ruff check .
+          pytest -q
+
+      - name: Freeze (folder build; Tesseract added after cx_Freeze, licences from lib\)
+        timeout-minutes: 30
+        run: python packaging/build.py --tesseract packaging/tesseract-bundle --tur-best tur_best.traineddata
+
+      - name: The build holds the real window plugin and no Tesseract libraries in lib\
+        shell: pwsh
+        run: |
+          if (-not (Test-Path build\evrakci\lib\PySide6\plugins\platforms\qwindows.dll)) { throw "qwindows.dll eksik" }
+          if (-not (Test-Path build\evrakci\docs\tarama-rehberi.md)) { throw "tarama-rehberi.md eksik" }
+          # DLLs only: JBIG2 Python modules (pikepdf, pdfminer) are a different, permissive format.
+          $stray = Get-ChildItem build\evrakci\lib -Recurse -Include "*tesseract*.dll", "*leptonica*.dll", "*jbig*.dll"
+          if ($stray) { throw "lib içinde Tesseract kütüphanesi: $stray" }
+
+      - name: Start the real window (no offscreen) and let it close itself
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $env:EVRAKCI_KAPAT_MS = "3000"
+          $env:EVRAKCI_KOK = "$env:RUNNER_TEMP\pencere-isler"
+          $env:EVRAKCI_SABLON_KOK = "$env:RUNNER_TEMP\pencere-sablonlar"
+          $process = Start-Process build\evrakci\evrakci-arayuz.exe -PassThru
+          if (-not $process.WaitForExit(120000)) { $process.Kill(); throw "pencere kapanmadı" }
+          if ($process.ExitCode -ne 0) { throw "evrakci-arayuz.exe çıkış kodu $($process.ExitCode)" }
+
+      - name: Smoke test the built app (bundled tur_best, threads and worker processes)
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          python packaging/smoke_test.py --komut build\evrakci\evrakci.exe --klasor "$env:RUNNER_TEMP\duman" --beklenen-veri tur_best
+          $env:EVRAKCI_OCR_SURECLER = "1"
+          python packaging/smoke_test.py --komut build\evrakci\evrakci.exe --klasor "$env:RUNNER_TEMP\duman-surec" --beklenen-veri tur_best
+
+      - name: Smoke test from a Turkish-named folder with a Turkish-named temp folder
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $app = "$env:RUNNER_TEMP\Şükrü Uygulama"
+          Copy-Item build\evrakci $app -Recurse
+          $env:TEMP = "$env:RUNNER_TEMP\Geçici Ğ"
+          $env:TMP = $env:TEMP
+          New-Item -ItemType Directory -Force $env:TEMP | Out-Null
+          python packaging/smoke_test.py --komut "$app\evrakci.exe" --klasor "$env:RUNNER_TEMP\duman-tr" --beklenen-veri tur_best
+
+      - name: Build installer (Inno Setup at a pinned version)
+        timeout-minutes: 15
+        shell: pwsh
+        run: |
+          choco install innosetup --version 6.7.1 --allow-downgrade -y --no-progress
+          $version = python -c "import evrakci; print(evrakci.__version__)"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" packaging\evrakci.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC çıkış kodu $LASTEXITCODE" }
+
+      - name: Install, upgrade and uninstall for the current user
+        timeout-minutes: 15
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem dist\Evrakci-Kurulum-*.exe)[0].FullName
+          $app = "$env:LOCALAPPDATA\Programs\Evrakci"
+          function Install-Once($log) {
+            $p = Start-Process $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CURRENTUSER", "/TASKS=addtopath", "/LOG=$log" -PassThru -Wait
+            if ($p.ExitCode -ne 0) { Get-Content $log; throw "kurulum çıkış kodu $($p.ExitCode)" }
+          }
+          function User-Path { [Environment]::GetEnvironmentVariable("Path", "User") }
+          Install-Once "$env:RUNNER_TEMP\kurulum1.log"
+          if (-not (Test-Path "$app\evrakci.exe")) { throw "evrakci.exe kurulmadı" }
+          if (-not ((User-Path) -split ";" -contains $app)) { throw "PATH'e eklenmedi" }
+          python packaging/smoke_test.py --komut "$app\evrakci.exe" --klasor "$env:RUNNER_TEMP\duman-kurulu" --beklenen-veri tur_best
+          Install-Once "$env:RUNNER_TEMP\kurulum2.log"   # upgrade in place
+          if (((User-Path) -split ";" | Where-Object { $_ -eq $app }).Count -ne 1) { throw "PATH'te iki kez" }
+          $jobs = "$env:LOCALAPPDATA\Evrakci\isler\deneme"
+          New-Item -ItemType Directory -Force $jobs | Out-Null
+          Set-Content "$jobs\job.json" "{}"
+          Start-Process "$app\unins000.exe" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait
+          $deadline = (Get-Date).AddSeconds(120)
+          while ((Test-Path "$app\evrakci.exe") -and (Get-Date) -lt $deadline) { Start-Sleep 2 }
+          if (Test-Path "$app\evrakci.exe") { throw "kaldırılamadı" }
+          if ((User-Path) -split ";" -contains $app) { throw "PATH temizlenmedi" }
+          if (-not (Test-Path "$jobs\job.json")) { throw "iş verisi silindi" }
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Evrakci-Kurulum
+          path: dist/*.exe
+          if-no-files-found: error

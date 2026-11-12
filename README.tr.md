@@ -62,6 +62,14 @@ Bu depo herkese açıktır. **Gerçek belgeleri veya üye bilgisi içeren hiçbi
 eklemeyin.** "Sadece test için" bile olsa. `samples/synthetic/` içindeki sahte belgeleri kullanın.
 Gerçek taramalar git tarafından yok sayılan `data/` klasöründe durmalıdır.
 
+## Kurulum (Windows)
+
+Kurulum dosyası GitHub Actions'ta otomatik üretilir ("Windows installer" iş akışı): son başarılı
+çalıştırmayı açıp **Evrakci-Kurulum** dosyasını indirin. Pencereyi (`evrakci-arayuz`), komut satırını
+(`evrakci`), Tesseract'ı ve resmi Türkçe OCR verisini kurar; başka bir şey kurmanız gerekmez. İş
+verileri kullanıcı klasörünüzde durur ve kaldırırken silinmez. Paketlenen bileşenlerin lisansları:
+kurulum klasöründe `licenses\NOTICE.txt`.
+
 ## Geliştirme
 
 ```bash
@@ -84,8 +92,52 @@ evrakci is goster <no>                              # belgeleri listele
 evrakci is disa-aktar <no> --cikti cikti            # her belge için ayrı PDF
 ```
 
+Dışa aktarılan her PDF'e aranabilir Türkçe metin katmanı eklenir ve PDF/A-2b olarak kaydedilir
+(Ghostscript gerekmez). PDF/A doğrulamasından geçemeyen dosya normal aranabilir PDF olarak yazılır
+ve bu çıktıda belirtilir. `--metin-katmani-yok` metin katmanını atlar. Tek dosya için:
+`evrakci ocr giris.pdf cikti.pdf`. OCR, kuruluysa Tesseract'ın resmi `tur_best` verisini kullanır
+(`evrakci ocr-modelleri-indir`). Motor karşılaştırması:
+[docs/ocr-motor-karsilastirma.md](docs/ocr-motor-karsilastirma.md).
+
 Sayfa numaraları her zaman taranan destenin sırasıyla aynıdır. Tüm komutlar için:
 `evrakci --help` ve `evrakci is --help`.
+
+### Şablonlar
+
+Şablonu siz yaparsınız: değişkenlere kendiniz ad verin, sonra her birinin sayfadaki yerini
+işaretleyin (sol üst köşeden milimetre). Aynı türden başka örnek belgelerden ek kutular (varyant)
+ekleyebilirsiniz; sırayla denenir, ilk güvenilir okuma kullanılır.
+
+```bash
+evrakci sablon olustur "Seçim Yetki Belgesi"                      # şablon numarasını yazar
+evrakci sablon degisken-ekle <sablon> "Firma Ünvanı" --zorunlu
+evrakci sablon bolum-ekle <sablon> "Firma Ünvanı" --sayfa 1 --kutu 20,40,150,50
+evrakci sablon bolum-ekle <sablon> "Firma Ünvanı" --sayfa 1 --kutu 20,40,150,62 --ornek uzun.pdf
+evrakci sablon dosya-adi <sablon> "{Firma Ünvanı}"
+evrakci sablon test <sablon> ornek.pdf                            # her kutunun ne okuduğunu gör
+evrakci is sablon-uygula <no> 1-40 <sablon>
+evrakci is oku <no>                                               # şablonlu tüm belgeleri oku
+```
+
+Şablonlar `sablon disa-aktar` / `sablon ice-aktar` ile başka bilgisayarlara taşınabilir.
+
+### Kontrol ve dışa aktarma
+
+```bash
+evrakci is degerler <no> --kontrol              # yalnızca kontrol gereken belgeler
+evrakci is deger <no> 3 "Firma Ünvanı" "Örnek Ticaret Ltd. Şti."   # değeri düzelt
+evrakci is deger <no> 5 "Kayıt No" --oneri      # OCR'ın önerisini kabul et
+evrakci is disa-aktar <no> --cikti cikti        # adlandırılmış PDF'ler + index.xlsx
+```
+
+- Dosya adları şablonun kalıbından oluşur. Windows'un kabul etmediği karakterler çıkarılır, Türkçe
+  harfler korunur, çakışan adlara ` (2)`, ` (3)` eklenir.
+- Eksik veya emin olunamayan **zorunlu** değer dosya adına asla girmez: o belge `belge_NNN.pdf`
+  olarak yazılır ve işaretlenir.
+- `index.xlsx` her dosyayı sayfaları, şablonu, değerleri, PDF/A durumu ve kontrol nedenleriyle listeler.
+- Dışa aktarma boş bir klasör ister; önceki dışa aktarımın dosyaları karışmaz.
+- Saklama: `evrakci ayar saklama sakla` (varsayılan, hiçbir şey silinmez), `disa-aktarinca-sil`
+  (tam dışa aktarımdan sonra iş silinir) veya gün sayısı (örn. `30`).
 
 OCR için gerekli sistem programı (sonraki adımlar): Türkçe dil paketiyle (`tur`) Tesseract.
 

@@ -7,11 +7,28 @@ import json
 import sys
 from pathlib import Path
 
+import pypdfium2 as pdfium
+
 from evrakci.cli.errors import UserError
-from evrakci.pipeline.cuts import compute_documents
-from evrakci.pipeline.job import Job, job_to_dict
+from evrakci.pipeline.cuts import (
+    Document,
+    compute_documents,
+    current_values,
+    document_template,
+    record_read_error,
+)
+from evrakci.pipeline.export import plan_export
+from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after_export
+from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
+from evrakci.pipeline.ocr.engine import EngineUnavailable
+from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
+from evrakci.pipeline.ocr.textlayer import add_text_layer
+from evrakci.pipeline.render import render_page
+from evrakci.pipeline.review import needs_reading, store_reading
+from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsError, load_settings
 from evrakci.pipeline.store import JobStore
-from evrakci.pipeline.writer import write_documents
+from evrakci.pipeline.templates.model import Template, TemplateError, template_revision
+from evrakci.pipeline.templates.read import read_document
 
 
 def load_job(store: JobStore, job_id: str) -> Job:
@@ -44,13 +61,37 @@ def finish_progress_line() -> None:
         _progress_line_open = False
 
 
+def _settings() -> Settings:
+    """The settings, or the safe default (keep everything) if the file can't be read."""
+    try:
+        return load_settings()
+    except SettingsError as error:
+        print(f"{error}. Varsayılan kullanılıyor: sakla.", file=sys.stderr)
+        return Settings()
+
+
+def apply_retention(store: JobStore) -> None:
+    """Delete jobs past the day limit, if the retention setting has one."""
+    days = _settings().retention_days
+    if days:
+
+        def failed(message: str) -> None:
+            print(f"Silinemedi: {message}", file=sys.stderr)
+
+        for job_id in store.delete_older_than(days, on_error=failed):
+            print(f"Saklama süresi doldu, silindi: {job_id}", file=sys.stderr)
+
+
 def create(args: argparse.Namespace, store: JobStore) -> int:
+    apply_retention(store)
     job = store.create_job(args.ad, args.pdf, progress=_progress)
     print(job.id)
     return 0
 
 
 def list_jobs(args: argparse.Namespace, store: JobStore) -> int:
+    apply_retention(store)
+
     def unreadable(job_id: str) -> None:
         print(f"Okunamayan iş: {job_id}", file=sys.stderr)
 
@@ -64,6 +105,17 @@ def add(args: argparse.Namespace, store: JobStore) -> int:
     batch = store.add_batch(job, args.pdf)
     print(f"{batch.id} eklendi ({batch.page_count} sayfa)")
     return 0
+
+
+def _template_names(args: argparse.Namespace) -> dict[str, str]:
+    from evrakci.cli.templates import template_store
+
+    return {t.id: t.name for t in template_store(args).list()}
+
+
+def _export_marks(job: Job, templates: dict[str, Template | None]) -> dict[str, list[str]]:
+    """What export would mark, per document (keyed by its first page): one source of truth."""
+    return {item.document.page_ids[0]: item.checks for item in plan_export(job, templates)}
 
 
 def show(args: argparse.Namespace, store: JobStore) -> int:
@@ -81,11 +133,16 @@ def show(args: argparse.Namespace, store: JobStore) -> int:
         print(json.dumps(payload, ensure_ascii=False, indent=1))
         return 0
     print(f"{job.name} ({job.id})")
+    names = _template_names(args) if job.templates else {}
+    marks_of = _export_marks(job, _job_templates(args, job) if job.templates else {})
     for number, (positions, document) in enumerate(
         zip(doc_positions, documents, strict=True), start=1
     ):
-        mark = "  [eksik sayfa]" if "leftover" in document.flags else ""
-        print(f"{number}. belge: sayfa {positions_text(positions)}{mark}")
+        template_id, _ = document_template(job, document)
+        template = f" ({names.get(template_id, template_id)})" if template_id else ""
+        marks = marks_of.get(document.page_ids[0], [])
+        mark = f"  [kontrol: {', '.join(marks)}]" if marks else ""
+        print(f"{number}. belge{template}: sayfa {positions_text(positions)}{mark}")
     qr = [job.position_of(pid) for pid in job.ordered_page_ids() if job.pages[pid].is_separator]
     print(f"QR sayfaları: {positions_text(qr) if qr else 'yok'}")
     return 0
@@ -180,20 +237,258 @@ def empty_pages(args: argparse.Namespace, store: JobStore) -> int:
     return 0
 
 
+def _layer_note(pdfa: bool, note: str | None) -> str:
+    return " (PDF/A-2b)" if pdfa else f" (normal PDF: {note or 'PDF/A doğrulanamadı'})"
+
+
+def _job_templates(args: argparse.Namespace, job: Job) -> dict[str, Template | None]:
+    from evrakci.cli.templates import template_store
+
+    store_ = template_store(args)
+    found: dict[str, Template | None] = {}
+    for application in job.templates:
+        if application.template_id and application.template_id not in found:
+            try:
+                found[application.template_id] = store_.load(application.template_id)
+            except (KeyError, TemplateError):
+                found[application.template_id] = None
+    return found
+
+
 def export(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
-    documents = compute_documents(job)
+    store.save(job)  # marks the job as in use, so the day limit never removes it mid-export
+    with_layer = not args.metin_katmani_yok
+    tessdata = None
+
+    def progress(stage: str, done: int, total: int) -> None:
+        if stage == "layer" and done < total:
+            print(f"\rMetin katmanı: {done + 1}/{total} belge", end="", file=sys.stderr)
+
     try:
-        paths = write_documents(documents, store.batch_files(job), job.rotations, args.cikti)
-    except FileExistsError:
+        if with_layer:
+            tessdata = default_tessdata()
+            label = "tur_best" if tessdata.folder else "sistem (tur)"
+            print(f"Türkçe veri: {label}")
+        result = export_job(
+            job, store.batch_files(job), _job_templates(args, job), Path(args.cikti),
+            with_layer=with_layer, progress=progress, engine=default_engine() if with_layer
+            else None, add_layer=add_text_layer, tessdata=tessdata,
+        )
+    except EngineUnavailable as error:
         raise UserError(
-            f"Çıktı klasöründe önceki dışa aktarımdan dosyalar var: {args.cikti}. "
-            "Lütfen boş bir klasör seçin."
+            f"{error}. Metin katmanı olmadan yazmak için --metin-katmani-yok kullanın."
         ) from None
-    for path, document in zip(paths, documents, strict=True):
-        positions = [job.position_of(pid) for pid in document.page_ids]
-        print(f"{path.name}: sayfa {positions_text(positions)}")
-    print(f"{len(paths)} belge yazıldı.")
+    except ExportError as error:
+        raise UserError(str(error)) from None
+    finally:
+        if with_layer:
+            print(file=sys.stderr)
+    items, paths = result.items, result.paths
+    notes = {path: _layer_note(pdfa, note) for path, (pdfa, note) in result.notes.items()}
+    for path, item in zip(paths, items, strict=True):
+        positions = [job.position_of(pid) for pid in item.document.page_ids]
+        checks = f" [kontrol: {', '.join(item.checks)}]" if item.checks else ""
+        print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}{checks}")
+    needing = result.needing_check
+    listing = " Liste: index.xlsx" if paths else ""
+    print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.{listing}")
+    if _settings().retention == DELETE_AFTER_EXPORT:
+        if may_delete_after_export(result):
+            store.delete(job.id)
+            print(f"İş silindi (saklama ayarı): {job.id}")
+        elif needing:
+            print(
+                f"İş saklandı: {needing} belge kontrol gerektiriyor; "
+                "düzeltip yeniden dışa aktarabilirsiniz."
+            )
+        elif result.paths and not result.with_layer:
+            print("İş saklandı: metin katmanı eklenmedi; katmanla yeniden dışa aktarabilirsiniz.")
+        else:
+            print("İş saklandı: hiçbir belge yazılmadı.")
+    return 0
+
+
+def apply_template(args: argparse.Namespace, store: JobStore) -> int:
+    from evrakci.cli.templates import load_template, template_store
+
+    job = load_job(store, args.id)
+    start, end = parse_range(args.aralik)
+    template = load_template(template_store(args), args.sablon)
+    page_ids = [page_id_at(job, position) for position in range(start, end + 1)]
+    job.apply_template(page_ids, template.id)
+    store.save(job)
+    print(f"Şablon uygulandı: sayfa {start}-{end}, {template.name}")
+    return 0
+
+
+def remove_template(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    start, end = parse_range(args.aralik)
+    job.remove_template([page_id_at(job, position) for position in range(start, end + 1)])
+    store.save(job)
+    print(f"Şablon kaldırıldı: sayfa {start}-{end}")
+    return 0
+
+
+def _document_pages(store: JobStore, job: Job, document: Document):
+    files = store.batch_files(job)
+
+    def page_image(index: int):
+        pid = document.page_ids[index]
+        batch_id, page_index = parse_page_id(pid)
+        return render_page(files[batch_id], page_index, job.rotations.get(pid, 0))
+
+    return page_image
+
+
+def read_values(args: argparse.Namespace, store: JobStore) -> int:
+
+    job = load_job(store, args.id)
+    engine = default_engine()
+    reason = engine.available()
+    if reason:
+        raise UserError(reason)
+    templates: dict[str, Template | None] = {}
+    documents = compute_documents(job)
+    work = [
+        (number, document, document_template(job, document)[0])
+        for number, document in enumerate(documents, start=1)
+    ]
+    work = [item for item in work if item[2] is not None]
+    if args.sadece_eksik:
+        work = [item for item in work if _needs_reading(args, job, item[1], item[2], templates)]
+    try:
+        for done, (number, document, template_id) in enumerate(work, start=1):
+            print(f"\rOkunuyor: {done}/{len(work)} belge", end="", file=sys.stderr, flush=True)
+            line = _read_one(args, store, job, document, template_id, templates, engine)
+            print(f"{number}. belge{line}")
+            if done % 10 == 0:
+                store.save(job)  # keep progress if the run is stopped
+    finally:
+        if work:
+            print(file=sys.stderr)
+        store.save(job)
+    print(f"{len(work)} belge okundu.")
+    return 0
+
+
+def _load_cached(args, template_id: str, templates: dict) -> Template | str:
+    """The template, or a Turkish reason it cannot be used; loaded once per run."""
+    from evrakci.cli.templates import template_store
+
+    if template_id not in templates:
+        try:
+            templates[template_id] = template_store(args).load(template_id)
+        except KeyError:
+            templates[template_id] = f"Şablon bulunamadı: {template_id}"
+        except TemplateError as error:
+            templates[template_id] = str(error)
+    return templates[template_id]
+
+
+def _needs_reading(args, job: Job, document: Document, template_id: str, templates) -> bool:
+    template = _load_cached(args, template_id, templates)
+    if isinstance(template, str):
+        return True  # read it, so the reason is recorded and shown
+    return needs_reading(job, document, template)
+
+
+def _read_one(args, store, job, document, template_id, templates, engine) -> str:
+    """Read one document; problems are recorded on it and never stop the run."""
+    template = _load_cached(args, template_id, templates)
+    if isinstance(template, str):
+        record_read_error(job, document, template_id, template)
+        return f": {template}"
+    try:
+        values = read_document(
+            template, len(document.page_ids), _document_pages(store, job, document), engine
+        )
+    except (EngineUnavailable, OSError, pdfium.PdfiumError) as error:
+        record_read_error(job, document, template_id, str(error))
+        return f": {error}"
+    store_reading(job, document, template.id, values, template_revision(template))
+    values = current_values(job, document)
+    names = template.names_by_key()
+    summary = ", ".join(f"{names[k]}={v.value or '?'}" for k, v in values.items())
+    mark = " [kontrol]" if any(v.flagged for v in values.values()) else ""
+    return f" ({template.name}): {summary}{mark}"
+
+
+def _templated_documents(args, job: Job):
+    """(number, document, template or None) for every document that has a template."""
+    from evrakci.cli.templates import template_store
+
+    store_ = template_store(args)
+    cache: dict[str, Template | None] = {}
+    for number, document in enumerate(compute_documents(job), start=1):
+        template_id, _ = document_template(job, document)
+        if template_id is None:
+            continue
+        if template_id not in cache:
+            try:
+                cache[template_id] = store_.load(template_id)
+            except (KeyError, TemplateError):
+                cache[template_id] = None
+        yield number, document, cache[template_id]
+
+
+def list_values(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    marks_of = _export_marks(job, _job_templates(args, job))
+    for number, document, template in _templated_documents(args, job):
+        marks = marks_of.get(document.page_ids[0], [])
+        if args.kontrol and not marks:
+            continue
+        positions = positions_text([job.position_of(p) for p in document.page_ids])
+        name = template.name if template else "şablon bulunamadı"
+        print(f"{number}. belge ({name}) sayfa {positions}")
+        values = current_values(job, document)
+        if template is None or values is None:
+            print("  değerler okunmadı")
+            continue
+        for variable in template.variables:
+            value = values.get(variable.key)
+            if value is None:
+                print(f"  {variable.name}: [okunmadı]")
+            elif value.flagged:
+                hint = f", öneri: {value.suggestion}" if value.suggestion else ""
+                print(f"  {variable.name}: [okunamadı{hint}]")
+            else:
+                mark = " [düzeltildi]" if value.edited else ""
+                print(f"  {variable.name}: {value.value}{mark}")
+    return 0
+
+
+def fix_value(args: argparse.Namespace, store: JobStore) -> int:
+    from evrakci.pipeline.review import accept_suggestion, revert_value, set_value
+
+    job = load_job(store, args.id)
+    found = {n: (d, t) for n, d, t in _templated_documents(args, job)}
+    if args.belge not in found:
+        raise UserError(f"Belge yok: {args.belge} (şablonlu belge numarası, is goster)")
+    document, template = found[args.belge]
+    if template is None:
+        raise UserError(f"{args.belge}. belgenin şablonu bulunamadı.")
+    try:
+        key = template.variable(args.ad).key
+    except TemplateError as error:
+        raise UserError(str(error)) from None
+    try:
+        if args.oneri:
+            accept_suggestion(job, document, key)
+        elif args.geri_al:
+            revert_value(job, document, key)
+        else:
+            if args.deger is None:
+                raise UserError("Yeni değeri yazın, ya da --oneri veya --geri-al kullanın.")
+            set_value(job, document, key, args.deger)
+    except KeyError:
+        raise UserError(f"{args.belge}. belgenin değerleri okunmadı (is oku).") from None
+    except ValueError:
+        raise UserError(f"{args.ad} için öneri yok.") from None
+    store.save(job)
+    print(f"{args.belge}. belge, {args.ad}: {current_values(job, document)[key].value}")
     return 0
 
 
@@ -286,7 +581,47 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument("durum", choices=["ac", "kapat"], help="ac veya kapat")
     p.set_defaults(handler=empty_pages)
 
+    p = job_commands.add_parser("sablon-uygula", help="seçili sayfalara şablon uygular")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("aralik", metavar="BAS-SON", help="sayfa aralığı, örn. 1-40")
+    p.add_argument("sablon", metavar="SABLON", help="şablon numarası")
+    p.set_defaults(handler=apply_template)
+
+    p = job_commands.add_parser("sablon-kaldir", help="seçili sayfalardaki şablonu kaldırır")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("aralik", metavar="BAS-SON", help="sayfa aralığı, örn. 1-40")
+    p.set_defaults(handler=remove_template)
+
+    p = job_commands.add_parser("oku", help="şablonlu belgelerdeki değişkenleri okur")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument(
+        "--sadece-eksik", action="store_true",
+        help="yalnızca okunmamış, okunamamış ya da şablonu sonradan değişmiş belgeleri oku"
+    )
+    p.set_defaults(handler=read_values)
+
+    p = job_commands.add_parser("degerler", help="okunan değerleri listeler")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("--kontrol", action="store_true", help="yalnızca kontrol gereken belgeler")
+    p.set_defaults(handler=list_values)
+
+    p = job_commands.add_parser("deger", help="bir değeri düzeltir veya öneriyi kabul eder")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("belge", type=int, metavar="BELGE", help="belge numarası (is goster)")
+    p.add_argument("ad", help="değişken adı")
+    choice = p.add_mutually_exclusive_group()
+    choice.add_argument("deger", nargs="?", help="yeni değer")
+    choice.add_argument("--oneri", action="store_true", help="okunan öneriyi kabul et")
+    choice.add_argument("--geri-al", action="store_true",
+                        help="düzeltmeyi geri al: değer yeniden kontrol bekler")
+    p.set_defaults(handler=fix_value)
+
     p = job_commands.add_parser("disa-aktar", help="her belgeyi ayrı PDF olarak yazar")
     p.add_argument("id", help="iş numarası")
     p.add_argument("--cikti", type=Path, required=True, help="çıktı klasörü")
+    p.add_argument(
+        "--metin-katmani-yok",
+        action="store_true",
+        help="aranabilir metin katmanı ve PDF/A olmadan yaz",
+    )
     p.set_defaults(handler=export)

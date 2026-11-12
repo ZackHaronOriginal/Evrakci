@@ -1,0 +1,332 @@
+/* =====================================================================
+ * Evrakçı final spec, direction A "Fluent 2 Mica": window shell + shared components.
+ * Every colour and size comes from tokens.css; raw px only for 1-3px strokes and
+ * optical insets. The Qt mapping of each block is in README.md §6.
+ * ===================================================================== */
+
+@font-face { font-family: "Inter"; src: local("Inter"), local("Inter Regular"); }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--base); }
+body {
+  font-family: var(--font);
+  font-size: var(--fs-body); line-height: var(--lh-body);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, p { margin: 0; font: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+.num { font-feature-settings: var(--ff-num); }
+.val-f { font-feature-settings: var(--ff-value); }
+.ic { display: inline-flex; width: var(--icon-sm); height: var(--icon-sm); flex: none; }
+.ic svg { width: 100%; height: 100%; stroke-width: 1.75; }
+.ic.md { width: var(--icon-md); height: var(--icon-md); }
+.ic.md svg { stroke-width: 1.6; }
+.t2 { color: var(--text-2); }
+.cap { font-size: var(--fs-caption); line-height: var(--lh-caption); }
+.grow { flex: 1; }
+
+/* ---------- window ---------- */
+.window {
+  position: relative; width: 1366px; height: 768px; overflow: hidden;
+  background: var(--base);
+  display: grid; grid-template-rows: var(--titlebar-h) minmax(0, 1fr) var(--statusbar-h); grid-template-columns: 100%;
+}
+
+/* ---------- title band (L0 / Mica): logo, menu, tabs, drag space, search, caption ----------
+   Text-only tabs: six fixed places, not documents, so the word is the whole label. The job
+   name lives in the status bar; the band keeps a wide drag area at 1366 px. */
+.titlebar { display: flex; align-items: flex-end; padding-left: var(--s3); position: relative; z-index: 3; white-space: nowrap; }
+.titlebar .logo { align-self: center; width: 20px; height: 20px; margin-right: var(--s1); display: block; }
+.titlebar .menubtn { align-self: center; margin-right: var(--s2); }
+.titlebar .iconbtn.on { background: var(--card); box-shadow: inset 0 0 0 1px var(--stroke); }
+.tabs { display: flex; align-items: flex-end; height: 100%; }
+.tab {
+  position: relative; height: var(--tab-h); display: flex; align-items: center;
+  padding: 0 calc(var(--tab-slant) + var(--s2)); color: var(--text-2); font-weight: var(--w-medium);
+  isolation: isolate;
+}
+/* the selected tab is the logo's trapezoid tab, filed into the work layer below it.
+   Qt: one QPainterPath (the same path as the guide tab), fill `layer`, 1px `stroke` on 3 sides. */
+.tab.on { color: var(--text); font-weight: var(--w-semibold); margin-bottom: -1px; height: calc(var(--tab-h) + 1px); }
+.tab.on::before, .tab.on::after {
+  content: ""; position: absolute; z-index: -1;
+  clip-path: polygon(var(--tab-slant) 0, calc(100% - var(--tab-slant)) 0, 100% 100%, 0 100%);
+}
+.tab.on::before { inset: 0; background: var(--stroke); }
+.tab.on::after { inset: 1px 1px 0 1px; background: var(--layer);
+  clip-path: polygon(calc(var(--tab-slant) - .4px) 0, calc(100% - var(--tab-slant) + .4px) 0, 100% 100%, 0 100%); }
+.titlebar .drag { flex: 1; align-self: stretch; }
+.search {
+  align-self: center; display: flex; align-items: center; gap: var(--s2); height: var(--control-h); padding: 0 var(--s3);
+  min-width: 184px; background: var(--layer); border: 1px solid var(--stroke); border-radius: var(--r-control);
+  color: var(--text-2); font-size: var(--fs-caption); margin-right: var(--s2);
+}
+.search .k { margin-left: auto; padding-left: var(--s4); }
+.caption { display: flex; align-self: flex-start; }
+.caption span { width: var(--caption-w); height: 32px; display: flex; align-items: center; justify-content: center; color: var(--icon); }
+
+/* ---------- Alt reveals the menu row as a floating strip under the ≡ button ---------- */
+.menurow {
+  position: absolute; z-index: 30; display: flex; gap: 2px; padding: var(--s1);
+  background: var(--popover); border: 1px solid var(--stroke); border-radius: var(--r-layer);
+  box-shadow: var(--shadow-float), var(--edge-light);
+}
+.menurow span { height: var(--control-h); display: inline-flex; align-items: center; padding: 0 var(--s3); border-radius: var(--r-control); }
+.menurow span.on { background: var(--hover-pop); }
+.menurow u { text-underline-offset: 3px; }
+
+/* ---------- icon buttons ---------- */
+.iconbtn {
+  width: var(--icon-btn); height: var(--icon-btn); display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-control); color: var(--icon); flex: none;
+}
+.iconbtn:hover, .iconbtn.hov { background: var(--hover); }
+.iconbtn.sm { width: var(--control-h); height: var(--control-h); }
+.iconbtn.on { background: var(--selected); color: var(--text); }
+/* disabled: icon ink at Fluent's disabled alpha, so the bar shows at a glance what works.
+   WCAG exempts disabled controls; HC uses GrayText at full strength instead (--dis-alpha 1). */
+.iconbtn.dis, .cmd.dis { color: var(--dis-ink); opacity: var(--dis-alpha); }
+.iconbtn.dis .ic, .cmd.dis .ic { color: var(--dis-ink); }
+
+/* ---------- L1 layer: rounded work surface under the tabs ---------- */
+.layer {
+  position: relative; margin: 0 var(--s2); background: var(--layer);
+  border: 1px solid var(--stroke); border-radius: var(--r-layer);
+  box-shadow: var(--edge-light);
+  display: grid; grid-template-rows: var(--commandbar-h) minmax(0, 1fr); min-height: 0; overflow: hidden;
+}
+/* the layer under the first tab keeps a square top-left corner only when that tab sits on it */
+.body { display: grid; min-height: 0; min-width: 0; padding: 0 var(--s3) var(--s3); gap: var(--s3); }
+
+/* ---------- command bar: icon-first, at most two labels ---------- */
+.commandbar { display: flex; align-items: center; gap: 2px; padding: 0 var(--s2); min-width: 0; white-space: nowrap; }
+.commandbar .sep { width: 1px; height: 20px; background: var(--stroke); margin: 0 var(--s2); flex: none; }
+.cmd {
+  height: var(--icon-btn); display: inline-flex; align-items: center; gap: var(--s2); padding: 0 var(--s3) 0 var(--s2);
+  border-radius: var(--r-control); color: var(--text); font-weight: var(--w-medium); white-space: nowrap; flex: none;
+}
+.cmd .ic { color: var(--icon); }
+.cmd:hover, .cmd.hov { background: var(--hover); }
+.cmd.on { background: var(--selected); }
+
+/* ---------- buttons (Fluent: filled primary, standard, subtle) ---------- */
+.btn {
+  height: var(--control-h); display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  padding: 0 var(--s3); border-radius: var(--r-control); font-weight: var(--w-medium); white-space: nowrap;
+  background: var(--card); border: 1px solid var(--stroke);
+}
+.btn.primary { background: var(--accent-fill); color: var(--text-on-accent); border-color: transparent; font-weight: var(--w-semibold); }
+.btn.primary.hov { background: var(--accent-fill-hover); }
+.btn.subtle { background: transparent; border-color: transparent; }
+.btn.subtle:hover { background: var(--hover); }
+.btn.subtle.dis { border-color: transparent; }
+.btn.dis { color: var(--text-dis); background: transparent; border-color: var(--stroke); }
+.btn.primary.dis { background: var(--track); color: var(--text-dis); }
+.btn .ic { color: inherit; }
+.btn.lg { height: calc(var(--control-h) + 8px); }
+.btn .k { font-weight: var(--w-regular); font-size: var(--fs-caption); opacity: .85; margin-left: var(--s1); }
+
+/* ---------- fields ---------- */
+.field {
+  display: flex; align-items: center; gap: var(--s2); height: var(--control-h); padding: 0 var(--s3); min-width: 0;
+  background: var(--card); border: 1px solid var(--stroke); border-bottom-color: var(--edge); border-radius: var(--r-control);
+  color: var(--text); white-space: nowrap;
+}
+.field .ic { color: var(--icon); }
+.field.ph { color: var(--text-2); }
+.field .end { margin-left: auto; display: inline-flex; align-items: center; gap: var(--s2); color: var(--text-2); }
+.field.focus, .field.err { border-bottom: 2px solid var(--accent); }
+.field.err { border-bottom-color: var(--danger); }
+.chk { width: 20px; height: 20px; border-radius: var(--r-control); flex: none; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--edge); background: var(--card); }
+.chk.on { background: var(--accent-fill); border-color: var(--accent); color: var(--text-on-accent); }
+.chk.on .ic { width: 14px; height: 14px; }
+.chk.on .ic svg { stroke-width: 3; }
+.chk.dis { opacity: .55; }
+[data-theme="hc"] .chk.dis { opacity: 1; background: var(--base); border-color: var(--text-dis); color: var(--text-dis); }
+
+/* ---------- cards and inspector ---------- */
+.card { background: var(--card); border: 1px solid var(--stroke); border-radius: var(--r-layer); box-shadow: var(--edge-light); }
+.group-label { font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: var(--w-semibold); color: var(--text-2); margin: 0 0 var(--s2) var(--s1); }
+.inspector { display: flex; flex-direction: column; gap: var(--s3); min-height: 0; min-width: 0; }
+.inspector .scroll { display: flex; flex-direction: column; gap: var(--s4); overflow-y: auto; min-height: 0; padding: var(--s1) 2px 2px; margin: 0 -2px; }
+.ins-title { font-size: var(--fs-panel); line-height: var(--lh-panel); font-weight: var(--w-semibold); letter-spacing: -.005em;
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.ins-sub { color: var(--text-2); margin-top: 2px; }
+.ins-foot { display: flex; flex-direction: column; gap: var(--s1); margin-top: auto; }
+.ins-foot .btn.primary { height: calc(var(--control-h) + 8px); }
+.ins-foot .note { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); display: flex; gap: var(--s2); align-items: center; justify-content: center; padding-top: var(--s1); }
+/* label/value rows (Settings style, no hairlines) */
+.kv { padding: var(--s1) 0; }
+.kv .r { display: flex; align-items: center; min-height: calc(var(--row-h) - 4px); padding: 0 var(--s4); gap: var(--s3); }
+.kv .r .k { width: calc(96px * var(--ts)); color: var(--text-2); font-size: var(--fs-caption); line-height: var(--lh-caption); flex: none; }
+.kv .r .v { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+/* action rows: label left, value + chevron right */
+.act { padding: var(--s1); }
+.act .r { display: flex; align-items: center; gap: var(--s3); min-height: var(--row-h); padding: 0 var(--s3); border-radius: var(--r-control); }
+.act .r .ic { color: var(--icon); }
+.act .r .val { margin-left: auto; color: var(--text-2); font-size: var(--fs-caption); display: flex; align-items: center; gap: var(--s1); text-align: right; }
+.act .r.hov { background: var(--hover); }
+
+/* ---------- status vocabulary: icon + word, colour third ---------- */
+.rider {
+  display: inline-flex; align-items: center; gap: var(--s1); height: calc(22px * var(--ts)); padding: 0 var(--s2) 0 6px;
+  background: var(--rider); color: var(--rider-ink); border-radius: var(--r-control); white-space: nowrap;
+  font-size: var(--fs-caption); font-weight: var(--w-semibold); line-height: 1;
+  box-shadow: inset 0 0 0 1px var(--rider-edge); letter-spacing: 0;
+}
+.rider .ic { width: calc(14px * var(--ts)); height: calc(14px * var(--ts)); }
+.rider .ic svg { stroke-width: 2.2; }
+.st { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.st.kontrol { color: var(--check-text); font-weight: var(--w-semibold); }
+.st.ok { color: var(--ok); }
+.st.orta { color: var(--text-2); }
+.st.bad { color: var(--danger); font-weight: var(--w-semibold); }
+.st.info { color: var(--text-2); }
+.st .pct { font-weight: var(--w-regular); color: var(--text-2); font-feature-settings: var(--ff-num); }
+.u { background: var(--check-wash); border-radius: 2px; box-shadow: inset 0 -2px 0 var(--rider-edge); padding: 0 1px; }
+
+/* ---------- the Evrakçı tab (guide tab): logo trapezoid, manila, 1px manila-edge ---------- */
+.gtab {
+  height: var(--guide-h); display: inline-flex; align-items: center; gap: 6px; padding: 0 calc(var(--tab-slant) + 4px);
+  color: var(--manila-ink); font-size: var(--fs-caption); font-weight: var(--w-semibold); white-space: nowrap;
+  font-feature-settings: var(--ff-num); position: relative; z-index: 1; isolation: isolate;
+}
+.gtab::before, .gtab::after { content: ""; position: absolute; z-index: -1; }
+.gtab::before { inset: 0; background: var(--manila-edge); clip-path: polygon(var(--tab-slant) 0, calc(100% - var(--tab-slant)) 0, 100% 100%, 0 100%); }
+.gtab::after { inset: 1px 1px 0 1px; background: var(--manila); clip-path: polygon(calc(var(--tab-slant) - .4px) 0, calc(100% - var(--tab-slant) + .4px) 0, 100% 100%, 0 100%); }
+.gtab .ic { width: calc(14px * var(--ts)); height: calc(14px * var(--ts)); }
+.gtab .ic svg { stroke-width: 2.2; }
+.gtab .cut.qr { color: var(--cut-qr); }
+.gtab .cut.filtre { color: var(--cut-filter); }
+.gtab .cut.elle { color: var(--cut-manual); }
+.gtab .rev { color: var(--on-manila-ok); }
+
+/* ---------- paper (a page thumbnail, drawn; in Qt a cached pixmap) ---------- */
+.pg {
+  background: var(--paper); border-radius: var(--r-paper); position: relative; overflow: hidden;
+  box-shadow: 0 0 0 1px var(--page-edge), var(--shadow-paper);
+  display: flex; flex-direction: column; gap: 9%; padding: 9% 8%;
+}
+.pg i { display: block; flex: none; }
+.pg .h { height: 6px; width: 58%; background: var(--paper-head); border-radius: 1px; }
+.pg .h2 { height: 4px; width: 34%; background: var(--paper-line); border-radius: 1px; }
+.pg .lines { flex: 1; background: repeating-linear-gradient(to bottom, var(--paper-line) 0 2px, transparent 2px 8px);
+  -webkit-mask: linear-gradient(to right, #000 92%, transparent 92%); }
+.pg .lines.s { flex: 0 0 22%; }
+.pg .tbl { height: 30%; border: 1px solid var(--paper-line);
+  background: repeating-linear-gradient(to bottom, transparent 0 12px, var(--paper-line) 12px 13px),
+              repeating-linear-gradient(to right, transparent 0 28px, var(--paper-line) 28px 29px); }
+.pg .frm { display: grid; grid-template-columns: 34% 1fr; gap: 7px 8px; }
+.pg .frm b { height: 4px; background: var(--paper-line); border-radius: 1px; align-self: center; }
+.pg .frm u { height: 10px; border: 1px solid var(--paper-line); border-radius: 1px; }
+.pg .sig { margin-top: auto; height: 18px; width: 44%; align-self: flex-end; border-bottom: 1px solid var(--paper-head); }
+.pg.mini { gap: 6%; padding: 9% 9%; }
+.pg.mini .h { height: 3px; } .pg.mini .h2 { height: 2px; }
+.pg.mini .lines { background: repeating-linear-gradient(to bottom, var(--paper-line) 0 1px, transparent 1px 4px); }
+.pg.mini .frm { gap: 3px 4px; } .pg.mini .frm b { height: 2px; } .pg.mini .frm u { height: 5px; }
+
+/* ---------- empty state: brand mark, one sentence, one verb-first primary ---------- */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--s3); padding: var(--s8); }
+.brandmark { width: 56px; height: 56px; color: var(--brand-mark); display: block; }
+.brandmark svg { width: 100%; height: 100%; display: block; }
+.empty h2 { font-size: var(--fs-panel); line-height: var(--lh-panel); font-weight: var(--w-semibold); margin-top: var(--s2); }
+.empty p { color: var(--text-2); max-width: 58ch; }
+.empty .row { display: flex; gap: var(--s2); margin-top: var(--s2); flex-wrap: wrap; justify-content: center; }
+
+/* ---------- popovers: menu, tooltip, toast, palette (one shadow level) ---------- */
+.menu {
+  position: absolute; z-index: 20; background: var(--popover); border: 1px solid var(--stroke);
+  border-radius: var(--r-layer); box-shadow: var(--shadow-float), var(--edge-light); padding: var(--s1);
+  min-width: 288px; animation: pop var(--d-normal) var(--ease-enter); white-space: nowrap;
+}
+.menu .mh { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); padding: 6px var(--s3) var(--s1); }
+.mi { display: flex; align-items: center; gap: var(--s3); height: calc(34px * var(--ts)); padding: 0 var(--s3); border-radius: var(--r-control); }
+.mi .ic { color: var(--icon); }
+.mi .key { margin-left: auto; padding-left: var(--s6); color: var(--text-2); font-size: var(--fs-caption); }
+.mi.hov { background: var(--hover-pop); }
+.mi.danger, .mi.danger .ic { color: var(--danger); }
+.menu hr { border: 0; height: 1px; background: var(--stroke-soft); margin: var(--s1) calc(-1 * var(--s1)); }
+.tip {
+  position: absolute; z-index: 25; display: flex; align-items: center; gap: var(--s3); height: calc(32px * var(--ts)); padding: 0 var(--s3);
+  background: var(--popover); border: 1px solid var(--stroke); border-radius: var(--r-control); box-shadow: var(--shadow-float);
+  font-size: var(--fs-caption); white-space: nowrap;
+}
+.tip .k { color: var(--text-2); }
+/* one anchor on every tab: bottom-right of the work layer, 12 px in, above the status bar */
+.toast {
+  position: absolute; z-index: 20; right: var(--s3); bottom: var(--s3); display: flex; align-items: center; gap: var(--s3);
+  background: var(--popover); border: 1px solid var(--stroke); border-radius: var(--r-layer);
+  box-shadow: var(--shadow-float), var(--edge-light); min-height: calc(52px * var(--ts)); padding: 0 var(--s2) 0 var(--s4);
+  animation: pop var(--d-slow) var(--ease-enter); max-width: calc(100% - 2 * var(--s3));
+}
+.toast.in-inspector { position: relative; right: auto; bottom: auto; max-width: none; flex: none; margin-top: auto; }
+.toast.in-inspector + .ins-foot { margin-top: 0; }
+/* the message wraps inside the anchor width; the action and close button never do */
+.toast > span:not(.link):not(.grow) { flex: 1 1 auto; min-width: 0; padding: var(--s2) 0; }
+.toast .link, .toast .iconbtn { white-space: nowrap; flex: none; }
+.toast > .ic { color: var(--ok); }
+.toast .link { color: var(--text-accent); font-weight: var(--w-semibold); padding: 0 var(--s3); height: var(--control-h); display: inline-flex; align-items: center; border-radius: var(--r-control); }
+@keyframes pop { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ---------- focus (D11): 2px outer + 1px inner ---------- */
+.focus { outline: 2px solid var(--focus-outer); outline-offset: 1px; box-shadow: 0 0 0 1px var(--focus-inner); }
+
+/* ---------- status bar (L0): job + save state on the left, counts, zoom ---------- */
+.statusbar {
+  display: flex; align-items: center; gap: var(--s6); padding: 0 var(--s4) 0 var(--s3); min-width: 0;
+  font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); white-space: nowrap;
+}
+.statusbar b { color: var(--text); font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); }
+.statusbar .item { display: inline-flex; align-items: center; gap: 6px; }
+.statusbar .item .ic { width: calc(14px * var(--ts)); height: calc(14px * var(--ts)); }
+.statusbar .job { height: calc(var(--statusbar-h) - 2px); padding: 0 var(--s2); margin-right: calc(-1 * var(--s3)); border-radius: var(--r-control); color: var(--text); font-weight: var(--w-semibold); }
+.statusbar .job .ic { color: var(--icon); }
+.statusbar .saved .ic { color: var(--ok); }
+.statusbar .warn .ic { color: var(--rider-edge); }
+.statusbar .warn { color: var(--text); }
+.statusbar .okc .ic { color: var(--ok); }
+.statusbar .badc .ic { color: var(--danger); }
+.statusbar .div { width: 1px; height: 14px; background: var(--stroke); margin: 0 calc(-1 * var(--s2)); }
+.zoom { display: flex; align-items: center; gap: var(--s2); }
+.zoom .ic { color: var(--icon); width: calc(14px * var(--ts)); height: calc(14px * var(--ts)); }
+/* Fluent slider: the rail is the 3:1 `edge` ink, the filled part `accent`; the thumb has an
+   `edge` outline. The thumb is 16 px to see but 24 x 24 to hit. */
+.slider { position: relative; width: 112px; height: 4px; border-radius: 2px; background: var(--edge); }
+.slider i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--accent); }
+.slider b { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%;
+  background: var(--card); box-shadow: 0 0 0 1px var(--edge), 0 1px 2px rgba(0,0,0,.12); }
+.slider b::before { content: ""; position: absolute; inset: -4px; }
+.slider b::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--accent); }
+/* at 150 % text the status bar keeps priority-1 items; the others stay in tooltips and the inspector */
+[data-large] .statusbar [data-p="2"] { display: none; }
+
+/* ---------- progress ---------- */
+.bar { position: relative; height: 4px; border-radius: 2px; background: var(--track); overflow: hidden; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 2px; }
+
+/* ---------- high contrast: edges instead of tones, outlines instead of fills ---------- */
+[data-theme="hc"] .iconbtn.hov, [data-theme="hc"] .cmd.hov, [data-theme="hc"] .mi.hov, [data-theme="hc"] .act .r.hov,
+[data-theme="hc"] .iconbtn.on, [data-theme="hc"] .cmd.on, [data-theme="hc"] .menurow span.on { outline: 1px solid var(--accent); outline-offset: -1px; }
+[data-theme="hc"] .slider { box-shadow: 0 0 0 1px var(--stroke); }
+[data-theme="hc"] .bar { box-shadow: inset 0 0 0 1px var(--stroke); }
+[data-theme="hc"] .btn.primary.dis { background: var(--base); border-color: var(--text-dis); }
+[data-theme="hc"] .u { box-shadow: inset 0 -2px 0 var(--rider-edge); color: var(--check-text); }
+/* HC Kontrol: WindowText ink + triangle + word in an outlined rider (no warning colour exists) */
+[data-theme="hc"] .rider { box-shadow: inset 0 0 0 2px var(--rider-edge); }
+/* HC selection: Highlight fill with HighlightText, as Windows lists do */
+html[data-theme="hc"] tr.cur td, html[data-theme="hc"] .job.on, html[data-theme="hc"] .it.on { background: var(--accent-fill); color: var(--text-on-accent); }
+[data-theme="hc"] tr.cur td *, [data-theme="hc"] .job.on *, [data-theme="hc"] .it.on * { color: var(--text-on-accent) !important; }
+[data-theme="hc"] tr.cur td .rider, [data-theme="hc"] .job.on .rider { box-shadow: inset 0 0 0 2px var(--text-on-accent); background: transparent; }
+[data-theme="hc"] tr.cur td.edit .in, [data-theme="hc"] tr.cur td.edit .in * { color: var(--text) !important; }
+
+@media (prefers-reduced-motion: reduce) { .menu, .toast { animation: none; } }
+
+/* ---------- scroll cue: a thin Fluent scrollbar thumb (drawn by shell.js; QScrollBar 6 px in Qt)
+   and a fade on the cut edge, so a cut line always reads as "more below" ---------- */
+.sbar { position: absolute; z-index: 4; width: 3px; border-radius: 2px; background: var(--edge); pointer-events: none; }
+.more-below { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), rgba(0, 0, 0, .15));
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), rgba(0, 0, 0, .15)); }
+[data-theme="hc"] .track i { box-shadow: inset 0 0 0 1px var(--stroke); }

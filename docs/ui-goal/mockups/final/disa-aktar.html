@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-states="main,blocked,running,done,empty">
+<head>
+<meta charset="utf-8">
+<title>Dışa Aktar</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---------- Dışa Aktar: pre-flight + file names | export settings inspector ---------- */
+.body { grid-template-columns: minmax(0, 1fr) var(--inspector-w); padding-top: var(--s1); }
+.main { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; min-height: 0; }
+.card-head { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4) var(--s2); flex-wrap: wrap; }
+.card-head b { font-weight: var(--w-semibold); }
+.card-head .t2 { font-size: var(--fs-caption); }
+
+/* pre-flight: graded rows, severity = icon + word (+ colour) */
+.pf { flex: none; }
+.pf .r { display: grid; grid-template-columns: calc(96px * var(--ts)) minmax(0, 1fr) calc(40px * var(--ts)) auto; align-items: center; column-gap: var(--s3);
+  min-height: var(--row-h); padding: var(--s1) var(--s4); border-top: 1px solid var(--stroke-soft); }
+.pf .r .msg b { font-weight: var(--w-semibold); }
+.pf .r .c { text-align: right; font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); }
+.pf .r .a { color: var(--text-accent); font-weight: var(--w-semibold); white-space: nowrap; padding: 0 var(--s2); }
+.st.eksik { color: var(--text); font-weight: var(--w-semibold); }
+.st.engel { color: var(--danger); font-weight: var(--w-semibold); }
+.pf .r.block { background: var(--danger-wash); }
+[data-theme="hc"] .pf .r.block { box-shadow: inset 3px 0 0 var(--danger); }
+
+/* file names */
+.files { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: hidden; }
+.files .tscroll { overflow-y: auto; min-height: 0; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+th { height: calc(36px * var(--ts)); text-align: left; font-size: var(--fs-caption); font-weight: var(--w-semibold); color: var(--text-2); padding: 0 var(--s3);
+  border-bottom: 1px solid var(--stroke); border-top: 1px solid var(--stroke); white-space: nowrap; position: sticky; top: 0; background: var(--card); }
+td { height: var(--row-h); padding: 0 var(--s3); border-bottom: 1px solid var(--stroke-soft); white-space: nowrap; }
+th:first-child, td:first-child { padding-left: var(--s4); }
+td.n, th.n { text-align: right; font-feature-settings: var(--ff-num); }
+td.t { color: var(--text-2); font-size: var(--fs-caption); }
+td .why { color: var(--text-2); font-size: var(--fs-caption); margin-left: var(--s2); vertical-align: middle; }
+td .st { vertical-align: middle; }
+td .chg { background: var(--selected); box-shadow: inset 0 -2px 0 var(--accent); border-radius: 2px; padding: 0 2px; }
+tr.cur td { background: var(--selected); }
+tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.filter { height: var(--control-h); }
+.filter.on { background: var(--selected); border-color: var(--accent); }
+[data-large] .c-t { display: none; }
+
+/* running / done banners */
+.banner { padding: var(--s4); display: flex; flex-direction: column; gap: var(--s2); flex: none; }
+.banner .top { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.banner .top b { font-weight: var(--w-semibold); }
+.banner .bar { height: 6px; border-radius: var(--r-paper); }
+.banner .sub { font-size: var(--fs-caption); color: var(--text-2); font-feature-settings: var(--ff-num); }
+/* done: the green moment. The job is filed: folder-check in brand green, one filled primary */
+.done { flex-direction: row; align-items: flex-start; gap: var(--s4); }
+.done .seal { width: 44px; height: 44px; border-radius: 50%; background: var(--accent-fill); color: var(--text-on-accent); display: flex; align-items: center; justify-content: center; flex: none; }
+.done .seal .ic { width: 24px; height: 24px; }
+.done h2 { font-size: var(--fs-panel); line-height: var(--lh-panel); font-weight: var(--w-semibold); }
+.done .row { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }
+.done .line { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s1); flex-wrap: wrap; }
+
+/* inspector */
+.box { padding: var(--s3) var(--s4); display: flex; flex-direction: column; gap: var(--s2); }
+.box .row { display: flex; gap: var(--s2); align-items: center; }
+.box .row .field { flex: 1; }
+.hintl { display: flex; align-items: center; gap: var(--s2); font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
+.hintl.ok .ic { color: var(--ok); }
+.hintl.err { color: var(--danger); }
+.opts { padding: var(--s2) var(--s4); display: flex; flex-direction: column; gap: var(--s1); }
+.opt { display: grid; grid-template-columns: auto 1fr; column-gap: var(--s3); align-items: start; padding: 6px 0; }
+.opt .chk { margin-top: 1px; }
+.opt .t2 { font-size: var(--fs-caption); line-height: var(--lh-caption); grid-column: 2; }
+.opt.dis { color: var(--text-dis); }
+.keep { display: flex; align-items: center; gap: var(--s3); padding: var(--s1) 0 var(--s1); }
+.lockn { display: flex; align-items: center; gap: var(--s2); font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text); padding: var(--s2) var(--s3);
+  background: var(--card); border: 1px solid var(--stroke); border-radius: var(--r-control); }
+/* running: every setting is drawn disabled, not only the options card */
+[data-state="running"] .inspector .field, [data-state="running"] .inspector .btn:not(.primary), [data-state="empty"] .inspector .btn:not(.primary) {
+  color: var(--text-dis); background: transparent; border-bottom-color: var(--stroke); }
+[data-state="running"] .inspector .field .ic, [data-state="running"] .inspector .btn .ic { color: var(--text-dis); }
+[data-state="running"] .inspector .opt, [data-state="running"] .inspector .keep { color: var(--text-dis); }
+[data-state="running"] .inspector .chk { opacity: .55; }
+[data-theme="hc"][data-state="running"] .inspector .chk { opacity: 1; background: var(--base); border-color: var(--text-dis); color: var(--text-dis); }
+.files .empty { flex: 1; }
+</style>
+</head>
+<body>
+<div class="window">
+  <header class="titlebar" data-tab="disa-aktar"></header>
+
+  <main class="layer">
+    <div class="commandbar" role="toolbar" aria-label="Dışa Aktar komutları">
+      <button class="iconbtn" data-in="main,done" title="Dışa aktar… (Ctrl+E)" aria-label="Dışa aktar… (Ctrl+E)"><i class="ic md" data-i="download"></i></button>
+      <button class="iconbtn dis" data-out="main,done" aria-label="Dışa aktar… (Ctrl+E)"><i class="ic md" data-i="download"></i></button>
+      <button class="cmd" data-in="running" title="Dışa aktarmayı durdur (Ctrl+.)"><i class="ic md" data-i="circle-x"></i>Durdur</button>
+      <button class="iconbtn dis" data-out="running" aria-label="Dışa aktarmayı durdur (Ctrl+.)"><i class="ic md" data-i="circle-x"></i></button>
+      <span class="sep"></span>
+      <button class="cmd" data-out="empty,running" title="Listeyi ve önizlemeyi yenile (F5)"><i class="ic md" data-i="refresh-cw"></i>Yenile</button>
+      <button class="cmd dis" data-in="empty,running" aria-label="Listeyi ve önizlemeyi yenile (F5)"><i class="ic md" data-i="refresh-cw"></i>Yenile</button>
+      <button class="iconbtn" data-out="empty" title="Dizini yazdır… (Ctrl+P)" aria-label="Dizini yazdır… (Ctrl+P)"><i class="ic md" data-i="printer"></i></button>
+      <div class="grow"></div>
+      <button class="iconbtn" data-in="done" title="index.xlsx'i aç" aria-label="index.xlsx'i aç"><i class="ic md" data-i="sheet"></i></button>
+      <button class="iconbtn dis" data-out="done" aria-label="index.xlsx'i aç"><i class="ic md" data-i="sheet"></i></button>
+      <button class="iconbtn" data-out="empty" title="Dosya Gezgini'nde göster (Ctrl+Shift+O)" aria-label="Dosya Gezgini'nde göster (Ctrl+Shift+O)"><i class="ic md" data-i="folder-open"></i></button>
+      <button class="iconbtn dis" data-in="empty" aria-label="Dosya Gezgini'nde göster (Ctrl+Shift+O)"><i class="ic md" data-i="folder-open"></i></button>
+      <button class="iconbtn" title="Diğer komutlar" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
+    </div>
+
+    <div class="body">
+      <section class="main">
+        <!-- pre-flight -->
+        <div class="card pf" data-in="main,blocked,empty">
+          <div class="card-head"><b>Ön kontrol</b><span class="t2" data-out="empty">96 belge, 640 sayfa</span><span class="t2" data-in="empty">belge yok</span></div>
+          <div class="r" data-in="main"><span class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span class="msg"><b>Yazmayı engelleyen sorun yok.</b> Hedef klasör boş ve yazılabilir.</span><span class="c"></span><span></span></div>
+          <div class="r block" data-in="blocked"><span class="st engel"><i class="ic" data-i="ban"></i>Engel</span><span class="msg"><b>Hedef klasör boş değil.</b> Eski dosyaların üzerine yazılmaz.</span><span class="c">1</span><span class="a">Yeni alt klasör oluştur</span></div>
+          <div class="r block" data-in="blocked"><span class="st engel"><i class="ic" data-i="ban"></i>Engel</span><span class="msg"><b>Kalıpta bilinmeyen değişken:</b> “Firma adı”.</span><span class="c">1</span><span class="a">Kalıbı düzelt</span></div>
+          <div class="r" data-out="empty"><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="msg"><b>7 belgede emin olunmayan değer var.</b> Yine de yazılır; index.xlsx'te işaretlenir.</span><span class="c">7</span><span class="a" title="Sonraki kontrol (N)">Sonraki kontrol</span></div>
+          <div class="r" data-out="empty"><span class="st eksik"><i class="ic" data-i="circle-dashed"></i>Eksik</span><span class="msg"><b>Zorunlu değer eksik: Sicil no.</b> Dosya adı “Belge 41” gibi numaralanır.</span><span class="c">2</span><span class="a">Değerler'e git</span></div>
+          <div class="r" data-in="main"><span class="st info"><i class="ic" data-i="info"></i>Bilgi</span><span class="msg"><b>Örnek kontrol: 12 / 20 incelendi.</b> Şimdiye kadar hata yok.</span><span class="c">8</span><span class="a">Örneğe devam et</span></div>
+          <div class="r" data-in="main"><span class="st info"><i class="ic" data-i="info"></i>Bilgi</span><span class="msg"><b>Dosya adı değişti.</b> Geçersiz karakter ya da çakışma; aşağıda işaretli.</span><span class="c">2</span><span class="a">Adları göster</span></div>
+          <div class="r" data-in="empty"><span class="st info"><i class="ic" data-i="info"></i>Bilgi</span><span class="msg">Belge, kontrol ve eksik değer denetimi iş açılınca burada görünür.</span><span class="c">–</span><span></span></div>
+        </div>
+
+        <!-- running -->
+        <div class="card banner" data-in="running" role="status">
+          <div class="top"><i class="ic md" data-i="loader-circle"></i><b class="num">Yazılıyor: 58 / 96</b><span class="t2">metin katmanı ekleniyor</span></div>
+          <div class="bar" role="progressbar" aria-valuenow="60"><i style="width:60%"></i></div>
+          <div class="sub">%60, yaklaşık 2 dk kaldı. Durdur (Ctrl+.) ile durdurursanız yazılan dosyalar kalır, index.xlsx yazılmaz.</div>
+        </div>
+
+        <!-- done -->
+        <div class="card banner done" data-in="done" role="status">
+          <span class="seal"><i class="ic" data-i="folder-check"></i></span>
+          <div>
+            <h2>96 belge yazıldı</h2>
+            <div class="t2">D:\Muhasebe\Çıktı\Kasım klasörüne, 14:41'de bitti. İş süresiz saklanıyor.</div>
+            <div class="line"><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span>7 belge kontrol gerektiriyor; index.xlsx'te işaretli, nedeni yazılı.</span></div>
+            <div class="row">
+              <button class="btn primary"><i class="ic" data-i="folder-open"></i>Klasörü aç</button>
+              <button class="btn"><i class="ic" data-i="sheet"></i>index.xlsx'i aç</button>
+              <button class="btn" title="Dosya Gezgini'nde göster (Ctrl+Shift+O)"><i class="ic" data-i="folder-open"></i>Dosya Gezgini'nde göster</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card files">
+          <div class="card-head" data-in="main,blocked">
+            <b>Dosya adları</b><span class="t2">kontrol gerekenler üstte</span><span class="grow"></span>
+            <button class="btn filter"><i class="ic" data-i="list-filter"></i>Yalnızca kontrol gerekenler <span class="num">(7)</span></button><span class="t2 num">12 / 96 satır</span>
+          </div>
+          <div class="card-head" data-in="running,done"><b>Yazılan dosyalar</b><span class="t2">D:\Muhasebe\Çıktı\Kasım</span></div>
+          <div class="card-head" data-in="empty"><b>Dosya adları</b></div>
+          <div class="tscroll scroll" data-out="empty">
+          <table>
+            <colgroup><col style="width:calc(232px * var(--ts))"><col><col style="width:calc(96px * var(--ts))"><col class="c-t" style="width:calc(150px * var(--ts))"></colgroup>
+            <thead><tr><th>Durum</th><th><span data-in="main,blocked">Yazılacak dosya adı</span><span data-in="running,done">Yazılan dosya</span></th><th class="n">Sayfalar</th><th class="c-t">Şablon</th></tr></thead>
+            <tbody>
+              <tr><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Sicil no eksik</span></td><td>Belge 41.pdf</td><td class="n">128–129</td><td class="t c-t">Ekspertiz Raporu</td></tr>
+              <tr><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Sicil no eksik</span></td><td>Belge 77.pdf</td><td class="n">392–393</td><td class="t c-t">Ekspertiz Raporu</td></tr>
+              <tr class="cur"><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Firma adı belirsiz</span></td><td>10517_Akdeniz Ambalaj.pdf</td><td class="n">180–181</td><td class="t c-t">Kapasite Raporu</td></tr>
+              <tr><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Sicil no belirsiz</span></td><td>10630_Marmara Gıda.pdf</td><td class="n">301–302</td><td class="t c-t">Kapasite Raporu</td></tr>
+              <tr><td><span class="st info"><i class="ic" data-i="info"></i>Bilgi</span><span class="why">/ yerine - yazıldı</span></td><td>10533_Demir<span class="chg">-</span>Çelik Tic. A.Ş.pdf</td><td class="n">212–213</td><td class="t c-t">Kapasite Raporu</td></tr>
+              <tr><td><span class="st info"><i class="ic" data-i="info"></i>Bilgi</span><span class="why">Ad çakışması, _2 eklendi</span></td><td>10482_Ege Kalıp Sanayi Ltd. Şti<span class="chg">_2</span>.pdf</td><td class="n">14–15</td><td class="t c-t">Ekspertiz Raporu</td></tr>
+              <tr><td><span data-out="running,done" class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span data-in="running,done" class="st ok"><i class="ic" data-i="circle-check"></i>Yazıldı</span></td><td>10482_Ege Kalıp Sanayi Ltd. Şti.pdf</td><td class="n">1–2</td><td class="t c-t">Ekspertiz Raporu</td></tr>
+              <tr><td><span data-out="running,done" class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span data-in="running" class="st info"><i class="ic" data-i="loader-circle"></i>Yazılıyor</span><span data-in="done" class="st ok"><i class="ic" data-i="circle-check"></i>Yazıldı</span></td><td>10491_Karadeniz Tekstil A.Ş.pdf</td><td class="n">3–4</td><td class="t c-t">Kapasite Raporu</td></tr>
+              <tr><td><span data-out="running,done" class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span data-in="running" class="st info"><i class="ic" data-i="circle-dashed"></i>Bekliyor</span><span data-in="done" class="st ok"><i class="ic" data-i="circle-check"></i>Yazıldı</span></td><td>10495_Trakya Plastik Ltd. Şti.pdf</td><td class="n">5–7</td><td class="t c-t">Kapasite Raporu</td></tr>
+              <tr><td><span data-out="running,done" class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span data-in="running" class="st info"><i class="ic" data-i="circle-dashed"></i>Bekliyor</span><span data-in="done" class="st ok"><i class="ic" data-i="circle-check"></i>Yazıldı</span></td><td>10503_Bozkır Makine San. A.Ş.pdf</td><td class="n">8–9</td><td class="t c-t">Ekspertiz Raporu</td></tr>
+              <tr><td><span data-out="running,done" class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span data-in="running" class="st info"><i class="ic" data-i="circle-dashed"></i>Bekliyor</span><span data-in="done" class="st ok"><i class="ic" data-i="circle-check"></i>Yazıldı</span></td><td>10508_Toros Yem Gıda Ltd. Şti.pdf</td><td class="n">10–11</td><td class="t c-t">Kapasite Raporu</td></tr>
+              <tr><td><span data-out="running,done" class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span data-in="running" class="st info"><i class="ic" data-i="circle-dashed"></i>Bekliyor</span><span data-in="done" class="st ok"><i class="ic" data-i="circle-check"></i>Yazıldı</span></td><td>10511_Güney Boru Profil A.Ş.pdf</td><td class="n">12–13</td><td class="t c-t">Kapasite Raporu</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <div class="empty" data-in="empty">
+            <span class="brandmark" aria-hidden="true"></span>
+            <h2>Dışa aktarılacak belge yok</h2>
+            <p>Önce Yükle'den bir iş açın; belgeler burada listelenir.</p>
+            <div class="row">
+              <button class="btn primary lg"><i class="ic" data-i="upload"></i>Yükle'ye git<span class="k">Ctrl+1</span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="inspector" aria-label="Dışa aktarma ayarları">
+        <div class="scroll">
+          <header>
+            <h1 class="ins-title">Dışa aktarma ayarları</h1>
+            <div class="ins-sub" data-out="empty">96 belge, D:\Muhasebe\Çıktı\Kasım</div>
+            <div class="ins-sub" data-in="empty">İş açılmadı</div>
+          </header>
+          <div class="lockn" data-in="running" role="status"><i class="ic" data-i="lock"></i>Yazma sürerken ayarlar değiştirilemez.</div>
+          <section>
+            <h2 class="group-label">Hedef klasör</h2>
+            <div class="card box">
+              <div class="row"><div class="field" data-out="empty,blocked">D:\Muhasebe\Çıktı\Kasım</div><div class="field err" data-in="blocked">D:\Muhasebe\Çıktı</div><div class="field ph" data-in="empty">Klasör seçilmedi</div>
+                <button class="btn" title="Klasör seç…" aria-label="Klasör seç…"><i class="ic" data-i="folder-open"></i></button></div>
+              <div class="hintl ok" data-in="main"><i class="ic" data-i="circle-check"></i>Klasör boş, yazılabilir.</div>
+              <div class="hintl ok" data-in="running"><i class="ic" data-i="circle-check"></i>Klasör boş, yazılabilir.</div>
+              <div class="hintl ok" data-in="done"><i class="ic" data-i="circle-check"></i>Klasörde 96 PDF ve index.xlsx var.</div>
+              <div class="hintl err" data-in="blocked"><i class="ic" data-i="ban"></i>Klasör boş değil. Boş bir klasör seçin.</div>
+              <div class="hintl" data-in="empty"><i class="ic" data-i="info"></i>Boş bir klasör seçin. İş açılınca seçilebilir.</div>
+            </div>
+          </section>
+          <section>
+            <h2 class="group-label">Dosya adı kalıbı</h2>
+            <div class="card box">
+              <div class="field val-f focus" data-in="main">{Oda sicil no}_{Firma unvanı}.pdf</div>
+              <div class="field val-f" data-in="running,done">{Oda sicil no}_{Firma unvanı}.pdf</div>
+              <div class="field val-f err" data-in="blocked">{Oda sicil no}_{Firma adı}.pdf</div>
+              <div class="field ph" data-in="empty">Kalıp yok</div>
+              <div class="row"><button class="btn"><i class="ic" data-i="braces"></i>Değişken ekle<i class="ic" data-i="chevron-down"></i></button></div>
+              <div class="hintl" data-in="main,running,done"><i class="ic" data-i="info"></i>Örnek: 10517_Akdeniz Ambalaj.pdf</div>
+              <div class="hintl err" data-in="blocked"><i class="ic" data-i="ban"></i>“Firma adı” değişkeni yok. Menüden seçin.</div>
+              <div class="hintl" data-in="empty"><i class="ic" data-i="info"></i>Değişkenler açık işin şablonlarından gelir.</div>
+            </div>
+          </section>
+          <section>
+            <h2 class="group-label">Seçenekler</h2>
+            <div class="card">
+              <div class="opts">
+                <div class="opt"><span class="chk on"><i class="ic" data-i="check"></i></span><span>Metin katmanı ekle (OCR)</span></div>
+                <div class="opt dis"><span class="chk on dis"><i class="ic" data-i="check"></i></span><span>index.xlsx her zaman yazılır</span><span class="t2">Her dosya bir satır: adı, sayfaları, değerleri.</span></div>
+                <div class="opt"><span class="chk on"><i class="ic" data-i="check"></i></span><span>Geçersiz karakterleri değiştir</span></div>
+                <div class="keep"><span>İşi saklama süresi</span><span class="grow"></span><div class="field select">Süresiz<i class="ic" data-i="chevron-down"></i></div></div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="ins-foot">
+          <button class="btn primary" data-in="main" title="Dışa aktar (Ctrl+E)"><i class="ic" data-i="download"></i>Dışa aktar<span class="k">Ctrl+E</span></button>
+          <button class="btn primary dis" data-in="blocked,running,empty"><i class="ic" data-i="download"></i>Dışa aktar<span class="k">Ctrl+E</span></button>
+          <span class="note" data-in="blocked"><i class="ic" data-i="info"></i>Önce iki engeli giderin.</span>
+          <button class="btn subtle" data-in="done"><i class="ic" data-i="refresh-cw"></i>Yeniden dışa aktar…</button>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="statusbar">
+    <span data-job data-out="empty"></span>
+    <span data-job="none" data-in="empty"></span>
+    <span class="item" data-out="empty"><b>96</b> belge</span>
+    <span class="item" data-out="empty" data-p="2"><b>640</b> sayfa</span>
+    <span class="item warn" data-out="empty"><i class="ic" data-i="triangle-alert"></i><span><b>7</b> belge kontrol bekliyor</span></span>
+    <span class="item" data-in="running"><i class="ic" data-i="loader-circle"></i><span>Yazılıyor: <b>58</b> / 96</span></span>
+    <span class="item okc" data-in="done"><i class="ic" data-i="folder-check"></i><span><b>96</b> belge yazıldı, 14:41</span></span>
+    <span class="item" data-in="empty">İşler Yükle sekmesinde açılır (Ctrl+1)</span>
+  </footer>
+</div>
+<script src="icons.js"></script>
+<script src="shell.js"></script>
+</body>
+</html>

@@ -113,7 +113,7 @@ paper so the ring never sits on a page sheet). Current state: 0 failures in ligh
 | `kontrol.html` | Kontrol tab: `main`, `loupe`, `empty`, `cuts` (1- and 2-page documents of each cut type), `cuts-gray` (the same in greyscale) | Kontrol author |
 | `degerler.html` | Değerler: `main` (kontrol gerekenler, F2 edit, undo toast), `empty`, `all` (Tümünü incele), `ornek` (spot-check sample before export) | Değerler author |
 | `<tab>.html` | One file per tab: `yukle`, `sablonlar`, `degerler`, `disa-aktar`, `rehber` | Tab author |
-| `_render.py` | Renders every `*.html` to `png/<name>-<theme>.png`, plus `-150-light` and (Kontrol, Değerler) `-hc`, and lists clipping | anyone |
+| `_render.py` | Renders every `*.html` to `png/<name>-<theme>.png`, plus `-150-light` and (Kontrol, Değerler) `-hc`, and lists clipping, sideways scrolling at 100 % text and menu access keys that are not ASCII A–Z without I or repeat | anyone |
 | `REVIEW.md` | Phase 1 review findings and what was done with each | design lead |
 | `_contrast.py` | Recomputes the D10 contrast table from `tokens.css` | anyone |
 | `png/` | Rendered output (generated, do not edit) | `_render.py` |

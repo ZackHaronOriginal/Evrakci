@@ -325,7 +325,7 @@ button, input, select { font: inherit; color: inherit; }
 .tooltip {
   position: absolute; z-index: 40;
   display: inline-flex; align-items: center; gap: var(--sp-2);
-  max-width: 320px; padding: var(--sp-1) var(--sp-2);
+  max-width: calc(320px * var(--text-scale)); padding: var(--sp-1) var(--sp-2);
   background: var(--bg-popover); color: var(--text);
   border: 1px solid var(--hairline); border-radius: var(--r-control);
   box-shadow: var(--shadow-flyout);

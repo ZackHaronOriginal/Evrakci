@@ -12,7 +12,7 @@
  * undo toast), empty, all (Tümünü incele), ornek (spot-check sample before export).
  * Two separate markers per row: İnceleme (human: circle-check İncelendi / circle-dashed
  * İncelenmedi, the Kontrol tab glyphs) and Güven (machine: Emin / Orta / Kontrol / Okunamadı). */
-.window { --inspector-w: 384px; }
+.window { --inspector-w: 352px; }
 [data-text="130"] .window, [data-text="150"] .window { --inspector-w: 432px; }
 .work { position: relative; }
 
@@ -38,7 +38,7 @@
   overflow: auto; scrollbar-width: thin;
   background: var(--bg-layer); border: 1px solid var(--hairline); border-radius: var(--r-control);
 }
-.vt { table-layout: fixed; min-width: 100%; width: auto; border: 0; border-radius: 0; background: transparent; }
+.vt { table-layout: fixed; width: max(100%, calc(960px * var(--text-scale))); border: 0; border-radius: 0; background: transparent; }
 .vt th { position: sticky; top: 0; z-index: 2; background: var(--bg-layer); border-bottom: 0; box-shadow: inset 0 -1px 0 var(--edge); white-space: nowrap; }
 .vt th .th { display: inline-flex; align-items: center; gap: var(--sp-1); }
 .vt th .th .i { color: var(--icon-2); }
@@ -52,7 +52,7 @@
 .v.check .i { color: var(--check-text); }
 .v.bad, .v.bad .i { color: var(--danger); font-weight: var(--fw-semibold); }
 .more { margin-left: var(--sp-2); font-size: var(--fs-secondary); color: var(--text-2); }
-.elle { margin-left: var(--sp-2); }
+.elle { margin-left: var(--sp-1); }
 
 /* Uncertain character: wash + 2px underline, text stays full contrast (icon + word sit in the row) */
 mark.u {
@@ -94,6 +94,7 @@ mark.u {
 .uc { outline: 2px solid var(--rider-edge); outline-offset: 1px; border-radius: var(--r-sheet); }
 .spot { position: absolute; border: 2px solid var(--manila-ink); border-radius: var(--r-sheet); box-shadow: 0 0 0 400px var(--scrim); }
 .crop-cap { display: flex; align-items: center; justify-content: space-between; margin-top: var(--sp-2); }
+[data-theme="hc"] .crop, [data-theme="hc"] .crop .spot { color: var(--paper-ink-strong); border-color: var(--paper-ink-strong); } /* HC: manila ink is white; the page image keeps black ink */
 .crop.blank { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); background: transparent; box-shadow: none; border: 1px dashed var(--edge); color: var(--text-2); }
 .crop.blank .i.lg { color: var(--icon-2); stroke-width: 1.5; }
 .vals { grid-template-columns: 64px 1fr; row-gap: var(--sp-2); align-items: baseline; }
@@ -204,7 +205,7 @@ const seg = (on, o = {}) => {
   </div>`;
 };
 
-const COLS = `<colgroup><col style="width:calc(40px * var(--text-scale))"><col style="width:calc(64px * var(--text-scale))"><col style="width:calc(80px * var(--text-scale))"><col style="width:calc(208px * var(--text-scale))"><col style="width:calc(144px * var(--text-scale))"><col style="width:calc(120px * var(--text-scale))"><col style="width:calc(136px * var(--text-scale))"><col></colgroup>`;
+const COLS = `<colgroup><col style="width:calc(40px * var(--text-scale))"><col style="width:calc(72px * var(--text-scale))"><col style="width:calc(80px * var(--text-scale))"><col style="width:calc(208px * var(--text-scale))"><col style="width:calc(152px * var(--text-scale))"><col style="width:calc(128px * var(--text-scale))"><col style="width:calc(128px * var(--text-scale))"><col></colgroup>`;
 const HEAD = `<thead><tr><th class="rev" aria-label="İnceleme">${ic("circle-check", "sm")}</th><th class="num sorted" aria-sort="ascending"><span class="th">Belge${ic("arrow-up", "sm")}</span></th><th class="num">Sayfalar</th><th class="val">Firma</th><th class="val">Sicil no</th><th class="val">Rapor tarihi</th><th class="num">Kapasite (ton/yıl)</th><th>Güven</th></tr></thead>`;
 const row = (r, sel) => `<tr ${sel ? 'aria-selected="true"' : ""}><td class="rev">${REV(r.rev)}</td><td class="num">${r.b}</td><td class="num">${r.p}</td><td class="val">${r.f}</td><td class="val ${r.edit ? "editcell" : ""}">${r.s}</td><td class="val">${r.t}</td><td class="num">${r.k}</td><td>${r.c}${r.more ? `<span class="more">${r.more}</span>` : ""}</td></tr>`;
 const table = (rows, selB) => `<div class="tablewrap" tabindex="0" aria-label="Değerler tablosu. Tab sonraki değer; F6 sonraki bölge"><table class="table vt">${COLS}${HEAD}<tbody>${rows.map(r => row(r, r.b === selB)).join("")}</tbody></table></div>`;
@@ -259,7 +260,7 @@ const hints = (empty) => `<div class="hintbar" aria-label="Klavye kısayolları"
 
 /* ---------- inspector ---------- */
 const crop = (spot, rows, cap) => `<div class="panel-section cropsec">
-  <div class="crop" role="img" aria-label="Sayfa kesiti">
+  <div class="crop" role="img" aria-label="Sayfa kesiti" data-clip-ok>
     <span class="ink-line a"></span><span class="ink-line b"></span>${rows}<span class="spot" style="${spot}"></span>
   </div>
   <div class="crop-cap t-caption">${cap}</div></div>`;

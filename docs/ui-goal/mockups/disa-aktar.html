@@ -19,8 +19,8 @@
 
 /* Pre-flight: graded block / warn / inform. L1 frame with hairline rows. */
 .pf { flex: none; background: var(--bg-layer); border: 1px solid var(--hairline); border-radius: var(--r-control); }
-.pf-row { display: grid; grid-template-columns: 112px 1fr 56px auto; align-items: center; column-gap: var(--sp-3);
-  height: var(--row-h); padding: 0 var(--sp-2) 0 var(--sp-3); border-bottom: 1px solid var(--hairline); }
+.pf-row { display: grid; grid-template-columns: calc(112px * var(--text-scale)) 1fr calc(56px * var(--text-scale)) auto; align-items: center; column-gap: var(--sp-3);
+  min-height: var(--row-h); padding: var(--sp-1) var(--sp-2) var(--sp-1) var(--sp-3); /* min-height: rows grow at 130/150 % */ border-bottom: 1px solid var(--hairline); }
 .pf-row:last-child { border-bottom: 0; }
 .pf-row .count { text-align: right; font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
 .pf-row .act { min-width: 148px; display: flex; justify-content: flex-end; }
@@ -32,6 +32,8 @@
 
 /* File-name preview: table in L1 frame, scrolls inside */
 .files { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+[data-text="130"] .page, [data-text="150"] .page { overflow-y: auto; scrollbar-width: thin; }
+[data-text="130"] .files, [data-text="150"] .files { min-height: calc(5 * var(--row-h)); } /* the page scrolls; the file list never collapses */
 .files-head { display: flex; align-items: center; gap: var(--sp-3); height: var(--control-h); margin-bottom: var(--sp-2); flex: none; }
 .files-head .spacer { flex: 1; }
 .tbl-wrap { flex: 1; min-height: 0; overflow: auto; scrollbar-width: thin; background: var(--bg-layer);
@@ -39,6 +41,7 @@
 .tbl-wrap .table { border: 0; border-radius: 0; }
 .tbl-wrap th { position: sticky; top: 0; background: var(--bg-layer); z-index: 1; }
 .fname { font-feature-settings: var(--font-features-code); white-space: nowrap; }
+.tbl-wrap .table td, .tbl-wrap .table th { white-space: nowrap; } /* at 130/150 % the table scrolls sideways instead of wrapping */
 .chg { background: var(--info-wash); box-shadow: 0 0 0 1px var(--info); border-radius: 2px; }
 .table td .status, .table td .rider { vertical-align: middle; }
 .table td .why { margin-left: var(--sp-2); color: var(--check-text); font-size: var(--fs-secondary); font-weight: var(--fw-medium); }

@@ -77,6 +77,30 @@ def launch(p):
         return p.chromium.launch(executable_path=candidates[0])
 
 
+# Extra checks (review round 1): at the default text size no scroll container may need sideways
+# scrolling (a table that scrolls sideways at 100 % hides a column), and every menu-bar access key
+# must be an ASCII letter other than I and unique in its bar (Turkish Q keyboard, GOAL 3.1).
+EXTRA_SCRIPT = """
+(args) => {
+  const [root, checkScroll] = args;
+  const found = [];
+  for (const el of root.querySelectorAll('*')) {
+    if (!checkScroll || el.closest('[data-clip-ok]') || el.closest('svg')) continue;
+    const cs = getComputedStyle(el);
+    if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1) {
+      const st = el.closest('[data-state]');
+      found.push(`sideways scroll +${el.scrollWidth - el.clientWidth}px  [${st ? st.dataset.state : ''}] ${el.className}`);
+    }
+  }
+  for (const bar of root.querySelectorAll('.menubar')) {
+    const keys = [...bar.querySelectorAll('u')].map(u => u.textContent.trim().toUpperCase());
+    for (const k of keys) if (!/^[A-HJ-Z]$/.test(k)) found.push(`menu access key "${k}" is not ASCII A-Z without I`);
+    if (new Set(keys).size !== keys.length) found.push(`menu access keys repeat: ${keys.join(',')}`);
+  }
+  return [...new Set(found)];
+}
+"""
+
 HC_PAGES = {"kontrol", "degerler"}   # D9: high-contrast previews (system colours only)
 
 
@@ -111,6 +135,9 @@ def render(page, html: Path, themes: list[str], text: str | None = None, only_fi
             root = targets[0][0].element_handle() if only_first and targets[0][0] else page.locator("body").element_handle()
             for line in page.evaluate(CLIP_SCRIPT, root):
                 print(f"  CLIPPING WARNING {scope}: {line}")
+                warnings += 1
+            for line in page.evaluate(EXTRA_SCRIPT, [root, not text]):
+                print(f"  LAYOUT WARNING {scope}: {line}")
                 warnings += 1
     return warnings
 

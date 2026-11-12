@@ -31,6 +31,11 @@
 .rail-hint b { color: var(--text); }
 .rail-empty { padding: var(--sp-2) var(--sp-4) var(--sp-4); max-width: 30ch; width: auto; }
 .rail-empty + .rail-head.sub { margin-top: var(--sp-2); }
+/* 130/150 % text: the rail widens one step, heads may wrap; the page image never scales with UI text (ink sizes are divided by --text-scale) */
+[data-text="130"] .rail, [data-text="150"] .rail { width: 352px; }
+[data-text="130"] .rail .list li, [data-text="150"] .rail .list li { height: auto; min-height: var(--row-h); padding-top: var(--sp-1); padding-bottom: var(--sp-1); }
+[data-text="130"] .field.inline label, [data-text="150"] .field.inline label { white-space: nowrap; }
+[data-text="130"] .rail-head, [data-text="150"] .rail-head, [data-text="130"] .cv-head, [data-text="150"] .cv-head { height: auto; min-height: 48px; flex-wrap: wrap; row-gap: var(--sp-1); padding-top: var(--sp-1); padding-bottom: var(--sp-1); }
 
 /* Canvas header + rulers + viewport */
 .cv-head { height: 48px; flex: none; display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-4);
@@ -63,16 +68,16 @@
   background: var(--bg-paper); border-radius: var(--r-sheet); box-shadow: var(--shadow-sheet); color: var(--paper-ink-strong); }
 .sheet-a4.ghost { color: var(--text); height: 540px; background: transparent; box-shadow: none; border: 1px dashed var(--edge); }
 .ink { position: absolute; left: calc(var(--x) * var(--s)); top: calc(var(--y) * var(--s)); line-height: 24px; white-space: nowrap; color: var(--paper-ink-strong); }
-.ink.lbl { font-size: var(--fs-secondary); }
-.ink.val { padding-left: var(--sp-2); font-size: var(--fs-body); font-weight: var(--fw-medium); }
+.ink.lbl { font-size: calc(var(--fs-secondary) / var(--text-scale)); }
+.ink.val { padding-left: var(--sp-2); font-size: calc(var(--fs-body) / var(--text-scale)); font-weight: var(--fw-medium); }
 .ink.h1, .ink.h2 { width: calc(var(--w) * var(--s)); text-align: center; font-weight: var(--fw-semibold); }
-.ink.h1 { font-size: var(--fs-secondary); letter-spacing: .04em; }
-.ink.h2 { font-size: var(--fs-section); letter-spacing: .06em; }
-.ink.body { width: calc(var(--w) * var(--s)); white-space: normal; font-size: var(--fs-secondary); line-height: 18px; }
-.ink.kase { font-size: var(--fs-secondary); letter-spacing: .04em; }
+.ink.h1 { font-size: calc(var(--fs-secondary) / var(--text-scale)); letter-spacing: .04em; }
+.ink.h2 { font-size: calc(var(--fs-section) / var(--text-scale)); letter-spacing: .06em; }
+.ink.body { width: calc(var(--w) * var(--s)); white-space: normal; font-size: calc(var(--fs-secondary) / var(--text-scale)); line-height: 18px; }
+.ink.kase { font-size: calc(var(--fs-secondary) / var(--text-scale)); letter-spacing: .04em; }
 .stamp { position: absolute; left: calc(var(--x) * var(--s)); top: calc(var(--y) * var(--s)); width: 108px; height: 108px;
   border: 2px solid var(--paper-ink); border-radius: 50%; display: grid; place-items: center; text-align: center;
-  color: var(--paper-ink); font-style: normal; font-size: var(--fs-secondary); line-height: 18px; font-weight: var(--fw-semibold); box-shadow: inset 0 0 0 4px var(--bg-paper), inset 0 0 0 5px var(--paper-ink); }
+  color: var(--paper-ink); font-style: normal; font-size: calc(var(--fs-secondary) / var(--text-scale)); line-height: 18px; font-weight: var(--fw-semibold); box-shadow: inset 0 0 0 4px var(--bg-paper), inset 0 0 0 5px var(--paper-ink); }
 
 /* Boxes (brand green stays readable on paper in both themes), handles, live read labels */
 .bx { position: absolute; left: calc(var(--x) * var(--s)); top: calc(var(--y) * var(--s));
@@ -95,7 +100,7 @@
 .insp-head { padding: var(--sp-3) var(--sp-4) var(--sp-2); border-bottom: 1px solid var(--hairline); }
 .props { display: flex; flex-direction: column; gap: var(--sp-2); padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
 .props .field > label { line-height: var(--lh-secondary); }
-.prow { display: flex; align-items: center; justify-content: space-between; }
+.prow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--sp-2); }
 .field.inline { flex-direction: row; align-items: center; gap: var(--sp-2); }
 .chk-row { display: inline-flex; align-items: center; gap: var(--sp-2); }
 .chk { width: 20px; height: 20px; border: 1px solid var(--edge); border-radius: var(--r-control); background: var(--bg-input); display: grid; place-items: center; }

@@ -1,0 +1,7 @@
+"""The app icon (docs/logo/kit, built by docs/logo/build_kit.py). Do not edit."""
+# ruff: noqa: E501
+
+APP_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">\n  <title>Evrakçı</title>\n  <rect width="256" height="256" rx="56" fill="#3f5a4c"/>\n  <g transform="translate(25.6 25.6) scale(.8)"><path d="M44 51l14-25h36l14 25z" fill="#e9d9a6"/>\n  <path d="M41 50h174a9 9 0 0 1 9 9v22a9 9 0 0 1 -9 9h-174a9 9 0 0 1 -9 -9v-22a9 9 0 0 1 9 -9z" fill="#e9d9a6"/>\n  <path d="M96 121l14-25h36l14 25z" fill="#e8731a"/>\n  <path d="M41 120h174a9 9 0 0 1 9 9v22a9 9 0 0 1 -9 9h-174a9 9 0 0 1 -9 -9v-22a9 9 0 0 1 9 -9z" fill="#e9d9a6"/>\n  <path d="M148 191l14-25h36l14 25z" fill="#e9d9a6"/>\n  <path d="M41 190h174a9 9 0 0 1 9 9v22a9 9 0 0 1 -9 9h-174a9 9 0 0 1 -9 -9v-22a9 9 0 0 1 9 -9z" fill="#e9d9a6"/></g>\n</svg>\n'
+
+# Pixel-grid cut used at 24 px and below.
+APP_ICON_SMALL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">\n  <title>Evrakçı</title>\n  <rect width="16" height="16" rx="3.5" fill="#3f5a4c"/>\n  <rect x="3" y="2" width="4" height="1" fill="#e9d9a6"/>\n  <rect x="2" y="3" width="12" height="2" rx=".5" fill="#e9d9a6"/>\n  <rect x="6" y="6" width="4" height="1" fill="#e8731a"/>\n  <rect x="2" y="7" width="12" height="2" rx=".5" fill="#e9d9a6"/>\n  <rect x="9" y="10" width="4" height="1" fill="#e9d9a6"/>\n  <rect x="2" y="11" width="12" height="2" rx=".5" fill="#e9d9a6"/>\n</svg>\n'

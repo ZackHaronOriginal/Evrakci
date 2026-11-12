@@ -14,6 +14,7 @@ from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
 from evrakci.ui import theme
+from evrakci.ui.logo_data import APP_ICON_SMALL_SVG, APP_ICON_SVG
 
 PATHS: dict[str, str] = {
     "undo": '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
@@ -116,31 +117,18 @@ def icon_file(name: str, colour: str = "ink", stroke: float = 1.75) -> str:
     return path.as_posix()
 
 
-APP_ICON_SVG = (  # the same drawing as packaging/linux/evrakci.svg
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="2" y="2" width="60"'
-    ' height="60" rx="13" fill="#3f5a4c"/><path d="M12 23h40v27a3 3 0 0 1-3 3H15a3 3 0 0 1-3-'
-    '3z" fill="#cddbd2" opacity=".55"/><path d="M10 22a3 3 0 0 1 3-3h8l3-6h14l3 6h10a3 3 0 0 '
-    '1 3 3v29a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3z" fill="#e9d9a6" stroke="#b9a66a" stroke-width="'
-    '1.5" stroke-linejoin="round"/><rect x="16" y="28" width="32" height="3" rx="1" fill="#c8'
-    '372d"/><rect x="16" y="36" width="25" height="2.5" rx="1.25" fill="#2b2410" opacity=".6"'
-    '/><rect x="16" y="42" width="29" height="2.5" rx="1.25" fill="#2b2410" opacity=".6"/><re'
-    'ct x="16" y="48" width="19" height="2.5" rx="1.25" fill="#2b2410" opacity=".6"/><path d='
-    '"M44 9h8v13l-4-3-4 3z" fill="#e8731a" stroke="#9c4a0b" stroke-width="1.2" stroke-linejoi'
-    'n="round"/></svg>'
-)
-
-
 @cache
 def app_icon() -> QIcon:
-    """The window and taskbar icon (the same drawing as packaging/linux/evrakci.svg)."""
+    """The window and taskbar icon (docs/logo/kit); the pixel-grid cut at 24 px and below."""
     result = QIcon()
-    renderer = QSvgRenderer(QByteArray(APP_ICON_SVG.encode()))
-    for size in (16, 24, 32, 48, 64, 128, 256):
+    large = QSvgRenderer(QByteArray(APP_ICON_SVG.encode()))
+    small = QSvgRenderer(QByteArray(APP_ICON_SMALL_SVG.encode()))
+    for size in (16, 20, 24, 32, 48, 64, 128, 256):
         image = QPixmap(size, size)
         image.fill(Qt.GlobalColor.transparent)
         painter = QPainter(image)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        renderer.render(painter, QRectF(0, 0, size, size))
+        (small if size <= 24 else large).render(painter, QRectF(0, 0, size, size))
         painter.end()
         result.addPixmap(image)
     return result

@@ -34,6 +34,12 @@ colors:
   v2: "#6b3fb3"
   v3: "#9a4a12"
   v4: "#a3245f"
+  key-cap: "#f1f3ef"
+  key-edge: "#c3cbc5"
+  key-edge-on-shell: "#6d8778"
+  disabled-ink: "#6b776f"
+  hover: "#f4f6f3"
+  rider-on-shell: "#ffb27a"
 typography:
   page-title:
     fontFamily: "Atkinson Hyperlegible Next, Segoe UI, system-ui, sans-serif"
@@ -257,6 +263,12 @@ Muted cabinet greens and paper neutrals carry the whole screen; manila and signa
 - **Rule** (rule): every divider between groups, rows and panels. **Rule Strong** (rule-strong): input borders, progress-bar frames, dashed group rows, drop-zone outline. **Control Edge** (control-edge): button borders.
 - **Current Row** (row-cur): the current table row, list item, or job.
 - **Focus** (focus): keyboard focus rings; deliberately the same value as ink so focus reads as a firm pencil line, not a colour.
+
+### Control details
+- **Key Cap** (key-cap, key-edge; key-edge-on-shell on the primary button): the face and lip of a key hint inside a button. Text is ink-2 (on primary: on-shell over shell-3).
+- **Disabled Ink** (disabled-ink): text and icons on a disabled control.
+- **Hover** (hover): the faint fill under the pointer on buttons and list rows. Never orange.
+- **Rider On Shell** (rider-on-shell): the warn pictogram before "N belge kontrol bekliyor" in the green status bar, where full signal orange would not read.
 
 ### Named Rules
 **The Rider Means Kontrol Rule.** Signal orange (rider) appears only on things that need a human check, always with the warn pictogram and the word "Kontrol" (or "N kontrol"). It is never a brand accent, a hover colour, or a generic warning.

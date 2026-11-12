@@ -60,7 +60,9 @@ setup(
                 "_cffi_backend",
                 "unittest",  # OCRmyPDF imports unittest.mock at run time
             ],
-            "includes": ["PySide6.QtCore", "PySide6.QtGui", "PySide6.QtWidgets", "unittest.mock"],
+            # QtSvg paints the icon set (LGPL, like the rest of Qt).
+            "includes": ["PySide6.QtCore", "PySide6.QtGui", "PySide6.QtWidgets", "PySide6.QtSvg",
+                         "unittest.mock"],
             # readline and dbm.gnu link GNU Readline and GDBM (GPL-3.0), which must not ship;
             # curses is unused and would bring ncurses.
             "excludes": [
@@ -80,6 +82,7 @@ setup(
             str(HERE / "entry_gui.py"),
             target_name="evrakci-arayuz",
             base="gui" if sys.platform == "win32" else "console",
+            icon=str(HERE / "evrakci.ico") if sys.platform == "win32" else None,
         ),
     ],
 )

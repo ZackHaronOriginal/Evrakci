@@ -28,6 +28,8 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ChangesEnvironment=yes
 UninstallDisplayIcon={app}\evrakci-arayuz.exe
+; The Kartotek mark (rendered from packaging/linux/evrakci.svg).
+SetupIconFile={#SourcePath}evrakci.ico
 SourceDir=..\build\evrakci
 
 [Languages]

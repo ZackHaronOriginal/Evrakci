@@ -116,16 +116,17 @@ def icon_file(name: str, colour: str = "ink", stroke: float = 1.75) -> str:
     return path.as_posix()
 
 
-APP_ICON_SVG = (
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-    '<rect x="4" y="10" width="56" height="48" rx="6" fill="#3f5a4c"/>'
-    '<path d="M14 18h14l3-6h14l3 6h2a2 2 0 0 1 2 2v30a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V20'
-    'a2 2 0 0 1 2-2z" fill="#e9d9a6" stroke="#b9a66a" stroke-width="1.5"/>'
-    '<rect x="17" y="27" width="30" height="2.5" fill="#c8372d"/>'
-    '<rect x="17" y="34" width="24" height="2" fill="#2b2410" opacity=".55"/>'
-    '<rect x="17" y="40" width="27" height="2" fill="#2b2410" opacity=".55"/>'
-    '<rect x="17" y="46" width="18" height="2" fill="#2b2410" opacity=".55"/>'
-    '<rect x="44" y="12" width="7" height="9" rx="1" fill="#e8731a"/></svg>'
+APP_ICON_SVG = (  # the same drawing as packaging/linux/evrakci.svg
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="2" y="2" width="60"'
+    ' height="60" rx="13" fill="#3f5a4c"/><path d="M12 23h40v27a3 3 0 0 1-3 3H15a3 3 0 0 1-3-'
+    '3z" fill="#cddbd2" opacity=".55"/><path d="M10 22a3 3 0 0 1 3-3h8l3-6h14l3 6h10a3 3 0 0 '
+    '1 3 3v29a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3z" fill="#e9d9a6" stroke="#b9a66a" stroke-width="'
+    '1.5" stroke-linejoin="round"/><rect x="16" y="28" width="32" height="3" rx="1" fill="#c8'
+    '372d"/><rect x="16" y="36" width="25" height="2.5" rx="1.25" fill="#2b2410" opacity=".6"'
+    '/><rect x="16" y="42" width="29" height="2.5" rx="1.25" fill="#2b2410" opacity=".6"/><re'
+    'ct x="16" y="48" width="19" height="2.5" rx="1.25" fill="#2b2410" opacity=".6"/><path d='
+    '"M44 9h8v13l-4-3-4 3z" fill="#e8731a" stroke="#9c4a0b" stroke-width="1.2" stroke-linejoi'
+    'n="round"/></svg>'
 )
 
 

@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Kontrol · Direction B</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+.panel { --inspector-w: 280px; }
+.inspector { padding-left: 20px; padding-right: 20px; }
+/* ---------- overview: the whole job as one document bar code ---------- */
+.overview { padding: 0 var(--s6); height: 52px; display: grid; grid-template-rows: 18px 1fr; gap: 6px; flex: none; }
+.ov-legend { display: flex; align-items: center; gap: var(--s4); font: var(--t-2); color: var(--text-2); }
+.ov-legend .where { margin-right: auto; }
+.ov-legend .where b { color: var(--text); font-weight: 600; }
+.ov-legend .k { display: inline-flex; align-items: center; gap: 6px; }
+.ov-legend .sw { width: 4px; height: 12px; border-radius: 1px; background: var(--accent); }
+.ov-legend .sw.todo { height: 6px; background: var(--edge); margin-top: 6px; }
+.ov-legend .k.check { color: var(--check-text); font-weight: 600; }
+.ov-track { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 28px; padding-bottom: 2px; }
+.ov-track .d { flex: var(--p) 1 0; min-width: 2px; border-radius: 1px; height: 6px; background: var(--edge); position: relative; }
+.ov-track .d.r { height: 14px; background: var(--accent); }
+.ov-track .d.k { height: 14px; background: var(--rider); box-shadow: inset 0 0 0 1px var(--rider-edge); }
+.ov-track .d.k::after { content: ""; position: absolute; left: 50%; bottom: 17px; width: 0; height: 0; transform: translateX(-50%);
+  border: 4px solid transparent; border-top: 6px solid var(--rider); border-bottom: 0; }
+.ov-view { position: absolute; bottom: -2px; height: 22px; border: 2px solid var(--text); border-radius: var(--r-control); }
+
+/* ---------- the timeline: documents filed as folders ---------- */
+.canvas { position: relative; flex: 1; min-height: 0; padding: var(--s4) var(--s6) 0; }
+.drow { display: flex; align-items: flex-start; gap: var(--s8); margin-bottom: 20px; /* 8 + 12 */ }
+.doc { position: relative; }
+.tabrow { position: relative; height: 24px; border-bottom: 2px solid var(--manila-edge); margin-bottom: var(--s2); }
+.tabrow.filtre { border-bottom-style: dashed; }
+.tabrow.elle { border-bottom-style: dotted; }
+.gtab { position: absolute; bottom: -2px; height: 24px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px 0 7px;
+  background: var(--manila); color: var(--manila-ink); border: 1px solid var(--manila-edge); border-bottom: 0;
+  border-radius: var(--r-control) var(--r-control) 0 0; font: var(--t-2-strong); }
+.gtab .i { color: var(--manila-ink); }
+.gtab .ok { color: var(--manila-ink); margin-left: 2px; }
+.tabrow.qr .gtab { left: 0; }
+.tabrow.filtre .gtab { left: 50%; transform: translateX(-50%); }
+.tabrow.elle .gtab { right: 0; }
+.tabrow .rider { position: absolute; right: 0; bottom: 4px; }
+.pages { display: flex; gap: var(--s2); position: relative; }
+.slot { position: relative; width: 144px; display: grid; gap: var(--s2); justify-items: center; }
+.pno { font: var(--t-2); color: var(--text-2); height: 18px; }
+.slot.cur .pno { color: var(--text); font-weight: 600; }
+.tray { position: absolute; inset: -6px -6px -4px -6px; background: var(--selected); border-radius: var(--r-layer); }
+
+/* page sheets: invented content, painted like a scan */
+.pg { position: relative; width: 144px; height: 204px; background: var(--paper); border-radius: var(--r-sheet);
+  box-shadow: 0 0 0 1px var(--paper-edge), var(--shadow-paper); padding: 14px 13px; display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
+.pg i { display: block; height: 3px; border-radius: 1px; background: var(--paper-ink-2); }
+.pg i.d { background: var(--paper-ink); }
+.pg i.h { height: 5px; width: 62%; background: var(--paper-ink); margin-bottom: 4px; }
+.pg .logo { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.pg .logo b { width: 14px; height: 14px; border-radius: 3px; background: var(--paper-ink); }
+.pg .logo i { width: 50%; }
+.pg .grid { margin: 4px 0; height: 54px; border: 1px solid var(--paper-ink); border-radius: 1px;
+  background: repeating-linear-gradient(var(--paper-ink-2) 0 1px, transparent 1px 11px),
+              linear-gradient(90deg, transparent 0 32%, var(--paper-ink-2) 32% calc(32% + 1px), transparent 0 66%, var(--paper-ink-2) 66% calc(66% + 1px), transparent 0); }
+.pg .stamp { position: absolute; right: 16px; bottom: 18px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--paper-ink); opacity: .8; }
+.pg .sign { position: absolute; left: 14px; bottom: 26px; width: 46px; height: 10px; border-bottom: 2px solid var(--paper-ink); border-radius: 0 0 40% 60%; }
+.slot.sel .pg { box-shadow: 0 0 0 2px var(--accent), var(--shadow-paper); }
+.selmark { position: absolute; z-index: 2; top: -7px; left: -7px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: var(--text-on-accent); box-shadow: 0 0 0 2px var(--selected); }
+.slot.focus .pg::after { content: ""; position: absolute; inset: 0; }
+.focusring { position: absolute; z-index: 1; left: -6px; top: -6px; width: 156px; height: 216px; border-radius: 6px; /* optical: sheet 2 + 4 offset */
+  box-shadow: inset 0 0 0 2px var(--focus-outer), inset 0 0 0 3px var(--focus-inner); pointer-events: none; }
+
+/* separator sheet (QR ayıraç): not part of any document, drawn quieter */
+.slot.sep { width: 92px; }
+.pg.sep { width: 92px; align-items: center; justify-content: center; gap: var(--s2); background: var(--well); box-shadow: 0 0 0 1px var(--stroke-panel);
+  color: var(--text-2); font: var(--t-2); }
+.pg.sep .i { color: var(--icon-2); width: 28px; height: 28px; stroke-width: 1.5; }
+.sep-top { height: 34px; }
+
+/* bottom of the canvas: position, contextual bar, zoom */
+.cfoot { position: absolute; left: 0; right: 0; bottom: var(--s1); height: 44px; display: flex; justify-content: center; pointer-events: none; }
+.where { font: var(--t-2); color: var(--text-2); }
+.where b { font-weight: 600; color: var(--text); }
+.selbar { position: relative; pointer-events: auto; height: 44px; padding: 0 var(--s1) 0 var(--s4);
+  display: flex; align-items: center; gap: 2px; }
+.selbar .count { font: var(--t-label); margin-right: var(--s2); white-space: nowrap; }
+.zoom { display: flex; align-items: center; gap: var(--s2); color: var(--text-2); font: var(--t-2); margin-left: var(--s2); }
+.zoom .i { color: var(--icon-2); }
+.slider { width: 80px; height: 4px; border-radius: 2px; background: var(--edge); position: relative; margin: 0 var(--s1); }
+.slider::before { content: ""; position: absolute; inset: 0 55% 0 0; background: var(--accent); border-radius: 2px; }
+.slider::after { content: ""; position: absolute; left: calc(45% - 8px); top: -6px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--popover); box-shadow: 0 0 0 1px var(--edge), 0 1px 2px rgba(0,0,0,.12); }
+.zoom .val { width: 36px; text-align: right; }
+
+/* ---------- inspector ---------- */
+.ins-head { display: flex; align-items: center; height: 40px; gap: var(--s1); }
+.ins-head h2 { font: var(--t-pane); margin-right: auto; }
+.ins-sub { font: var(--t-2); color: var(--text-2); margin-top: -4px; }
+.why { margin-top: var(--s6); padding: var(--s3) var(--s4) var(--s4); background: var(--well); border-radius: var(--r-layer); display: grid; gap: var(--s2); justify-items: start; }
+.why p { font: var(--t-body); }
+.props { margin-top: var(--s6); display: grid; grid-template-columns: 76px 1fr; row-gap: var(--s3); column-gap: var(--s3); align-items: center; }
+.props dt { font: var(--t-2); color: var(--text-2); }
+.props dd { font: var(--t-body); display: flex; align-items: center; gap: 6px; min-width: 0; }
+.props dd .i { color: var(--icon-2); }
+.props dd .cut { color: var(--cut-filter); }
+.props dd.pick { justify-content: space-between; height: 32px; margin: -6px 0; padding: 0 6px 0 8px; margin-left: -8px; border-radius: var(--r-control); }
+.props dd.pick:hover { background: var(--hover); }
+.ins-foot { margin-top: auto; display: grid; gap: var(--s2); }
+.ins-foot .hint { font: var(--t-2); color: var(--text-2); text-align: center; margin-bottom: var(--s2); }
+.ins-foot .pair { display: grid; gap: 2px; margin: 0 calc(-1 * var(--s3)); }
+.ins-foot .pair .btn { justify-content: flex-start; }
+</style>
+</head>
+<body>
+<div class="sheet">
+<div class="window" data-state="main">
+  <header class="titlebar"></header>
+  <div class="body">
+    <aside class="sidebar" data-current="kontrol"></aside>
+
+    <section class="panel">
+      <div class="phead">
+        <h1>Kontrol</h1>
+        <span class="sub">96 belge, 640 sayfa</span>
+        <div class="tools">
+          <button class="ibtn" aria-label="Geri al: Kesim ekle (Ctrl+Z)"><svg class="i"><use href="#undo-2"/></svg></button>
+          <button class="ibtn" aria-label="Yinele (Ctrl+Y)"><svg class="i"><use href="#redo-2"/></svg></button>
+          <span class="vsep"></span>
+          <button class="ibtn" aria-label="Belgeye veya sayfaya git (Ctrl+G)"><svg class="i"><use href="#locate-fixed"/></svg></button>
+          <button class="ibtn" aria-label="Önizle (Boşluk)"><svg class="i"><use href="#eye"/></svg></button>
+          <button class="ibtn" aria-label="Sonraki incelenmemiş (U)"><svg class="i"><use href="#circle-dashed"/></svg></button>
+          <button class="ibtn" aria-label="Diğer komutlar"><svg class="i"><use href="#ellipsis"/></svg></button>
+          <span class="vsep"></span>
+          <button class="btn secondary" aria-label="Sonraki kontrol (N)"><svg class="i"><use href="#triangle-alert"/></svg>Sonraki kontrol</button>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="overview" aria-label="Tüm iş">
+          <div class="ov-legend">
+            <span class="where">Sayfa <b>74</b> / 640</span>
+            <span class="k"><span class="sw"></span>İncelendi 58</span>
+            <span class="k"><span class="sw todo"></span>İncelenmedi 31</span>
+            <span class="k check"><svg class="i xs"><use href="#triangle-alert"/></svg>Kontrol 7</span>
+            <div class="zoom" aria-label="Küçük resim boyutu (Ctrl+tekerlek)">
+              <svg class="i sm"><use href="#image"/></svg><span class="slider"></span><span class="val">%100</span>
+            </div>
+          </div>
+          <div class="ov-track" id="ov"></div>
+        </div>
+
+        <div class="canvas">
+          <div class="drow">
+            <div class="doc" id="b16"></div>
+            <div class="doc" id="b17"></div>
+          </div>
+          <div class="drow">
+            <div class="doc" id="b18"></div>
+            <div class="doc" id="b19"></div>
+          </div>
+
+          <div class="cfoot">
+            <div class="selbar pop" role="toolbar" aria-label="Seçim komutları">
+              <span class="count">3 sayfa seçili</span>
+              <button class="ibtn" aria-label="Burada kes (K)"><svg class="i"><use href="#scissors"/></svg></button>
+              <button class="ibtn" aria-label="Önceki belgeyle birleştir (M)"><svg class="i"><use href="#merge"/></svg></button>
+              <button class="ibtn" aria-label="Sağa döndür (R)"><svg class="i"><use href="#rotate-cw"/></svg></button>
+              <button class="ibtn" aria-label="Şablon uygula"><svg class="i"><use href="#stamp"/></svg></button>
+              <button class="ibtn" aria-label="Filtre uygula (F)"><svg class="i"><use href="#filter"/></svg></button>
+              <span class="vsep"></span>
+              <button class="btn subtle danger" aria-label="3 sayfayı sil (Del)"><svg class="i sm"><use href="#trash-2"/></svg>Sil</button>
+              <button class="ibtn quiet" aria-label="Seçimi kaldır (Esc)"><svg class="i sm"><use href="#x"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="inspector" aria-label="Belge ayrıntıları">
+        <div class="ins-head">
+          <h2>Belge 16</h2>
+          <button class="ibtn quiet" aria-label="Önceki belge (Page Up)"><svg class="i sm"><use href="#chevron-up"/></svg></button>
+          <button class="ibtn quiet" aria-label="Sonraki belge (Page Down)"><svg class="i sm"><use href="#chevron-down"/></svg></button>
+        </div>
+        <div class="ins-sub">Ekspertiz Raporu</div>
+
+        <div class="why">
+          <span class="rider"><svg class="i xs"><use href="#triangle-alert"/></svg>Kontrol</span>
+          <p>QR ayıraç yok. Filtre her 2 sayfada kesti; bu belgenin kapak sayfası olmayabilir.</p>
+        </div>
+
+        <dl class="props">
+          <dt>Sayfalar</dt><dd>72–74, 3 sayfa</dd>
+          <dt>Kesim</dt><dd><svg class="i sm cut"><use href="#filter"/></svg>Filtre, 2 sayfada</dd>
+          <dt>Şablon</dt><dd class="pick">Ekspertiz Raporu<svg class="i sm"><use href="#chevron-down"/></svg></dd>
+          <dt>Değerler</dt><dd>4 değer okundu</dd>
+          <dt>Durum</dt><dd><svg class="i sm"><use href="#circle-dashed"/></svg>İncelenmedi</dd>
+        </dl>
+
+        <div class="ins-foot">
+          <button class="btn primary big wide" aria-label="Belgeyi onayla (Enter)"><svg class="i"><use href="#check"/></svg>Belgeyi onayla</button>
+          <div class="hint">Enter ile onaylayıp sonrakine geçin</div>
+          <div class="pair">
+            <button class="btn subtle"><svg class="i sm"><use href="#merge"/></svg>Öncekiyle birleştir</button>
+            <button class="btn subtle"><svg class="i sm"><use href="#table-2"/></svg>Değerlerde aç</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- context menu on page 73 (opened upward: not enough room below the cursor) -->
+      <div class="pop menu" style="left: 480px; top: 262px;" role="menu" aria-label="Sayfa 72–74">
+        <div class="mh">Sayfa 72–74, 3 sayfa seçili</div>
+        <div class="mi is-hover"><svg class="i sm"><use href="#scissors"/></svg>Burada kes<span class="k">K</span></div>
+        <div class="mi"><svg class="i sm"><use href="#merge"/></svg>Önceki belgeyle birleştir<span class="k">M</span></div>
+        <div class="msep"></div>
+        <div class="mi"><svg class="i sm"><use href="#rotate-cw"/></svg>Sağa döndür<span class="k">R</span></div>
+        <div class="mi"><svg class="i sm"><use href="#rotate-ccw"/></svg>Sola döndür<span class="k">Shift+R</span></div>
+        <div class="msep"></div>
+        <div class="mi"><svg class="i sm"><use href="#stamp"/></svg>Şablon uygula<span class="k"><svg class="i xs"><use href="#chevron-right"/></svg></span></div>
+        <div class="mi"><svg class="i sm"><use href="#filter"/></svg>Filtre uygula…<span class="k">F</span></div>
+        <div class="msep"></div>
+        <div class="mi"><svg class="i sm"><use href="#eye"/></svg>Önizle<span class="k">Boşluk</span></div>
+        <div class="mi"><svg class="i sm"><use href="#table-2"/></svg>Değerlerde aç<span class="k">Ctrl+4</span></div>
+        <div class="msep"></div>
+        <div class="mi danger"><svg class="i sm"><use href="#trash-2"/></svg>3 sayfayı sil<span class="k">Del</span></div>
+      </div>
+    </section>
+  </div>
+</div>
+</div>
+
+<script src="icons.js"></script>
+<script src="chrome.js"></script>
+<script>
+const ic = (n, c = 'sm') => `<svg class="i ${c}"><use href="#${n}"/></svg>`;
+const lines = (n, w = [100, 92, 96, 70]) => Array.from({ length: n }, (_, k) => `<i style="width:${w[k % w.length]}%"></i>`).join('');
+const KINDS = {
+  cover: () => `<div class="logo"><b></b><i class="d"></i></div><i class="h"></i>${lines(4)}<div class="grid"></div>${lines(3, [100, 84, 58])}<span class="stamp"></span>`,
+  text: () => `<i class="h" style="width:44%"></i>${lines(15, [100, 96, 98, 90, 100, 74])}`,
+  table: () => `<i class="h" style="width:52%"></i>${lines(2)}<div class="grid"></div><div class="grid" style="height:40px"></div>${lines(2, [80, 40])}`,
+  sign: () => `${lines(9, [100, 94, 98, 66])}<span class="sign"></span><span class="stamp"></span>`,
+};
+function slot(n, kind, o = {}) {
+  return `<div class="slot ${o.sel ? 'sel' : ''} ${o.cur ? 'cur' : ''}">
+    ${o.sel && !o.trayed ? '<span class="tray"></span>' : ''}
+    ${o.focus ? '<span class="focusring" aria-hidden="true"></span>' : ''}
+    ${o.sel ? `<span class="selmark">${ic('check', 'xs')}</span>` : ''}
+    <div class="pg">${KINDS[kind]()}</div><span class="pno">${n}</span></div>`;
+}
+function doc(el, { no, cut, done, kontrol, pages, tray }) {
+  const icon = { qr: 'qr-code', filtre: 'filter', elle: 'scissors' }[cut];
+  const label = { qr: 'QR ayıraç', filtre: 'Filtre', elle: 'Elle kesim' }[cut];
+  el.innerHTML = `<div class="tabrow ${cut}">
+      <span class="gtab" aria-label="Belge ${no}, ${label}${done ? ', incelendi' : ''}">${ic(icon, 'xs')}${no}${done ? `<span class="ok">${ic('check', 'xs')}</span>` : ''}</span>
+      ${kontrol ? `<span class="rider">${ic('triangle-alert', 'xs')}Kontrol</span>` : ''}
+    </div>
+    <div class="pages">${tray ? `<span class="tray" style="${tray}"></span>` : ''}${pages.map(p => slot(...p)).join('')}</div>`;
+}
+doc(b16, { no: 16, cut: 'filtre', kontrol: true, tray: 'inset:-6px -6px -4px -6px',
+  pages: [[72, 'cover', { sel: 1, trayed: 1 }], [73, 'table', { sel: 1, trayed: 1 }], [74, 'sign', { sel: 1, trayed: 1, cur: 1, focus: 1 }]] });
+doc(b17, { no: 17, cut: 'elle', pages: [[75, 'cover'], [76, 'text']] });
+doc(b18, { no: 18, cut: 'qr', done: true, pages: [[78, 'cover'], [79, 'text'], [80, 'sign']] });
+doc(b19, { no: 19, cut: 'filtre', done: true, pages: [[81, 'cover'], [82, 'table']] });
+
+// overview: 96 documents, width = page count; reviewed tall green, not reviewed short grey, kontrol orange
+const counts = [], state = [];
+let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+for (let i = 1; i <= 96; i++) counts.push(2 + Math.floor(rnd() * 11));
+const kontrol = new Set([16, 23, 41, 47, 58, 71, 88]);
+const notYet = new Set([17, 27, 36, 45]);
+for (let i = 1; i <= 96; i++) state.push(kontrol.has(i) ? 'k' : (i <= 67 && !notYet.has(i)) ? 'r' : '');
+ov.innerHTML = counts.map((c, i) => `<span class="d ${state[i]}" style="--p:${c}" data-n="${i + 1}"></span>`).join('') + '<span class="ov-view" id="ovv"></span>';
+requestAnimationFrame(() => {
+  const a = ov.querySelector('[data-n="16"]'), b = ov.querySelector('[data-n="19"]');
+  const L = a.offsetLeft - 4, R = b.offsetLeft + b.offsetWidth + 4;
+  ovv.style.left = L + 'px'; ovv.style.width = (R - L) + 'px';
+  const r = state.filter(s => s === 'r').length, t = state.filter(s => !s).length;
+  console.log('reviewed', r, 'todo', t);
+});
+</script>
+</body>
+</html>

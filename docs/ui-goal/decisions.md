@@ -33,3 +33,17 @@ Confirmed by the owner on 2026-11-12. These override the research files where th
   - Enter = "Belgeyi onayla" (mark the document reviewed and move on).
   - Deleting is undoable instead of confirmed: the item names the count, and Ctrl+Z restores (research 04 r11).
   - Thumbnail size is set by the status-bar zoom slider.
+
+## Owner answer after mockup round 2 (2026-11-12)
+
+- **Direction A, "Fluent 2 Mica", chosen** ("A is much better"). It is Windows 11 / Microsoft 365 native: the tabs sit in a Mica-toned title band, there is one icon-first command bar, the work lies on a tonal layer, and the inspector is a set of Settings-style cards. The source is `docs/ui-goal/mockups/directions/a/` (tokens.css, shell.css, README.md).
+- **A's deviations, taken as accepted with the pick** (README §5 there; the owner can still object):
+  1. No resting menu row. Menus open with Alt+D/E/G/T/A/Y (the row appears on Alt), the "≡" button and Ctrl+K.
+  2. Tonal layers plus 1 px strokes on layers and cards; hairlines only between table rows and menu groups.
+  3. Radius 8 also on the work layer and cards.
+  4. Buttons identified by their label need no 3:1 border; inputs keep a 3:1 bottom edge.
+  5. 36 px icon buttons in a 44 px command bar.
+  6. The status-bar zoom shows only "%"; its tooltip names what it zooms.
+  7. The title-band search opens the command palette.
+  8. Command-bar labels are 15 px.
+- These supersede D2 and D6 where they differ.

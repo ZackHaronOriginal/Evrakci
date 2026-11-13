@@ -143,7 +143,9 @@ def test_the_windows_job_counts_give_way_to_this_tabs_status_line(window):
     for label in (window.counts, window.pages, window.checks):
         assert not label.isVisible()
     window.show_tab("yukle")
-    assert window.counts.isVisible() or window.counts.text() == ""  # Yükle has its own rule
+    assert not window.counts.isVisible()  # Yükle's mockup draws its own "parti sayfa" line
+    window.show_tab("disa_aktar")
+    assert window.counts.isVisible() or window.counts.text() == ""  # only Dışa Aktar shows them
     window.show_tab("sablonlar")
     assert not window.counts.isVisible()
 

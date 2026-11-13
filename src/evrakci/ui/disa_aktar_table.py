@@ -25,10 +25,9 @@ from PySide6.QtWidgets import (
     QTableView,
 )
 
-from evrakci.ui import disa_aktar_icons, icons, theme
+from evrakci.ui import icons, theme
 from evrakci.ui.disa_aktar_model import FileRow
 
-assert disa_aktar_icons  # registers loader-circle
 ROW_ROLE = Qt.ItemDataRole.UserRole + 1
 STATUS_ROLE = Qt.ItemDataRole.UserRole + 2
 WIDTHS = (252, 0, 104, 148)  # A's colgroup at 100 % text; the name column takes the rest

@@ -27,7 +27,7 @@ ALIASES: dict[str, str] = {
     "ok": "circle-check", "no": "circle-minus", "open": "external-link", "blank": "square-dashed",
     "ch": "chevron-right", "chl": "chevron-left", "box": "scan", "grid": "grid-3x3",
     "pen": "pencil", "up": "arrow-up", "down": "arrow-down", "drop": "download",
-    "print": "printer", "sheet": "table-2", "grip": "grip-vertical", "gear": "settings",
+    "print": "printer", "grip": "grip-vertical", "gear": "settings",
     "chd": "chevron-down", "chu": "chevron-up", "stop": "square",
 }
 

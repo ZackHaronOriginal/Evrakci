@@ -272,6 +272,7 @@ def test_alt_arrows_and_del_work_from_the_table(qtbot, tmp_path, pdfs):
 
     window = _window(qtbot, tmp_path)
     window.activateWindow()
+    assert QTest.qWaitForWindowActive(window)  # window shortcuts need the active window
     screen = _open(window, pdfs)
     screen.table.setFocus()
     screen.table.select_batch(screen.controller.job.batches[0].id)
@@ -335,7 +336,7 @@ def test_status_bar_line_is_parti_sayfa_belge_in_that_order(qtbot, tmp_path, pdf
     assert not parts["belge"].isVisibleTo(window)
     screen._reading = None
     screen._show_state()
-    window.show_tab("degerler")  # the window's own counts come back on the other tabs
+    window.show_tab("disa_aktar")  # the window's own counts show only where A draws them
     qtbot.waitUntil(lambda: window.counts.isVisibleTo(window), timeout=2000)
     window.show_tab("yukle")
     qtbot.waitUntil(lambda: not window.counts.isVisibleTo(window), timeout=2000)

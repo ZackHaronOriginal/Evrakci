@@ -24,7 +24,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QWidget, QWidgetAction
 
 from evrakci.ui import actions, icons, theme
-from evrakci.ui.chrome import make_icon
+from evrakci.ui.chrome import make_icon, mark_danger
 
 # Every Kontrol command and the KontrolScreen method (+ arguments) that does it.
 SCREEN_SLOTS: dict[str, tuple] = {
@@ -163,7 +163,9 @@ def context_menu(screen, action: Callable[[str], QAction], parent: QWidget) -> Q
     menu.addAction(action("kontrol.onizle"))
     menu.addAction(action("kontrol.degerlerde_ac"))
     menu.addSeparator()
-    menu.addAction(action("kontrol.sil"))
+    delete = action("kontrol.sil")
+    menu.addAction(delete)
+    mark_danger(menu, delete)  # A's red "3 sayfayı sil"
     return menu
 
 

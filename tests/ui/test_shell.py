@@ -328,7 +328,10 @@ def test_command_label_sits_two_gaps_after_its_icon(qtbot, tmp_path):
     assert button.text() == "Kes"
     start = m.size("icon-md") + 2 * m.size("s2")
     assert button.text_rect().left() == start
-    text_w = button.fontMetrics().horizontalAdvance("Kes")
+    # The label is measured and painted with A's .cmd font (body-medium), not the widget font.
+    from PySide6.QtGui import QFontMetrics
+
+    text_w = QFontMetrics(button.label_font()).horizontalAdvance("Kes")
     assert button.width() >= start + text_w + m.size("s3") - 2
     from PySide6.QtGui import QImage
 

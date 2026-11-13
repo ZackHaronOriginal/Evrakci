@@ -23,13 +23,16 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
 
 from fakes import empty_page, make_pdf, qr_page, text_page  # noqa: E402
+from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtWidgets import (  # noqa: E402
     QAbstractButton,
+    QAbstractScrollArea,
     QApplication,
     QComboBox,
     QLabel,
     QStyle,
     QStyleOptionComboBox,
+    QToolButton,
     QWidget,
 )
 
@@ -108,12 +111,25 @@ def _shown_text(w: QWidget) -> tuple[str, str, int | None] | None:
     if hasattr(w, "displayed_text") and hasattr(w, "is_elided"):  # ElidedLabel, KeyHintButton
         full = w.full_text() if hasattr(w, "full_text") else w.text()
         return full, w.displayed_text() if w.is_elided() else full, None
+    if (isinstance(w, QToolButton)
+            and w.toolButtonStyle() == Qt.ToolButtonStyle.ToolButtonIconOnly):
+        return None  # its text is a name (tooltip, line-edit action), never drawn
     if isinstance(w, (QLabel, QAbstractButton)):
         if isinstance(w, QLabel) and w.wordWrap():
             return None
         text = w.text().replace("&", "")
         return text, text, w.contentsRect().width()
     return None
+
+
+def _scrolled(widget: QWidget) -> bool:
+    """True inside a scroll area's viewport: scrolled out of view is not clipped."""
+    parent = widget.parentWidget()
+    while parent is not None:
+        if isinstance(parent, QAbstractScrollArea) and parent.viewport().isAncestorOf(widget):
+            return True
+        parent = parent.parentWidget()
+    return False
 
 
 def clipping(window: QWidget, label: str) -> list[str]:
@@ -126,7 +142,7 @@ def clipping(window: QWidget, label: str) -> list[str]:
             continue
         name = f"{label} {type(w).__name__}#{w.objectName() or '-'}"
         box = w.rect().translated(w.mapTo(window, w.rect().topLeft()))
-        if not bounds.adjusted(-1, -1, 1, 1).contains(box):
+        if not bounds.adjusted(-1, -1, 1, 1).contains(box) and not _scrolled(w):
             found.append(f"{name} dışarıda: {box.getRect()}")
         shown = _shown_text(w)
         if shown is None:

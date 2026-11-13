@@ -21,11 +21,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.ui import disa_aktar_icons, icons, theme
+from evrakci.ui import icons, theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.disa_aktar_model import Finding
 
-assert disa_aktar_icons
 # word, icon, colour role, strong (A .st)
 LEVEL_LOOK = {
     "engel": ("Engel", "ban", "danger", True),

@@ -21,11 +21,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.ui import disa_aktar_icons, icons, theme
+from evrakci.ui import icons, theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.disa_aktar_parts import HintLine, PartsButton, scale
 
-assert disa_aktar_icons
 SIDE_W = 368  # A: the aside column at 100 % text (440 at 150 %)
 
 

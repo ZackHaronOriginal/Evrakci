@@ -48,29 +48,6 @@ from evrakci import __version__
 from evrakci.ui import actions, icons, theme
 from evrakci.ui.feedback import SaveState
 
-# Lucide 0.460.0 icons (ISC, see lucide.py) that A uses and lucide.py does not carry yet, copied
-# from final-a/icons.js. TODO(Phase 3): add them to tools/build_lucide.py NAMES and drop this.
-EXTRA_ICONS: dict[str, str] = {
-    "table": '<path d="M12 3v18" /><rect width="18" height="18" x="3" y="3" rx="2" />'
-             '<path d="M3 9h18" /><path d="M3 15h18" />',
-    "file-output": '<path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M4 7V4a2 2 0 0 1 2-2 2 2 0 0 '
-                   '0-2 2" /><path d="M4.063 20.999a2 2 0 0 0 2 1L18 22a2 2 0 0 0 2-2V7l-5-5H6" />'
-                   '<path d="m5 11-3 3" /><path d="m5 17-3-3h10" />',
-    "book-open": '<path d="M12 7v14" /><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 '
-                 '4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 '
-                 '0-3-3z" />',
-    "copy": '<rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9'
-            '-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />',
-    "list-filter": '<path d="M3 6h18" /><path d="M7 12h10" /><path d="M10 18h4" />',
-    "file-up": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path '
-               'd="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M12 12v6" /><path d="m15 15-3-3-3 3" />',
-    "folder-plus": '<path d="M12 10v6" /><path d="M9 13h6" /><path d="M20 20a2 2 0 0 0 2-2V8a2 2 '
-                   '0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 '
-                   '2 0 0 0 2 2Z" />',
-}
-for _name, _markup in EXTRA_ICONS.items():
-    icons.PATHS.setdefault(_name, _markup)
-
 # A's tab icons (kontrol.html .tabs).
 TAB_ICONS = {"yukle": "upload", "kontrol": "layout-grid", "sablonlar": "layout-template",
              "degerler": "table", "disa_aktar": "file-output", "rehber": "book-open"}
@@ -92,11 +69,21 @@ def make_icon(name: str, role: str = "icon", size: int | None = None, stroke: fl
 
 
 def set_action_icons(registry: actions.Registry) -> None:
-    """Give every registry action its Lucide icon in the `icon` role (menus, palette)."""
+    """Give every registry action its Lucide icon in the `icon` role (menus, palette); an
+    action marked `danger` (A's red delete item) keeps its icon in the `danger` role."""
     for spec in actions.SPECS:
-        name = registry.action(spec.id).property("lucide")
+        action = registry.action(spec.id)
+        name = action.property("lucide")
         if name:
-            registry.action(spec.id).setIcon(make_icon(name))
+            action.setIcon(make_icon(name, "danger" if action.property("danger") else "icon"))
+
+
+def mark_danger(menu: QMenu, action: QAction) -> None:
+    """Paint `action` in `danger` in this menu when it is marked destructive (property
+    `danger`). QSS cannot select one item, so the item is the menu's default action, which the
+    sheet draws in `danger` (QMenu::item:default)."""
+    if action.property("danger"):
+        menu.setDefaultAction(action)
 
 
 # -- title band parts -----------------------------------------------------------------------

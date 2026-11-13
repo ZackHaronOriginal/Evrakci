@@ -109,7 +109,7 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 | B | Kutu çiz | Araçlar | checkable; yazarken kapalı |
 | G | Izgaraya oturt | Araçlar | checkable snap toggle; yazarken kapalı |
 | Ctrl+T | Bütün örneklerde dene | Araçlar | |
-| Del | Kutuyu sil | Düzen | undoable; yazarken kapalı |
+| Del | Kutuyu sil | Düzen | undoable; yazarken kapalı. Acts on the chosen box, or on the chosen variable when it has no box |
 | Ctrl+D | Kutuyu çoğalt | Düzen | |
 | Ctrl+Shift+N | Değişken ekle | Düzen | |
 | Alt+Up / Alt+Down | Değişkeni yukarı taşı / aşağı taşı | Düzen | |
@@ -117,6 +117,10 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 | Arrows | Kutuyu 0,25 mm kaydır | — | yerel (canvas) |
 | Shift+arrows | Kutuyu 1 mm kaydır | — | yerel |
 | Space (hold) | Sayfayı sürükle | — | yerel |
+
+`sablonlar.kaydir`, `sablonlar.kaydir_1mm` and `sablonlar.el` are local keys of the canvas: the
+canvas handles them itself while it has focus, so the arrows keep moving focus in the variable
+list and the inspector fields.
 
 ### Değerler
 

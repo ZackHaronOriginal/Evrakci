@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.ui import actions, icons, theme, yukle_icons  # noqa: F401
+from evrakci.ui import actions, icons, theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.yukle_info import JobSummary, ScanProfile
 

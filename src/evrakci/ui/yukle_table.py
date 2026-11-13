@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
     QTableView,
 )
 
-from evrakci.ui import icons, theme, yukle_icons  # noqa: F401
+from evrakci.ui import icons, theme
 from evrakci.ui.yukle_info import BatchSummary
 
 MIME = "application/x-evrakci-batch"

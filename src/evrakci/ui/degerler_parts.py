@@ -327,14 +327,12 @@ class StatusItem(QWidget):
         row.setSpacing(6)
         self.icon_name, self.role = icon, role
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-        self.icon = QLabel()
+        self.icon = QLabel(self)  # parented even without an icon: never a stray window
         self.icon.setFixedSize(14, 14)
         self.label = QLabel()
         self.label.setTextFormat(Qt.TextFormat.RichText)
-        if icon:
-            row.addWidget(self.icon)
-        else:
-            self.icon.hide()
+        row.addWidget(self.icon)
+        self.icon.setVisible(bool(icon))
         row.addWidget(self.label)
         self.parts: tuple[str, ...] = ()
 

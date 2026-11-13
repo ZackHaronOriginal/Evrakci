@@ -2,7 +2,6 @@ from dataclasses import replace
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
     QApplication,
@@ -48,8 +47,7 @@ def test_every_action_has_text_icon_and_tooltip_with_its_key(app, window):
         tip = registry.action(spec.id).toolTip()
         assert tip
         if spec.shortcuts:
-            native = QKeySequence(spec.shortcuts[0]).toString(
-                QKeySequence.SequenceFormat.NativeText)
+            native = actions.key_text(spec.shortcuts[0])  # Space reads "Boşluk"
             assert f"({native})" in tip, (spec.id, tip)
             assert "&" not in tip.replace(f"({native})", ""), (spec.id, tip)
 

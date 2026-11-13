@@ -11,13 +11,14 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QRectF, QSize, Qt, Signal
+from PySide6.QtCore import QPoint, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QKeyEvent, QPainter, QPen
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QProgressBar,
     QPushButton,
     QSizePolicy,
@@ -25,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.ui import actions, icons, theme, yukle_icons  # noqa: F401
+from evrakci.ui import actions, icons, theme
 from evrakci.ui.chrome import ElidedLabel, make_icon
 
 PDF_LIMIT = 5000  # a dropped folder tree is read this far; more is almost certainly a mistake
@@ -386,6 +387,15 @@ class _JobRow(QPushButton):
         hint = self.layout().sizeHint()
         return QSize(hint.width(), max(hint.height(), theme.manager().size("row-h")))
 
+    def contextMenuEvent(self, event) -> None:  # noqa: N802
+        """Right-click (or the menu key) on a job: İşi aç, Klasörünü göster."""
+        page = self.parent()
+        while page is not None and not isinstance(page, EmptyPage):
+            page = page.parent()
+        if page is not None:
+            page.job_menu(self.entry, event.globalPos())
+            event.accept()
+
 
 class _Search(QLineEdit):
     """"İş adı ara": Esc clears, Down moves to the first job, Enter opens the first match."""
@@ -411,6 +421,7 @@ class EmptyPage(QWidget):
     new_job = Signal()
     add_files = Signal()
     open_job = Signal(str)
+    show_job_folder = Signal(str)
     BASE_WIDTH = 440  # A .recent width
     RECENT = 3
     ALL = 8
@@ -526,6 +537,18 @@ class EmptyPage(QWidget):
         self.group.setText("İşler" if everything else "Son işler")
         self.setAccessibleName(self.title.text())
         self.rebuild()
+
+    def job_menu(self, entry: JobEntry, where: QPoint) -> QMenu:
+        """A job row's context menu: open it, or show its folder in the file manager."""
+        menu = QMenu(self)
+        menu.setAccessibleName(entry.name)
+        menu.addAction(make_icon("folder-open"), "İşi &aç",
+                       lambda: self.open_job.emit(entry.id))
+        menu.addAction(make_icon("external-link"), "Klasörünü Dosya &Gezgini'nde göster",
+                       lambda: self.show_job_folder.emit(entry.id))
+        menu.popup(where)
+        self.menu = menu
+        return menu
 
     def set_jobs(self, entries: list[JobEntry]) -> None:
         self.entries = list(entries)

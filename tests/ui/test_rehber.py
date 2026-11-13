@@ -237,10 +237,18 @@ def test_the_tab_wires_its_actions_and_fills_the_bar_and_status(qtbot, tmp_path)
     for spec in actions.SPECS:
         if spec.context == "rehber":
             assert r.is_enabled(spec.id), spec.id
-    for action_id in ("app.bul", "app.sonraki_sonuc", "app.onceki_sonuc", "app.yan_panel",
-                      "app.yardim", "app.kisayollar", "app.yakinlastir", "app.uzaklastir",
-                      "app.sigdir"):
+    for action_id in ("app.bul", "app.yan_panel", "app.yardim", "app.kisayollar",
+                      "app.yakinlastir", "app.uzaklastir", "app.sigdir"):
         assert r.is_enabled(action_id), action_id
+    # F3 / Shift+F3 step through hits, so they wait for a search that finds something.
+    for action_id in ("app.sonraki_sonuc", "app.onceki_sonuc"):
+        assert not r.is_enabled(action_id), action_id
+    window.rehber.search.setText("ayıraç")
+    QApplication.processEvents()
+    for action_id in ("app.sonraki_sonuc", "app.onceki_sonuc"):
+        assert r.is_enabled(action_id), action_id
+    window.rehber.search.clear()
+    QApplication.processEvents()
     names = [b.accessibleName() or b.toolTip() for b in window.command_bar("rehber").buttons()]
     assert any(n.startswith("Ayıraç sayfasını yazdır") for n in names)
     assert "PDF olarak aç" in names

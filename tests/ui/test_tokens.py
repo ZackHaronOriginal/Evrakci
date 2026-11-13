@@ -52,8 +52,8 @@ PAIRS = [
 HUE_TOKENS = ["cut-qr", "cut-filter", "cut-manual", "ok", "danger", "accent", "text-accent"]
 HEX = re.compile(r"#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?\b|#[0-9a-fA-F]{3}\b")
 HEX_ALLOWED = {"tokens/generated.py", "logo_data.py"}
-# Kartotek screens rebuilt in Phase 3; their literals may only go down (ratchet).
-HEX_LEGACY = {"yukle.py": 1, "sablon.py": 2, "kontrol.py": 1, "timeline.py": 4}
+# Phase 3 rebuilt every screen on tokens: no file outside the token source has a hex literal.
+HEX_LEGACY: dict[str, int] = {}
 
 
 def _lum(value: str) -> float:

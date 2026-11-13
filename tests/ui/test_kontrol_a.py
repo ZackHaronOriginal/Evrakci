@@ -293,6 +293,15 @@ def test_context_menu_lists_a_s_items_with_their_keys(qtbot, tmp_path):
     assert names[-1] == "3 sayfayı sil"
     keys = {a.text().replace("&", ""): a.shortcut().toString() for a in menu.actions()}
     assert keys["Burada kes"] == "K" and keys["3 sayfayı sil"] == "Del"
+    delete = menu.actions()[-1]
+    assert menu.defaultAction() is delete  # drawn in `danger` (QMenu::item:default)
+    menu.setStyleSheet(theme.manager().stylesheet())  # what the app applies at start
+    menu.show()
+    image = menu.grab().toImage()
+    rect = menu.actionGeometry(delete)
+    danger = theme.manager().color("danger").name()
+    assert any(image.pixelColor(x, y).name() == danger
+               for y in range(rect.top(), rect.bottom()) for x in range(rect.left(), rect.right()))
     menu.close()
 
 
@@ -455,3 +464,4 @@ def test_every_control_has_an_accessible_name(qtbot, tmp_path):
     assert screen.timeline.accessibleName() == "Sayfalar"
     assert screen.side.accessibleName() == "Belge ayrıntısı"
     assert screen.strip.accessibleName().startswith("Tüm iş: ")
+

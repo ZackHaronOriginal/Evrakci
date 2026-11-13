@@ -218,6 +218,9 @@ QMenu::item { background: transparent; padding: {{menu-pad-t}} {{s6}} {{menu-pad
     border: 1px solid transparent; border-radius: {{r-control}}; }
 QMenu::item:selected { background: {{hover-pop}}; color: {{text}}; border-color: {{hover-edge}}; }
 QMenu::item:disabled { color: {{text-disabled}}; }
+/* A destructive item (A's red "3 sayfayı sil") is the menu's default action: chrome.mark_danger */
+QMenu::item:default, QMenu::item:default:selected { color: {{danger}}; font-weight: 400; }
+QMenu::item:default:disabled { color: {{text-disabled}}; }
 QMenu::separator { height: 1px; background: {{stroke-soft}}; margin: {{s1}} 0; }
 QFrame[kind="toast"] { background: {{popover}}; border: 1px solid {{stroke}};
     border-radius: {{r-layer}}; min-height: {{toast-in-h}}; }
@@ -272,46 +275,12 @@ QGroupBox::title { subcontrol-origin: margin; left: {{s1}}; color: {{text-2}};
     font-size: {{fs-caption}}; font-weight: 600; }
 """
 
-# Old Kartotek selectors still used by the screens until Phase 3 rebuilds them. Delete this
-# block (and theme.LEGACY) once no screen sets these object names / roles any more.
-LEGACY = """
-QWidget#header { background: {{accent}}; border-bottom: 1px solid {{accent-hover}}; }
-QWidget#header QLabel { color: {{text-on-accent}}; }
-QWidget#header QLabel#app-name { color: {{text-on-accent}}; font-size: {{fs-section}}; font-weight: 600; }
-QStatusBar { background: {{accent}}; color: {{text-on-accent}}; font-size: {{fs-caption}};
-    min-height: {{statusbar-h}}; }
-QStatusBar::item { border: 0; }
-QStatusBar QLabel { color: {{text-on-accent}}; font-size: {{fs-caption}}; }
-QWidget#card, QFrame#card { background: {{layer}}; }
-QFrame#card[edge="left"] { border-left: 1px solid {{stroke}}; }
-QFrame#card[edge="right"] { border-right: 1px solid {{stroke}}; }
-QFrame[role="toolbar"] { background: {{layer}}; border-bottom: 1px solid {{stroke}}; }
-QFrame[role="hrule"] { background: {{stroke}}; border: 0; }
-QFrame[role="vrule"] { background: {{stroke}}; border: 0; margin: 0 3px; }
-QFrame[role="index-rule"] { background: {{stroke}}; border: 0; max-height: 1px; min-height: 1px; }
-QFrame[role="drop"] { background: transparent; border: 2px dashed {{edge}}; border-radius: {{r-layer}}; }
-QFrame[role="drop"][hot="true"] { background: {{selected}}; border-color: {{accent}}; }
-QLabel[role="heading"], QLabel[role="page-title"] { font-size: {{fs-page}}; font-weight: 600; }
-QLabel[role="panel-title"] { font-size: {{fs-panel}}; font-weight: 600; }
-QLabel[role="section-title"] { font-size: {{fs-section}}; font-weight: 600; }
-QLabel[role="muted"] { color: {{text-2}}; }
-QLabel[role="meta"], QLabel[role="hint"] { color: {{text-2}}; font-size: {{fs-caption}}; }
-QLabel[role="value"] { font-weight: 600; }
-QLabel[role="figure"] { font-size: {{fs-section}}; font-weight: 600; }
-QLabel[role="check"] { color: {{check-text}}; font-weight: 600; }
-QLabel[role="ok"] { color: {{ok}}; font-weight: 600; }
-QLabel[role="mono"] { font-family: Consolas, "DejaVu Sans Mono", monospace; font-weight: 600; }
-QLabel[role="bad"] { font-family: Consolas, "DejaVu Sans Mono", monospace; font-weight: 600;
-    background: {{check-wash}}; color: {{check-text}}; border-radius: 3px; padding: 2px 5px; }
-"""
 
-
-def render(values: dict[str, str], legacy: bool = True) -> str:
+def render(values: dict[str, str]) -> str:
     """The stylesheet with every `{{name}}` replaced from `values` (KeyError if one is missing)."""
-    text = BASE + (LEGACY if legacy else "")
-    return _FIELD.sub(lambda m: values[m.group(1)], text)
+    return _FIELD.sub(lambda m: values[m.group(1)], BASE)
 
 
 def fields() -> set[str]:
     """Every placeholder name the template uses."""
-    return set(_FIELD.findall(BASE + LEGACY))
+    return set(_FIELD.findall(BASE))

@@ -44,7 +44,7 @@ from evrakci.pipeline.naming import safe_filename
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, SettingsError, load_settings
 from evrakci.pipeline.templates.model import Template
-from evrakci.ui import disa_aktar_icons, theme
+from evrakci.ui import theme
 from evrakci.ui.controller import JobController
 from evrakci.ui.degerler_parts import StatusItem
 from evrakci.ui.disa_aktar_banners import OutcomeBanner, RunBanner
@@ -63,7 +63,6 @@ from evrakci.ui.disa_aktar_table import NAME_MIN, WIDTHS, WIDTHS_150, FilesModel
 from evrakci.ui.feedback import announce
 from evrakci.ui.workers import Task, start
 
-assert disa_aktar_icons
 STAGES = {"write": "dosyalar yazılıyor", "layer": "metin katmanı ekleniyor"}
 HEADER_KEY = "disa_aktar/dosyalar"
 SPLITTER_NAME = "disa_aktar"
@@ -614,9 +613,7 @@ class DisaAktarScreen(QWidget):
     @staticmethod
     def _set_status(item: StatusItem, icon: str | None, role: str, *parts: str) -> None:
         item.icon_name, item.role = icon, role
-        if icon and item.icon.parent() is None:
-            item.layout().insertWidget(0, item.icon)  # StatusItem(None) never placed it
-        item.icon.setVisible(bool(icon) and item.icon.parent() is not None)
+        item.icon.setVisible(bool(icon))
         item.set(*parts)
 
     # -- actions of the window -------------------------------------------------------------

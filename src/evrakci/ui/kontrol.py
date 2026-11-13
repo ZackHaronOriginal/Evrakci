@@ -514,7 +514,8 @@ class KontrolScreen(QWidget):
         if row < 0 or not self.model.rowCount():
             return
         loupe = self.loupe()
-        loupe.open(self.model.rowCount(), self._render_page, row, self._loupe_title)
+        loupe.open(self.model.rowCount(), self._render_page, row, self._loupe_title,
+                   kontrol=self._loupe_kontrol, doc_start=self._loupe_doc_start)
         if self._window is not None and hasattr(self._window, "register_zoom"):
             self._window.register_zoom("kontrol", loupe.zoom, "Önizleme")
 
@@ -535,20 +536,25 @@ class KontrolScreen(QWidget):
         self.timeline.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _loupe_title(self, row: int) -> str:
-        total = self.model.rowCount()
-        text = f"Sayfa {row + 1} / {total}"
-        number = self.model.doc_of_row(row)
-        if theme.manager().text_scale() >= 130:  # A hides the second part at 150 %
-            return text
+        """The page's place for the loupe's head: "Belge 16, Ekspertiz Raporu, 2. sayfa"."""
         if self.model.state(row) == "separator":
-            return f"{text}   QR ayıraç"
-        if number:
-            rows = self.model.document_rows(number)
-            nth = sum(1 for r in rows if r <= row and self.model.state(r) != "separator")
-            template = self.model.data(self.model.index(rows.start), Roles.TEMPLATE)
-            parts = [f"Belge {number}", template, f"{nth}. sayfa"]
-            text += "   " + ", ".join(p for p in parts if p)
-        return text
+            return "QR ayıraç"
+        number = self.model.doc_of_row(row)
+        if not number:
+            return ""
+        rows = self.model.document_rows(number)
+        nth = sum(1 for r in rows if r <= row and self.model.state(r) != "separator")
+        template = self.model.data(self.model.index(rows.start), Roles.TEMPLATE)
+        return ", ".join(p for p in (f"Belge {number}", template, f"{nth}. sayfa") if p)
+
+    def _loupe_kontrol(self, row: int) -> bool:
+        """The rider in the loupe's head: the page's document needs a check."""
+        return bool(self.model.data(self.model.index(row), Roles.CHECK))
+
+    def _loupe_doc_start(self, row: int) -> bool:
+        """A gap before a document's first page in the loupe's strip."""
+        number = self.model.doc_of_row(row)
+        return bool(number) and self.model.document_rows(number).start == row
 
     def _render_page(self, row: int, size: QSize) -> QPixmap:
         """A page for the loupe: the cached thumbnail for small sizes, else rendered from the

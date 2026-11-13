@@ -18,11 +18,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.ui import disa_aktar_icons, theme
+from evrakci.ui import theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.disa_aktar_parts import PartsButton
 
-assert disa_aktar_icons  # registers the extra Lucide icons the shared parts use
 COUNT_ROLE = Qt.ItemDataRole.UserRole + 1
 
 

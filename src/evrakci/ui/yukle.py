@@ -262,6 +262,7 @@ class YukleScreen(QWidget):
         self.empty.new_job.connect(self.choose_new_job)
         self.empty.add_files.connect(self.choose_batch)
         self.empty.open_job.connect(self.open_job_id)
+        self.empty.show_job_folder.connect(self.show_job_folder)
         self.stack.addWidget(self.empty)
 
         self.overlay = DropOverlay(self)
@@ -555,6 +556,14 @@ class YukleScreen(QWidget):
                 job.name = name
 
             controller.run("İşi yeniden adlandır", rename)
+
+    def show_job_folder(self, job_id: str) -> None:
+        """A job row's "Klasörünü göster": the job's own folder in the file manager."""
+        folder = self.store._job_dir(job_id)  # JobStore's path; pipeline left as it is (D13)
+        if folder.is_dir():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
+        else:
+            self._tell("İşin klasörü bulunamadı.", "kontrol")
 
     def show_in_explorer(self) -> None:
         """Ctrl+Shift+O: the selected batch's file in the file manager (else the job's folder)."""

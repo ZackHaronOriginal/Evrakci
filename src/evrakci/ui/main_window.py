@@ -752,10 +752,14 @@ class MainWindow(QMainWindow):
 
     def _zoom_gone(self, tab: str, key: int, *_args) -> None:
         entry = self._zoom.get(tab)
-        if entry is not None and id(entry[0]) == key:
-            self._zoom.pop(tab, None)
+        if entry is None or id(entry[0]) != key:
+            return
+        self._zoom.pop(tab, None)
+        try:
             if not self._closing and tab == self.current_tab():
                 self._sync_zoom()
+        except RuntimeError:  # the window itself is being destroyed
+            pass
 
     def zoom_controller(self, tab: str | None = None) -> ZoomController | None:
         tab = tab or self.current_tab()

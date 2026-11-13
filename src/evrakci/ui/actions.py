@@ -64,11 +64,14 @@ def key_sequence(key: Key) -> QKeySequence:
 
 
 # Key names Qt prints in English that the Turkish UI names itself (shortcuts.md).
-_KEY_NAMES = {"Space": "Boşluk"}
+# A's labels read "Alt+Yukarı", "Sonraki sayfa (Sağ)", "Ctrl+Enter", "Önizle (Boşluk)".
+_KEY_NAMES = {"Space": "Boşluk", "Up": "Yukarı", "Down": "Aşağı", "Left": "Sol",
+              "Right": "Sağ", "Return": "Enter"}
 
 
 def key_text(key: Key) -> str:
-    """The key as the platform shows it (NativeText), Space as "Boşluk"."""
+    """The key as the platform shows it (NativeText), with A's Turkish names for Space and the
+    arrows ("Boşluk", "Yukarı", "Sol"...) and Return as "Enter"."""
     text = key_sequence(key).toString(QKeySequence.SequenceFormat.NativeText)
     parts = text.split("+")
     if parts and parts[-1] in _KEY_NAMES:
@@ -135,7 +138,7 @@ SPECS: tuple[ActionSpec, ...] = (
     _a("app.dosya_ekle", "Dosya &ekle…", "folder-open", "Ctrl+O", menu="dosya",
        kw="parti pdf tarama aç yükle"),
     _a("yukle.klasor_ekle", "K&lasör ekle…", "folder-plus", ctx="yukle", menu="dosya",
-       tip="Bir klasördeki bütün PDF'leri parti olarak ekle", kw="parti pdf tarama klasör"),
+       kw="parti pdf tarama klasör bütün"),
     _a("app.kaydet", "Kayde&t", "save", "Ctrl+S", menu="dosya"),
     _a("app.disa_aktar", "&Dışa aktar…", "download", "Ctrl+E", menu="dosya",
        kw="excel klasör yaz"),
@@ -148,7 +151,7 @@ SPECS: tuple[ActionSpec, ...] = (
     _a("rehber.yazdir", "Ayıraç sayfasını ya&zdır…", "printer", "Ctrl+P", ctx="rehber",
        menu="dosya", kw="baskı ayraç"),
     _a("rehber.pdf_ac", "PDF ola&rak aç", "file-text", ctx="rehber", menu="dosya",
-       tip="Ayıraç sayfasını PDF olarak aç", kw="ayraç baskı pdf"),
+       kw="ayraç ayıraç sayfası baskı pdf"),
     _a("disa_aktar.yazdir", "Dizini ya&zdır…", "printer", "Ctrl+P", ctx="disa_aktar",
        menu="dosya", kw="baskı liste"),
     _a("app.isi_kapat", "İşi ka&pat", "x", "Ctrl+W", menu="dosya"),

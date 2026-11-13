@@ -61,3 +61,8 @@ The owner rejected the round-3 "final" set: "this was not the look I approved", 
 ## Owner answer: tabs at 150 % text (2026-11-13)
 
 Option **b**: at 150 % text the title-band tabs keep their icon and name, and any tabs that do not fit go into a "»" overflow menu at the end of the strip (as in the Fluent TabView). The order and the Ctrl+1–6 keys stay the same. The provisional icon-only rule (option a) is replaced; it lives in `theme.title_band_rule()`.
+
+## Owner answers before close (2026-11-13)
+
+- **Scrolling side panels at 150 % text: tidy them.** PROPOSALS items 1 and 5 are approved. A side panel that scrolls shows whole cards only: it scrolls card by card, and the space left over stays empty. A 1 px hairline separates the scrolling content from the pinned main button while there is more to scroll. Normal text size is unchanged.
+- **Deferred items accepted.** These ship later: the first-run tour, the completion sound, and invert selection (its key, I, is unreliable on Turkish keyboards).

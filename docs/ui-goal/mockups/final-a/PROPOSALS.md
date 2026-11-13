@@ -188,3 +188,10 @@ bar, overview strip, inspector cards, buttons, spacing, radii, colours, fonts, l
 - **E9. The written list still says what needed a check.** After writing, every Durum is "Yazıldı"
   (as drawn) and the Kontrol files keep their reason caption at the top. Option: keep the
   "Kontrol" word and triangle in that column.
+
+## Owner-approved for a later update (not in this overhaul)
+
+The owner said yes to these on 2026-11-13, but for a later update, after the current runs finish:
+
+- **Şablonlar: show only the selected variable's boxes.** A command-bar toggle (key H) that hides the other variables' boxes and variants on the canvas.
+- **Şablonlar: delete the selected box.** The Del key (and a context-menu item) removes the selected box or variant. It is undoable, with no confirmation, and names the box ("Kutuyu sil: Firma_Adi, Varyant 2").

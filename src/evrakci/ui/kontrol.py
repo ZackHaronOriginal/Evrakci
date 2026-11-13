@@ -236,18 +236,8 @@ class KontrolScreen(QWidget):
         return bar
 
     def _shortcuts(self) -> None:
-        bindings = {
-            "Ctrl+Z": self.controller.undo,
-            "Ctrl+Y": self.controller.redo,
-            "F": self.apply_filter,
-            "K": self.toggle_cut,
-            "T": self.apply_template,
-            "R": self.rotate_selected,
-            "Del": self.toggle_delete,
-            "M": self.merge_current,
-            "N": lambda: self.jump_to_check(1),
-            "Shift+N": lambda: self.jump_to_check(-1),
-        }
+        # Ctrl+Z/Y, F, K, T, R, Del, M, N, Shift+N are registry actions (main window).
+        bindings: dict = {}
         for key, slot in bindings.items():
             shortcut = QShortcut(QKeySequence(key), self)
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)

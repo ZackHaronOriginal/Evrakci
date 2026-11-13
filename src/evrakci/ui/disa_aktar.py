@@ -410,7 +410,8 @@ class DisaAktarScreen(QWidget):
         right.addStretch(1)
         root.addLayout(right, 1)
 
-        for key, slot in {"Ctrl+E": self.export, "Esc": self.cancel}.items():
+        # Ctrl+E is the registry action app.disa_aktar (main window).
+        for key, slot in {"Esc": self.cancel}.items():
             shortcut = QShortcut(QKeySequence(key), self)
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             shortcut.activated.connect(slot)

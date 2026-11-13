@@ -436,8 +436,8 @@ class DegerlerScreen(QWidget):
         body.addWidget(self.side)
         root.addLayout(body, 1)
 
-        keys = {"Return": self.accept_current, "F2": self.type_current,
-                "V": self._draw_variant, "N": self.next_check, "Esc": self.cancel}
+        # Return, F2, V and N are registry actions (main window).
+        keys = {"Esc": self.cancel}
         for key, slot in keys.items():
             shortcut = QShortcut(QKeySequence(key), self)
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)

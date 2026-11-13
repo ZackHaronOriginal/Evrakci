@@ -213,9 +213,8 @@ class SablonScreen(QWidget):
         self.message = QLabel("")
         self.message.setStyleSheet(f"color: {theme.colour('check_ink')}; font-weight: 600;")
         self._centre_layout.addWidget(self.message)
-        for key, slot in {"B": self.toggle_draw, "G": self.toggle_grid, "Ctrl+S": self.save,
-                          "Ctrl+Z": self.undo_stack.undo, "Ctrl+Y": self.undo_stack.redo,
-                          "Ctrl+T": self.read_all_examples}.items():
+        # B, G, Ctrl+S, Ctrl+Z/Y and Ctrl+T are registry actions (main window).
+        for key, slot in {}.items():
             shortcut = QShortcut(QKeySequence(key), self)
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             shortcut.activated.connect(slot)

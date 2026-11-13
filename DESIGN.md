@@ -1,413 +1,318 @@
 ---
 name: Evrakçı
-description: Local scan-and-split desktop tool; the job kept like an office card-index cabinet, with manila guide tabs and orange signal riders.
-colors:
-  shell: "#3f5a4c"
-  shell-2: "#344b3f"
-  shell-3: "#5a7566"
-  on-shell: "#ffffff"
-  on-shell-2: "#cddbd2"
-  ground: "#e6ebe7"
-  card: "#fbfaf6"
-  paper: "#ffffff"
-  ink: "#1d2a23"
-  ink-2: "#4f5d55"
-  rule: "#c9d1cb"
-  rule-strong: "#74817a"
-  control-edge: "#7f8c84"
+description: Local scan-and-split desktop tool in Windows 11 / Fluent 2 "Mica" dress; the brand lives in the filed documents (manila guide tabs, one orange rider for kontrol).
+source: docs/ui-goal/mockups/final-a/ (direction A as approved; tokens.css is the token source)
+colors:  # light theme; dark and high contrast are in src/evrakci/ui/tokens/tokens.json
+  base: "#e1e6e3"
+  layer: "#f3f5f4"
+  card: "#ffffff"
+  popover: "#ffffff"
+  well: "#e9edea"
+  hover: "#e7ebe8"
+  hover-pop: "#eaeeeb"
+  pressed: "#dce2de"
+  selected: "#dde9e2"
+  track: "#d3dad6"
+  stroke: "#d8dedb"
+  stroke-soft: "#e6eae7"
+  text: "#16201a"
+  text-2: "#4a5550"
+  icon: "#36423c"
+  edge: "#7a8680"
+  accent: "#3f5a4c"
+  accent-hover: "#34493e"
+  text-on-accent: "#ffffff"
+  text-accent: "#3f5a4c"
   manila: "#e9d9a6"
-  manila-edge: "#b9a66a"
+  manila-edge: "#8a7a45"
   manila-ink: "#2b2410"
-  index-red: "#c8372d"
   rider: "#e8731a"
   rider-edge: "#9c4a0b"
-  rider-ink: "#2a1400"
-  check-ink: "#8a3d00"
-  check-wash: "#fde7d3"
-  row-cur: "#f3efe0"
-  qr: "#1f5fbf"
-  filter: "#b45200"
-  manual: "#b42318"
-  ok: "#1e6b3a"
-  focus: "#1d2a23"
-  v1: "#0f7b78"
-  v2: "#6b3fb3"
-  v3: "#9a4a12"
-  v4: "#a3245f"
-  key-cap: "#f1f3ef"
-  key-edge: "#c3cbc5"
-  key-edge-on-shell: "#6d8778"
-  disabled-ink: "#6b776f"
-  hover: "#f4f6f3"
-  rider-on-shell: "#ffb27a"
+  rider-ink: "#241000"
+  check-text: "#8a3d00"
+  check-wash: "#fde6d1"
+  ok: "#1d6a3a"
+  danger: "#b3123a"
+  danger-wash: "#fbe4e8"
+  cut-qr: "#1f5fbf"
+  cut-filter: "#6b3fa0"
+  cut-manual: "#37424a"
+  paper: "#ffffff"
+  focus-outer: "#16201a"
+  focus-inner: "#ffffff"
 typography:
-  page-title:
-    fontFamily: "Atkinson Hyperlegible Next, Segoe UI, system-ui, sans-serif"
-    fontSize: "24px"
-    fontWeight: 700
-    lineHeight: 1.4
-    fontFeature: "tnum"
-  panel-title:
-    fontFamily: "Atkinson Hyperlegible Next, Segoe UI, system-ui, sans-serif"
-    fontSize: "20px"
-    fontWeight: 700
-    lineHeight: 1.4
-    fontFeature: "tnum"
-  section-title:
-    fontFamily: "Atkinson Hyperlegible Next, Segoe UI, system-ui, sans-serif"
-    fontSize: "17px"
-    fontWeight: 700
-    lineHeight: 1.4
-    fontFeature: "tnum"
-  body:
-    fontFamily: "Atkinson Hyperlegible Next, Segoe UI, system-ui, sans-serif"
-    fontSize: "15px"
-    fontWeight: 400
-    lineHeight: 1.4
-    fontFeature: "tnum"
-  control:
-    fontFamily: "Atkinson Hyperlegible Next, Segoe UI, system-ui, sans-serif"
-    fontSize: "15px"
-    fontWeight: 600
-    lineHeight: 1.4
-    fontFeature: "tnum"
-  secondary:
-    fontFamily: "Atkinson Hyperlegible Next, Segoe UI, system-ui, sans-serif"
-    fontSize: "14px"
-    fontWeight: 400
-    lineHeight: 1.4
-    fontFeature: "tnum"
-  label:
-    fontFamily: "Atkinson Hyperlegible Next, Segoe UI, system-ui, sans-serif"
-    fontSize: "13px"
-    fontWeight: 700
-    lineHeight: 1.4
-    fontFeature: "tnum"
-  mono-value:
-    fontFamily: "ui-monospace, Consolas, monospace"
-    fontSize: "15px"
-    fontWeight: 700
-    lineHeight: 1
+  family: "Inter (bundled, OFL), then Segoe UI Variable, Segoe UI"
+  caption: "13px / 18px"
+  body: "15px / 21px"
+  section: "17px / 24px"
+  panel: "20px / 28px"
+  page: "24px / 32px, -0.01em"
+  weights: [400, 500, 600]
+  value-features: "tnum ss02 zero"
+  number-features: "tnum"
 rounded:
-  sheet: "2px"
-  tag: "3px"
-  field: "4px"
-  control: "5px"
-  nav-tab: "6px"
-  guide-tab: "7px"
-spacing:
-  xs: "4px"
-  sm: "6px"
-  md: "8px"
-  lg: "12px"
-  xl: "16px"
-  gutter: "20px"
-  wide: "24px"
-components:
-  header:
-    backgroundColor: "{colors.shell}"
-    textColor: "{colors.on-shell}"
-    typography: "{typography.body}"
-    height: "40px"
-    padding: "0 20px"
-  nav-tab:
-    backgroundColor: "{colors.shell}"
-    textColor: "{colors.on-shell-2}"
-    typography: "{typography.control}"
-    rounded: "{rounded.nav-tab}"
-    padding: "8px 16px 9px"
-  nav-tab-active:
-    backgroundColor: "{colors.card}"
-    textColor: "{colors.ink}"
-  toolbar:
-    backgroundColor: "{colors.card}"
-    height: "52px"
-    padding: "0 16px"
-  button:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    typography: "{typography.control}"
-    rounded: "{rounded.control}"
-    height: "34px"
-    padding: "0 9px"
-  button-primary:
-    backgroundColor: "{colors.shell}"
-    textColor: "{colors.on-shell}"
-    typography: "{typography.control}"
-    rounded: "{rounded.control}"
-    height: "34px"
-    padding: "0 9px"
-  button-disabled:
-    backgroundColor: "{colors.card}"
-    textColor: "{colors.ink-2}"
-  button-icon:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.control}"
-    size: "34px"
-  key-hint:
-    textColor: "{colors.ink-2}"
-    typography: "{typography.label}"
-    rounded: "{rounded.field}"
-    padding: "3px 5px"
-  key-hint-on-primary:
-    backgroundColor: "{colors.shell-3}"
-    textColor: "{colors.on-shell}"
-  input:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.field}"
-    height: "34px"
-    padding: "0 8px"
-  checkbox-on:
-    backgroundColor: "{colors.shell}"
-    textColor: "{colors.on-shell}"
-    rounded: "{rounded.tag}"
-    size: "18px"
-  guide-tab:
-    backgroundColor: "{colors.manila}"
-    textColor: "{colors.manila-ink}"
-    typography: "{typography.control}"
-    rounded: "{rounded.guide-tab}"
-    height: "42px"
-    padding: "4px 10px 0"
-  rider:
-    backgroundColor: "{colors.rider}"
-    textColor: "{colors.rider-ink}"
-    typography: "{typography.label}"
-    rounded: "{rounded.tag}"
-    height: "21px"
-    padding: "0 7px 0 5px"
-  misread-value:
-    backgroundColor: "{colors.check-wash}"
-    typography: "{typography.mono-value}"
-    rounded: "{rounded.tag}"
-    padding: "2px 5px"
-  table-header:
-    textColor: "{colors.ink-2}"
-    typography: "{typography.label}"
-    padding: "0 10px 6px"
-  table-row:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    height: "36px"
-    padding: "0 10px"
-  table-row-current:
-    backgroundColor: "{colors.row-cur}"
-  side-panel:
-    backgroundColor: "{colors.card}"
-    textColor: "{colors.ink}"
-    padding: "16px 20px"
-  progress-bar:
-    backgroundColor: "{colors.paper}"
-    rounded: "{rounded.tag}"
-    height: "14px"
-  status-bar:
-    backgroundColor: "{colors.shell}"
-    textColor: "{colors.on-shell}"
-    typography: "{typography.secondary}"
-    height: "30px"
-    padding: "0 20px"
+  paper: "2px"
+  control: "4px"
+  layer: "8px"  # work layer, cards, menus, popovers, toasts
+spacing: [4, 8, 12, 16, 24, 32, 48]
+sizes:  # D5 Normal; Sıkı / Geniş in tokens.json
+  control: "32px"
+  row: "40px"
+  icon-button: "36px"
+  title-band: "44px"
+  command-bar: "44px"
+  overview: "32px"
+  status-bar: "28px"
+  inspector: "312px"
+  thumbnail: "148 x 209px"
+motion:
+  durations: [80, 120, 180, 240]
+  standard: "cubic-bezier(.2, 0, 0, 1)"
+  enter: "cubic-bezier(0, 0, 0, 1)"
+  exit: "cubic-bezier(.3, 0, 1, 1)"
 ---
 
 # Design System: Evrakçı
 
 ## Overview
 
-**Creative North Star: "The Kartotek"**
+**Direction A, "Fluent 2 Mica" (approved by the owner, 2026-11-12).** Evrakçı is drawn as if it
+shipped with Windows 11 next to File Explorer and the new Outlook: the six tabs sit in a
+Mica-toned title band, each tab has one quiet icon-first command bar, and the work lies on a
+rounded layer one step lighter than the base. The inspector is a stack of Settings-style cards.
+Calm comes from the platform's own restraint; the brand lives in one place: the filed
+documents. White pages stand under manila guide tabs drawn in the trapezoid of the logo's tabs,
+with one orange rider where a human has to look.
 
-Evrakçı looks like the card-index cabinet every chamber office already owns. A deep cabinet-green shell (header, window tabs, status bar) holds pale index cards; each document start is a manila guide tab standing above its pages; anything that needs a human check carries a bright orange signal rider clipped to its tab; and a thin red index rule runs under each heading, exactly like a printed index card. The metaphor is borrowed for palette, type, density and these four signatures only. Every control stays a standard Windows widget, because the product ships as a PySide6/Qt window.
+**Source of truth.** The approved renders and code in `docs/ui-goal/mockups/final-a/`
+(`png/*-light.png`, `*-dark.png`; the default Kontrol and Değerler renders are direction A
+pixel for pixel). The Qt window must look like them. Changes to A are proposed in
+`docs/ui-goal/mockups/final-a/PROPOSALS.md` and applied only after the owner says yes.
 
-The screen is dense but calm: 1366×768 is the design canvas, body text is 15px, nothing is smaller than 13px, and a working screen shows the timeline, a value table and a detail panel at once without scrolling. Groups are separated by thin rules on a single card surface, not by stacked boxes, so long sessions read as one sheet of paper rather than a dashboard. Meaning never rides on colour alone: every state has an icon and a word, and every cut type has a position and a pictogram before it has a colour.
+**Key characteristics**
+- Three tonal levels and paper: base (L0, title band, status bar, gutters), layer (L1, the
+  rounded work layer and the selected tab), card (L2, inspector cards, table frame), popover.
+- One accent: cabinet green for the primary button, the selected tab icon, selection, the
+  slider and the selector pill. Orange means kontrol and nothing else (D1).
+- No resting menu row: the six menus open from the "≡" button, Alt + access key (the menu row and
+  underlines appear while Alt is held) and Ctrl+K.
+- Two labelled commands per command bar at most; everything else is a 36 px icon button with a
+  tooltip that names the action and its key.
+- Status is always icon + word + colour (Emin / Orta / Kontrol / Okunamadı; İncelendi /
+  İncelenmedi).
 
-The source of truth is the shipped mockup set in `docs/superpowers/mockups/kartotek/` (`kartotek.css` holds the shared tokens; six screens: yukle, kontrol, sablonlar, degerler, disa-aktar, rehber). It replaces the earlier metro-line ("Hat Haritası") world in full; nothing from that world carries over except the cut-type and variable hues, which were kept on purpose.
+## Token pipeline
 
-**Key Characteristics:**
-- Cabinet-green chrome around pale card surfaces; one flat, quiet working sheet.
-- Manila guide tabs mark where a document starts; orange riders mark "kontrol" and nothing else.
-- Thin red index rule under headings; thin grey rules between groups; no nested boxes.
-- One readable sans (Atkinson Hyperlegible Next) with tabular figures everywhere; mono only for misread values and file names.
-- Keyboard first: key hints sit inside the buttons they trigger; tab shortcuts live in tooltips and the status bar.
-- Every colour and size is a role-named token so the Qt build maps them to a palette and stylesheet, and later themes swap values, not roles.
+```
+docs/ui-goal/mockups/final-a/tokens.css      (the approved spec; the only hand-edited values)
+        │  python3 tools/build_tokens.py      (--check in CI; a test rebuilds it in memory)
+        ▼
+src/evrakci/ui/tokens/tokens.json            DTCG ($value / $type); hc values alias the
+        │                                     Windows system colours ({color.system.sys-*})
+        ▼
+src/evrakci/ui/tokens/generated.py           plain dicts for the frozen app; the ONLY module
+        │                                     with hex literals (besides logo_data.py)
+        ▼
+src/evrakci/ui/theme.py   ThemeManager       colours, sizes, fonts, QPalette, stylesheet
+src/evrakci/ui/tokens/qss.py                 the stylesheet template ({{role}} placeholders)
+src/evrakci/ui/style.py   EvrakciStyle       Fusion + D11 focus ring, title tabs, metrics
+```
+
+Rules: no hex colour in any other module of `src/evrakci/ui` (a test scans for them; the four
+Kartotek screens rebuilt in Phase 3 hold a few that may only go down). New colours are added
+to the spec's `tokens.css` first, with a contrast row, never to code.
 
 ## Colors
 
-Muted cabinet greens and paper neutrals carry the whole screen; manila and signal orange are the only warm surfaces, and each has exactly one job.
+Three themes (D9): **light** (default), **dark**, **high contrast**. "System" (the default
+setting) follows the OS: high contrast when Windows reports it (`SPI_GETHIGHCONTRAST`, else
+Qt's contrast hint), otherwise the OS colour scheme, and it changes live.
 
-### Primary
-- **Cabinet Green** (shell): the header bar, window tab strip, status bar, the primary button, a checked checkbox, progress-bar fill, and the selected-page frame and number plate. It is chrome and commitment, never decoration.
-- **Cabinet Green Dark** (shell-2): the hairline between the header and the tab strip.
-- **Cabinet Green Light** (shell-3): key-hint plates inside the primary button, and the primary button when disabled.
-- **On Shell** (on-shell) and **On Shell Muted** (on-shell-2): primary and secondary text on the shell (inactive tab labels, job line, "Kaydedildi" time, status-bar key names).
+| Role | Light | Dark | Use |
+|---|---|---|---|
+| base | `#e1e6e3` | `#191c1a` | L0: title band, status bar, gutters (Mica fallback) |
+| layer | `#f3f5f4` | `#232725` | L1: the rounded work layer, the selected tab, command bar |
+| card | `#ffffff` | `#2b302d` | L2: inspector cards, table frame, buttons, inputs |
+| popover | `#ffffff` | `#313633` | menus, tooltips, toasts |
+| well | `#e9edea` | `#1e2220` | recessed crop well inside a card |
+| hover / hover-pop / pressed | `#e7ebe8` / `#eaeeeb` / `#dce2de` | `#333835` / `#3e4440` / `#3a403c` | subtle hover, menu hover, pressed |
+| selected | `#dde9e2` | `#2f4337` | selected row / list item (+ 3 px accent bar) |
+| track | `#d3dad6` | `#3b423e` | overview track, slider groove, progress |
+| stroke / stroke-soft | `#d8dedb` / `#e6eae7` | `#383e3a` / `#343a36` | 1 px edge of layer and cards / row and menu dividers |
+| text / text-2 / icon | `#16201a` / `#4a5550` / `#36423c` | `#e9ede9` / `#aab4ae` / `#c2cbc5` | body, secondary, icons |
+| edge | `#7a8680` | `#8c9892` | 3:1 input bottom edge, checkbox and radio edge |
+| accent / accent-hover | `#3f5a4c` / `#34493e` | `#93c4a6` / `#a7d1b6` | D1 cabinet green |
+| text-on-accent / text-accent | `#ffffff` / `#3f5a4c` | `#0f1f16` / `#a3d0b4` | label on the primary / green text and links |
+| manila / manila-edge / manila-ink | `#e9d9a6` / `#8a7a45` / `#2b2410` | `#ddcb93` / `#b9a76f` / `#2b2410` | guide tabs and the document lip only |
+| rider / rider-edge / rider-ink | `#e8731a` / `#9c4a0b` / `#241000` | `#e8731a` / `#f5a061` / `#241000` | kontrol only, always icon + "Kontrol" |
+| check-text / check-wash | `#8a3d00` / `#fde6d1` | `#ffb57e` / `#4d311b` | Güven "Kontrol", uncertain characters |
+| ok / danger / danger-wash | `#1d6a3a` / `#b3123a` / `#fbe4e8` | `#82d3a0` / `#ff92a6` / `#4a2229` | Emin, errors |
+| cut-qr / cut-filter / cut-manual | `#1f5fbf` / `#6b3fa0` / `#37424a` | same (they sit on manila) | cut pictograms; none within 30° of the rider hue |
+| paper (+ paper-ink, -line, -head, -box, -mark) | `#ffffff` | `#e4e6e1` (dimmed) | scans stay light in dark mode |
+| focus-outer / focus-inner | `#16201a` / `#ffffff` | `#ffffff` / `#16201a` | D11 ring |
 
-### Secondary
-- **Manila** (manila), **Manila Edge** (manila-edge), **Manila Ink** (manila-ink): guide tabs above each document's pages, the page-edge strip under them, the active entry in the Rehber table of contents, the "İpucu" tip tab, and text selection. Manila means "this is where something is filed".
+**High contrast** maps every role to a Windows system colour (defaults: High Contrast Black;
+on Windows the live `GetSysColor` values are used): Window for surfaces, WindowText for text,
+strokes and every status (Kontrol is told apart by its triangle, the word and the outlined
+rider), Highlight + HighlightText for selection, the primary and focus, Hotlight for links,
+GrayText for disabled only. Paper stays as scanned. Hover becomes a Highlight edge and a
+selected row a Highlight fill.
 
-### Tertiary
-- **Signal Orange** (rider) with **Rider Edge** (rider-edge) and **Rider Ink** (rider-ink): the signal rider, the timeline flags, and the square warning chip in the detail panel. Every use carries the warn pictogram and the word "Kontrol".
-- **Check Ink** (check-ink) and **Check Wash** (check-wash): text and wash for things that need a check: the notice heading, "Kontrol" status text, counts of pending checks, the flagged table cell and the misread value chip.
+**Contrast (D10)** is unit-tested per theme for 65 token pairs (`tests/ui/test_tokens.py`,
+ported from the spec's `_contrast.py`): body and table text ≥ 7:1, secondary ≥ 4.5:1, input
+edges, icons, ticks and focus ≥ 3:1. Button borders are exempt (their label identifies them);
+input bottom edges are not.
 
-### Functional
-- **Index Red** (index-red): the 1px index rule under headings (screen headings, panel meta lines, section headings). Also the chapter number in Rehber headings at 24px bold.
-- **Cut types** — **QR Blue** (qr), **Filter Amber** (filter), **Manual Red** (manual): the cut marker, its pictogram, and the pictogram on the guide tab. QR blue doubles as the "information" icon colour in Rehber and Dışa Aktar.
-- **Done Green** (ok): "Tamam" status text and icon.
-- **Variables** — **Teal** (v1), **Violet** (v2), **Rust** (v3), **Plum** (v4): template variable boxes, their name labels, and the swatch beside each variable name. Each box always prints its name; colour only helps tell neighbours apart.
+**Derived roles** (computed, not stored): `text-disabled`, `icon-disabled`, `accent-disabled`,
+`on-accent-disabled` = A's 45 % opacity over the layer (GrayText in high contrast).
 
-### Neutral
-- **Ground** (ground): window background and the reading column in Rehber.
-- **Card** (card): toolbars, side panels and left columns; the "index card" surface.
-- **Paper** (paper): buttons, inputs, table body and page sheets.
-- **Ink** (ink) and **Ink Muted** (ink-2): primary and secondary text; ink-2 also draws table-header text and the rule under table headers.
-- **Rule** (rule): every divider between groups, rows and panels. **Rule Strong** (rule-strong): input borders, progress-bar frames, dashed group rows, drop-zone outline. **Control Edge** (control-edge): button borders.
-- **Current Row** (row-cur): the current table row, list item, or job.
-- **Focus** (focus): keyboard focus rings; deliberately the same value as ink so focus reads as a firm pencil line, not a colour.
-
-### Control details
-- **Key Cap** (key-cap, key-edge; key-edge-on-shell on the primary button): the face and lip of a key hint inside a button. Text is ink-2 (on primary: on-shell over shell-3).
-- **Disabled Ink** (disabled-ink): text and icons on a disabled control.
-- **Hover** (hover): the faint fill under the pointer on buttons and list rows. Never orange.
-- **Rider On Shell** (rider-on-shell): the warn pictogram before "N belge kontrol bekliyor" in the green status bar, where full signal orange would not read.
-
-### Named Rules
-**The Rider Means Kontrol Rule.** Signal orange (rider) appears only on things that need a human check, always with the warn pictogram and the word "Kontrol" (or "N kontrol"). It is never a brand accent, a hover colour, or a generic warning.
-
-**The One Job Per Warm Rule.** Manila marks where a document or section is filed; orange marks what needs checking. They never swap roles and nothing else on the screen is warm.
-
-**The Variable Names Itself Rule.** A variable colour never appears without the variable's name beside it.
-
-**The Red Under Headings Rule.** Index red draws only the 1px rule under a heading (screen heading, panel meta line, section heading) and a Rehber chapter number. Rows, panels and groups take the grey rule; red never fills, outlines or flags anything.
+### Named rules (kept from the Kartotek system)
+- **The Rider Means Kontrol Rule.** Signal orange appears only on things that need a human
+  check, always with the warn pictogram and the word "Kontrol". Never a brand accent, hover,
+  emphasis or generic warning.
+- **The One Job Per Warm Rule.** Manila marks where a document is filed; orange marks what needs
+  checking. They never swap roles and nothing else on the screen is warm.
+- **The Position Before Colour Rule.** A cut type is identifiable in greyscale: tab position and
+  pictogram (plus the dashed lip for filter) carry it; the cut colour only confirms.
+- **The Variable Names Itself Rule.** A template variable colour never appears without the
+  variable's name beside it.
 
 ## Typography
 
-**Body Font:** Atkinson Hyperlegible Next (with Segoe UI, then system-ui)
-**Mono Font:** ui-monospace, Consolas (misread values and file names only)
+Inter (SIL OFL 1.1, bundled; D3) with Segoe UI Variable and Segoe UI as fallbacks, via
+`fonts.font_stack()`. Weights 400 / 500 / 600 only.
 
-**Character:** one highly legible humanist sans for everything, chosen for staff with weaker eyesight on older monitors; hierarchy comes from size and weight, never from a second display face.
+| Role | Size / line | Weight | Use |
+|---|---|---|---|
+| caption | 13 / 18 | 400, 600 for labels | the floor: status bar, table header, group labels, job name, tooltips |
+| body | 15 / 21 | 400; 500 for commands and tabs; 600 for the selected tab and primary | everything else |
+| section | 17 / 24 | 600 | section headings |
+| panel | 20 / 28 | 600 | empty-state titles, panel headings |
+| page | 24 / 32, −0.01em | 600 | one per screen ("Belge 16", the suggested value) |
 
-**Licence flag:** Atkinson Hyperlegible Next is licensed under the SIL OFL 1.1, which is **not** on the owner's licence list (MIT, BSD, Apache, MPL, HPND, LGPL). Bundling it needs the owner's explicit approval. Until approved, the Qt build uses Segoe UI (present on every Windows PC); the scale, weights and tabular figures below hold for both.
-
-### Hierarchy
-- **Page title** (700, 24px, 1.4): the screen heading on the index rule ("Belge 40 — Belge 43", Rehber chapter titles).
-- **Panel title** (700, 20px): the heading of the right-hand detail panel.
-- **Section title** (700, 17px): section headings with an index rule (left-column heads, "Değişkenler"), the app name in the header, and big summary figures.
-- **Body** (400, 15px, 1.4): all running text, table cells, field values. Rehber prose reads at 16px/1.55 with a 660px measure.
-- **Control** (600, 15px): button labels, window tabs, guide-tab first line, emphasised values.
-- **Secondary** (400, 14px): meta lines, hints, status bar, state text (600).
-- **Label** (700, 13px): table headers, riders, timeline flag numbers, variable labels; key hints use 600 at 13px. 13px is the floor.
-- **Mono value** (700, 15px, mono): a misread OCR value such as `48Z13`, and output file names in Dışa Aktar (14px there).
-
-### Named Rules
-**The Tabular Figures Rule.** Figures are tabular everywhere (`font-variant-numeric: tabular-nums` on the body); page numbers, counts and ranges must line up in columns and never jitter while a count runs.
-
-**The Mono Means Literal Rule.** Monospace marks text the machine read or will write verbatim (misread values, file names, literal separators in name patterns). It is never used for decoration or headings.
-
-**The 13px Floor Rule.** No text below 13px; body text never below 15px.
+OCR values use Inter's `ss02` (I with serifs, l with tail) + `zero` + `tnum`
+(`ThemeManager.font("value")`); counts and numbers use `tnum` (`font("num")`).
+**Text size** 100 / 115 / 130 / 150 % scales every type step; at 130 % and 150 % the chrome also
+moves one density up (D5). Sizes round to whole pixels (150 %: 20 / 23 / 26 / 30 / 36).
 
 ## Layout
 
-The canvas is a 1366×768 window with fixed chrome: header (40px), window tab strip (40px), status bar (30px, pinned to the bottom). Working screens use a toolbar band (52px, card) under the tabs, then columns: an optional left column on card (280–420px), a flexible centre on ground, and a right detail panel on card (300–380px) set off by a 1px rule on its left edge. In Qt these are a QSplitter with fixed initial sizes.
+The canvas is a 1366×768 window; three bands, 116 px of chrome (Kontrol 148 with the overview):
 
-Spacing is a small step scale: 4, 6, 8, 12, 16, 20, 24px. Chrome and panels pad 16–20px horizontally; the centre column pads 22–24px; inside a group, items gap 6–10px. Table rows are 36px (40px in Değerler); controls are 34px tall; toolbar buttons gap 6px with a 1px × 28px separator between groups.
+1. **Title band** (44, base): logo 20 px · six tabs with Lucide icons · (space) · job name +
+   "Kaydedildi 14:32" + chevron (the job switch) · "Ara  Ctrl+K" search (148 wide, opens the
+   palette) · "≡" button · caption buttons. The selected tab is a filled layer tab with 8 px top
+   corners, a 1 px stroke and two 8 px reverse "feet" that flow into the work layer.
+2. **Work layer** (layer, 8 px margins, 1 px stroke, radius 8) holding the **command bar** (44)
+   and the tab's content: Split Pane, the work area plus an inspector (312 Kontrol / 368
+   Değerler) of Settings-style cards.
+3. **Status bar** (28, base): counts in caption type, numbers semibold, one icon per count, the
+   zoom slider with "%" at the right.
 
-**The Rules Not Boxes Rule.** Groups are separated by 1px rules (rule) on one surface. A panel never contains a bordered box; a list item never sits in its own card. The only bordered rectangles are controls, page sheets, and the drop zone.
+Spacing: 4, 8, 12, 16, 24, 32, 48. Tight inside a group (4–8), wide between groups (12–28).
+Each screen's default state fits 1366×768 without scrolling the window; at 150 % panes scroll
+in their own area (thin scrollbar) above pinned actions.
 
-**The No Scroll Rule.** Each screen's default state fits 1366×768 without scrolling the window; long data scrolls inside its own table or list.
+**Density (D5):** Sıkı / Normal / Geniş = controls 28 / 32 / 40, rows 32 / 40 / 48. Normal is A;
+Geniş is A's 150 % chrome (icon buttons 44, bands 52, status 36, inspector 400, icons 20 / 24);
+Sıkı is not drawn in A and changes only controls, rows, icon buttons (32) and the command bar
+(40).
 
-## Elevation & Depth
+**Title band at 150 % (provisional, owner decision pending, PROPOSALS item 3):** unselected tabs
+show only their icon (name in the tooltip); the band is 52 high, tabs 44, search 196.
+`theme.title_band_rule()` is the one place to switch it.
 
-The system is flat. Depth comes from tone (shell → card → paper) and from rules, not from shadows. The few shadows that exist imitate paper thickness:
+## Elevation and shape
 
-### Shadow Vocabulary
-- **Sheet** (`box-shadow: 0 1px 2px rgba(29,42,35,.12)`; 0 1px 3px at .18 for the larger canvas page and Rehber thumbnail): page sheets, the scan crop in Değerler.
-- **Rider thickness** (`box-shadow: inset 0 -3px 0 rgba(0,0,0,.14)`): the lower lip of a signal rider, so it reads as a clipped plastic tab.
-- **Key cap** (2px bottom border on the key hint): a key-cap lip, not a shadow.
-- **Toggle pressed** (`box-shadow: inset 0 1px 2px rgba(29,42,35,.18)`): a toggled tool button (snap, grid).
+Strokes first; one float shadow (`0 8 24 / 7 %` + `0 2 6 / 6 %` light) for menus, the palette and
+toasts, painted (QSS has no shadows); paper has its own two-step shadow; dark adds a 1 px
+top-edge highlight instead of glow; high contrast has no shadows. Radii: 2 paper, 4 controls,
+8 work layer, cards, menus, popovers (A's deviation 3); the rider keeps A's 3.
 
-**The Paper Only Rule.** Only paper objects (page sheets, riders, key caps) have depth. Panels, toolbars and dialogs-as-panels are flat.
+## Components and their Qt names
 
-## Shapes
+The stylesheet (`tokens/qss.py`) styles every standard widget and these component classes.
+One-off chrome uses the objectName; repeated pieces use the dynamic property `kind`; buttons
+use `variant` and `size`.
 
-Small, stationery-scale corners: sheets 2px, riders/tags/checkboxes 3px, inputs and key hints 4px, buttons 5px, window tabs 6px (top only), guide tabs 7px (top only). Guide tabs and window tabs are open at the bottom: they sit on the surface below them, like a card divider standing in a drawer. Dashed outlines mean "provisional or derived": a filter cut, a filter-made guide tab, an empty page, a variable box being drawn, a fallback (variant) box, the drop zone.
+| Component | Qt | Look |
+|---|---|---|
+| Title band | `QWidget#titleBand` | base, 44 high |
+| Title tabs | standalone `QTabBar#titleTabs` (not inside a QTabWidget), icons with a Normal (text-2) and Selected (accent) mode | painted by EvrakciStyle: A's tab, feet, 500 / 600 labels |
+| Job switch | `QWidget#jobSwitch` with `QLabel#jobName` + a label for the save state | caption, name 600, hover fill |
+| Search | `QPushButton#searchBox` | layer fill, stroke, "Ara" + "Ctrl+K" in text-2 |
+| ≡ button | `QToolButton#menuButton` | 32 px icon button |
+| Caption buttons | `QToolButton[kind="caption-button"]` | 46 × 32 |
+| Work layer | `QFrame#layer` | layer, stroke, radius 8 |
+| Command bar | `QToolBar#commandBar` (or a QWidget) | 36 px icon buttons; labelled ones `kind="command"`; separators 1 × 20 stroke |
+| Icon button | `QToolButton[kind="icon"]` (`size="sm"` = 32) | transparent, hover fill, radius 4 |
+| Buttons | `QPushButton`; `variant="primary"` (also the old `primary=true`), `"subtle"`, `"link"`; `size="lg"` (40) | standard = card + stroke; primary = accent + text-on-accent, 600 |
+| Inputs | `QLineEdit`, spin boxes, `QComboBox`, text edits | card, stroke, 3:1 `edge` bottom; focus = 2 px accent bottom + the D11 ring |
+| Checkbox / radio | standard | 20 px, `edge`, accent when on |
+| Tables and lists | standard item views in a `QFrame[kind="table-card"]` | rows 40, header 36 caption 600 text-2, `stroke-soft` row lines, selected fill (the 3 px accent bar is the delegate's) |
+| Cards | `QFrame[kind="card"]` | card, stroke, radius 8; `QLabel[kind="group-label"]` above |
+| Inspector rows | `QLabel[kind="inspector-key"]` / `"inspector-value"`, `QPushButton[kind="inspector-row"]` | label column caption text-2; flat action rows |
+| Status bar | `QStatusBar#statusBar`, numbers `QLabel[kind="count"]` | base, caption text-2 |
+| Rider | `QLabel[kind="rider"]` (icon + word in a custom widget) | rider fill, rider-edge, 22 high, radius 3 |
+| Status words | `QLabel[state="kontrol" / "ok" / "orta" / "bad"]` | check-text 600 / ok / text-2 / danger 600 |
+| Badge | `QLabel[kind="badge"]` | accent, 20 high |
+| Menus | `QMenu` (made frameless + translucent by the style for the 8 px corners) | popover, stroke, padding 4, items 34 high, radius 4, hover-pop |
+| Tooltips | `QToolTip` | popover, stroke, radius 4, caption |
+| Toast / InfoBar | `QFrame[kind="toast"]`, `QFrame[kind="infobar"][severity=…]` | popover + stroke, radius 8 (+ painted shadow) |
+| Scrollbars | standard | 9 px, 3 px text-2 thumb, wider on hover, no track |
+| Slider / progress | standard | 4 px track, accent fill, 16 px handle with accent dot / 4 px bar |
+| Splitter | standard | invisible 4 px gutter, stroke on hover |
 
-## Components
+**Focus (D11):** a 2 px outer (`focus-outer`) + 1 px inner (`focus-inner`) ring, 1 px outside the
+control, following its radius (`focusRadius` property overrides). `EvrakciStyle` draws it with
+an overlay on whichever widget gets keyboard focus (Tab, Shift+Tab, shortcuts, focus moved by
+code), so widgets Fusion never frames get it too; item views draw it on the current item. A
+mouse click on a field shows only the accent bottom edge (Fluent). Never hidden otherwise.
 
-### Buttons
-Plain, firm, labelled. One custom widget carries them all.
-- **Shape:** 5px corners, 34px tall (38–40px for a full-width panel action), 9px side padding, 600 weight, 18px stroke icon before the label.
-- **Default:** paper fill, control-edge border, ink text.
-- **Primary:** cabinet-green fill and border, white text. One per area (the action the screen is waiting for).
-- **Icon-only:** 34×34 square; the name lives in the tooltip and the key hint.
-- **Focus:** 3px focus outline with 2px offset.
-- **Disabled:** card fill, rule border, muted text; primary disabled uses shell-3 with white text.
-- **Toggle (on):** row-cur fill, ink-2 border, inset pressed shade.
-- **Key hint:** a key-cap plate at the right end of the label (13px/600, 4px corners, 2px bottom lip; shell-3 plate on primary). In Qt every button with a key hint is one custom-painted `KeyHintButton` (a `QPushButton` subclass) that paints icon, label and key cap; not a nested widget.
+**Access keys:** `SH_UnderlineShortcut` is off; underlines appear while Alt is held.
 
-### Window tabs
-- Cabinet-green strip; inactive labels on-shell-2 at 600; the active tab is a card-coloured folder tab (6px top corners) joining the toolbar below.
-- Shortcuts (Ctrl+1…5, F1 for Rehber) live in each tab's tooltip and in the status bar's key list, not on the tab face.
+**Motion (D7):** 80 / 120 / 180 / 240 ms with the standard, enter and exit curves (`motion.py`);
+menus 180 ms enter, toasts 240 ms; nothing on repeated actions. Reduced motion (setting or OS)
+sets every duration and Qt's widget animations to 0.
 
-### Inputs / Fields
-- **Style:** paper fill, 1px rule-strong border, 4px corners, 34px tall, 8px padding. Number fields are centred bold (36×30px inline, 56×34px standalone). Search fields carry a leading 18px search icon.
-- **Selects:** same box with a chevron icon at the right.
-- **Checkbox:** 18px, 3px corners, 1.5px rule-strong border; checked is shell fill with a white check.
-- **Progress:** 12–14px bar, rule-strong frame, 3px corners, shell fill; count and remaining time sit in text beside it.
+## Signatures (painted)
 
-### Tables / Lists
-- No vertical lines. Header in label type (13px/700, ink-2) over a 1px ink-2 rule; rows 36px over 1px rule; first column flush left.
-- **Current row:** row-cur fill. **Focused cell or list item:** inset 2px focus frame.
-- **Flagged cell:** check-wash fill with check-ink bold text and the warn icon.
-- **Sort:** sorted header turns ink with a small chevron.
-- **State text:** icon + word, 14px/600: Tamam (ok), Kontrol (check-ink), Okunmadı (ink-2).
+- **Guide tab:** one `QPainterPath` in the logo's trapezoid (8 px slants, 3 px top corners),
+  manila fill, manila-edge stroke, cut pictogram + number; the document lip is a 6 px manila
+  strip with a solid (QR) / dashed (filter) / dotted (manual) top line.
+- **Rider:** rounded rect (radius 3) in rider + 1 px rider-edge, warn icon + "Kontrol" in
+  rider-ink 13/600. In high contrast: Window with a 2 px WindowText edge.
+- **Selection:** a 2 px accent ring 3 px outside the sheet + a 22 px check badge.
 
-### Headings with the index rule
-- Screen headings sit on a 1px index-red rule with an ink-2 subtitle on the same line and optional navigation at the right. Panel headings put the rule under their meta line; section headings (17px) take the same rule.
+## Palette history
 
-### Side panel (detail)
-- Card surface, 16px 20px padding, rule on its left edge. A panel title, a meta line on the index rule, then sections separated by rules: notices, key–value lists (ink-2 terms, 600 values), and a stack of full-width actions with key hints at the right.
+| Kartotek name (2026-11) | Was | Now (A role) |
+|---|---|---|
+| shell, shell-2, shell-3 | `#3f5a4c`, `#344b3f`, `#5a7566` | accent, accent-hover, accent-hover |
+| on-shell, on-shell-2 | `#ffffff`, `#cddbd2` | text-on-accent |
+| ground, card, paper | `#e6ebe7`, `#fbfaf6`, `#ffffff` | base, layer, card |
+| ink, ink-2 | `#1d2a23`, `#4f5d55` | text, text-2 |
+| rule, rule-strong, control-edge | `#c9d1cb`, `#74817a`, `#7f8c84` | stroke, edge, edge |
+| manila, manila-edge, manila-ink | `#e9d9a6`, `#b9a66a`, `#2b2410` | manila, manila-edge (`#8a7a45` for 3:1), manila-ink |
+| index-red | `#c8372d` | retired (A has no index rule; maps to stroke) |
+| rider, rider-edge, rider-ink | `#e8731a`, `#9c4a0b`, `#2a1400` | unchanged (ink `#241000`) |
+| check-ink, check-wash, row-cur | `#8a3d00`, `#fde7d3`, `#f3efe0` | check-text, check-wash, selected |
+| qr, filter, manual | `#1f5fbf`, `#b45200`, `#b42318` | cut-qr, cut-filter (violet, away from orange), cut-manual (slate) |
+| v1–v4 (template variables) | teal, violet, rust, plum | cut-qr, cut-filter, on-manila-ok, cut-manual (paper-safe, no orange) |
+| key-cap, key-edge, disabled-ink, hover | | hover, stroke, text-2, hover (keycaps are retired in A) |
 
-### Guide tab (signature)
-- A manila tab (7px top corners, manila-edge border, open bottom) stands above the first page of each document, with a 6px manila page-edge strip running under the whole document. First line: cut pictogram in its cut colour + "Belge N · name" (700); second line 13px detail.
-- Cut type is shown by **tab position first** (QR left, filter centred, manual right), **pictogram second** (QR, funnel, scissors), colour third; a filter tab and edge are dashed in filter amber.
-
-**The Position Before Colour Rule.** A cut type must be identifiable in greyscale: tab position and pictogram (plus dashed line for filter) carry it; the cut colour only confirms.
-- Between documents a cut marker repeats it: a 24px badge with the pictogram (round for QR and filter, square for manual) over a vertical line (solid for QR and manual, dashed for filter).
-
-### Signal rider (signature)
-- Orange rider tab (21px, 3px corners, rider-edge border, inner lower lip) clipped to the top-left of a guide tab or a panel item, or inline in tables and summaries. Always the warn pictogram + "Kontrol" (optionally "Kontrol · reason"). On the overview track it becomes a flag: number, 9px rider head and a 2px orange stem.
-
-### Misread value
-- Mono 15px bold on check-wash with 3px corners, followed by an arrow and the suggestion ("48Z13 → 48213?").
-
-### Status bar
-- 30px shell bar, 14px text: counts separated by middle dots, pending checks with the warn icon, and at the right the key list (key names bold white, actions on-shell-2).
-
-### Qt mapping
-Tokens are role-named so the build maps them once and later themes swap values.
-- **QPalette:** `Window` = ground; `Base` = paper; `AlternateBase` = card; `WindowText`/`Text`/`ButtonText` = ink; `PlaceholderText` = ink-2; `Button` = paper; `Highlight` = row-cur with `HighlightedText` = ink; `Mid` = rule; `Dark` = rule-strong; `BrightText` = on-shell; disabled `Text` = ink-2.
-- **Stylesheet:** header widget, `QTabBar` and `QStatusBar` on shell (`QTabBar::tab:selected` = card + ink, 6px top radius); `QToolBar`/toolbar frame and side panels on card with `border-bottom`/`border-left: 1px solid` rule; `QPushButton` paper + control-edge + 5px + `min-height: 34px` + 600, `[primary="true"]` shell; `QLineEdit`, `QComboBox`, `QSpinBox` paper + rule-strong + 4px + 34px; `QCheckBox::indicator` 18px, 3px, checked shell; `QHeaderView::section` 13px/700 ink-2 with a bottom ink-2 border, no vertical grid; `QTableView` gridline rule, row height 36px, `selection-background-color` row-cur; `QProgressBar` rule-strong frame, 3px, chunk shell; `QSplitter::handle` rule, 1px. Tooltips are not drawn in the mockups; leave them native until designed.
-- **Custom-painted:** `KeyHintButton` (icon + label + key cap), guide tabs, riders and track flags, cut markers, page thumbnails, the index rule under headings (a 1px index-red bottom border on the heading frame). Qt stylesheets cannot offset an outline, so the 3px focus ring is painted in `KeyHintButton` and the page thumbnail delegate; standard fields use a 2px focus-colour border.
-- **Font:** `QApplication.setFont` with Atkinson Hyperlegible Next if approved, else Segoe UI, 15px (11.25pt at 96 dpi); enable tabular figures via `QFont.setFeature("tnum", 1)` (Qt 6.7+) and fall back silently where unsupported.
+The old names still resolve through `theme.TOKENS` / `theme.LEGACY` (and the old selectors in
+the stylesheet's legacy block) until the Phase 3 screens stop using them.
 
 ## Do's and Don'ts
 
-### Do:
-- **Do** take every colour and size from the role tokens; a new screen adds layout only, never a new colour.
-- **Do** show "needs a check" with the orange rider, the warn pictogram and the word "Kontrol", and nothing else in orange.
-- **Do** mark cut type by tab position and pictogram first, colour second; dash the filter cut.
-- **Do** put the 1px index-red rule under headings only (screen, panel meta, section).
-- **Do** separate groups with 1px rules on one surface.
-- **Do** keep figures tabular; right-align count columns (pages, QR counts, summary totals).
-- **Do** put the key hint inside the button it triggers (one `KeyHintButton`), and tab shortcuts in tooltips and the status bar.
-- **Do** pair every state colour with an icon and a word (Tamam, Kontrol, Okunmadı).
-- **Do** use mono only for misread values, file names and literal name-pattern text.
-
-### Don't:
-- **Don't** use orange for brand, hover, emphasis or generic errors.
-- **Don't** draw the index rule as a divider between rows or panels; rows and panels take the grey rule.
-- **Don't** nest boxes: no bordered card inside a panel, no card per list item.
-- **Don't** put eyebrow labels above headings, gradient text, or thick coloured side borders.
-- **Don't** use emoji or Unicode glyphs as icons; icons come from the 18px, 1.75-stroke round-cap sprite.
-- **Don't** set text below 13px or body text below 15px.
-- **Don't** show a variable colour without the variable's name.
+- **Do** take every colour and size from the tokens (`theme.manager()`); a new screen adds
+  layout only.
+- **Do** keep A's chrome exactly: logo, tabs with icons, job switch, search, ≡, caption buttons,
+  command bar, inspector cards, spacing and labels. Propose changes in PROPOSALS.md.
+- **Do** show kontrol with the orange rider, the warn pictogram and the word, and nothing else in
+  orange; pair every status colour with an icon and a word.
+- **Do** keep figures tabular; OCR values use the value font.
+- **Don't** use a resting menu row, keycaps on buttons, gradients, glass or glow.
+- **Don't** set text below 13 px or use weights above 600.
+- **Don't** call `setStyleSheet` per widget in hot paths; set `kind` / `variant` properties.

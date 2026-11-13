@@ -130,9 +130,8 @@ class YukleScreen(QWidget):
         right_layout.addStretch(1)
         root.addWidget(right)
 
-        for key, slot in {"Ctrl+N": self.choose_new_job, "Ctrl+O": self.choose_batch,
-                          "Esc": self.cancel, "Alt+Up": lambda: self.move_batch(-1),
-                          "Alt+Down": lambda: self.move_batch(1)}.items():
+        # Ctrl+N, Ctrl+O and Alt+Up/Down are registry actions (main window).
+        for key, slot in {"Esc": self.cancel}.items():
             shortcut = QShortcut(QKeySequence(key), self)
             shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             shortcut.activated.connect(slot)

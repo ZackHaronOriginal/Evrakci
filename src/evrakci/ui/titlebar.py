@@ -114,13 +114,14 @@ class TitleBand(QWidget):
         self.overflow.setToolTip("Diğer sekmeler")
         self.overflow.setAccessibleName("Diğer sekmeler")
         self.overflow.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.overflow.setStyleSheet("QToolButton::menu-indicator { image: none; width: 0; }")
         self._overflow_menu = QMenu(self.overflow)
         self._overflow_menu.aboutToShow.connect(self._fill_overflow)
         self.overflow.setMenu(self._overflow_menu)
         self.overflow.hide()
         self._row.addWidget(self.overflow, 0, Qt.AlignmentFlag.AlignVCenter)
         self._row.addStretch(1)
-        tabs.currentChanged.connect(lambda _i: QTimer.singleShot(0, self.fit))
+        tabs.currentChanged.connect(lambda _i: QTimer.singleShot(0, self, self.fit))
         right = QHBoxLayout()
         right.setSpacing(m.size("s2"))
         for widget in (job_switch, search, menu):
@@ -211,7 +212,7 @@ class TitleBand(QWidget):
 
     def event(self, event: QEvent) -> bool:
         if event.type() == QEvent.Type.LayoutRequest:  # e.g. a longer "Kaydedildi …" text
-            QTimer.singleShot(0, self.fit)
+            QTimer.singleShot(0, self, self.fit)
         return super().event(event)
 
     def is_drag_area(self, pos: QPoint) -> bool:

@@ -214,9 +214,14 @@ nothing here may change A's look until the owner answers. What the build does to
 - **P4-4. E2 is now A's look.** "Geçersiz karakterleri değiştir" is a live, checked box as A draws
   it; unticking it ticks it again and says why ("bu seçenek kapatılamaz") in a tooltip and the
   accessible description. No owner decision needed unless the owner wants a real choice.
-- **P4-5. Item 3 (title-band tabs at 150 %).** The provisional icon-only rule now applies only
-  when the labelled tabs do not fit (1366 px at 150 %); at 1920 px and 150 % the tabs keep A's
-  labels. The option a / b / c choice is still open for the narrow case.
+- **P4-5. Item 3 (title-band tabs at 150 %) is decided and built** (owner, 2026-11-13, option b;
+  decisions.md). Tabs always keep A's icon and name; the tabs that do not fit go into a "»" menu
+  right after the strip, in strip order with their Ctrl+number keys, and the selected tab is
+  always one of the visible ones (`TitleBand.fit`). At 1920 px all six fit at every text size;
+  at 1366 px with the caption buttons all six fit at 100 %, and at 130 % and 150 % the first
+  tabs and the selected one show (how many depends on the job name's room). The icon-only rule
+  (option a) is gone. The job name still elides with "…" when the band is short (full name in
+  its tooltip and accessible name), as noted in Phase 2.
 - **P4-6. Item 2 (Değerler at 150 %).** Built as a fit rule, not a new look: when the table is
   wider than its pane, the long text column (then the other value columns, down to a floor)
   narrows and elides with the full value in its tooltip, so the Güven column stays in view.

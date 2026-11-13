@@ -126,10 +126,14 @@ class TitleTabs(QTabBar):
 
     def set_shown(self, indices: set[int]) -> None:
         """Show these tabs, hide the rest (they are in the "»" menu)."""
+        changed = False
         for index in range(self.count()):
             visible = index in indices
             if self.isTabVisible(index) != visible:
                 self.setTabVisible(index, visible)
+                changed = True
+        if changed:
+            self.updateGeometry()  # the band's layout caches the strip's size
 
     def hidden_tabs(self) -> list[int]:
         return [i for i in range(self.count()) if not self.isTabVisible(i)]

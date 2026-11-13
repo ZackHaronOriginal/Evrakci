@@ -35,7 +35,10 @@ Design: [docs/superpowers/specs/2026-11-06-scan-and-split-design.md](docs/superp
 
 ## The window
 
-Six tabs, the same core as the command line. Screens shown with invented example data only.
+Six tabs in the title band (Ctrl+1 to Ctrl+6), the same core as the command line. Ctrl+K opens the
+command palette, Shift+F1 lists every shortcut, and Ctrl+, opens the settings (light, dark and
+high-contrast themes, text size 100 to 150 %, density). Screens shown with invented example data
+only (light theme, 1366x768).
 
 | | |
 |---|---|

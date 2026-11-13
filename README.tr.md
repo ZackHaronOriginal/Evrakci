@@ -32,6 +32,19 @@ Evrak destesi ──► zımbaları bir kez sök ──► fotokopi besleyicisin
 1–3. adımlar bugün komut satırından çalışıyor (aşağıya bakın). Diğerleri yapım aşamasında.
 Tasarım belgesi: [docs/superpowers/specs/2026-11-06-scan-and-split-design.md](docs/superpowers/specs/2026-11-06-scan-and-split-design.md)
 
+## Pencere
+
+Başlık şeridinde altı sekme (Ctrl+1 – Ctrl+6), komut satırıyla aynı çekirdek. Ctrl+K komut
+paletini, Shift+F1 tüm kısayolları, Ctrl+, ayarları açar (açık, koyu ve yüksek karşıtlık
+temaları, %100 – %150 yazı boyutu, yoğunluk). Ekranlarda yalnızca uydurma örnek veriler vardır
+(açık tema, 1366x768).
+
+| | |
+|---|---|
+| ![Yükle](docs/screenshots/yukle.png) | ![Kontrol](docs/screenshots/kontrol.png) |
+| ![Şablonlar](docs/screenshots/sablonlar.png) | ![Değerler](docs/screenshots/degerler.png) |
+| ![Dışa Aktar](docs/screenshots/disa-aktar.png) | ![Rehber](docs/screenshots/rehber.png) |
+
 ## İlkeler
 
 - **Yerel çalışır.** Odanın kendi bilgisayarlarında çalışan bir masaüstü uygulamasıdır (önce Windows, ardından Linux ve macOS). Bulut OCR yok, üçüncü taraflara yükleme yok. KVKK açısından güvenlidir.

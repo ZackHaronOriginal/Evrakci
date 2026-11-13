@@ -106,3 +106,17 @@ def test_busy_cursor_shown_after_delay_and_restored(app):
             app.processEvents()
         assert QApplication.overrideCursor() is not None
     assert QApplication.overrideCursor() is None
+
+
+def test_no_animation_is_built_outside_the_motion_module():
+    """Every animation goes through motion.animate, so the 240 ms cap and reduced motion hold."""
+    import re
+    from pathlib import Path
+
+    root = Path(motion.__file__).parent
+    pattern = re.compile(
+        r"Q(Property|Variant|Parallel|Sequential)Animation(Group)?\(|\.setDuration\("
+    )
+    offenders = [p.name for p in sorted(root.glob("*.py"))
+                 if p.name != "motion.py" and pattern.search(p.read_text(encoding="utf-8"))]
+    assert not offenders, offenders

@@ -1,6 +1,6 @@
 # Progress: Plans 1–7
 
-Last checked 2026-11-09: **525 tests pass**, `ruff check .` is clean.
+Last checked 2026-11-13: **1076 tests pass** (6 skipped), `ruff check .` is clean.
 
 | Plan | State | Review fixes (commit) |
 |---|---|---|
@@ -56,3 +56,23 @@ Six tabs over the same core as the CLI, in the approved Kartotek look (`DESIGN.m
 Decisions: font is Segoe UI (Atkinson not approved); export and "corrections win" moved into
 the core so CLI and window share them; batch add is an undoable edit; template edits have
 their own undo. Full list of rulings: Plan 5 section of the final summary.
+
+## 2026-11-13: UI overhaul (direction A, Fluent 2 Mica)
+
+Owner picked direction A on the mockups; the look follows the approved PNGs in
+`docs/ui-goal/mockups/final-a/png` exactly. Report with before/after images: `docs/ui-goal/REPORT.md`.
+
+- **Phase 0-1:** decisions and HTML mockups of the six tabs. **Phase 2:** foundation (Inter font,
+  Lucide icons, tokens, light/dark/high-contrast themes, motion with reduced motion, central action
+  and shortcut registry, command palette, shortcut sheet, settings, toasts, taskbar, zoom, loupe)
+  and the window chrome (tabs in the title band). **Phase 3:** all six tabs rebuilt to A, one undo
+  history, context menus, zoom on every view. **Phase 4:** review fixes. **Phase 5:** README
+  screenshots, this entry, the report.
+- **Tests:** 1076 passed, 6 skipped; `ruff check .` clean.
+- **Top 25 QoL items:** 24 shipped, 1 deferred (item 25: first-run tour and completion sound).
+  Details: `docs/ui-goal/top25.md`.
+- **Open:** PROPOSALS items 1, 2, 4, 5 and the phase notes (P4-1 to P4-13, S/K/Y/E/D lists) in
+  `docs/ui-goal/mockups/final-a/PROPOSALS.md` wait for the owner. Tabs at 150 % text: owner chose
+  option b (overflow menu), built and tested.
+  Approved for a later update: Şablonlar "show only the selected variable's boxes" (H) and
+  "delete the selected box" (Del). Not tried with a real screen reader or on a real Windows machine.

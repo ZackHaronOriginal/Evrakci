@@ -57,3 +57,7 @@ The owner rejected the round-3 "final" set: "this was not the look I approved", 
 - New tabs, states and themes are added in A's style without changing anything approved.
 - Any improvement is proposed separately and applied only after the owner approves it.
 - Round-3 deviations 9–17 are void.
+
+## Owner answer: tabs at 150 % text (2026-11-13)
+
+Option **b**: at 150 % text the title-band tabs keep their icon and name, and any tabs that do not fit go into a "»" overflow menu at the end of the strip (as in the Fluent TabView). The order and the Ctrl+1–6 keys stay the same. The provisional icon-only rule (option a) is replaced; it lives in `theme.title_band_rule()`.

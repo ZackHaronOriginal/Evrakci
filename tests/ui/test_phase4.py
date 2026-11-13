@@ -446,6 +446,17 @@ def test_overview_draws_small_left_aligned_squares_for_a_short_job(demo):
     assert last.right() < track.left() + 40  # three documents: about 28 px, not the strip
 
 
+def test_overview_label_follows_the_last_segment(demo):
+    from evrakci.ui import theme
+
+    demo.show_tab("kontrol")
+    _settle()
+    strip = demo.kontrol.strip
+    last = strip._segment(strip.documents, strip.track_rect())
+    gap = theme.manager().size("s4")
+    assert strip.where_x() == last.right() + gap  # A: the label sits s4 after the track's end
+
+
 def test_selection_card_counts_only_pages_drawn_selected(demo):
     demo.show_tab("kontrol")
     _settle()

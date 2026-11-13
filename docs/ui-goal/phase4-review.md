@@ -71,3 +71,21 @@ P4-1 S1 resting save wording · P4-2 S2 file-name card · P4-3 S4 dashed variant
 - The job name elides with "…" in the title band at 1366 px with the caption buttons (full name in its tooltip and accessible name). The demo job's name is longer than A's.
 - Değerler at 1366 px and 150 % elides the long company name (P4-6), so that Güven stays visible.
 - At 150 % the side panels scroll, and the last card is cut by the scroll edge (PROPOSALS items 1 and 5).
+
+## Visual review of the 72 shots
+
+Reviewers looked at every shot in `docs/ui-goal/shots/final` (6 tabs × light/dark/hc × 1366×768 and 1920×1080 × 100/150 %). Each finding was checked against the shot and the matching approved A render in `mockups/final-a/png` (owner rule: A is the source of truth; changes to A go to PROPOSALS.md).
+
+| # | Sev | Shots | Finding | Verdict and action |
+|---|---|---|---|---|
+| V1 | medium | yukle-*-1366x768-150 | "Rehber'de tarama ayarları" row cut by the inner scroller above "Kontrol'e geç"; scrollbar looks heavy | Matches A: `yukle-150-light.png` cuts the same row at the same place, and its scrollbar is the same thin `text-2` bar (cropped side by side). Already PROPOSALS items 1 and 5 (hairline above pinned buttons / per-card scrolling), waiting for the owner. Not changed. |
+| V2 | medium | yukle-*-1366x768-150 | Tabs collapse to Yükle, Kontrol and "»" | Owner's decision (option b, 2026-11-13): tabs that do not fit go into the "»" menu; order and Ctrl+1–6 stay. Not changed. |
+| V3 | medium | kontrol-* (all 12) | Overview strip is a ~30 px toggle-like widget at the left; "Belge 1–2 / 3" far off at the right | **Fixed.** The 8 px squares stay (A's size; the earlier review rejected 300 px bars for a 3-document job), but the label was placed at the end of the empty track instead of after the documents. A's `.overview` puts `.where` an s4 gap after the track's last segment. `OverviewStrip.where_x()` now places it s4 after the last segment, so a short job reads as one strip with its label. For a long job nothing changes, because the segments fill the track. Test: `test_phase4.py::test_overview_label_follows_the_last_segment`. Checked in the light, dark and hc renders. |
+| V4 | medium | sablonlar-*-1366x768-150 | "Okunan, örnek 1" card's Not row cut above "Şablonu kaydet"; Dosya adı needs scrolling | Matches A: `sablonlar-150-light.png` cuts the Okunan card (Güven row) above the same button. PROPOSALS items 1 and 5. Not changed. |
+| V5 | medium | sablonlar-*-1366x768-150 | Tabs collapse to Yükle, Şablonlar and "»" | Owner's option b, as V2. Not changed. |
+| V6 | high | degerler-*-1366x768-150 | Öneri value (48213) cut at the pane's bottom; Kontrol %41 line and the explanation need scrolling | Matches A: `degerler-150-light.png` cuts the inspector higher still, through the Okunan value, above "Onayla ve sonrakine geç". The thin scrollbar shows. The pane scrolls to it, and Tab/F6 scroll the focused row into view (#27). PROPOSALS items 1 and 5. Not changed. |
+| V7 | medium | degerler-*-1366x768-150 | Tabs collapse to Yükle, Değerler and "»" | Owner's option b, as V2. Not changed. |
+| V8 | medium | rehber-*-1366x768-150 | "Ayıraç sayfası" card cut at the Kâğıt row; Yazdır not visible | Matches A: `rehber-150-light.png` cuts the same card at the same Kâğıt row. Printing separator sheets is still one step away: the command bar's printer button and Ctrl+P. PROPOSALS items 1 and 5. Not changed. |
+| V9 | medium | rehber-*-1366x768-150 | Tabs collapse to Yükle, Rehber and "»" | Owner's option b, as V2. Not changed. |
+
+`tools/screenshots.py clipping()` was not changed. V1, V4, V6 and V8 are the "card cut by a scroll edge with its scroll bar showing" case, which it deliberately accepts while PROPOSALS items 1 and 5 are open. Making it fail would turn the matrix red for a layout A itself draws. V3 is placement, not clipping. Re-run: `QT_QPA_PLATFORM=offscreen python3 tools/screenshots.py matrix docs/ui-goal/shots/final`: 72 shots, 0 clipped. `pytest`: 1082 passed, 6 skipped (the platform skips from the baseline). `ruff check .`: clean.

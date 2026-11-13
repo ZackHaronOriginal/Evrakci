@@ -98,6 +98,12 @@ class OverviewStrip(QWidget):
         width = self.width() - left - right - (where + m.size("s4") if where else 0)
         return QRectF(left, (self.height() - TRACK_H) / 2, max(0, width), TRACK_H)
 
+    def where_x(self) -> float:
+        """Left edge of "Belge 14–18 / 96": A's s4 gap after the last segment (A's .overview
+        flex gap), so a short job's few squares and their label read as one strip instead of a
+        lone control at the left with its label far off at the right."""
+        return self.run_rect().right() + theme.manager().size("s4")
+
     def _pitch(self, track: QRectF) -> tuple[float, float]:
         """(segment width, gap): A's 8 px squares with 2 px gaps, left-aligned; only when the
         job has more documents than fit do they share the track (narrower, then no gaps)."""
@@ -179,7 +185,7 @@ class OverviewStrip(QWidget):
             painter.drawRoundedRect(ring.adjusted(1, 1, -1, -1), 4, 4)
         text = self.where_text()
         bold, _, rest = text.partition(" / ")
-        x = track.right() + m.size("s4")  # A: "Belge 14–18 / 96" at the track's end
+        x = self.where_x()
         strong, num = m.font("caption-strong"), m.font("caption-num")
         painter.setFont(strong)
         painter.setPen(m.color("text"))

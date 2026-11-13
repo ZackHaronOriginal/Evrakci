@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-states="main">
+<head>
+<meta charset="utf-8">
+<title>Rehber: direction A (final-a addition)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<link rel="stylesheet" href="additions.css">
+<style>
+/* ADDED TAB in direction A's language. Title band, command bar, layer, cards, table, inspector,
+   status bar: A's components. Rules marked "A:" are copied verbatim from A's pages. */
+/* Rehber: the guide (reading card) | search, contents and the separator sheet (cards) */
+.body { display: grid; grid-template-columns: 1fr 368px; gap: var(--s3); padding: 0 var(--s3) var(--s3); min-height: 0; }
+.article { overflow: hidden; min-height: 0; min-width: 0; padding: var(--s6) var(--s8); }
+.article .doc { max-width: 680px; }
+.article h1 { margin: 0; font-size: var(--fs-page); line-height: var(--lh-page); font-weight: var(--w-semibold); letter-spacing: -.01em; }
+.article .lead { margin: var(--s1) 0 var(--s4); color: var(--text-2); }
+.article .note { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s2) var(--s2) var(--s4); background: var(--well); border-radius: var(--r-control); }
+.article .note .ic { color: var(--icon); }
+.article .note .link { margin-left: auto; color: var(--text-accent); font-weight: var(--w-semibold); padding: 0 var(--s3); height: 32px; display: inline-flex; align-items: center; white-space: nowrap; }
+.article h2 { margin: var(--s6) 0 var(--s2); font-size: var(--fs-section); line-height: var(--lh-section); font-weight: var(--w-semibold); }
+.article h3 { margin: var(--s4) 0 var(--s1); font-size: var(--fs-body); line-height: var(--lh-body); font-weight: var(--w-semibold); }
+.article ol { margin: 0; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: var(--s2); }
+.article ol li { counter-increment: step; display: grid; grid-template-columns: 32px 1fr; }
+.article ol li::before { content: counter(step); font-weight: var(--w-semibold); color: var(--text-2); font-feature-settings: var(--ff-num); }
+.article ul { margin: 0; padding-left: var(--s6); display: flex; flex-direction: column; gap: var(--s1); }
+.article b { font-weight: var(--w-semibold); }
+.article code { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; font-size: var(--fs-caption); background: var(--well); padding: 1px 6px; border-radius: var(--r-control); }
+mark { background: var(--selected); color: inherit; box-shadow: inset 0 -2px 0 var(--accent); border-radius: 2px; }
+mark.cur { background: var(--accent); color: var(--text-on-accent); box-shadow: none; }
+.side { display: flex; flex-direction: column; gap: var(--s3); min-height: 0; }
+.find { display: flex; flex-direction: column; gap: var(--s2); }
+.find .fld .iconbtn.sm { margin-right: calc(-1 * var(--s2)); margin-left: auto; width: 28px; height: 28px; }
+.find .res { display: flex; align-items: center; gap: var(--s1); font-size: var(--fs-caption); color: var(--text-2); padding-left: var(--s1); }
+.find .res b { color: var(--text); font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); }
+.find .res .grow { flex: 1; }
+.act { padding: var(--s1); }
+.act .r { display: flex; align-items: center; gap: var(--s3); height: 40px; padding: 0 var(--s3); border-radius: var(--r-control); white-space: nowrap; }
+.act .r .val { margin-left: auto; color: var(--text-2); font-size: var(--fs-caption); display: flex; align-items: center; gap: var(--s1); font-feature-settings: var(--ff-num); }
+.act .r.hov { background: var(--hover); }
+.print { padding: var(--s3) var(--s4) var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
+.print .line { display: flex; align-items: center; gap: var(--s3); }
+.print .line .k { width: 76px; color: var(--text-2); font-size: var(--fs-caption); }
+.print .fld.num { width: 72px; }
+.print .btn.primary { height: 40px; margin-top: var(--s1); }
+[data-text="150"] .body { grid-template-columns: 1fr 440px; }
+[data-text="150"] .side { overflow-y: auto; }
+[data-text="150"] .act .r { height: 48px; }
+[data-text="150"] .print .line .k { width: 120px; }
+[data-text="150"] .print .fld.num { width: 96px; }
+.print .btn .key { font-weight: var(--w-regular); font-size: var(--fs-caption); opacity: .8; margin-left: var(--s1); }
+</style>
+</head>
+<body>
+<div class="window" data-state="main">
+
+  <header class="titlebar">
+    <img class="logo" src="../../../logo/kit/evrakci-app-icon.svg" alt="Evrakçı">
+    <nav class="tabs" aria-label="Sekmeler">
+      <div class="tab"><i class="ic" data-i="upload"></i>Yükle</div>
+      <div class="tab"><i class="ic" data-i="layout-grid"></i>Kontrol</div>
+      <div class="tab"><i class="ic" data-i="layout-template"></i>Şablonlar</div>
+      <div class="tab"><i class="ic" data-i="table"></i>Değerler</div>
+      <div class="tab"><i class="ic" data-i="file-output"></i>Dışa Aktar</div>
+      <div class="tab on"><i class="ic" data-i="book-open"></i>Rehber</div>
+    </nav>
+    <div class="grow"></div>
+    <div class="tb-right">
+      <div class="jobswitch"><b>Kasım 2026 kapasite raporları</b><span class="saved"><i class="ic" data-i="check"></i>Kaydedildi 14:32</span><i class="ic t2" data-i="chevron-down"></i></div>
+      <div class="search"><i class="ic" data-i="search"></i>Ara<span class="k">Ctrl+K</span></div>
+      <button class="iconbtn sm" aria-label="Menü (Alt)"><i class="ic" data-i="menu"></i></button>
+      <div class="caption"><span><i class="ic" data-i="minus"></i></span><span><i class="ic" data-i="square"></i></span><span><i class="ic" data-i="x"></i></span></div>
+    </div>
+  </header>
+
+  <main class="layer">
+    <div class="commandbar" role="toolbar" aria-label="Rehber komutları">
+      <button class="iconbtn" aria-label="Bul (Ctrl+F)"><i class="ic md" data-i="search"></i></button>
+      <button class="iconbtn" aria-label="Önceki sonuç (Shift+F3)"><i class="ic md" data-i="chevron-up"></i></button>
+      <button class="iconbtn" aria-label="Sonraki sonuç (F3)"><i class="ic md" data-i="chevron-down"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" aria-label="Ayıraç sayfasını yazdır (Ctrl+P)"><i class="ic md" data-i="printer"></i></button>
+      <button class="iconbtn" aria-label="PDF olarak aç"><i class="ic md" data-i="external-link"></i></button>
+      <div class="grow"></div>
+      <button class="cmd"><i class="ic md" data-i="keyboard"></i>Kısayollar</button>
+      <button class="iconbtn" aria-label="Yardım konuları (F1)"><i class="ic md" data-i="circle-help"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" aria-label="Yan paneli gizle (F9)"><i class="ic md" data-i="panel-right"></i></button>
+      <button class="iconbtn" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
+    </div>
+
+    <div class="body">
+      <article class="card article" data-clip-ok aria-label="Tarama rehberi">
+        <div class="doc">
+          <h1>Tarama rehberi</h1>
+          <p class="lead">Zımbalı evrak destelerini hızlı ve sorunsuz taramak için hazırlık, tarayıcı ayarları ve yükleme adımları.</p>
+          <div class="note"><i class="ic" data-i="info"></i>Ctrl+F ile rehberde arayın, Ctrl+tekerlek ile yazıyı büyütün.<span class="link">Bir daha gösterme</span></div>
+          <h2>Hazırlık</h2>
+          <ol>
+            <li><span>Her desteyi masaya <b>orijinal sırasıyla</b> koyun.</span></li>
+            <li><span>Zımba tellerini <b>zımba sökücü</b> ile çıkarın. Tel kalırsa besleyici sıkışır ve tarayıcı camı çizilebilir.</span></li>
+            <li><span>Yırtık, buruşuk veya katlanmış sayfaları düzeltin.</span></li>
+          </ol>
+          <h2>QR <mark>ayıraç</mark> sayfaları</h2>
+          <ol>
+            <li><span><mark>Ayıraç</mark> sayfalarını sağdaki panelden yazdırın (Ctrl+P). QR kod yaprağın iki yüzüne de basılır. Komut satırında: <code>evrakci ayirac ayirac.pdf --adet 10</code></span></li>
+            <li><span>Ayrılması gereken her belgenin önüne bir <mark class="cur">ayıraç</mark> koyun. Örneğin 5 sayfalık bir kaydı, iki yanındaki 2 sayfalık kayıtlardan <mark>ayıraç</mark>larla ayırın.</span></li>
+            <li><span>Taramadan sonra <mark>ayıraç</mark>ları desteden çıkarıp saklayın; tekrar kullanılabilir.</span></li>
+          </ol>
+          <h3>Bilmeniz gerekenler</h3>
+          <ul>
+            <li><mark>Ayıraç</mark> sayfası yalnızca “burada yeni belge başlıyor” demektir; çıktıya girmez.</li>
+            <li>Hepsi aynı uzunlukta olan belgelerde <mark>ayıraç</mark> gerekmez: taramadan sonra o sayfaları seçip “her N sayfa bir belge” filtresini uygulayın.</li>
+            <li>Boş sayfalar hiçbir zaman belge ayırmaz. Çift taraflı taramadaki boş arka yüzleri iş ayarından atabilirsiniz.</li>
+          </ul>
+          <h2>Küçük makbuzlar</h2>
+        </div>
+      </article>
+
+      <aside class="side" aria-label="Rehber paneli">
+        <div class="find">
+          <div class="fld focus"><i class="ic" data-i="search"></i>ayıraç<span class="caret"></span><button class="iconbtn sm" aria-label="Aramayı temizle (Esc)"><i class="ic" data-i="x"></i></button></div>
+          <div class="res"><span><b>8</b> sonuç, 3 / 8</span><span class="grow"></span>
+            <button class="iconbtn sm" aria-label="Önceki sonuç (Shift+F3)"><i class="ic" data-i="chevron-up"></i></button>
+            <button class="iconbtn sm" aria-label="Sonraki sonuç (F3)"><i class="ic" data-i="chevron-down"></i></button></div>
+        </div>
+        <div>
+          <div class="group-label">İçindekiler</div>
+          <div class="card act">
+            <div class="r">Hazırlık</div>
+            <div class="r on">QR ayıraç sayfaları<span class="val">7</span></div>
+            <div class="r">Küçük makbuzlar</div>
+            <div class="r">Tarayıcı ayarları</div>
+            <div class="r">Yükleme</div>
+            <div class="r">Sonrası</div>
+            <div class="r">Kısayollar<span class="val">1</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="group-label">Ayıraç sayfası</div>
+          <div class="card print">
+            <div class="line"><span class="k">Kaç adet</span><div class="fld num">20</div><span>sayfa</span></div>
+            <div class="line"><span class="k">Kâğıt</span><span>A4, iki yüze aynı QR</span></div>
+            <button class="btn primary"><i class="ic" data-i="printer"></i>Yazdır<span class="key">Ctrl+P</span></button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+  </main>
+
+  <footer class="statusbar">
+    <span>Bölüm <b>2</b> / 7</span>
+    <span><b>8</b> sonuç: ayıraç</span>
+    <span class="grow"></span>
+    <span class="zoom" title="Yazı boyutu (Ctrl+tekerlek)"><i class="ic" data-i="zoom-out"></i><span class="slider"><i style="width:50%"></i><b style="left:50%"></b></span><i class="ic" data-i="zoom-in"></i><span class="num">%100</span></span>
+  </footer>
+</div>
+<script src="state.js"></script>
+<script src="anchor.js"></script>
+<script src="icons.js"></script>
+</body>
+</html>

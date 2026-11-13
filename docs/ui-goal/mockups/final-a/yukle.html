@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-states="main">
+<head>
+<meta charset="utf-8">
+<title>Yükle: direction A (final-a addition)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<link rel="stylesheet" href="additions.css">
+<style>
+/* ADDED TAB in direction A's language. Title band, command bar, layer, cards, table, inspector,
+   status bar: A's components. Rules marked "A:" are copied verbatim from A's pages. */
+/* Yükle: batches of the open job (table card) + the job inspector (Kontrol's pattern) */
+.body { display: grid; grid-template-columns: 1fr var(--inspector-w); min-height: 0; }
+.work { padding: 0 var(--s3) var(--s3); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.tablecard { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; flex: 1; }
+.thead-bar .pane-title { padding-left: var(--s2); }
+td.grip .ic { color: var(--text-2); }
+td.f { font-feature-settings: var(--ff-num); }
+tr.total td { font-weight: var(--w-semibold); color: var(--text); }
+tr.total td.t2 { font-weight: var(--w-regular); color: var(--text-2); }
+.dropline { margin-top: auto; display: flex; align-items: center; justify-content: center; gap: var(--s2); height: 52px;
+  border-top: 1px solid var(--stroke-soft); color: var(--text-2); font-size: var(--fs-caption); }
+.dropline .ic { color: var(--icon); }
+.kv .r .v .st { font-weight: var(--w-semibold); }
+.act .r .ic.lead { color: var(--icon); }
+.act .r .two { display: flex; flex-direction: column; line-height: var(--lh-caption); }
+.act .r .two small { font-size: var(--fs-caption); color: var(--text-2); }
+.act .r.tall { height: 56px; }
+/* A: table (degerler.html) */
+/* card header: Fluent SelectorBar as the view switch, search + template on the right */
+.thead-bar { display: flex; align-items: center; gap: var(--s2); height: 52px; padding: 0 var(--s3) 0 var(--s2); }
+.selector { display: flex; gap: 2px; height: 100%; }
+.sel-item { position: relative; display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3); color: var(--text-2); font-weight: var(--w-medium); }
+.sel-item .n { font-size: var(--fs-caption); font-feature-settings: var(--ff-num); color: var(--text-2); font-weight: var(--w-regular); }
+.sel-item.on { color: var(--text); font-weight: var(--w-semibold); }
+.sel-item.on::after { content: ""; position: absolute; left: 50%; bottom: 8px; width: 16px; height: 3px; margin-left: -8px; border-radius: 2px; background: var(--accent); }
+.thead-bar .grow { flex: 1; }
+.field {
+  display: flex; align-items: center; gap: var(--s2); height: var(--control-h); padding: 0 var(--s3);
+  background: var(--card); border: 1px solid var(--stroke); border-bottom-color: var(--edge); border-radius: var(--r-control);
+  color: var(--text-2); white-space: nowrap;
+}
+.field .ic { color: var(--icon); }
+.field.search { width: 196px; }
+.field.select { color: var(--text); gap: var(--s3); }
+
+/* the table: 13/18 header, 15/21 cells, 40px rows, hairlines only between rows */
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+th { height: 36px; text-align: left; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: var(--w-semibold); color: var(--text-2);
+  padding: 0 var(--s3); border-bottom: 1px solid var(--stroke); white-space: nowrap; }
+th .ic { width: 14px; height: 14px; vertical-align: -2px; }
+th.sorted { color: var(--text); }
+td { height: var(--row-h); padding: 0 var(--s3); border-bottom: 1px solid var(--stroke-soft); white-space: nowrap; }
+td.n, th.n { text-align: right; }
+td.n, td.d, td.p { font-feature-settings: var(--ff-num); }
+td.v { font-feature-settings: var(--ff-value); }
+td.p { color: var(--text-2); }
+th:first-child, td:first-child { padding-left: var(--s4); padding-right: 0; }
+td.rv .ic { color: var(--ok); }
+tbody tr:last-child td { border-bottom: 0; }
+tr.cur td { background: var(--selected); }
+tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.u { background: var(--check-wash); border-radius: 2px; box-shadow: inset 0 -2px 0 var(--rider-edge); padding: 0 1px; }
+.empty { color: var(--text-2); }
+/* A: inspector (kontrol.html) */
+/* inspector: Settings-style cards on the layer, no hairlines */
+.inspector { padding: var(--s3) var(--s4) var(--s3) 0; display: flex; flex-direction: column; gap: var(--s3); min-height: 0; }
+.ins-head { padding: var(--s1) var(--s1) 0; }
+.ins-head .top { display: flex; align-items: center; justify-content: space-between; }
+.ins-head h1 { margin: var(--s1) 0 0; font-size: var(--fs-page); line-height: var(--lh-page); font-weight: var(--w-semibold); letter-spacing: -.01em; }
+.ins-head .sub { color: var(--text-2); margin-top: 2px; }
+.reason { display: flex; gap: var(--s2); align-items: flex-start; margin-top: var(--s3); }
+.kv { padding: var(--s1) 0; }
+.kv .r { display: flex; align-items: center; min-height: 40px; padding: 0 var(--s4); gap: var(--s3); }
+.kv .r .k { width: 76px; color: var(--text-2); font-size: var(--fs-caption); flex: none; }
+.kv .r .v { display: flex; align-items: center; gap: var(--s2); }
+.kv .r .v .ic.f { color: var(--cut-filter-text); }
+.act { padding: var(--s1); }
+.act .r { display: flex; align-items: center; gap: var(--s3); height: 40px; padding: 0 var(--s3); border-radius: var(--r-control); }
+.act .r .ic { color: var(--icon); }
+.act .r .val { margin-left: auto; color: var(--text-2); font-size: var(--fs-caption); display: flex; align-items: center; gap: var(--s1); }
+.act .r.hov { background: var(--hover); }
+.ins-foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--s1); }
+.ins-foot .btn.primary { height: 40px; }
+.hist { padding: var(--s1) 0; }
+.hist .r { display: flex; align-items: center; gap: var(--s3); height: 36px; padding: 0 var(--s4); font-size: var(--fs-caption); }
+.hist .r .ic { color: var(--icon); }
+.hist .r .tm { margin-left: auto; color: var(--text-2); }
+.act .r { white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="window" data-state="main">
+
+  <header class="titlebar">
+    <img class="logo" src="../../../logo/kit/evrakci-app-icon.svg" alt="Evrakçı">
+    <nav class="tabs" aria-label="Sekmeler">
+      <div class="tab on"><i class="ic" data-i="upload"></i>Yükle</div>
+      <div class="tab"><i class="ic" data-i="layout-grid"></i>Kontrol</div>
+      <div class="tab"><i class="ic" data-i="layout-template"></i>Şablonlar</div>
+      <div class="tab"><i class="ic" data-i="table"></i>Değerler</div>
+      <div class="tab"><i class="ic" data-i="file-output"></i>Dışa Aktar</div>
+      <div class="tab"><i class="ic" data-i="book-open"></i>Rehber</div>
+    </nav>
+    <div class="grow"></div>
+    <div class="tb-right">
+      <div class="jobswitch"><b>Kasım 2026 kapasite raporları</b><span class="saved"><i class="ic" data-i="check"></i>Kaydedildi 14:32</span><i class="ic t2" data-i="chevron-down"></i></div>
+      <div class="search"><i class="ic" data-i="search"></i>Ara<span class="k">Ctrl+K</span></div>
+      <button class="iconbtn sm" aria-label="Menü (Alt)"><i class="ic" data-i="menu"></i></button>
+      <div class="caption"><span><i class="ic" data-i="minus"></i></span><span><i class="ic" data-i="square"></i></span><span><i class="ic" data-i="x"></i></span></div>
+    </div>
+  </header>
+
+  <main class="layer">
+    <div class="commandbar" role="toolbar" aria-label="Yükle komutları">
+      <button class="iconbtn" aria-label="Geri al: Partiyi taşı (Ctrl+Z)"><i class="ic md" data-i="undo-2"></i></button>
+      <button class="iconbtn dis" aria-label="Yinele (Ctrl+Y)"><i class="ic md" data-i="redo-2"></i></button>
+      <span class="sep"></span>
+      <button class="cmd"><i class="ic md" data-i="file-up"></i>Dosya ekle…</button>
+      <button class="iconbtn" aria-label="Klasör ekle"><i class="ic md" data-i="folder-plus"></i></button>
+      <button class="iconbtn" aria-label="Yeni iş (Ctrl+N)"><i class="ic md" data-i="file-plus"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" aria-label="Partiyi yukarı taşı (Alt+Yukarı)"><i class="ic md" data-i="arrow-up"></i></button>
+      <button class="iconbtn" aria-label="Partiyi aşağı taşı (Alt+Aşağı)"><i class="ic md" data-i="arrow-down"></i></button>
+      <button class="iconbtn" aria-label="Partiyi çıkar (Del)"><i class="ic md" data-i="trash-2"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" aria-label="Dosya Gezgini'nde göster (Ctrl+Shift+O)"><i class="ic md" data-i="external-link"></i></button>
+      <div class="grow"></div>
+      <button class="cmd"><i class="ic md" data-i="arrow-right-to-line"></i>Kontrol'e geç</button>
+      <span class="sep"></span>
+      <button class="iconbtn" aria-label="Ayrıntı panelini gizle (F9)"><i class="ic md" data-i="panel-right"></i></button>
+      <button class="iconbtn" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
+    </div>
+
+    <div class="body">
+      <section class="work">
+        <div class="card tablecard" aria-label="Partiler">
+          <div class="thead-bar">
+            <div class="pane-title"><b>Partiler</b><span>Sürükleyin ya da Alt+↑ / Alt+↓ ile sıralayın.</span></div>
+          </div>
+          <table>
+            <colgroup><col style="width:44px"><col style="width:56px"><col><col style="width:96px"><col style="width:116px"><col style="width:148px"></colgroup>
+            <thead><tr><th aria-label="Sürükle"></th><th class="n">No</th><th>Dosya</th><th class="n">Sayfa</th><th class="n">QR ayıraç</th><th>Durum</th></tr></thead>
+            <tbody>
+            <tr><td class="grip"><i class="ic" data-i="grip-vertical"></i></td><td class="n">1</td><td>tarama-2026-11-03-0912.pdf</td><td class="n">180</td><td class="n">27</td><td><span class="st ok"><i class="ic" data-i="circle-check"></i>Hazır</span></td></tr>
+            <tr class="cur"><td class="grip"><i class="ic" data-i="grip-vertical"></i></td><td class="n">2</td><td>tarama-2026-11-03-1044.pdf</td><td class="n">176</td><td class="n">26</td><td><span class="st ok"><i class="ic" data-i="circle-check"></i>Hazır</span></td></tr>
+            <tr><td class="grip"><i class="ic" data-i="grip-vertical"></i></td><td class="n">3</td><td>tarama-2026-11-04-0856.pdf</td><td class="n">160</td><td class="n">24</td><td><span class="st ok"><i class="ic" data-i="circle-check"></i>Hazır</span></td></tr>
+            <tr><td class="grip"><i class="ic" data-i="grip-vertical"></i></td><td class="n">4</td><td>tarama-2026-11-04-1130.pdf</td><td class="n">124</td><td class="n">0</td><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span></td></tr>
+            <tr class="total"><td></td><td></td><td class="t2">Toplam</td><td class="n">640</td><td class="n">77</td><td class="t2">4 parti</td></tr>
+            </tbody>
+          </table>
+          <div class="dropline"><i class="ic" data-i="upload"></i>PDF'leri pencerenin herhangi bir yerine bırakın ya da Dosya ekle… (Ctrl+O). Klasörler de olur.</div>
+        </div>
+      </section>
+
+      <aside class="inspector" aria-label="İş ayrıntısı">
+        <div class="ins-head">
+          <div class="top"><span class="t2">Açık iş</span>
+            <button class="iconbtn sm" aria-label="Diğer"><i class="ic" data-i="ellipsis"></i></button></div>
+          <h1>640 sayfa</h1>
+          <div class="sub">4 parti, 96 belge bulundu</div>
+          <div class="reason">3 parti QR ayıraçlı; 4. partide ayıraç yok, filtreyle bölünecek.</div>
+        </div>
+
+        <div>
+          <div class="group-label">Ön kontrol</div>
+          <div class="card kv">
+            <div class="r"><span class="k">QR ayıraç</span><span class="v num">77</span></div>
+            <div class="r"><span class="k">Belge</span><span class="v num">96</span></div>
+            <div class="r"><span class="k">Durum</span><span class="v"><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>7 belge</span></span></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="group-label">Tarama profili</div>
+          <div class="card act">
+            <div class="r tall"><i class="ic lead" data-i="scan-line"></i><span class="two">300 dpi, siyah-beyaz<small>İki yüzlü, dosyalardan okundu</small></span></div>
+            <div class="r">Rehber'de tarama ayarları<span class="val"><i class="ic" data-i="chevron-right"></i></span></div>
+          </div>
+        </div>
+
+        <div class="ins-foot">
+          <button class="btn primary"><i class="ic" data-i="arrow-right-to-line"></i>Kontrol'e geç</button>
+          <button class="btn subtle"><i class="ic" data-i="x"></i>İşi kapat</button>
+        </div>
+      </aside>
+    </div>
+
+  </main>
+
+  <footer class="statusbar">
+    <span><b>4</b> parti</span>
+    <span><b>640</b> sayfa</span>
+    <span><b>96</b> belge</span>
+    <span class="warn"><i class="ic" data-i="triangle-alert"></i><span><b>7</b> belge kontrol bekliyor</span></span>
+  </footer>
+</div>
+<script src="state.js"></script>
+<script src="anchor.js"></script>
+<script src="icons.js"></script>
+</body>
+</html>

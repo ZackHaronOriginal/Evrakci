@@ -1,0 +1,206 @@
+/* =====================================================================
+ * final-a ADDITIONS: what direction A did not draw, in A's own visual language.
+ * Loaded after shell.css. tokens.css + shell.css are A's files (tokens.css only gained the
+ * hc and 150 % blocks at its end). Every rule here targets an element that exists only in an
+ * added state or page, or applies only under [data-theme="hc"] / [data-text="150"], so A's
+ * default renders stay pixel-identical (checked by _fidelity.py).
+ * Reused A components: .menu/.mi/.mh, .card, .group-label, .btn, .iconbtn, .cmd, .rider, .st,
+ * .toast, .focus, .slider; page components copied from kontrol.html / degerler.html.
+ * ===================================================================== */
+
+[hidden] { display: none !important; }
+
+/* disabled, as A's .cmd.dis / .iconbtn.dis (opacity .45), for menu items, buttons, fields */
+.mi.dis, .btn.dis, .cb.dis, .fld.dis, .field.dis { opacity: .45; }
+
+/* ---------- input field (A's Değerler .field, shared by the added pages) ---------- */
+.fld {
+  display: flex; align-items: center; gap: var(--s2); height: var(--control-h); padding: 0 var(--s3);
+  background: var(--card); border: 1px solid var(--stroke); border-bottom-color: var(--edge); border-radius: var(--r-control);
+  color: var(--text); white-space: nowrap; min-width: 0;
+}
+.fld .ic { color: var(--icon); }
+.fld .ph { color: var(--text-2); }
+.fld .end { margin-left: auto; color: var(--text-2); font-size: var(--fs-caption); }
+.fld.num { justify-content: flex-end; font-feature-settings: var(--ff-num); }
+.fld.focus { border-bottom: 2px solid var(--accent); }
+.fld .caret { width: 1px; height: 18px; background: var(--text); margin-left: -6px; }
+
+/* ---------- checkbox (Fluent: 20 px, 3:1 edge, filled accent when on) ---------- */
+.cb {
+  width: 20px; height: 20px; border-radius: var(--r-control); border: 1px solid var(--edge); background: var(--card);
+  display: inline-flex; align-items: center; justify-content: center; flex: none; color: var(--text-on-accent);
+}
+.cb.on { background: var(--accent); border-color: var(--accent); }
+.cb .ic { width: 14px; height: 14px; }
+.cb .ic svg { stroke-width: 3; }
+
+/* ---------- ≡ / Alt menu (A §5.1): A's .menu, access keys underlined while open ---------- */
+.window > .menu { z-index: 40; }
+.mi u { text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.mi .chev { margin-left: auto; color: var(--text-2); display: inline-flex; }
+.mi .key + .chev { margin-left: var(--s2); }
+.iconbtn.sm.hov { background: var(--hover); }
+
+/* ---------- command palette (Ctrl+K and the title-band search, A §5.7) ---------- */
+.menu.palette { width: 560px; padding: var(--s2); }
+.palette .fld { height: 40px; margin-bottom: var(--s1); }
+.palette .mh { padding: var(--s3) var(--s3) var(--s1); }
+.palette .mi .where { color: var(--text-2); font-size: var(--fs-caption); margin-left: calc(-1 * var(--s2)); }
+.palette .mi .key .rider { margin-right: -4px; }
+.palette .pf { display: flex; gap: var(--s4); padding: var(--s2) var(--s3) var(--s1); margin-top: var(--s1);
+  border-top: 1px solid var(--stroke-soft); font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
+.palette .pf b { color: var(--text); font-weight: var(--w-semibold); margin-right: 6px; }
+
+/* ---------- empty state: pane skeleton kept, one sentence, one verb-first primary (A §3) ---------- */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  padding: 0 var(--s6) var(--s8); min-height: 0; min-width: 0; }
+.empty-state .mark { width: 48px; height: 48px; border-radius: var(--r-layer); background: var(--card); border: 1px solid var(--stroke);
+  box-shadow: var(--edge-light); color: var(--icon); display: flex; align-items: center; justify-content: center; margin-bottom: var(--s4); }
+.empty-state .mark .ic { width: 24px; height: 24px; }
+.empty-state h2 { margin: 0; font-size: var(--fs-panel); line-height: var(--lh-panel); font-weight: var(--w-semibold); }
+.empty-state p { margin: var(--s1) 0 0; color: var(--text-2); }
+.empty-state .acts-row { display: flex; gap: var(--s2); margin-top: var(--s6); }
+.empty-state .acts-row .btn { height: 40px; }
+.empty-state .note { margin-top: var(--s3); font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
+.empty-state .k { color: inherit; opacity: .8; font-weight: var(--w-regular); font-size: var(--fs-caption); margin-left: var(--s1); }
+.recent { width: 440px; margin-top: var(--s8); text-align: left; }
+.recent .act .r .ic { color: var(--icon); }
+
+/* ---------- Kontrol loupe (Önizle, Space): one page large, same inspector ---------- */
+.loupe { display: grid; grid-template-rows: 40px minmax(0, 1fr) 84px; gap: var(--s2); padding: var(--s1) var(--s6) var(--s3); min-height: 0; min-width: 0; }
+.lp-head { display: flex; align-items: center; gap: var(--s3); white-space: nowrap; min-width: 0; }
+.lp-head .pg-no { font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); }
+.lp-head .pg-no span { color: var(--text-2); font-weight: var(--w-regular); }
+.lp-head .grow { flex: 1; }
+.seg { display: flex; gap: 2px; height: var(--control-h); }
+.seg span { position: relative; display: flex; align-items: center; padding: 0 var(--s3); color: var(--text-2); font-weight: var(--w-medium); border-radius: var(--r-control); }
+.seg span.on { color: var(--text); font-weight: var(--w-semibold); }
+.seg span.on::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 16px; height: 3px; margin-left: -8px; border-radius: 2px; background: var(--accent); }
+.lp-stage { position: relative; display: flex; align-items: center; justify-content: center; gap: var(--s8);
+  background: var(--well); border-radius: var(--r-layer); min-height: 0; overflow: hidden; }
+.lp-page {
+  width: 300px; height: 424px; flex: none; background: var(--paper); color: var(--paper-ink); border-radius: var(--r-paper);
+  box-shadow: 0 0 0 1px rgba(20,32,26,.10), var(--shadow-paper); padding: 30px 32px; font-size: 8px; line-height: 11px;
+  display: flex; flex-direction: column; gap: 9px;
+}
+[data-theme="dark"] .lp-page { box-shadow: 0 0 0 1px rgba(0,0,0,.5), var(--shadow-paper); }
+.lp-page .ttl { text-align: center; font-size: 12px; line-height: 15px; font-weight: var(--w-semibold); letter-spacing: .04em; }
+.lp-page .org { text-align: center; color: var(--paper-head); margin-top: -7px; }
+.lp-page .fr { display: grid; grid-template-columns: 64px 1fr; color: var(--paper-ink); }
+.lp-page .fr span:first-child { color: var(--paper-head); }
+.lp-page table { border-collapse: collapse; width: 100%; font-size: 8px; }
+.lp-page td { border: 1px solid var(--paper-line); padding: 3px 5px; height: auto; }
+.lp-page .para { color: var(--paper-ink); }
+.lp-page .signs { margin-top: auto; display: flex; justify-content: space-between; color: var(--paper-head); }
+.lp-strip { display: flex; align-items: flex-start; justify-content: center; gap: var(--s3); padding-top: var(--s2); }
+.mini { display: flex; flex-direction: column; align-items: center; gap: var(--s1); font-size: var(--fs-caption); line-height: var(--lh-caption);
+  color: var(--text-2); font-feature-settings: var(--ff-num); }
+.mini i { display: block; width: 40px; height: 56px; border-radius: var(--r-paper); background-color: var(--paper);
+  background-image: repeating-linear-gradient(to bottom, var(--paper-line) 0 1px, transparent 1px 5px);
+  background-size: 26px 38px; background-position: 7px 10px; background-repeat: no-repeat;
+  box-shadow: 0 0 0 1px rgba(20,32,26,.10), var(--shadow-paper); }
+.mini.doc-start { margin-left: var(--s4); }
+.mini.on { color: var(--text-accent); font-weight: var(--w-semibold); }
+.mini.on i { box-shadow: 0 0 0 1px rgba(20,32,26,.10), 0 0 0 2px var(--layer), 0 0 0 4px var(--accent); }
+
+/* ---------- Değerler states ---------- */
+.tablecard .empty-state { flex: 1; }
+.side .src.blank .well { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s2);
+  padding: 0 var(--s6); text-align: center; color: var(--text-2); }
+.side .src.blank .well .ic { color: var(--icon); }
+
+/* a longer value in the scan crop (Örnek kontrol): narrower label column, same box */
+.crop.long .fr { grid-template-columns: 64px 1fr; }
+.crop.long .box { font-size: 16px; letter-spacing: 0; white-space: nowrap; }
+
+/* ---------- shared bits of the added pages ---------- */
+.pane-title { display: flex; align-items: baseline; gap: var(--s2); white-space: nowrap; }
+.pane-title b { font-weight: var(--w-semibold); }
+.pane-title span { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
+.num-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: var(--r-control); background: var(--accent); color: var(--text-on-accent); font-size: var(--fs-caption);
+  font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); line-height: 1; }
+
+/* =====================================================================
+ * High contrast (data-theme="hc"): structure by 1 px WindowText edges, no tonal steps, no
+ * shadows; selection and hover by Highlight outlines/fills (Windows HC conventions).
+ * ===================================================================== */
+[data-theme="hc"] .pg, [data-theme="hc"] .lp-page, [data-theme="hc"] .mini i, [data-theme="hc"] .crop { box-shadow: 0 0 0 1px var(--stroke); }
+[data-theme="hc"] .mini.on i { box-shadow: 0 0 0 1px var(--stroke), 0 0 0 2px var(--layer), 0 0 0 4px var(--accent); }
+[data-theme="hc"] .rider { box-shadow: inset 0 0 0 2px var(--rider-edge); }
+[data-theme="hc"] .mi.hov, [data-theme="hc"] .act .r.hov, [data-theme="hc"] .iconbtn.hov,
+[data-theme="hc"] .jobswitch:hover, [data-theme="hc"] .seg span.on { outline: 1px solid var(--accent); outline-offset: -1px; }
+[data-theme="hc"] .track i { box-shadow: inset 0 0 0 1px var(--stroke); }
+[data-theme="hc"] .slider { box-shadow: 0 0 0 1px var(--stroke); }
+[data-theme="hc"] .sepage, [data-theme="hc"] .lp-stage, [data-theme="hc"] .well { box-shadow: inset 0 0 0 1px var(--stroke); }
+[data-theme="hc"] .slot.del .bin { box-shadow: 0 0 0 1px var(--stroke); }
+[data-theme="hc"] .cmd.dis, [data-theme="hc"] .iconbtn.dis, [data-theme="hc"] .mi.dis, [data-theme="hc"] .btn.dis,
+[data-theme="hc"] .cb.dis, [data-theme="hc"] .fld.dis { opacity: 1; color: var(--sys-gray); }
+[data-theme="hc"] .cmd.dis .ic, [data-theme="hc"] .iconbtn.dis .ic, [data-theme="hc"] .mi.dis .ic, [data-theme="hc"] .btn.dis .ic { color: var(--sys-gray); }
+[data-theme="hc"] .btn.primary.dis { background: var(--base); border-color: var(--sys-gray); }
+[data-theme="hc"] .cb.dis { border-color: var(--sys-gray); background: var(--base); }
+[data-theme="hc"] tr.cur td, [data-theme="hc"] .act .r.on { background: var(--accent); color: var(--text-on-accent); }
+[data-theme="hc"] tr.cur td *, [data-theme="hc"] .act .r.on * { color: var(--text-on-accent) !important; }
+[data-theme="hc"] tr.cur td .rider { box-shadow: inset 0 0 0 2px var(--text-on-accent); }
+[data-theme="hc"] tr.cur td.edit .in, [data-theme="hc"] tr.cur td.edit .in * { color: var(--text) !important; }
+[data-theme="hc"] tr.cur td.edit .caret { background: var(--text); }
+[data-theme="hc"] .num-badge { box-shadow: none; }
+[data-theme="hc"] .tab.on .ic { color: var(--accent); }
+
+/* =====================================================================
+ * 150 % text (data-text="150"): A's sizes one density up; panes scroll (QScrollArea) instead
+ * of clipping. Only rule that changes arrangement: in the title band the unselected tabs show
+ * their icon only (their name is the tooltip), so the job name, "Kaydedildi", search, ≡ and the
+ * caption buttons all keep A's place at 1366 px.
+ * ===================================================================== */
+[data-text="150"] .titlebar .logo { width: 24px; height: 24px; }
+[data-text="150"] .tab { height: 44px; gap: 8px; padding: 0 14px 0 12px; }
+[data-text="150"] .tab:not(.on) { font-size: 0; gap: 0; padding: 0 12px; }
+[data-text="150"] .jobswitch { height: 40px; }
+[data-text="150"] .jobswitch .saved .ic { width: 18px; height: 18px; }
+[data-text="150"] .search { width: 196px; height: 40px; }
+[data-text="150"] .iconbtn.sm { width: 40px; height: 40px; }
+[data-text="150"] .caption span { height: 40px; }
+[data-text="150"] .commandbar .sep { height: 28px; }
+[data-text="150"] .mi { height: 48px; }
+[data-text="150"] .menu { min-width: 400px; }
+[data-text="150"] .menu.palette { width: 760px; }
+[data-text="150"] .rider { height: 30px; }
+[data-text="150"] .rider .ic, [data-text="150"] .statusbar .ic, [data-text="150"] .zoom .ic,
+[data-text="150"] .jobswitch .ic { width: 20px; height: 20px; }
+[data-text="150"] .slider { width: 140px; }
+[data-text="150"] .toast { height: 64px; }
+[data-text="150"] .btn.primary, [data-text="150"] .btn.lg, [data-text="150"] .empty-state .acts-row .btn { height: 48px; }
+[data-text="150"] .fld .caret, [data-text="150"] td.edit .caret { height: 26px; }
+[data-text="150"] .cb { width: 26px; height: 26px; }
+[data-text="150"] .num-badge { min-width: 28px; height: 28px; }
+[data-text="150"] .inspector, [data-text="150"] .side, [data-text="150"] .navside { overflow-y: auto; overflow-x: hidden; }
+[data-text="150"] .inspector > *, [data-text="150"] .side > *, [data-text="150"] .navside > * { flex: none; }
+[data-text="150"] .kv .r .k { width: 120px; }
+[data-text="150"] .act .r, [data-text="150"] .hist .r { height: auto; min-height: 48px; white-space: normal; }
+[data-text="150"] .tabrow, [data-text="150"] .gtab { height: 34px; }
+[data-text="150"] .slot figcaption { height: 36px; }
+[data-text="150"] .thead-bar { height: 64px; }
+[data-text="150"] th { height: 48px; }
+[data-text="150"] .field.search { width: 280px; }
+[data-text="150"] .tablecard { overflow: auto; }
+[data-text="150"] .tablecard table { table-layout: auto; width: max-content; min-width: 100%; }
+[data-text="150"] .tablecard col { width: auto !important; }
+[data-text="150"] .well { height: 240px; }
+[data-text="150"] .hint { height: 48px; }
+[data-text="150"] .recent { width: 600px; }
+[data-text="150"] .menu.palette .fld { height: 52px; }
+[data-text="150"] .lp-head .t2.cap-hide { display: none; }
+[data-text="150"] .loupe { grid-template-rows: 52px minmax(0, 1fr) 92px; }
+[data-text="150"] .toast { width: auto !important; white-space: nowrap; }
+[data-text="150"] .thead-bar { flex: none; flex-wrap: wrap; height: auto; min-height: 64px; padding-top: var(--s2); padding-bottom: var(--s2); row-gap: var(--s2); }
+[data-text="150"] .sel-item { white-space: nowrap; height: 48px; }
+
+/* selected item in a card list (Şablonlar, Rehber contents): A's selected-row look (selected
+   fill + 3 px accent bar), as on the Değerler table */
+.act .r.on { background: var(--selected); box-shadow: inset 3px 0 0 var(--accent); }
+[data-text="150"] .ins-foot, [data-text="150"] .side .acts { position: sticky; bottom: calc(-1 * var(--s3)); background: var(--layer); padding-top: var(--s2); padding-bottom: var(--s3); margin-bottom: calc(-1 * var(--s3)); }
+[data-text="150"] .navside { width: 100%; }
+[data-text="150"] .navside .act .r { white-space: nowrap; }
+[data-text="150"] .selector { height: 48px; }

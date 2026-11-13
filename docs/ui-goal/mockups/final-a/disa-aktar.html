@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-states="main">
+<head>
+<meta charset="utf-8">
+<title>Dışa Aktar: direction A (final-a addition)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<link rel="stylesheet" href="additions.css">
+<style>
+/* ADDED TAB in direction A's language. Title band, command bar, layer, cards, table, inspector,
+   status bar: A's components. Rules marked "A:" are copied verbatim from A's pages. */
+/* Dışa Aktar: pre-flight + file names (cards) | export settings (cards, one primary) */
+.body { display: grid; grid-template-columns: 1fr 368px; gap: var(--s3); padding: 0 var(--s3) var(--s3); min-height: 0; }
+.col { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; min-height: 0; }
+.tablecard { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.tablecard.grow1 { flex: 1; }
+.thead-bar .pane-title { padding-left: var(--s2); }
+.chk { display: grid; grid-template-columns: 96px 1fr 32px auto; align-items: center; column-gap: var(--s3); height: var(--row-h);
+  padding: 0 var(--s2) 0 var(--s4); border-top: 1px solid var(--stroke-soft); white-space: nowrap; }
+.chk b { font-weight: var(--w-semibold); }
+.chk .t2 { color: var(--text-2); }
+.chk .cnt { text-align: right; font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); }
+.chk .link { color: var(--text-accent); font-weight: var(--w-semibold); padding: 0 var(--s3); height: 32px; display: inline-flex; align-items: center; border-radius: var(--r-control); }
+.chk .st.orta .ic { color: var(--icon); }
+td .why { font-size: var(--fs-caption); color: var(--text-2); margin-left: var(--s2); }
+td.tpl { font-size: var(--fs-caption); color: var(--text-2); }
+.side { display: flex; flex-direction: column; gap: var(--s3); min-height: 0; }
+.side .group-label { margin-top: var(--s1); }
+.set { padding: var(--s4); display: flex; flex-direction: column; gap: var(--s2); }
+.set .line { display: flex; align-items: center; gap: var(--s2); }
+.set .line .fld { flex: 1; }
+.set .cap { color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+.set .cap .ic { width: 14px; height: 14px; color: var(--icon); }
+.set .cap.okc .ic { color: var(--ok); }
+.opts { padding: var(--s1) 0; }
+.opts .r { display: flex; align-items: center; gap: var(--s3); min-height: 40px; padding: 0 var(--s4); }
+.acts { margin-top: auto; display: flex; flex-direction: column; }
+.acts .btn.primary { height: 40px; }
+[data-text="150"] .body { grid-template-columns: 1fr 440px; }
+[data-text="150"] .chk { white-space: normal; height: auto; min-height: var(--row-h); padding-top: var(--s2); padding-bottom: var(--s2); grid-template-columns: 136px 1fr 32px auto; }
+[data-text="150"] .chk .link { white-space: nowrap; }
+[data-text="150"] .opts .r { min-height: 48px; }
+.acts .k { font-weight: var(--w-regular); font-size: var(--fs-caption); opacity: .8; margin-left: var(--s1); }
+/* A: table (degerler.html) */
+/* card header: Fluent SelectorBar as the view switch, search + template on the right */
+.thead-bar { display: flex; align-items: center; gap: var(--s2); height: 52px; padding: 0 var(--s3) 0 var(--s2); }
+.selector { display: flex; gap: 2px; height: 100%; }
+.sel-item { position: relative; display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3); color: var(--text-2); font-weight: var(--w-medium); }
+.sel-item .n { font-size: var(--fs-caption); font-feature-settings: var(--ff-num); color: var(--text-2); font-weight: var(--w-regular); }
+.sel-item.on { color: var(--text); font-weight: var(--w-semibold); }
+.sel-item.on::after { content: ""; position: absolute; left: 50%; bottom: 8px; width: 16px; height: 3px; margin-left: -8px; border-radius: 2px; background: var(--accent); }
+.thead-bar .grow { flex: 1; }
+.field {
+  display: flex; align-items: center; gap: var(--s2); height: var(--control-h); padding: 0 var(--s3);
+  background: var(--card); border: 1px solid var(--stroke); border-bottom-color: var(--edge); border-radius: var(--r-control);
+  color: var(--text-2); white-space: nowrap;
+}
+.field .ic { color: var(--icon); }
+.field.search { width: 196px; }
+.field.select { color: var(--text); gap: var(--s3); }
+
+/* the table: 13/18 header, 15/21 cells, 40px rows, hairlines only between rows */
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+th { height: 36px; text-align: left; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: var(--w-semibold); color: var(--text-2);
+  padding: 0 var(--s3); border-bottom: 1px solid var(--stroke); white-space: nowrap; }
+th .ic { width: 14px; height: 14px; vertical-align: -2px; }
+th.sorted { color: var(--text); }
+td { height: var(--row-h); padding: 0 var(--s3); border-bottom: 1px solid var(--stroke-soft); white-space: nowrap; }
+td.n, th.n { text-align: right; }
+td.n, td.d, td.p { font-feature-settings: var(--ff-num); }
+td.v { font-feature-settings: var(--ff-value); }
+td.p { color: var(--text-2); }
+th:first-child, td:first-child { padding-left: var(--s4); padding-right: 0; }
+td.rv .ic { color: var(--ok); }
+tbody tr:last-child td { border-bottom: 0; }
+tr.cur td { background: var(--selected); }
+tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.u { background: var(--check-wash); border-radius: 2px; box-shadow: inset 0 -2px 0 var(--rider-edge); padding: 0 1px; }
+.empty { color: var(--text-2); }
+</style>
+</head>
+<body>
+<div class="window" data-state="main">
+
+  <header class="titlebar">
+    <img class="logo" src="../../../logo/kit/evrakci-app-icon.svg" alt="Evrakçı">
+    <nav class="tabs" aria-label="Sekmeler">
+      <div class="tab"><i class="ic" data-i="upload"></i>Yükle</div>
+      <div class="tab"><i class="ic" data-i="layout-grid"></i>Kontrol</div>
+      <div class="tab"><i class="ic" data-i="layout-template"></i>Şablonlar</div>
+      <div class="tab"><i class="ic" data-i="table"></i>Değerler</div>
+      <div class="tab on"><i class="ic" data-i="file-output"></i>Dışa Aktar</div>
+      <div class="tab"><i class="ic" data-i="book-open"></i>Rehber</div>
+    </nav>
+    <div class="grow"></div>
+    <div class="tb-right">
+      <div class="jobswitch"><b>Kasım 2026 kapasite raporları</b><span class="saved"><i class="ic" data-i="check"></i>Kaydedildi 14:32</span><i class="ic t2" data-i="chevron-down"></i></div>
+      <div class="search"><i class="ic" data-i="search"></i>Ara<span class="k">Ctrl+K</span></div>
+      <button class="iconbtn sm" aria-label="Menü (Alt)"><i class="ic" data-i="menu"></i></button>
+      <div class="caption"><span><i class="ic" data-i="minus"></i></span><span><i class="ic" data-i="square"></i></span><span><i class="ic" data-i="x"></i></span></div>
+    </div>
+  </header>
+
+  <main class="layer">
+    <div class="commandbar" role="toolbar" aria-label="Dışa Aktar komutları">
+      <button class="iconbtn" aria-label="Geri al: Dosya adı kalıbı (Ctrl+Z)"><i class="ic md" data-i="undo-2"></i></button>
+      <button class="iconbtn dis" aria-label="Yinele (Ctrl+Y)"><i class="ic md" data-i="redo-2"></i></button>
+      <span class="sep"></span>
+      <button class="cmd"><i class="ic md" data-i="download"></i>Dışa aktar</button>
+      <button class="iconbtn dis" aria-label="Dışa aktarmayı durdur (Ctrl+.)"><i class="ic md" data-i="circle-x"></i></button>
+      <span class="sep"></span>
+      <button class="cmd"><i class="ic md" data-i="refresh-cw"></i>Yenile</button>
+      <button class="iconbtn" aria-label="Dizini yazdır (Ctrl+P)"><i class="ic md" data-i="printer"></i></button>
+      <div class="grow"></div>
+      <button class="iconbtn" aria-label="Dosya Gezgini'nde göster (Ctrl+Shift+O)"><i class="ic md" data-i="folder-open"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" aria-label="Ayarlar panelini gizle (F9)"><i class="ic md" data-i="panel-right"></i></button>
+      <button class="iconbtn" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
+    </div>
+
+    <div class="body">
+      <section class="col">
+        <div class="card tablecard" aria-label="Ön kontrol">
+          <div class="thead-bar"><div class="pane-title"><b>Ön kontrol</b><span>96 belge, 640 sayfa</span></div></div>
+          <div class="chk"><span class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span><b>Yazmayı engelleyen sorun yok.</b> <span class="t2">Hedef klasör boş ve yazılabilir.</span></span><span></span><span></span></div>
+          <div class="chk"><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span><b>7 belgede emin olunmayan değer var.</b> <span class="t2">Yine de yazılır; index.xlsx'te işaretlenir.</span></span><span class="cnt">7</span><span class="link">Sonraki kontrol</span></div>
+          <div class="chk"><span class="st orta"><i class="ic" data-i="circle-dashed"></i>Eksik</span><span><b>Zorunlu değer eksik: Sicil no.</b> <span class="t2">Ad “Belge 41” gibi olur.</span></span><span class="cnt">2</span><span class="link">Değerler'e git</span></div>
+          <div class="chk"><span class="st orta"><i class="ic" data-i="info"></i>Bilgi</span><span><b>Dosya adı değişti.</b> <span class="t2">Geçersiz karakter ya da çakışma.</span></span><span class="cnt">2</span><span class="link">Adları göster</span></div>
+        </div>
+
+        <div class="card tablecard grow1" aria-label="Dosya adları">
+          <div class="thead-bar">
+            <div class="pane-title"><b>Dosya adları</b><span>kontrol gerekenler üstte</span></div>
+            <div class="grow"></div>
+            <button class="btn"><i class="ic" data-i="list-filter"></i>Yalnızca kontrol gerekenler <span class="t2 num">7</span></button>
+          </div>
+          <table>
+            <colgroup><col style="width:252px"><col><col style="width:104px"><col style="width:148px"></colgroup>
+            <thead><tr><th>Durum</th><th>Yazılacak dosya adı</th><th class="n">Sayfalar</th><th>Şablon</th></tr></thead>
+            <tbody>
+            <tr><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Sicil no eksik</span></td><td>Belge 41.pdf</td><td class="n p">128–129</td><td class="tpl">Ekspertiz Raporu</td></tr>
+            <tr><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Sicil no eksik</span></td><td>Belge 77.pdf</td><td class="n p">392–393</td><td class="tpl">Ekspertiz Raporu</td></tr>
+            <tr class="cur"><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Firma adı belirsiz</span></td><td>10517_Akdeniz Ambalaj.pdf</td><td class="n p">180–181</td><td class="tpl">Kapasite Raporu</td></tr>
+            <tr><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Sicil no belirsiz</span></td><td>10630_Marmara Gıda.pdf</td><td class="n p">301–302</td><td class="tpl">Kapasite Raporu</td></tr>
+            <tr><td><span class="st orta"><i class="ic" data-i="info"></i>Bilgi</span><span class="why">/ yerine - yazıldı</span></td><td>10533_Demir-Çelik Tic. A.Ş.pdf</td><td class="n p">212–213</td><td class="tpl">Kapasite Raporu</td></tr>
+            <tr><td><span class="st orta"><i class="ic" data-i="info"></i>Bilgi</span><span class="why">Ad çakışması, _2 eklendi</span></td><td>10482_Ege Kalıp Sanayi Ltd. Şti_2.pdf</td><td class="n p">14–15</td><td class="tpl">Ekspertiz Raporu</td></tr>
+            <tr><td><span class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span class="why"></span></td><td>10482_Ege Kalıp Sanayi Ltd. Şti.pdf</td><td class="n p">1–2</td><td class="tpl">Ekspertiz Raporu</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <aside class="side" aria-label="Dışa aktarma ayarları">
+        <div>
+          <div class="group-label">Hedef klasör</div>
+          <div class="card set">
+            <div class="line"><div class="fld">D:\Muhasebe\Çıktı\Kasım</div><button class="btn" aria-label="Klasör seç"><i class="ic" data-i="folder-open"></i></button></div>
+            <div class="cap okc cap"><i class="ic" data-i="circle-check"></i>Klasör boş, yazılabilir.</div>
+          </div>
+        </div>
+        <div>
+          <div class="group-label">Dosya adı kalıbı</div>
+          <div class="card set">
+            <div class="fld focus">{Oda sicil no}_{Firma unvanı}.pdf</div>
+            <div class="line"><button class="btn"><i class="ic" data-i="braces"></i>Değişken ekle<i class="ic" data-i="chevron-down"></i></button></div>
+            <div class="cap cap"><i class="ic" data-i="info"></i>Örnek: 10517_Akdeniz Ambalaj.pdf</div>
+          </div>
+        </div>
+        <div>
+          <div class="group-label">Seçenekler</div>
+          <div class="card opts">
+            <div class="r"><span class="cb on"><i class="ic" data-i="check"></i></span>Metin katmanı ekle (OCR)</div>
+            <div class="r"><span class="cb on dis"><i class="ic" data-i="check"></i></span>index.xlsx her zaman yazılır</div>
+            <div class="r"><span class="cb on"><i class="ic" data-i="check"></i></span>Geçersiz karakterleri değiştir</div>
+          </div>
+        </div>
+        <div class="acts">
+          <button class="btn primary"><i class="ic" data-i="download"></i>Dışa aktar<span class="k">Ctrl+E</span></button>
+        </div>
+      </aside>
+    </div>
+
+  </main>
+
+  <footer class="statusbar">
+    <span><b>96</b> belge</span>
+    <span><b>640</b> sayfa</span>
+    <span class="warn"><i class="ic" data-i="triangle-alert"></i><span><b>7</b> belge kontrol bekliyor</span></span>
+    <span class="ok"><i class="ic" data-i="circle-check"></i><span>Hedef klasör yazılabilir</span></span>
+  </footer>
+</div>
+<script src="state.js"></script>
+<script src="anchor.js"></script>
+<script src="icons.js"></script>
+</body>
+</html>

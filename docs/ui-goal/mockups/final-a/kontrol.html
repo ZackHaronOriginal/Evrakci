@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-states="main,empty,loupe,menu,palette">
+<head>
+<meta charset="utf-8">
+<title>Kontrol: direction A</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<link rel="stylesheet" href="additions.css">
+<style>
+/* ---------- Kontrol: work column + inspector ---------- */
+.body { display: grid; grid-template-columns: 1fr var(--inspector-w); min-height: 0; }
+.work { display: grid; grid-template-rows: var(--overview-h) 1fr; min-width: 0; min-height: 0; }
+
+/* overview of the whole job (D: always above the timeline) */
+.overview { display: flex; align-items: center; gap: var(--s4); padding: 0 var(--s4) 0 var(--s6); }
+.track { position: relative; flex: 1; height: 8px; display: flex; gap: 2px; }
+.track i { flex: 1; border-radius: 2px; background: var(--track); }
+.track i.done { background: var(--accent); }
+.track i.k { background: var(--rider); box-shadow: inset 0 0 0 1px var(--rider-edge); opacity: 1; }
+.track .vp { position: absolute; top: -6px; bottom: -6px; border: 2px solid var(--text); border-radius: 4px; background: transparent; }
+.overview .where { font-size: var(--fs-caption); color: var(--text-2); white-space: nowrap; }
+.overview .where b { color: var(--text); font-weight: var(--w-semibold); }
+
+/* timeline: documents as filed stacks */
+.timeline { position: relative; padding: var(--s4) var(--s6) 0 var(--s6); overflow: hidden; }
+.row { display: flex; align-items: flex-end; gap: 28px; margin-bottom: var(--s6); }
+.doc { display: flex; flex-direction: column; }
+.tabrow { display: flex; align-items: flex-end; gap: var(--s1); height: 26px; padding: 0 var(--s3); }
+.doc.qr .tabrow { justify-content: flex-start; }
+.doc.filtre .tabrow { justify-content: center; }
+.doc.elle .tabrow { justify-content: flex-end; }
+/* guide tab = the logo's trapezoid tab (slanted 8px sides), manila fill, 1px manila-edge outline.
+   Qt: one QPainterPath (fill + stroke) in the timeline delegate. */
+.gtab {
+  height: 26px; display: inline-flex; align-items: center; gap: 6px; padding: 0 16px 0 14px;
+  color: var(--manila-ink); font-size: var(--fs-caption); font-weight: var(--w-semibold);
+  font-feature-settings: var(--ff-num); position: relative; z-index: 1; margin-bottom: -1px; isolation: isolate;
+}
+.gtab::before, .gtab::after { content: ""; position: absolute; z-index: -1; clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 100%, 0 100%); }
+.gtab::before { inset: 0; background: var(--manila-edge); border-radius: 3px 3px 0 0; }
+.gtab::after { inset: 1px 1px 0 1px; background: var(--manila); clip-path: polygon(7.6px 0, calc(100% - 7.6px) 0, 100% 100%, 0 100%); }
+.gtab .ic { width: 14px; height: 14px; }
+.gtab .ic svg { stroke-width: 2.2; }
+.doc.qr .gtab .cut { color: var(--cut-qr); }
+.doc.filtre .gtab .cut { color: var(--cut-filter); }
+.doc.elle .gtab .cut { color: var(--cut-manual); }
+.gtab .rev { color: var(--on-manila-ok); margin-left: 2px; }
+.tabrow .rider { margin-bottom: 2px; }
+/* the folder lip: one manila band the width of the document, line style = cut type */
+.lip { height: 6px; background: var(--manila); border-top: 1px solid var(--manila-edge); border-radius: 2px 2px 0 0; }
+.doc.qr .lip { border-top-width: 2px; }
+.doc.filtre .lip { border-top-style: dashed; }
+.doc.elle .lip { border-top: 2px dotted var(--manila-edge); }
+.pages { display: flex; gap: var(--s3); padding-top: var(--s3); }
+.slot { margin: 0; display: flex; flex-direction: column; align-items: center; position: relative; }
+.slot figcaption { height: 28px; padding-top: 6px; font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); font-feature-settings: var(--ff-num); display: flex; gap: 6px; align-items: center; }
+
+/* paper */
+.pg {
+  width: var(--thumb-w); height: var(--thumb-h); background: var(--paper); border-radius: var(--r-paper);
+  box-shadow: 0 0 0 1px rgba(20,32,26,.10), var(--shadow-paper);
+  padding: 16px 14px; display: flex; flex-direction: column; gap: 9px; overflow: hidden; position: relative;
+}
+[data-theme="dark"] .pg { box-shadow: 0 0 0 1px rgba(0,0,0,.5), var(--shadow-paper); }
+.pg i { display: block; flex: none; }
+.pg b { font-weight: var(--w-regular); }
+.pg .h { height: 6px; width: 58%; background: var(--paper-head); border-radius: 1px; }
+.pg .h2 { height: 4px; width: 34%; background: var(--paper-line); border-radius: 1px; }
+.pg .lines { flex: 1; background: repeating-linear-gradient(to bottom, var(--paper-line) 0 2px, transparent 2px 8px);
+  -webkit-mask: linear-gradient(to right, #000 92%, transparent 92%); }
+.pg .lines.s { flex: 0 0 34px; }
+.pg .tbl { height: 78px; border: 1px solid var(--paper-line);
+  background: repeating-linear-gradient(to bottom, transparent 0 12px, var(--paper-line) 12px 13px),
+              repeating-linear-gradient(to right, transparent 0 28px, var(--paper-line) 28px 29px); }
+.pg .frm { display: grid; grid-template-columns: 34% 1fr; gap: 7px 8px; }
+.pg .frm b { height: 4px; background: var(--paper-line); border-radius: 1px; }
+.pg .frm u { height: 10px; border: 1px solid var(--paper-line); border-radius: 1px; }
+.pg .sig { margin-top: auto; height: 18px; width: 44%; align-self: flex-end;
+  border-bottom: 1px solid var(--paper-head); background: radial-gradient(ellipse at 40% 70%, transparent 45%, transparent 46%); }
+.pg .stamp { position: absolute; right: 16px; bottom: 30px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--paper-line); }
+.sepage {
+  width: 48px; height: var(--thumb-h); border-radius: var(--r-paper); background: var(--well);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s3); color: var(--text-2);
+}
+.sepage span { writing-mode: vertical-rl; transform: rotate(180deg); font-size: var(--fs-caption); }
+.sepdoc { display: flex; flex-direction: column; justify-content: flex-end; }
+/* to be deleted */
+.slot.del .pg { opacity: .38; }
+.slot.del .bin { position: absolute; top: 84px; left: 50%; margin-left: -20px; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--card); color: var(--danger); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-paper); }
+.slot.del figcaption { color: var(--danger); font-weight: var(--w-semibold); }
+/* selection: 2px accent ring with a 3px gap + check badge (Photos / Explorer gallery) */
+.slot.sel .pg { box-shadow: 0 0 0 1px rgba(20,32,26,.10), var(--shadow-paper), 0 0 0 3px var(--layer), 0 0 0 5px var(--accent); }
+.slot.sel .chk { position: absolute; top: -8px; left: -8px; width: 22px; height: 22px; border-radius: 50%; z-index: 2;
+  background: var(--accent); color: var(--text-on-accent); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--layer); }
+.slot.sel .chk .ic { width: 14px; height: 14px; }
+.slot.sel .chk .ic svg { stroke-width: 3; }
+.slot.sel figcaption { color: var(--text-accent); font-weight: var(--w-semibold); }
+/* keyboard focus (D11) on the current page: outside the selection ring */
+.slot.foc .pg { box-shadow: 0 0 0 1px rgba(20,32,26,.10), var(--shadow-paper), 0 0 0 3px var(--layer), 0 0 0 5px var(--accent),
+  0 0 0 7px var(--layer), 0 0 0 8px var(--focus-inner); outline: 2px solid var(--focus-outer); outline-offset: 8px; }
+.peek { height: 60px; }
+
+/* inspector: Settings-style cards on the layer, no hairlines */
+.inspector { padding: var(--s3) var(--s4) var(--s3) 0; display: flex; flex-direction: column; gap: var(--s3); min-height: 0; }
+.ins-head { padding: var(--s1) var(--s1) 0; }
+.ins-head .top { display: flex; align-items: center; justify-content: space-between; }
+.ins-head h1 { margin: var(--s1) 0 0; font-size: var(--fs-page); line-height: var(--lh-page); font-weight: var(--w-semibold); letter-spacing: -.01em; }
+.ins-head .sub { color: var(--text-2); margin-top: 2px; }
+.reason { display: flex; gap: var(--s2); align-items: flex-start; margin-top: var(--s3); }
+.kv { padding: var(--s1) 0; }
+.kv .r { display: flex; align-items: center; min-height: 40px; padding: 0 var(--s4); gap: var(--s3); }
+.kv .r .k { width: 76px; color: var(--text-2); font-size: var(--fs-caption); flex: none; }
+.kv .r .v { display: flex; align-items: center; gap: var(--s2); }
+.kv .r .v .ic.f { color: var(--cut-filter-text); }
+.act { padding: var(--s1); }
+.act .r { display: flex; align-items: center; gap: var(--s3); height: 40px; padding: 0 var(--s3); border-radius: var(--r-control); }
+.act .r .ic { color: var(--icon); }
+.act .r .val { margin-left: auto; color: var(--text-2); font-size: var(--fs-caption); display: flex; align-items: center; gap: var(--s1); }
+.act .r.hov { background: var(--hover); }
+.ins-foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--s1); }
+.ins-foot .btn.primary { height: 40px; }
+.hist { padding: var(--s1) 0; }
+.hist .r { display: flex; align-items: center; gap: var(--s3); height: 36px; padding: 0 var(--s4); font-size: var(--fs-caption); }
+.hist .r .ic { color: var(--icon); }
+.hist .r .tm { margin-left: auto; color: var(--text-2); }
+.act .r { white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="window" data-state="main">
+
+  <!-- title band: tabs live in the title bar (Explorer / Edge TabView) -->
+  <header class="titlebar">
+    <img class="logo" src="../../../logo/kit/evrakci-app-icon.svg" alt="Evrakçı">
+    <nav class="tabs" aria-label="Sekmeler">
+      <div class="tab"><i class="ic" data-i="upload"></i>Yükle</div>
+      <div class="tab on"><i class="ic" data-i="layout-grid"></i>Kontrol</div>
+      <div class="tab"><i class="ic" data-i="layout-template"></i>Şablonlar</div>
+      <div class="tab"><i class="ic" data-i="table"></i>Değerler</div>
+      <div class="tab"><i class="ic" data-i="file-output"></i>Dışa Aktar</div>
+      <div class="tab"><i class="ic" data-i="book-open"></i>Rehber</div>
+    </nav>
+    <div class="grow"></div>
+    <div class="tb-right">
+      <div class="jobswitch" data-in="empty" hidden><b>İş açılmadı</b><i class="ic t2" data-i="chevron-down"></i></div>
+      <div class="jobswitch" data-out="empty"><b>Kasım 2026 kapasite raporları</b><span class="saved"><i class="ic" data-i="check"></i>Kaydedildi 14:32</span><i class="ic t2" data-i="chevron-down"></i></div>
+      <div class="search"><i class="ic" data-i="search"></i>Ara<span class="k">Ctrl+K</span></div>
+      <button class="iconbtn sm" aria-label="Menü (Alt)" data-cls="menu:hov"><i class="ic" data-i="menu"></i></button>
+      <div class="caption"><span><i class="ic" data-i="minus"></i></span><span><i class="ic" data-i="square"></i></span><span><i class="ic" data-i="x"></i></span></div>
+    </div>
+  </header>
+
+  <main class="layer">
+    <!-- command bar: icons with tooltips, two labelled verbs -->
+    <div class="commandbar" role="toolbar" aria-label="Kontrol komutları">
+      <button class="iconbtn" data-cls="empty:dis" aria-label="Geri al: Kesim ekle (Ctrl+Z)"><i class="ic md" data-i="undo-2"></i></button>
+      <button class="iconbtn dis" aria-label="Yinele (Ctrl+Y)"><i class="ic md" data-i="redo-2"></i></button>
+      <span class="sep"></span>
+      <button class="cmd" data-cls="empty:dis"><i class="ic md" data-i="scissors"></i>Kes</button>
+      <button class="iconbtn" data-cls="empty:dis" aria-label="Önceki belgeyle birleştir (M)"><i class="ic md" data-i="merge"></i></button>
+      <button class="iconbtn" data-cls="empty:dis" aria-label="Sağa döndür (R)"><i class="ic md" data-i="rotate-cw"></i></button>
+      <button class="iconbtn" data-cls="empty:dis" aria-label="Sil (Del)"><i class="ic md" data-i="trash-2"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" data-cls="empty:dis" aria-label="Şablon uygula (T)"><i class="ic md" data-i="stamp"></i></button>
+      <button class="iconbtn" data-cls="empty:dis" aria-label="Filtre uygula (F)"><i class="ic md" data-i="filter"></i></button>
+      <div class="grow"></div>
+      <button class="cmd" data-cls="empty:dis"><i class="ic md" data-i="triangle-alert"></i>Sonraki kontrol</button>
+      <button class="iconbtn" data-cls="empty:dis" aria-label="Sonraki incelenmemiş (U)"><i class="ic md" data-i="circle-dashed"></i></button>
+      <button class="iconbtn" data-cls="empty:dis" aria-label="Sayfaya git (Ctrl+G)"><i class="ic md" data-i="arrow-right-to-line"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" aria-label="Önizle (Boşluk)" data-cls="empty:dis;loupe:hov"><i class="ic md" data-i="eye"></i></button>
+      <button class="iconbtn" data-cls="empty:dis" aria-label="Ayrıntı panelini gizle (F9)"><i class="ic md" data-i="panel-right"></i></button>
+      <button class="iconbtn" data-cls="empty:dis" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
+    </div>
+
+    <div class="body" data-out="empty">
+      <section class="work">
+        <div class="overview" aria-label="Tüm iş: 96 belge">
+          <div class="track" id="track"><span class="vp" id="vp"></span></div>
+          <div class="where"><b class="num">Belge 14–18</b> / 96</div>
+        </div>
+
+        <div class="timeline" data-clip-ok data-out="loupe">
+          <div class="row">
+            <div class="doc qr">
+              <div class="tabrow"><span class="gtab"><i class="ic cut" data-i="qr-code"></i>14<i class="ic rev" data-i="circle-check"></i></span></div>
+              <div class="lip"></div>
+              <div class="pages">
+                <figure class="slot"><div class="pg"><i class="h"></i><i class="h2"></i><i class="lines"></i></div><figcaption>66</figcaption></figure>
+                <figure class="slot"><div class="pg"><i class="h2"></i><i class="tbl"></i><i class="lines"></i></div><figcaption>67</figcaption></figure>
+                <figure class="slot"><div class="pg"><i class="h2"></i><i class="lines"></i></div><figcaption>68</figcaption></figure>
+                <figure class="slot"><div class="pg"><i class="lines s"></i><i class="sig"></i></div><figcaption>69</figcaption></figure>
+              </div>
+            </div>
+            <div class="doc filtre">
+              <div class="tabrow"><span class="gtab"><i class="ic cut" data-i="filter"></i>15<i class="ic rev" data-i="circle-check"></i></span></div>
+              <div class="lip"></div>
+              <div class="pages">
+                <figure class="slot"><div class="pg"><i class="h"></i><i class="frm"><b></b><u></u><b></b><u></u><b></b><u></u></i><i class="lines"></i></div><figcaption>70</figcaption></figure>
+                <figure class="slot del"><div class="pg"><i class="lines"></i></div><span class="bin"><i class="ic md" data-i="trash-2"></i></span><figcaption>71 Silinecek</figcaption></figure>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="doc filtre">
+              <div class="tabrow"><span class="gtab"><i class="ic cut" data-i="filter"></i>16</span><span class="rider"><i class="ic" data-i="triangle-alert"></i>Kontrol</span></div>
+              <div class="lip"></div>
+              <div class="pages">
+                <figure class="slot sel"><span class="chk"><i class="ic" data-i="check"></i></span><div class="pg"><i class="h"></i><i class="frm"><b></b><u></u><b></b><u></u><b></b><u></u></i><i class="tbl"></i></div><figcaption>72</figcaption></figure>
+                <figure class="slot sel foc"><span class="chk"><i class="ic" data-i="check"></i></span><div class="pg"><i class="h2"></i><i class="tbl"></i><i class="lines"></i></div><figcaption>73</figcaption></figure>
+              </div>
+            </div>
+            <div class="doc elle">
+              <div class="tabrow"><span class="gtab"><i class="ic cut" data-i="scissors"></i>17</span></div>
+              <div class="lip"></div>
+              <div class="pages">
+                <figure class="slot sel"><span class="chk"><i class="ic" data-i="check"></i></span><div class="pg"><i class="h2"></i><i class="lines"></i></div><figcaption>74</figcaption></figure>
+                <figure class="slot"><div class="pg"><i class="lines s"></i><i class="sig"></i></div><figcaption>75</figcaption></figure>
+              </div>
+            </div>
+            <div class="sepdoc"><div class="sepage"><i class="ic md" data-i="qr-code"></i><span>Ayraç 76</span></div><div style="height:28px"></div></div>
+            <div class="doc qr">
+              <div class="tabrow"><span class="gtab"><i class="ic cut" data-i="qr-code"></i>18</span></div>
+              <div class="lip"></div>
+              <div class="pages">
+                <figure class="slot"><div class="pg"><i class="h"></i><i class="h2"></i><i class="lines"></i></div><figcaption>77</figcaption></figure>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ADDED STATE loupe (Önizle, Space): page 73 large; the overview and inspector stay -->
+        <div class="loupe" data-in="loupe" hidden aria-label="Önizleme">
+          <div class="lp-head">
+            <span class="pg-no">Sayfa 73 <span>/ 640</span></span>
+            <span class="t2 cap-hide">Belge 16, Ekspertiz Raporu, 2. sayfa</span>
+            <span class="rider"><i class="ic" data-i="triangle-alert"></i>Kontrol</span>
+            <span class="grow"></span>
+            <div class="seg" role="radiogroup" aria-label="Sığdırma"><span class="on">Sığdır</span><span>Genişlik</span><span class="num">%100</span></div>
+            <button class="btn subtle"><i class="ic" data-i="x"></i>Kapat</button>
+          </div>
+          <div class="lp-stage" data-clip-ok>
+            <button class="iconbtn" aria-label="Önceki sayfa (Sol)"><i class="ic md" data-i="chevron-left"></i></button>
+            <div class="lp-page">
+              <div class="ttl">EKSPERTİZ RAPORU</div>
+              <div class="org">Örnek İli Ticaret ve Sanayi Odası</div>
+              <div class="fr"><span>Rapor no</span><span>2026/1187</span></div>
+              <div class="fr"><span>Firma</span><span>Ege Kalıp San. Ltd. Şti.</span></div>
+              <div class="fr"><span>Adres</span><span>Organize Sanayi Bölgesi 4. Cadde No: 12</span></div>
+              <div class="fr"><span>Ekspertiz tarihi</span><span>04.11.2026</span></div>
+              <table><tr><td>Makine</td><td>Adet</td><td>Kapasite (yıllık)</td></tr>
+                <tr><td>Enjeksiyon presi</td><td>8</td><td>640 ton</td></tr>
+                <tr><td>CNC işleme merkezi</td><td>4</td><td>380 ton</td></tr>
+                <tr><td>Erozyon tezgâhı</td><td>3</td><td>230 ton</td></tr>
+                <tr><td>Paketleme hattı</td><td>1</td><td>—</td></tr></table>
+              <div class="para">Yerinde yapılan incelemede yukarıdaki makinelerin çalışır durumda olduğu görülmüştür. Kapasite hesabı tek vardiya, yılda 300 iş günü esas alınarak yapılmıştır.</div>
+              <div class="signs"><span>Eksper<br>A. Yılmaz</span><span>Oda Genel Sekreteri<br>M. Demir</span></div>
+            </div>
+            <button class="iconbtn" aria-label="Sonraki sayfa (Sağ)"><i class="ic md" data-i="chevron-right"></i></button>
+          </div>
+          <div class="lp-strip" aria-label="Yakındaki sayfalar">
+            <span class="mini"><i></i>70</span>
+            <span class="mini doc-start"><i></i>72</span>
+            <span class="mini on"><i></i>73</span>
+            <span class="mini doc-start"><i></i>74</span>
+            <span class="mini"><i></i>75</span>
+            <span class="mini doc-start"><i></i>77</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="inspector" aria-label="Belge ayrıntısı">
+        <div class="ins-head">
+          <div class="top"><span class="rider"><i class="ic" data-i="triangle-alert"></i>Kontrol</span>
+            <button class="iconbtn sm" aria-label="Diğer"><i class="ic" data-i="ellipsis"></i></button></div>
+          <h1>Belge 16</h1>
+          <div class="sub">Ekspertiz Raporu, sayfa 72–73</div>
+          <div class="reason">QR ayıraç yok, filtre kesti.</div>
+        </div>
+
+        <div>
+          <div class="group-label">Neden burada başlıyor</div>
+          <div class="card kv">
+            <div class="r"><span class="k">Kesim</span><span class="v"><i class="ic f" data-i="filter"></i>Filtre, her 2 sayfada</span></div>
+            <div class="r"><span class="k">Önceki</span><span class="v">Belge 15, 1 sayfa</span></div>
+            <div class="r"><span class="k">Durum</span><span class="v t2"><i class="ic" data-i="circle-dashed"></i>İncelenmedi</span></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="group-label">Seçim: 3 sayfa (72–74)</div>
+          <div class="card act">
+            <div class="r hov">Şablon uygula<span class="val">Ekspertiz Raporu<i class="ic" data-i="chevron-right"></i></span></div>
+            <div class="r">Filtre uygula<span class="val">Her 2 sayfa<i class="ic" data-i="chevron-right"></i></span></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="group-label">Son değişiklikler</div>
+          <div class="card hist">
+            <div class="r"><i class="ic" data-i="scissors"></i><span>Kesim eklendi, sayfa 74</span><span class="tm num">14:31</span></div>
+            <div class="r"><i class="ic" data-i="trash-2"></i><span>Sayfa 71 silinecek</span><span class="tm num">14:30</span></div>
+          </div>
+        </div>
+
+        <div class="ins-foot">
+          <button class="btn primary"><i class="ic" data-i="check"></i>Belgeyi onayla</button>
+          <button class="btn subtle"><i class="ic" data-i="table"></i>Değerlerde aç</button>
+        </div>
+      </aside>
+    </div>
+
+
+    <!-- ADDED STATE empty: no job open. Same command bar (disabled), one sentence, one primary -->
+    <div class="empty-state" data-in="empty" hidden>
+      <div class="mark"><i class="ic" data-i="layout-grid"></i></div>
+      <h2>Henüz açık iş yok</h2>
+      <p>Kesimleri görmek için Yükle'den bir iş açın.</p>
+      <div class="acts-row">
+        <button class="btn primary"><i class="ic" data-i="upload"></i>Yükle'ye git<span class="k">Ctrl+1</span></button>
+        <button class="btn"><i class="ic" data-i="file-plus"></i>Yeni iş oluştur</button>
+      </div>
+      <div class="recent">
+        <div class="group-label">Son işler</div>
+        <div class="card act">
+          <div class="r"><i class="ic" data-i="folder"></i>Kasım 2026 kapasite raporları<span class="val">640 sayfa, dün</span></div>
+          <div class="r"><i class="ic" data-i="folder"></i>Ekim 2026 faaliyet belgeleri<span class="val">212 sayfa, 3 gün önce</span></div>
+          <div class="r"><i class="ic" data-i="folder"></i>Ekspertiz dosyaları, 2. parti<span class="val">88 sayfa, 2 hafta önce</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- context menu opened on page 73 (flips upward: not enough room below) -->
+    <div class="menu" style="left: 300px; top: 200px;" role="menu" aria-label="3 sayfa" data-out="empty,loupe,menu,palette">
+      <div class="mh">3 sayfa seçili</div>
+      <div class="mi hov"><i class="ic" data-i="scissors"></i>Burada kes<span class="key">K</span></div>
+      <div class="mi"><i class="ic" data-i="merge"></i>Önceki belgeyle birleştir<span class="key">M</span></div>
+      <hr>
+      <div class="mi"><i class="ic" data-i="rotate-cw"></i>Sağa döndür<span class="key">R</span></div>
+      <div class="mi"><i class="ic" data-i="rotate-ccw"></i>Sola döndür<span class="key">Shift+R</span></div>
+      <hr>
+      <div class="mi"><i class="ic" data-i="stamp"></i>Şablon uygula<span class="key"><i class="ic" data-i="chevron-right"></i></span></div>
+      <div class="mi"><i class="ic" data-i="filter"></i>Filtre uygula…<span class="key">F</span></div>
+      <hr>
+      <div class="mi"><i class="ic" data-i="eye"></i>Önizle<span class="key">Boşluk</span></div>
+      <div class="mi"><i class="ic" data-i="table"></i>Değerlerde aç<span class="key">Ctrl+4</span></div>
+      <hr>
+      <div class="mi danger"><i class="ic" data-i="trash-2"></i>3 sayfayı sil<span class="key">Del</span></div>
+    </div>
+  </main>
+
+  <footer class="statusbar">
+    <span data-out="empty">Belge <b>16</b> / 96</span>
+    <span data-out="empty">Sayfa <b>73</b> / 640</span>
+    <span data-out="empty"><b>3</b> sayfa seçili</span>
+    <span class="warn" data-out="empty"><i class="ic" data-i="triangle-alert"></i><span><b>7</b> belge kontrol bekliyor</span></span>
+    <span class="ok" data-out="empty"><i class="ic" data-i="circle-check"></i><span><b>58</b> / 96 incelendi</span></span>
+    <span data-in="empty" hidden>İşler Yükle sekmesinde açılır (Ctrl+1)</span>
+    <span class="grow"></span>
+    <span class="zoom" data-out="empty" title="Küçük resim boyutu"><i class="ic" data-i="zoom-out"></i><span class="slider"><i style="width:46%"></i><b style="left:46%"></b></span><i class="ic" data-i="zoom-in"></i><span class="num">%100</span></span>
+  </footer>
+
+  <!-- ADDED STATE menu: "≡" (or Alt) opens the six menus; Düzen is open. Access keys underlined. -->
+  <div class="menu" data-in="menu" hidden id="hamburger" role="menu" aria-label="Menü">
+    <div class="mi"><span><u>D</u>osya</span><span class="key">Alt+D</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+    <div class="mi hov"><span>Düz<u>e</u>n</span><span class="key">Alt+E</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+    <div class="mi"><span><u>G</u>örünüm</span><span class="key">Alt+G</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+    <div class="mi"><span>Gi<u>t</u></span><span class="key">Alt+T</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+    <div class="mi"><span><u>A</u>raçlar</span><span class="key">Alt+A</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+    <div class="mi"><span><u>Y</u>ardım</span><span class="key">Alt+Y</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+  </div>
+  <div class="menu" data-in="menu" hidden id="submenu" role="menu" aria-label="Düzen">
+    <div class="mi"><i class="ic" data-i="undo-2"></i><span><u>G</u>eri al: Kesim ekle</span><span class="key">Ctrl+Z</span></div>
+    <div class="mi dis"><i class="ic" data-i="redo-2"></i><span><u>Y</u>inele</span><span class="key">Ctrl+Y</span></div>
+    <hr>
+    <div class="mi hov"><i class="ic" data-i="scissors"></i><span>Burada <u>k</u>es</span><span class="key">K</span></div>
+    <div class="mi"><i class="ic" data-i="merge"></i><span>Önceki belgeyle <u>b</u>irleştir</span><span class="key">M</span></div>
+    <div class="mi"><i class="ic" data-i="rotate-cw"></i><span><u>S</u>ağa döndür</span><span class="key">R</span></div>
+    <div class="mi"><i class="ic" data-i="rotate-ccw"></i><span>Sol<u>a</u> döndür</span><span class="key">Shift+R</span></div>
+    <hr>
+    <div class="mi"><i class="ic" data-i="check"></i><span>Belgeyi <u>o</u>nayla</span><span class="key">Enter</span></div>
+    <div class="mi"><span style="width:16px"></span><span><u>T</u>ümünü seç</span><span class="key">Ctrl+A</span></div>
+    <div class="mi"><i class="ic" data-i="search"></i><span>B<u>u</u>l…</span><span class="key">Ctrl+F</span></div>
+    <hr>
+    <div class="mi danger"><i class="ic" data-i="trash-2"></i><span>3 sayfayı si<u>l</u></span><span class="key">Del</span></div>
+  </div>
+
+  <!-- ADDED STATE palette: Ctrl+K, or a click on the title-band search; drops from the search box -->
+  <div class="menu palette" data-in="palette" hidden id="palette" role="dialog" aria-label="Komut ara">
+    <div class="fld focus"><i class="ic" data-i="search"></i>kontrol<span class="caret"></span><span class="end">Esc</span></div>
+    <div class="mh">Komutlar</div>
+    <div class="mi hov"><i class="ic" data-i="triangle-alert"></i>Sonraki kontrol<span class="key">N</span></div>
+    <div class="mi"><i class="ic" data-i="chevron-up"></i>Önceki kontrol<span class="key">Shift+N</span></div>
+    <div class="mi"><i class="ic" data-i="arrow-right-to-line"></i>Kontrol<span class="where">sekmesine geç</span><span class="key">Ctrl+2</span></div>
+    <div class="mh">Belgeler</div>
+    <div class="mi"><i class="ic" data-i="file-text"></i>Belge 16, Ekspertiz Raporu<span class="key"><span class="rider"><i class="ic" data-i="triangle-alert"></i>Kontrol</span></span></div>
+    <div class="mi"><i class="ic" data-i="file-text"></i>Belge 21, Kapasite Raporu<span class="key"><span class="rider"><i class="ic" data-i="triangle-alert"></i>Kontrol</span></span></div>
+    <div class="pf"><span><b>↑ ↓</b>seç</span><span><b>Enter</b>çalıştır</span><span><b>Esc</b>kapat</span></div>
+  </div>
+</div>
+<script src="state.js"></script>
+<script src="anchor.js"></script>
+<script src="icons.js"></script>
+<script>
+/* overview: one segment per document; reviewed = accent, kontrol = rider (7), viewport = docs 14-18 */
+const track = document.getElementById('track'), vp = document.getElementById('vp');
+const kontrol = [16, 21, 33, 40, 57, 71, 88], reviewed = n => n <= 15 || [19, 20, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 34, 35, 36, 37, 38, 39, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 58, 59, 60, 61, 62, 63, 64, 65].includes(n);
+for (let n = 1; n <= 96; n++) {
+  const s = document.createElement('i');
+  if (kontrol.includes(n)) s.className = 'k'; else if (reviewed(n)) s.className = 'done';
+  track.insertBefore(s, vp);
+}
+requestAnimationFrame(() => {
+  const segs = track.querySelectorAll('i'), a = segs[13].offsetLeft, b = segs[17];
+  vp.style.left = (a - 4) + 'px'; vp.style.width = (b.offsetLeft + b.offsetWidth - a + 8) + 'px';
+});
+</script>
+</body>
+</html>

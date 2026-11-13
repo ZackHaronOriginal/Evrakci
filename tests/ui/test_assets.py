@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from PySide6.QtGui import QFont, QFontDatabase, QFontMetrics
+from PySide6.QtGui import QFont, QFontDatabase, QRawFont
 
 from evrakci.ui import fonts, icons, lucide
 
@@ -26,11 +26,19 @@ def test_font_files_and_licence_ship():
     assert "The Inter Project Authors" in (folder / "OFL.txt").read_text(encoding="utf-8")
 
 
-def test_inter_has_turkish_glyphs(qapp):
-    fonts.register_fonts()
-    metrics = QFontMetrics(QFont("Inter"))
-    for char in TURKISH:
-        assert metrics.inFont(char), char
+def test_inter_registers_and_has_turkish_glyphs(qapp):
+    """Inter must load on every platform, and each bundled file must draw every Turkish letter.
+    The glyphs are checked on the file itself (QRawFont), not through the platform's family
+    lookup, which on Windows offscreen may answer for a different font."""
+    assert "Inter" in fonts.register_fonts()
+    assert fonts.font_stack()[0] == "Inter"
+    folder = Path(fonts.__file__).parent / "assets" / "fonts"
+    for name in fonts.FONT_FILES:
+        raw = QRawFont(str(folder / name), 16)
+        assert raw.isValid(), name
+        for char in TURKISH:
+            # ord(): PySide converts a non-ASCII str to QChar wrongly.
+            assert raw.supportsCharacter(ord(char)), (name, char)
 
 
 def test_tabular_figures_flag(qapp):

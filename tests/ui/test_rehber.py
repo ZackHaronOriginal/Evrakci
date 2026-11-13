@@ -2,6 +2,8 @@
 list from the registry, printing the separator sheets, and the window wiring."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import pikepdf
 import pytest
 from PySide6.QtCore import QPoint, Qt
@@ -386,7 +388,7 @@ def test_the_separator_pdf_still_opens_from_the_tab(qtbot, tmp_path, monkeypatch
                         lambda url: opened.append(url.toLocalFile()))
     screen.count.setValue(2)
     screen.open_separators()
-    assert opened == [str(tmp_path / "ayirac-sayfalari.pdf")]
+    assert [Path(p) for p in opened] == [tmp_path / "ayirac-sayfalari.pdf"]
     with pikepdf.open(opened[0]) as pdf:
         assert len(pdf.pages) == 4
 

@@ -79,6 +79,20 @@ ZOOM_DEFAULT = 200  # A's status bar: "%200"
 UNDO_TEXT = "Değeri onayla"
 
 
+class SlackComboBox(QComboBox):
+    """A combo box whose size hint keeps a few pixels of slack: Windows draws some fonts a
+    pixel wider than QComboBox measures, which would cut the last letter of the text."""
+
+    SLACK = 8
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        hint = super().sizeHint()
+        return QSize(hint.width() + self.SLACK, hint.height())
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        hint = super().minimumSizeHint()
+        return QSize(hint.width() + self.SLACK, hint.height())
+
 def build_rows_fast(job: Job, documents, templates: Mapping[str, Template]) -> list[Row]:
     """`degerler_model.build_rows` with the page → template map built once, so a refresh
     stays fast at 1,000 documents (cuts.current_values rebuilds it for every document)."""
@@ -213,7 +227,7 @@ class DegerlerScreen(QWidget):
                                                   QLineEdit.ActionPosition.LeadingPosition)
         self.search.textChanged.connect(self._search_changed)
         self.search.installEventFilter(self)
-        self.template_combo = QComboBox()
+        self.template_combo = SlackComboBox()
         self.template_combo.setAccessibleName("Şablon")
         self.template_combo.setToolTip("Şablon")
         self.template_combo.setPlaceholderText("Şablon yok")  # no job, or no templated document

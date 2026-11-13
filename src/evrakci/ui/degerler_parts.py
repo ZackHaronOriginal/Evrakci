@@ -275,21 +275,15 @@ class HeaderBar(QWidget):
         pad = m.size("s2") + m.size("s3") + m.size("s6")  # margins + the gap before search
         selector = self.selector.sizeHint().width()
         search = self.search.width() + m.size("s2")
-        combo = self._combo_width() + m.size("s2") if not self.combo.isHidden() else 0
+        combo = self.combo.sizeHint().width() + m.size("s2") if not self.combo.isHidden() else 0
         if width <= 0 or selector + search + combo + pad <= width:
             return 0
         if selector + search + pad <= width:
             return 1 if combo else 0
         return 2
 
-    def _combo_width(self) -> int:
-        """The picker's width with a little slack: Windows draws some fonts a pixel wider than
-        QComboBox's own size hint allows, which would clip the template name."""
-        return self.combo.sizeHint().width() + theme.manager().size("s1")
-
     def _place(self) -> None:
         m = theme.manager()
-        self.combo.setMinimumWidth(self._combo_width())
         lines = self._layout_for(self.width())
         if lines != self.lines:
             self.lines = lines

@@ -66,11 +66,11 @@ Scanning guide with search and the separator sheets to print.
 
 ## Verification numbers
 
-- **Tests:** 1091 passed, 6 skipped, 1 warning (`pytest -q`, offscreen; two sequential runs, same result). `ruff check .`: All checks passed! (Before the overhaul: 525.) One earlier full run under load showed 60 failed / 41 errors in UI tests that pass on their own and on a clean re-run; treated as a load flake, not reproduced.
+- **Tests:** 1093 passed, 6 skipped, 1 warning (`pytest -q`, offscreen), three consecutive full runs with the same result. `ruff check .`: All checks passed! (Before the overhaul: 525.) The earlier bulk UI-test failures had two causes, and both are fixed. Tests wrote to the real settings file (fixed in `tests/conftest.py`), and PDFium was used from several threads at once (fixed with `pipeline/pdfium_lock.py`).
 - **Contrast:** the theme tests require at least 4.5:1 for every text and background pair in
   light, dark and high contrast; the marked-character wash is held at 7:1. The mockup check
   `_contrast.py` found 0 failing pairs.
-- **Clipping:** `tools/screenshots.py matrix docs/ui-goal/shots/final` shot 72 images (6 tabs x 3 themes x 2 window sizes x 100/150 % text). Summary line, verbatim: `ÖZET: 72 görüntü, 0 kırpılma/taşma`. Four shots checked by eye (Kontrol light 1366x768 100 %, Değerler dark 1366x768 150 %, Dışa Aktar high contrast 1920x1080 150 %, Yükle light 1366x768 150 %): no clipped or overlapping text; at 150 % the tabs collapse into the "»" menu, Değerler company names wrap, and the side panels scroll inside (their last card meets the scroll edge by design).
+- **Clipping:** `tools/screenshots.py matrix docs/ui-goal/shots/final` shot 72 images (6 tabs x 3 themes x 2 window sizes x 100/150 % text). The summary line reads `ÖZET: 72 görüntü, 0 kırpılma/taşma`, with the strict check: a card cut at any panel edge counts as clipped, and only long lists may show a partial row. Agents viewed all 72 shots, and the 150 % shots of every tab were checked again after the whole-card change. At 150 % the tabs move into the "»" menu, Değerler company names wrap, and side panels scroll one whole card at a time, with a hairline above the pinned button (owner-approved).
 - **Fidelity to A:** the mockup check `_fidelity.py` passes (52 checks, max channel delta 0/255 for
   Kontrol and Değerler light and dark). The real app against A's PNGs (light, 100 %, coarse pixel
   difference, a drift signal only because the demo data differs): Yükle 2.8 %, Kontrol 6.7 %,

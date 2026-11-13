@@ -30,6 +30,12 @@ Each item changes or extends how A behaves and waits for the owner's yes or no.
      "…" (full name in the tooltip and in the job-switch menu), and "Kaydedildi 14:32" shows only
      its check icon. Only if that is still not enough does b or a apply.
    A's 100 % layout is the same under all three.
+   *Phase 2 review note (115 % and 130 %, which A does not draw):* on Windows at 1366 px with the
+   caption buttons, A's six labelled tabs fit at 100 % and 115 % but not at 130 % (the band needs
+   about 1466 px). So that nothing overlaps, the Qt band applies the same provisional tab rule
+   (option a) below 150 % only while the labelled tabs do not fit, and the job name elides with
+   "…" (full name in its tooltip and accessible name). Both live in `theme.title_band_rule`
+   (`fits` argument) and `TitleBand.fit`; whichever option the owner picks replaces that branch.
 4. **"Kontrol'e geç" twice on Yükle.** It is both the command-bar button and the inspector's
    primary, with the same icon, close together (`png/yukle-light.png`). A does the same with
    "Değerlerde aç" (menu + inspector), so it follows A's pattern and is left as it is. Option: once

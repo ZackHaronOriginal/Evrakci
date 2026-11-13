@@ -93,7 +93,7 @@ class KeyHintButton(QPushButton):
         if not self.isEnabled():
             if primary:
                 return t["on_shell"], t["shell_3"], t["key_edge_on_shell"], t["on_shell"]
-            return t["disabled_ink"], t["card"], t["rule"], t["disabled_ink"]
+            return t["disabled_ink"], t["layer"], t["rule"], t["disabled_ink"]
         if primary:
             return t["on_shell"], t["shell_3"], t["key_edge_on_shell"], t["on_shell"]
         return t["ink"], t["key_cap"], t["key_edge"], t["ink_2"]
@@ -121,15 +121,29 @@ class KeyHintButton(QPushButton):
         if not self.icon_only:
             painter.setFont(self._label_font())
             painter.setPen(QColor(text_colour))
-            label_right = right - (key.width() + KEY_GAP if self.key else 0)
-            label = QRectF(x, 0, max(0.0, label_right - x), rect.height())
-            text = QFontMetrics(self._label_font()).elidedText(
-                self.text(), Qt.TextElideMode.ElideRight, int(label.width()))
+            label = self._label_rect()
             painter.drawText(label, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                             text)
+                             self.displayed_text())
         if self.key:
             cap = QRectF(right - key.width(), mid - key.height() / 2, key.width(), key.height())
             self._paint_key(painter, cap, cap_fill, cap_edge, cap_text)
+
+    def _label_rect(self) -> QRectF:
+        rect = self.rect()
+        x = PAD + (ICON + GAP if self.icon_name else 0)
+        right = rect.width() - PAD + (2 if self.key else 0)
+        label_right = right - (self._key_size().width() + KEY_GAP if self.key else 0)
+        return QRectF(x, 0, max(0.0, label_right - x), rect.height())
+
+    def displayed_text(self) -> str:
+        """The label as painted (elided with "…" when the button is too narrow)."""
+        if self.icon_only:
+            return ""
+        return QFontMetrics(self._label_font()).elidedText(
+            self.text(), Qt.TextElideMode.ElideRight, int(self._label_rect().width()))
+
+    def is_elided(self) -> bool:
+        return not self.icon_only and self.displayed_text() != self.text()
 
     def _paint_key(self, painter: QPainter, cap: QRectF, fill: str, edge: str,
                    text: str) -> None:
@@ -308,10 +322,14 @@ class StateLabel(QWidget):
 
     def set(self, state: str, text: str | None = None) -> None:
         name, token, word = STATES[state]
-        self.icon.setPixmap(icons.pixmap(name, token, 18))
         self.word.setText(text or word)
-        self.word.setStyleSheet(
-            f"color: {theme.TOKENS[token]}; font-weight: 600; font-size: 14px;")
+
+        def paint() -> None:  # again after a theme switch
+            self.icon.setPixmap(icons.pixmap(name, token, 18))
+            self.word.setStyleSheet(
+                f"color: {theme.TOKENS[token]}; font-weight: 600; font-size: 14px;")
+
+        theme.follow(self, paint, "state")
 
 
 def icon_label(name: str, colour: str = "ink", size: int = 18) -> QLabel:

@@ -156,6 +156,7 @@ QAbstractItemView { background: {{card}}; color: {{text}}; border: 0; outline: 0
     selection-background-color: {{sel-bg}}; selection-color: {{sel-fg}};
     alternate-background-color: {{layer}}; gridline-color: {{stroke-soft}}; }
 QAbstractItemView:disabled { color: {{text-disabled}}; }
+QListView#timeline { background: {{layer}}; }  /* A: Kontrol's pages sit on the layer */
 QTableView::item, QTreeView::item { padding: 0 {{s3}}; border-bottom: 1px solid {{stroke-soft}}; }
 QListView::item { padding: {{s2}} {{s3}}; }
 QAbstractItemView::item:hover { background: {{hover}}; }

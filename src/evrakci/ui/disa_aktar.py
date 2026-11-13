@@ -370,10 +370,10 @@ class DisaAktarScreen(QWidget):
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         header.setHighlightSections(False)
         header.setMinimumSectionSize(80)
-        ground = theme.TOKENS["ground"]
-        self.results.setStyleSheet(
-            f"QTableWidget {{ background: {ground}; }}"
-            f"QHeaderView::section {{ background: {ground}; padding: 0 10px 6px 10px; }}")
+        theme.bind_style(self.results, lambda: (
+            f"QTableWidget {{ background: {theme.TOKENS['ground']}; }}"
+            f"QHeaderView::section {{ background: {theme.TOKENS['ground']}; "
+            "padding: 0 10px 6px 10px; }"))
         right.addWidget(self.results, 1)
         right.addSpacing(8)
         self.count_line = label("", "hint", wrap=True)

@@ -4,7 +4,7 @@ On Windows the band replaces the system title bar: the window keeps a native thi
 (WS_THICKFRAME | WS_CAPTION, so Snap, Aero Shake, the shadow and the animations stay), WM_NCCALCSIZE
 gives the whole window to the client area, and WM_NCHITTEST says where to drag, resize and
 which spot is the maximise button (HTMAXBUTTON, so Windows 11 shows Snap Layouts on hover).
-Everywhere else, and when the pref "native_title_bar" is on, the system title bar stays and
+Everywhere else, and when the pref Prefs.native_title_bar() is on, the system title bar stays and
 the band is the window's first row without caption buttons. Every Win32 call is guarded.
 """
 from __future__ import annotations
@@ -12,12 +12,14 @@ from __future__ import annotations
 import os
 import sys
 
-from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt
+from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QMainWindow, QTabBar, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QLayout, QMainWindow, QTabBar, QWidget
 
 from evrakci.ui import icons, theme
 from evrakci.ui.chrome import CaptionButton
+from evrakci.ui.prefs import Prefs
+from evrakci.ui.style import FOOT
 
 HTCLIENT, HTCAPTION, HTMAXBUTTON = 1, 2, 9
 HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT = 10, 11, 12, 13, 14
@@ -28,12 +30,11 @@ WM_MOUSEMOVE, WM_NCMOUSELEAVE = 0x0200, 0x02A2
 ENV_NATIVE = "EVRAKCI_YEREL_BASLIK"  # "1": keep the system title bar
 
 
-def native_title_bar(prefs: object | None) -> bool:
-    """The user's "native_title_bar" pref (or EVRAKCI_YEREL_BASLIK=1)."""
+def native_title_bar(prefs: Prefs | None) -> bool:
+    """The user's "native title bar" pref (Ayarlar > Görünüm) or EVRAKCI_YEREL_BASLIK=1."""
     if os.environ.get(ENV_NATIVE) == "1":
         return True
-    getter = getattr(prefs, "native_title_bar", None)
-    return bool(getter()) if callable(getter) else False
+    return prefs is not None and prefs.native_title_bar()
 
 
 def custom_frame_supported() -> bool:
@@ -42,7 +43,7 @@ def custom_frame_supported() -> bool:
     return sys.platform == "win32" and app is not None and app.platformName() == "windows"
 
 
-def use_custom_frame(prefs: object | None) -> bool:
+def use_custom_frame(prefs: Prefs | None) -> bool:
     return custom_frame_supported() and not native_title_bar(prefs)
 
 
@@ -86,11 +87,13 @@ class TitleBand(QWidget):
         m = theme.manager()
         self._row = QHBoxLayout(self)
         self._row.setSpacing(0)
+        self._row.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)  # see minimumSizeHint
         self.logo = QLabel()
         self.logo.setAccessibleName("Evrakçı")
         self._row.addSpacing(m.size("s1"))
         self._row.addWidget(self.logo, 0, Qt.AlignmentFlag.AlignVCenter)
-        self._row.addSpacing(m.size("s2"))
+        # A's .logo margin-right is s2; the selected tab's left foot hangs into it.
+        self._row.addSpacing(max(0, m.size("s2") - FOOT))
         self._row.addWidget(tabs, 0, Qt.AlignmentFlag.AlignBottom)
         self._row.addStretch(1)
         right = QHBoxLayout()
@@ -98,6 +101,8 @@ class TitleBand(QWidget):
         for widget in (job_switch, search, menu):
             right.addWidget(widget, 0, Qt.AlignmentFlag.AlignVCenter)
         self._row.addLayout(right)
+        self._full_tabs = 0  # the tabs' width with every label, and with the selected
+        self._narrow_tabs = 0  # label only (both measured in refresh)
         self.caption: dict[str, CaptionButton] = {}
         if caption:
             self._row.addSpacing(m.size("s1"))
@@ -119,6 +124,37 @@ class TitleBand(QWidget):
         self.logo.setFixedSize(band.logo, band.logo)
         for button in self.caption.values():
             button.setFixedSize(band.caption_width, band.control_height)
+        self.menu.setFixedSize(band.control_height, band.control_height)  # A .iconbtn.sm
+        self.tabs.set_label_mode(m.title_band(fits=False).tab_labels)
+        self._narrow_tabs = self.tabs.sizeHint().width()
+        self.tabs.set_label_mode(band.tab_labels)
+        self._full_tabs = self.tabs.sizeHint().width()
+        self.updateGeometry()
+        self.fit()
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        """The narrow-tab minimum, so a long tab strip never widens the window (see fit)."""
+        hint = super().minimumSizeHint()
+        shrink = self.tabs.sizeHint().width() - self._narrow_tabs if self._narrow_tabs else 0
+        return QSize(hint.width() - max(0, shrink), hint.height())
+
+    def fit(self) -> None:
+        """Labelled tabs while they fit; otherwise the rule's narrow tabs (title_band_rule)."""
+        m = theme.manager()
+        if m.title_band().tab_labels != "all":
+            return
+        extra = max(0, self._full_tabs - self.tabs.sizeHint().width())
+        need = super().minimumSizeHint().width() + extra
+        self.tabs.set_label_mode(m.title_band(fits=self.width() >= need).tab_labels)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.fit()
+
+    def event(self, event: QEvent) -> bool:
+        if event.type() == QEvent.Type.LayoutRequest:  # e.g. a longer "Kaydedildi …" text
+            QTimer.singleShot(0, self.fit)
+        return super().event(event)
 
     def is_drag_area(self, pos: QPoint) -> bool:
         """True where a press should move the window: empty band, logo, gaps between tabs."""

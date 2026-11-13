@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import math
 import sys
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, Qt, Signal, Slot
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QGuiApplication, QPalette
 
 from evrakci.ui import motion
@@ -27,7 +27,8 @@ MODES = ("system", "light", "dark", "hc")
 DENSITIES = ("compact", "normal", "comfortable")
 TEXT_SIZES = tuple(g.TEXT_SCALES)
 
-# Old Kartotek name -> A role (the screens still use these until Phase 3).
+# Old Kartotek name -> A role (the screens still use these until Phase 3). A name that is also
+# an A role ("card", "paper", "manila", ...) keeps A's value; see ThemeManager._build_colors.
 LEGACY: dict[str, str] = {
     "shell": "accent", "shell_2": "accent-hover", "shell_3": "accent-hover",
     "on_shell": "text-on-accent", "on_shell_2": "text-on-accent",
@@ -101,12 +102,14 @@ class Shadow:
     inset: bool
 
 
-def title_band_rule(text_size: int, titlebar_h: int) -> TitleBand:
-    """The title band per text size. PROVISIONAL at 150 % (owner decision pending, PROPOSALS
-    item 3): additions.css option a, unselected tabs icon-only. Switch the 150 % branch here."""
+def title_band_rule(text_size: int, titlebar_h: int, fits: bool = True) -> TitleBand:
+    """The title band per text size. PROVISIONAL (owner decision pending, PROPOSALS item 3):
+    at 150 % additions.css option a, unselected tabs icon-only. Below 150 % A's labelled tabs
+    stay, and the same tab rule applies only when they do not fit (`fits` False: 130 % with
+    the caption buttons at 1366 px). Switch both branches here."""
     if text_size >= 150:
         return TitleBand(titlebar_h, 44, "selected", 24, 40, 196, 46)
-    return TitleBand(titlebar_h, 36, "all", 20, 32, 148, 46)
+    return TitleBand(titlebar_h, 36, "all" if fits else "selected", 20, 32, 148, 46)
 
 
 def _px(value: float) -> int:
@@ -283,7 +286,8 @@ class ThemeManager(QObject):
             out["accent-disabled"] = _blend(out["accent"], layer, DISABLED_ALPHA)
             out["on-accent-disabled"] = _blend(out["text-on-accent"], out["accent-disabled"],
                                                DISABLED_ALPHA + 0.3)
-        out.update({old: out[new] for old, new in LEGACY.items()})
+        # Old names only where A has no role of that name ("card" and "paper" are A's own).
+        out.update({old: out[new] for old, new in LEGACY.items() if old not in g.COLORS[name]})
         return out
 
     def hex(self, role: str) -> str:
@@ -336,8 +340,10 @@ class ThemeManager(QObject):
                 pass
         return font
 
-    def title_band(self) -> TitleBand:
-        return title_band_rule(self._text, self.size("titlebar-h"))
+    def title_band(self, fits: bool = True) -> TitleBand:
+        """The title band at the current text size; `fits` is False when the band is too
+        narrow for A's labelled tabs (see title_band_rule)."""
+        return title_band_rule(self._text, self.size("titlebar-h"), fits)
 
     def palette(self) -> QPalette:
         """QPalette from the role tokens (system colours in hc)."""
@@ -481,6 +487,38 @@ def manager() -> ThemeManager:
     if _manager is None:
         _manager = ThemeManager()
     return _manager
+
+
+class _Follower(QObject):
+    """Runs `fn` now and after every theme switch, for as long as its parent lives."""
+
+    def __init__(self, owner: QObject, fn: Callable[[], None], name: str) -> None:
+        super().__init__(owner)
+        self.setObjectName(name)
+        self.fn = fn
+        manager().changed.connect(self.run)
+        self.run()
+
+    @Slot()
+    def run(self) -> None:
+        self.fn()
+
+
+def follow(owner: QObject, fn: Callable[[], None], key: str = "") -> None:
+    """Call `fn` now and after every theme switch while `owner` lives; one per (owner, key),
+    a second call replaces the function."""
+    name = f"_theme_follow_{key}"
+    found = owner.findChild(_Follower, name, Qt.FindChildOption.FindDirectChildrenOnly)
+    if found is not None:
+        found.fn = fn
+        found.run()
+        return
+    _Follower(owner, fn, name)
+
+
+def bind_style(widget, build: Callable[[], str]) -> None:
+    """A per-widget stylesheet built from tokens, rebuilt after every theme switch."""
+    follow(widget, lambda: widget.setStyleSheet(build()), "style")
 
 
 # -- the old module API (Kartotek screens) -------------------------------------------------

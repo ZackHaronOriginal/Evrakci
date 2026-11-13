@@ -211,7 +211,8 @@ class SablonScreen(QWidget):
         root.addLayout(self._centre(), 1)
         root.addWidget(self._right())
         self.message = QLabel("")
-        self.message.setStyleSheet(f"color: {theme.colour('check_ink')}; font-weight: 600;")
+        theme.bind_style(self.message, lambda: f"color: {theme.colour('check_ink')}; "
+                         "font-weight: 600;")
         self._centre_layout.addWidget(self.message)
         # B, G, Ctrl+S, Ctrl+Z/Y and Ctrl+T are registry actions (main window).
         for key, slot in {}.items():

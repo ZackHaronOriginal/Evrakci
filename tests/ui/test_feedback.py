@@ -100,12 +100,23 @@ def test_save_state_texts(app):
     s = SaveState()
     s.set_saving()
     assert s.text() == "Kaydediliyor…" and s.state() == "saving"
-    s.set_saved(datetime(2026, 11, 13, 14, 32))
+    today = datetime.now().replace(hour=14, minute=32)
+    s.set_saved(today)
     assert s.text() == "Kaydedildi 14:32"
     calls = []
     s.set_failed("Disk dolu", lambda: calls.append(1))
     assert s.text() == "Kaydedilemedi" and s.state() == "failed"
     s._retry.click()
     assert calls == [1]
-    s.set_saved(datetime(2026, 1, 1, 9, 5))
+    s.set_saved(today.replace(hour=9, minute=5))
     assert not s._retry.isVisibleTo(s) and s.text() == "Kaydedildi 09:05"
+
+
+def test_saved_text_shows_the_date_when_not_today():
+    from evrakci.ui.feedback import saved_text
+
+    now = datetime(2026, 11, 13, 16, 0)
+    assert saved_text(datetime(2026, 11, 13, 14, 32), now) == "14:32"
+    assert saved_text(datetime(2026, 11, 12, 14, 32), now) == "12 Kas 14:32"
+    assert saved_text(datetime(2026, 2, 3, 8, 1), now) == "3 Şub 08:01"
+    assert saved_text(datetime(2025, 11, 12, 14, 32), now) == "12 Kas 2025 14:32"

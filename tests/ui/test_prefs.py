@@ -126,3 +126,14 @@ def test_window_geometry_round_trip(path, app):
     w.setWindowState(w.windowState().WindowMaximized)
     p.save_window(w)
     assert Prefs(path).window_maximized()
+
+
+def test_native_title_bar_round_trip(path):
+    p = Prefs(path)
+    assert p.native_title_bar() is False
+    p.set_native_title_bar(True)
+    assert Prefs(path).native_title_bar() is True
+    p.set_native_title_bar(False)
+    assert Prefs(path).native_title_bar() is False
+    with pytest.raises(ValueError):
+        p.set_native_title_bar("evet")

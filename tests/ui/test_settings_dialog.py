@@ -99,3 +99,12 @@ def test_shortcut_list_and_sheet(env):
     box.show_sheet()
     assert box._sheet is not None and box._sheet.isVisible()
     box._sheet.close()
+
+
+def test_native_title_bar_toggle_is_saved(env):
+    box, ini, _ = env
+    assert not box.native_title.isChecked()
+    box.native_title.setChecked(True)
+    assert Prefs(ini).native_title_bar() is True
+    box.reset_look()
+    assert Prefs(ini).native_title_bar() is False

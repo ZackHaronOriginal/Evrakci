@@ -61,6 +61,7 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 | Ctrl+0 | Sığdır | Görünüm | |
 | Ctrl+Shift+Num+ / Ctrl+Shift+Num- | Yazı boyutunu büyüt / küçült | Görünüm | also in Ayarlar |
 | F11 | Tam ekran | Görünüm | checkable |
+| F9 | Yan paneli gizle / göster | Görünüm | A's panel-right button at the end of every command bar; the tooltip names the tab's panel ("Ayrıntı panelini gizle (F9)", "Kaynak panelini …", "Ayarlar panelini …", "Yan paneli …"); disabled while a screen has no side panel (Phase 3) |
 | F5 | Yenile | — (palette, sheet) | |
 | Ctrl+, | Ayarlar… | Araçlar | |
 | F1 | Yardım konuları | Yardım | |
@@ -131,6 +132,7 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 | N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | yazarken kapalı |
 | — | Tümünü incele, Örnek kontrol | Araçlar | checkable |
 | Ctrl+. | Okumayı durdur | Araçlar | |
+| — | Değerleri oku / Yalnızca eksikleri oku | Araçlar | A's labelled scan-text and list-filter command-bar buttons |
 | Tab / Shift+Tab | Sonraki / önceki değer | — | yerel (table); Tab on the last value leaves the table, F6 moves to the next region |
 
 ### Dışa Aktar

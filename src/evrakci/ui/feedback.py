@@ -262,6 +262,18 @@ class InfoBar(QFrame):
         self.dismissed.emit()
 
 
+MONTHS = ("Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara")
+
+
+def saved_text(when: datetime, now: datetime | None = None) -> str:
+    """"14:32" today, "12 Kas 14:32" on another day this year, "12 Kas 2025 14:32" before."""
+    now = now or datetime.now()
+    if when.date() == now.date():
+        return f"{when:%H:%M}"
+    year = "" if when.year == now.year else f" {when.year}"
+    return f"{when.day} {MONTHS[when.month - 1]}{year} {when:%H:%M}"
+
+
 class SaveState(QWidget):
     """Title band status next to the job name: Kaydediliyor / Kaydedildi 14:32 / Kaydedilemedi."""
 
@@ -298,7 +310,7 @@ class SaveState(QWidget):
         self._show("saving", "Kaydediliyor…", "refresh-cw", "icon")
 
     def set_saved(self, when: datetime) -> None:
-        self._show("saved", f"Kaydedildi {when:%H:%M}", "check", "icon")
+        self._show("saved", f"Kaydedildi {saved_text(when)}", "check", "icon")
 
     def set_failed(self, message: str, retry: Callable[[], None] | None = None) -> None:
         """Show "Kaydedilemedi" (the message is the tooltip) with a retry action."""

@@ -22,6 +22,7 @@ THEMES = ("system", "light", "dark", "hc")
 MRU_MAX = 10
 ZOOM_RANGE = (10, 800)  # percent
 THUMB_RANGE = (64, 512)  # px
+NATIVE_TITLE_BAR = "native_title_bar"
 
 
 def default_settings_file() -> Path:
@@ -191,6 +192,15 @@ class Prefs(QObject):
         if value is not None and not isinstance(value, bool):
             raise ValueError(f"Geçersiz hareket ayarı: {value!r}")
         self._set("look/reduced_motion", "system" if value is None else value)
+
+    def native_title_bar(self) -> bool:
+        """Keep the system title bar instead of A's title band (Windows; on restart)."""
+        return bool(_to_bool(self._s.value(NATIVE_TITLE_BAR)))
+
+    def set_native_title_bar(self, value: bool) -> None:
+        if not isinstance(value, bool):
+            raise ValueError(f"Geçersiz başlık çubuğu ayarı: {value!r}")
+        self._set(NATIVE_TITLE_BAR, value)
 
     # -- recents and folders -------------------------------------------------
     def recent_jobs(self) -> list[str]:

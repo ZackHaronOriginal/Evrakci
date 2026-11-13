@@ -69,3 +69,27 @@ def test_app_applies_the_day_limit_at_start(qtbot, tmp_path):
     qtbot.addWidget(window)
     assert JobStore(tmp_path / "jobs").list_jobs() == []
     assert "silindi" in window.message.text()
+
+
+def test_undo_follows_the_current_tab(qtbot, tmp_path):
+    from PySide6.QtGui import QUndoCommand
+
+    window = _window(qtbot, tmp_path)
+    window.show_tab("sablonlar")
+    stack = window.sablon.undo_stack
+    assert not window.registry.is_enabled("app.geri_al")
+    stack.push(QUndoCommand("Kutu taşı"))
+    assert window.registry.is_enabled("app.geri_al")
+    assert "Kutu taşı" in window.registry.action("app.geri_al").toolTip()
+    window.registry.action("app.geri_al").trigger()
+    assert stack.index() == 0
+    window.show_tab("yukle")  # no job open: nothing to undo here
+    assert not window.registry.is_enabled("app.geri_al")
+
+
+def test_kontrol_without_a_job_offers_the_way_to_yukle(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    window.show_tab("kontrol")
+    assert window.kontrol is None
+    assert not window.registry.is_enabled("kontrol.kes")
+    assert window.tabs.currentWidget() is window._kontrol_placeholder

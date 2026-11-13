@@ -83,33 +83,42 @@ COMMANDS: dict[str, tuple[Cmd | str, ...]] = {
               Cmd("app.yeni_is", icon="file-plus"), SEP,
               Cmd("yukle.yukari"), Cmd("yukle.asagi"), Cmd("yukle.cikar"), SEP,
               Cmd("yukle.gezginde_goster", icon="external-link"), GROW,
-              Cmd("app.sekme.kontrol", True, "arrow-right-to-line", "Kontrol'e geç"), SEP),
+              Cmd("app.sekme.kontrol", True, "arrow-right-to-line", "Kontrol'e geç"), SEP,
+              Cmd("app.yan_panel")),
     "kontrol": (Cmd("app.geri_al"), Cmd("app.yinele"), SEP,
                 Cmd("kontrol.kes", True, "scissors", "Kes"), Cmd("kontrol.birlestir"),
                 Cmd("kontrol.saga_dondur"), Cmd("kontrol.sil"), SEP,
                 Cmd("kontrol.sablon", icon="stamp"), Cmd("kontrol.filtre"), GROW,
                 Cmd("kontrol.sonraki_kontrol", True), Cmd("kontrol.sonraki_incelenmemis"),
-                Cmd("app.git"), SEP, Cmd("kontrol.onizle")),
+                Cmd("app.git"), SEP, Cmd("kontrol.onizle"), Cmd("app.yan_panel")),
     "sablonlar": (Cmd("app.geri_al"), Cmd("app.yinele"), SEP,
                   Cmd("sablonlar.kutu_ciz", True, "square-dashed", "Kutu çiz"),
                   Cmd("sablonlar.izgara"), Cmd("sablonlar.kutu_cogalt", icon="copy"),
                   Cmd("sablonlar.kutu_sil"), SEP, Cmd("sablonlar.degisken_ekle"), GROW,
                   Cmd("sablonlar.dene", True, "play", "Bütün örneklerde dene"),
-                  Cmd("sablonlar.okumalari_goster"), SEP),
+                  Cmd("sablonlar.okumalari_goster"), SEP, Cmd("app.yan_panel")),
     "degerler": (Cmd("app.geri_al"), Cmd("app.yinele"), SEP,
+                 Cmd("degerler.oku", True, "scan-text", "Değerleri oku"),
+                 Cmd("degerler.eksikleri_oku"), SEP,
                  Cmd("degerler.tumunu_incele"), Cmd("degerler.ornek_kontrol"), GROW,
                  Cmd("degerler.onceki_kontrol", icon="chevron-up"),
-                 Cmd("degerler.sonraki_kontrol", True), Cmd("degerler.secilenleri_onayla"), SEP),
+                 Cmd("degerler.sonraki_kontrol", True), Cmd("degerler.secilenleri_onayla"), SEP,
+                 Cmd("app.yan_panel")),
     "disa_aktar": (Cmd("app.geri_al"), Cmd("app.yinele"), SEP,
                    Cmd("app.disa_aktar", True, "download", "Dışa aktar"),
                    Cmd("disa_aktar.durdur", icon="circle-x"), SEP,
                    Cmd("app.yenile", True, "refresh-cw", "Yenile"), Cmd("disa_aktar.yazdir"),
-                   GROW, Cmd("disa_aktar.gezginde_goster", icon="folder-open"), SEP),
+                   GROW, Cmd("disa_aktar.gezginde_goster", icon="folder-open"), SEP,
+                   Cmd("app.yan_panel")),
     "rehber": (Cmd("app.bul"), Cmd("app.onceki_sonuc"), Cmd("app.sonraki_sonuc"), SEP,
                Cmd("rehber.yazdir"), GROW,
                Cmd("app.kisayollar", True, "keyboard", "Kısayollar"),
-               Cmd("app.yardim", icon="help-circle"), SEP),
+               Cmd("app.yardim", icon="help-circle"), SEP, Cmd("app.yan_panel")),
 }
+# A's aria-label of the panel-right button per tab: "<panel> gizle (F9)".
+PANEL_NAMES = {"yukle": "Ayrıntı panelini", "kontrol": "Ayrıntı panelini",
+               "sablonlar": "Ayrıntı panelini", "degerler": "Kaynak panelini",
+               "disa_aktar": "Ayarlar panelini", "rehber": "Yan paneli"}
 
 # Kontrol actions handled by the KontrolScreen of the open job: (method, arguments).
 KONTROL_SLOTS = {
@@ -120,6 +129,7 @@ KONTROL_SLOTS = {
     "kontrol.onceki_kontrol": ("jump_to_check", -1),
 }
 TEXT_STEPS = theme.TEXT_SIZES
+STATUS_INSET = 2  # QStatusBar's own item margin
 
 
 def default_prefs(store: JobStore) -> Prefs:
@@ -228,6 +238,21 @@ class AltMenus(QObject):
         return False
 
 
+class _EnabledMirror(QObject):
+    """Calls `apply(enabled)` now and whenever `widget` is enabled or disabled."""
+
+    def __init__(self, widget: QWidget, apply) -> None:
+        super().__init__(widget)
+        self._apply = apply
+        widget.installEventFilter(self)
+        apply(widget.isEnabled())
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802
+        if event.type() == QEvent.Type.EnabledChange:
+            self._apply(obj.isEnabled())
+        return False
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -253,7 +278,7 @@ class MainWindow(QMainWindow):
         self._restoring = True
         self._zoom: dict[str, tuple[ZoomController, str]] = {}
         self._splitters: set[int] = set()
-        self._watched_stacks: set[int] = set()
+        self._wired: JobController | None = None  # the controller whose signals are connected
 
         self.registry = actions.Registry(self)
         self.registry.install_text_guard()
@@ -396,6 +421,13 @@ class MainWindow(QMainWindow):
         self.zoom_slider.hide()
         bar.addPermanentWidget(self.zoom_slider)
         self.yukle.refused.connect(self.message.setText)
+        self._pad_status_bar()
+
+    def _pad_status_bar(self) -> None:
+        """A .statusbar padding 0 s4 0 s6 (QStatusBar ignores QSS padding for its items)."""
+        m = theme.manager()
+        self.statusBar().setContentsMargins(m.size("s6") - STATUS_INSET, 0,
+                                            m.size("s4") - STATUS_INSET, 0)
 
     def _build_menus(self) -> None:
         """The six menus twice: the Alt row and A's ≡ menu (each filled when it opens)."""
@@ -524,11 +556,41 @@ class MainWindow(QMainWindow):
         r.connect("degerler.varyant", lambda: self.degerler.side.variant_button.click())
         r.connect("degerler.sonraki_kontrol", self.degerler.next_check)
         r.connect("degerler.durdur", self.degerler.cancel)
+        # TODO(Phase 3): the screen's own two read buttons go; the bar's commands replace them.
+        for action_id, button in (("degerler.oku", self.degerler.read_button),
+                                  ("degerler.eksikleri_oku", self.degerler.missing_button)):
+            r.connect(action_id, button.click)
+            button.hide()
+            _EnabledMirror(button, partial(self.registry.set_enabled, action_id))
+        r.connect("app.yan_panel", self.toggle_inspector)
         r.connect("disa_aktar.durdur", self.disa_aktar.cancel)
         for action_id, (method, *args) in KONTROL_SLOTS.items():
             r.connect(action_id, partial(self._kontrol_call, method, *args))
         self._sync_job_actions()
         self.sablon.undo_stack.indexChanged.connect(self._sync_undo)
+
+    def inspector(self, tab: str | None = None) -> QWidget | None:
+        """The tab's side panel (a screen's `side`), or None while the screen has none."""
+        screens = {"yukle": self.yukle, "kontrol": self.kontrol, "sablonlar": self.sablon,
+                   "degerler": self.degerler, "disa_aktar": self.disa_aktar,
+                   "rehber": self.rehber}
+        side = getattr(screens[tab or self.current_tab()], "side", None)
+        return side if isinstance(side, QWidget) else None
+
+    def toggle_inspector(self, *_args) -> None:
+        """F9: hide or show the current tab's side panel."""
+        side = self.inspector()
+        if side is not None:
+            side.setVisible(side.isHidden())
+        self._sync_inspector()
+
+    def _sync_inspector(self) -> None:
+        tab = self.current_tab()
+        side = self.inspector(tab)
+        self.registry.set_enabled("app.yan_panel", side is not None)
+        verb = "göster" if side is not None and side.isHidden() else "gizle"
+        key = actions.key_text("F9")
+        self.registry.action("app.yan_panel").setToolTip(f"{PANEL_NAMES[tab]} {verb} ({key})")
 
     def _mirror_check(self, action_id: str, checked: bool) -> None:
         action = self.registry.action(action_id)
@@ -660,7 +722,10 @@ class MainWindow(QMainWindow):
         stack = self._undo_stack()
         for action_id, can, what in (("app.geri_al", "canUndo", "undoText"),
                                      ("app.yinele", "canRedo", "redoText")):
-            enabled = stack is not None and getattr(stack, can)()
+            try:
+                enabled = stack is not None and getattr(stack, can)()
+            except RuntimeError:  # the job's stack is already gone while closing
+                return
             self.registry.set_enabled(action_id, enabled)
             spec = self.registry.spec(action_id)
             base = actions.plain_text(spec.text)
@@ -762,7 +827,7 @@ class MainWindow(QMainWindow):
                 job = self.store.load(job_id)
             except (KeyError, JobFileError, OSError):
                 continue
-            path = self.store.root / job_id / "job.json"
+            path = self._job_file(job_id)
             age = time.time() - path.stat().st_mtime if path.is_file() else 0
             found.append((job, _ago(age)))
         return found[:5]
@@ -800,17 +865,41 @@ class MainWindow(QMainWindow):
         kontrol.open_values.connect(lambda _n: self.show_tab("degerler"))
         self._set_kontrol_page(kontrol)
         self._track_splitters(kontrol)
-        controller.status.connect(self.message.setText)
-        controller.job_changed.connect(self._update_counts)
-        controller.job_changed.connect(self._saved)
-        stack = controller.undo_stack
-        if id(stack) not in self._watched_stacks:
-            self._watched_stacks.add(id(stack))
-            stack.indexChanged.connect(self._sync_undo)
+        self._wire_controller(controller)
         self.setWindowTitle(f"Evrakçı {__version__} – {job.name}")
         self.job_switch.set_job(job.name)
+        path = self._job_file(job.id)
+        self._saved(datetime.fromtimestamp(path.stat().st_mtime) if path.is_file() else None)
         self._update_counts()
         self._sync_job_actions()
+
+    def _wire_controller(self, controller: JobController) -> None:
+        """Connect the open job's signals once, and drop the previous job's."""
+        unique = Qt.ConnectionType.UniqueConnection
+        if self._wired is not controller:
+            self._unwire_controller()
+        self._wired = controller
+        controller.status.connect(self.message.setText, unique)
+        controller.job_changed.connect(self._update_counts, unique)
+        controller.job_changed.connect(self._saved_now, unique)
+        controller.undo_stack.indexChanged.connect(self._sync_undo, unique)
+
+    def _unwire_controller(self) -> None:
+        old, self._wired = self._wired, None
+        if old is None:
+            return
+        for signal, slot in ((old.status, self.message.setText),
+                             (old.job_changed, self._update_counts),
+                             (old.job_changed, self._saved_now),
+                             (old.undo_stack.indexChanged, self._sync_undo)):
+            try:
+                signal.disconnect(slot)
+            except (RuntimeError, TypeError):
+                pass
+
+    def _job_file(self, job_id: str) -> Path:
+        """The job's job.json (JobStore's own path; pipeline is left as it is, D13)."""
+        return self.store._job_file(job_id)
 
     def _set_kontrol_page(self, page: QWidget) -> None:
         """Swap the Kontrol tab's widget, keeping the current tab where it was."""
@@ -840,6 +929,7 @@ class MainWindow(QMainWindow):
             controller.job_changed.disconnect(self.yukle._show_batches)
         except (RuntimeError, TypeError):
             pass
+        self._unwire_controller()
         self.yukle.controller = None
         self.yukle.batches.clear()
         self.yukle.summary.setText("İş açılmadı")
@@ -858,8 +948,11 @@ class MainWindow(QMainWindow):
         (self.store.root / LAST_JOB).unlink(missing_ok=True)
         self.yukle.refresh_jobs()
 
-    def _saved(self) -> None:
-        self.job_switch.save_state.set_saved(datetime.now())
+    def _saved(self, when: datetime | None = None) -> None:
+        self.job_switch.save_state.set_saved(when or datetime.now())
+
+    def _saved_now(self, *_args) -> None:
+        self._saved()
 
     def _update_counts(self) -> None:
         controller = self.controller()
@@ -894,6 +987,7 @@ class MainWindow(QMainWindow):
             self.status_slots.setCurrentIndex(index)
             self._sync_zoom()
         self._sync_undo()
+        self._sync_inspector()
         if self._restoring:
             return
         self.prefs.set_last_tab(index)
@@ -954,6 +1048,7 @@ class MainWindow(QMainWindow):
         self.menu_button.setIcon(make_icon("menu"))
         for bar in self._bars.values():
             bar.refresh()
+        self._pad_status_bar()
         m = theme.manager()
         self.check_icon.setPixmap(icons.pixmap("triangle-alert", m.hex("rider-edge"), 14))
         if self.frame is not None:

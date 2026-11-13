@@ -408,10 +408,10 @@ class DegerlerScreen(QWidget):
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         header.setHighlightSections(False)
         header.setMinimumSectionSize(54)
-        ground = theme.TOKENS["ground"]
-        self.table.setStyleSheet(
-            f"QTableWidget {{ background: {ground}; }}"
-            f"QHeaderView::section {{ background: {ground}; padding: 0 8px 6px 8px; }}")
+        theme.bind_style(self.table, lambda: (
+            f"QTableWidget {{ background: {theme.TOKENS['ground']}; }}"
+            f"QHeaderView::section {{ background: {theme.TOKENS['ground']}; "
+            "padding: 0 8px 6px 8px; }"))
         self.table.setItemDelegate(_CellDelegate(self.table))
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)

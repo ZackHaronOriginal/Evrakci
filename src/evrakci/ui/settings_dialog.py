@@ -11,6 +11,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
@@ -163,6 +164,16 @@ class SettingsDialog(QDialog):
         row, self.motion_buttons = self._choice(
             "Hareketi azalt", MOTION, self._prefs.reduced_motion())
         box.addWidget(row)
+        self.native_title = QCheckBox("Sistem başlık çubuğunu kullan")
+        self.native_title.setAccessibleName("Sistem başlık çubuğunu kullan")
+        self.native_title.setChecked(self._prefs.native_title_bar())
+        self.native_title.toggled.connect(self._prefs.set_native_title_bar)
+        note = QLabel("Windows'ta Evrakçı'nın başlık bandı yerine sistemin başlık çubuğu "
+                      "kullanılır. Evrakçı yeniden açılınca uygulanır.")
+        note.setProperty("textRole", "secondary")
+        note.setWordWrap(True)
+        box.addWidget(self.native_title)
+        box.addWidget(note)
         for value, button in self.theme_buttons.items():
             button.toggled.connect(lambda on, v=value: on and self.set_theme(v))
         for value, button in self.size_buttons.items():
@@ -190,7 +201,8 @@ class SettingsDialog(QDialog):
         self._prefs.set_reduced_motion(value)
 
     def reset_look(self) -> None:
-        """Sistem, %100, Normal, hareket sistemden."""
+        """Sistem, %100, Normal, hareket sistemden, Evrakçı başlık bandı."""
+        self.native_title.setChecked(False)
         for buttons, value in ((self.theme_buttons, "system"), (self.size_buttons, 100),
                                (self.density_buttons, "normal"), (self.motion_buttons, None)):
             buttons[value].setChecked(True)

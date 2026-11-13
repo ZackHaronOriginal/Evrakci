@@ -105,6 +105,23 @@ def test_every_token_pair_meets_d10(name):
     assert not failing
 
 
+@pytest.mark.parametrize("name", ["light", "dark", "hc"])
+def test_runtime_colours_are_a_s_tokens(name):
+    """Old alias names never overwrite A's own roles ("card", "paper", ...)."""
+    manager = theme.ThemeManager()
+    manager.set_mode(name)
+    colours = manager.colors()
+    expected = dict(g.COLORS[name])
+    if name == "hc":
+        if theme.system_high_contrast():
+            pytest.skip("hc follows the live Windows system colours here")
+        expected.update({k: g.SYSTEM_COLORS[ref] for k, ref in g.HC_SYSTEM.items()})
+    assert {k: colours[k] for k in expected} == expected
+    failing = [(fg, bg) for fg, bg, minimum in PAIRS
+               if _ratio(colours[fg], colours[bg]) < minimum]
+    assert not failing
+
+
 @pytest.mark.parametrize("name", ["light", "dark"])
 def test_only_kontrol_is_orange(name):
     colours = g.COLORS[name]

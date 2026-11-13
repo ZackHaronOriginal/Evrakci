@@ -12,8 +12,17 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QUrl, Signal
-from PySide6.QtGui import QAction, QDesktopServices, QIcon, QKeyEvent, QPainter, QPen
+from PySide6.QtCore import QPointF, QRect, QRectF, QSize, Qt, QUrl, Signal
+from PySide6.QtGui import (
+    QAction,
+    QDesktopServices,
+    QFont,
+    QFontMetrics,
+    QIcon,
+    QKeyEvent,
+    QPainter,
+    QPen,
+)
 from PySide6.QtWidgets import (
     QAbstractButton,
     QDialog,
@@ -23,6 +32,10 @@ from PySide6.QtWidgets import (
     QMenu,
     QMenuBar,
     QPushButton,
+    QSizePolicy,
+    QStyle,
+    QStyleOptionToolButton,
+    QStylePainter,
     QTabBar,
     QToolButton,
     QTreeWidget,
@@ -105,6 +118,7 @@ class TitleTabs(QTabBar):
         self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
         self._tabs = tabs  # (tab id, label)
+        self._labels: str | None = None  # "all" / "selected"; None: the title-band rule
         for index, (tab, label) in enumerate(tabs):
             self.addTab(label)
             self.setAccessibleTabName(index, label)
@@ -115,9 +129,18 @@ class TitleTabs(QTabBar):
     def label(self, index: int) -> str:
         return self._tabs[index][1]
 
+    def set_label_mode(self, mode: str) -> None:
+        """"all" or "selected" (TitleBand decides it from the rule and its width)."""
+        if mode != self._labels:
+            self._labels = mode
+            self.refresh()
+
+    def label_mode(self) -> str:
+        return self._labels or theme.manager().title_band().tab_labels
+
     def refresh(self) -> None:
         """Icons for the current theme and labels per the title-band rule."""
-        only_selected = theme.manager().title_band().tab_labels == "selected"
+        only_selected = self.label_mode() == "selected"
         for index, (tab, label) in enumerate(self._tabs):
             self.setTabIcon(index, make_icon(TAB_ICONS[tab], "text-2", selected="accent"))
             show = not only_selected or index == self.currentIndex()
@@ -159,6 +182,46 @@ class _Clickable(QWidget):
         super().keyPressEvent(event)
 
 
+class ElidedLabel(QLabel):
+    """A one-line label that shrinks to `min_chars` characters and elides the rest with "…";
+    `full_text()` is the whole text (also its tooltip)."""
+
+    def __init__(self, text: str = "", min_chars: int = 6, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._full = ""
+        self._min_chars = min_chars
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        self.setText(text)
+
+    def setText(self, text: str) -> None:  # noqa: N802
+        self._full = text
+        super().setText(text)
+        self.setToolTip(text)
+        self.updateGeometry()
+
+    def full_text(self) -> str:
+        return self._full
+
+    def displayed_text(self) -> str:
+        width = self.contentsRect().width()
+        return self.fontMetrics().elidedText(self._full, Qt.TextElideMode.ElideRight, width)
+
+    def is_elided(self) -> bool:
+        return self.displayed_text() != self._full
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        hint = super().minimumSizeHint()
+        short = self.fontMetrics().horizontalAdvance("M" * self._min_chars + "…")
+        return QSize(min(hint.width(), short), hint.height())
+
+    def paintEvent(self, _event) -> None:  # noqa: N802
+        painter = QPainter(self)
+        self.style().drawItemText(painter, self.contentsRect(),
+                                  int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
+                                  self.palette(), self.isEnabled(), self.displayed_text(),
+                                  self.foregroundRole())
+
+
 class JobSwitch(_Clickable):
     """Job name + "Kaydedildi 14:32" + chevron; a click opens the job switcher."""
 
@@ -169,7 +232,7 @@ class JobSwitch(_Clickable):
         row = QHBoxLayout(self)
         row.setContentsMargins(m.size("s3"), 0, m.size("s2"), 0)
         row.setSpacing(m.size("s2"))
-        self.name = QLabel("İş açılmadı")
+        self.name = ElidedLabel("İş açılmadı")  # long names elide; the full name is the tooltip
         self.name.setObjectName("jobName")
         self.save_state = TitleSaveState()
         self.chevron = QLabel()
@@ -181,6 +244,7 @@ class JobSwitch(_Clickable):
 
     def set_job(self, name: str | None) -> None:
         self.name.setText(name or "İş açılmadı")
+        self.setToolTip(f"{name}. İş değiştir" if name else "İş değiştir")
         if name is None:
             self.save_state.hide()
         self.setAccessibleName(f"Açık iş: {name}. İş değiştir" if name else "İş açılmadı. İş aç")
@@ -220,6 +284,8 @@ class SearchBox(QPushButton):
         self.glyph.setPixmap(icons.pixmap("search", m.hex("text-2"), m.size("icon-sm")))
         self.setStyleSheet(f"QLabel {{ color: {m.hex('text-2')}; "
                            f"font-size: {m.size('fs-caption')}px; }}")
+        band = m.title_band()  # after setStyleSheet, which re-applies the app's min/max size
+        self.setFixedSize(band.search_width, band.control_height)  # A .search, border included
 
 
 class CaptionButton(QAbstractButton):
@@ -297,11 +363,52 @@ class ActionButton(QToolButton):
         self.refresh()
         self._sync()
 
+    def labelled(self) -> bool:
+        return self.toolButtonStyle() != Qt.ToolButtonStyle.ToolButtonIconOnly
+
+    def label_font(self) -> QFont:
+        """A's .cmd label: body size at weight 500 (measured and painted with this font)."""
+        return theme.manager().font("body-medium")
+
+    def text_rect(self) -> QRect:
+        """Where the label goes: s2 + icon + s2 from the left, s3 from the right (A .cmd)."""
+        m = theme.manager()
+        left = 2 * m.size("s2") + self.iconSize().width()
+        return QRect(left, 0, max(0, self.width() - left - m.size("s3")), self.height())
+
     def refresh(self) -> None:
+        """Icon for the theme and A's box: 36 px square, or s2 + icon + s2 + label + s3."""
         m = theme.manager()
         size = m.size("icon-md")
         self.setIconSize(QSize(size, size))
         self.setIcon(make_icon(self.icon_name, "icon", size, 1.6))
+        side = m.size("icon-btn")
+        if not self.labelled():
+            self.setFixedSize(side, side)
+        else:
+            text = QFontMetrics(self.label_font()).horizontalAdvance(self.text())
+            self.setFixedSize(2 * m.size("s2") + size + text + m.size("s3"), side)
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        """Labelled: the style draws the box (hover, pressed, focus); icon and label are
+        placed here with A's 8 px gap, which ToolButtonTextBesideIcon cannot give."""
+        if not self.labelled():
+            super().paintEvent(event)
+            return
+        painter = QStylePainter(self)
+        option = QStyleOptionToolButton()
+        self.initStyleOption(option)
+        option.text, option.icon = "", QIcon()
+        painter.drawComplexControl(QStyle.ComplexControl.CC_ToolButton, option)
+        m = theme.manager()
+        size = self.iconSize().width()
+        mode = QIcon.Mode.Normal if self.isEnabled() else QIcon.Mode.Disabled
+        self.icon().paint(painter, QRect(m.size("s2"), (self.height() - size) // 2, size, size),
+                          Qt.AlignmentFlag.AlignCenter, mode)
+        painter.setFont(self.label_font())
+        painter.setPen(m.color("text" if self.isEnabled() else "text-disabled"))
+        painter.drawText(self.text_rect(), Qt.AlignmentFlag.AlignVCenter
+                         | Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextSingleLine, self.text())
 
     def _sync(self) -> None:
         action = self.action_
@@ -369,6 +476,8 @@ class CommandBar(QWidget):
 
     def _refresh_more(self, button: QToolButton) -> None:
         size = theme.manager().size("icon-md")
+        side = theme.manager().size("icon-btn")
+        button.setFixedSize(side, side)
         button.setIconSize(QSize(size, size))
         button.setIcon(make_icon("ellipsis", "icon", size, 1.6))
         button.setStyleSheet("QToolButton::menu-indicator { image: none; width: 0; }")

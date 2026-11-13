@@ -52,7 +52,7 @@ class WholeJobStrip(QWidget):
     def paintEvent(self, event) -> None:
         t = theme.TOKENS
         painter = QPainter(self)
-        painter.fillRect(self.rect(), QColor(t["card"]))
+        painter.fillRect(self.rect(), QColor(t["layer"]))  # A: the strip sits on the layer
         total = self.model.rowCount()
         base = 54
         painter.setPen(QPen(QColor("#7f8c84"), 1))
@@ -100,7 +100,8 @@ class SidePanel(QFrame):
         layout.addWidget(index_rule())
         self.notice = QLabel("")
         self.notice.setWordWrap(True)
-        self.notice.setStyleSheet(f"color: {theme.colour('check_ink')}; font-weight: 700;")
+        theme.bind_style(self.notice, lambda: f"color: {theme.colour('check_ink')}; "
+                         "font-weight: 700;")
         self.values_button = key_button("Değerlerde aç", "Ctrl+4", primary=True)
         self.values_button.clicked.connect(lambda: self.open_values.emit(self.document))
         layout.addWidget(self.notice)

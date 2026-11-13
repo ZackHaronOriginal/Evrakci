@@ -76,3 +76,9 @@ Owner picked direction A on the mockups; the look follows the approved PNGs in
   option b (overflow menu), built and tested.
   Approved for a later update: Şablonlar "show only the selected variable's boxes" (H) and
   "delete the selected box" (Del). Not tried with a real screen reader or on a real Windows machine.
+
+### Test stability note (2026-11-13)
+
+- **Settings leak, fixed in `f46c409`.** UI tests wrote into the real `~/.config/Evrakçı/Evrakçı.ini`, so a second full run inherited the first run's column widths, geometry and last tab and failed in bulk. `tests/conftest.py` now gives every test its own settings file.
+- **Runs since then.** Four consecutive full runs passed: 1082 passed, 6 skipped, about 6 minutes each. They included a run stopping at the first failure, a run under deliberate CPU load, and two runs back to back.
+- **Still unexplained.** One pair of runs started right after the fix took about 14 minutes and failed in bulk. The cause was not reproduced (it was not CPU load). If a slow run fails again, read its first traceback before rerunning.

@@ -12,7 +12,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QPointF, QRect, QRectF, QSize, Qt, QUrl, Signal
+from PySide6.QtCore import QEvent, QPointF, QRect, QRectF, QSize, Qt, QUrl, Signal
 from PySide6.QtGui import (
     QAction,
     QDesktopServices,
@@ -38,6 +38,7 @@ from PySide6.QtWidgets import (
     QStylePainter,
     QTabBar,
     QToolButton,
+    QToolTip,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -158,7 +159,25 @@ class TitleTabs(QTabBar):
 
 
 class TitleSaveState(SaveState):
-    """SaveState as A draws it in the job switch: the saved check in `ok` at 14 px."""
+    """SaveState as A draws it in the job switch: the saved check in `ok` at 14 px. When the
+    band is too short for the full job name, it gives way first by showing only its icon;
+    the words stay in the accessible name and in the job switch's tooltip."""
+
+    _compact = False
+
+    def set_compact(self, compact: bool) -> None:
+        if compact != self._compact:
+            self._compact = compact
+            self._label.setVisible(not compact)
+
+    def is_compact(self) -> bool:
+        return self._compact
+
+    def text_room(self) -> int:
+        """The width its hidden words would take (0 while they show or it is not shown)."""
+        if self.isHidden() or not self._compact:
+            return 0
+        return self._label.sizeHint().width() + self.layout().spacing()
 
     def _refresh_icon(self) -> None:
         if not self._glyph:
@@ -251,6 +270,17 @@ class JobSwitch(_Clickable):
             row.addWidget(widget)
         self.setToolTip("İş değiştir")
         self.refresh()
+
+    def event(self, event) -> bool:
+        """The tooltip names the job, and the save state while its words are hidden."""
+        if event.type() == QEvent.Type.ToolTip:
+            tip = self.toolTip()
+            if self.save_state.is_compact() and not self.save_state.isHidden():
+                detail = self.save_state.toolTip() or self.save_state.text()
+                tip = f"{detail}. {tip}"
+            QToolTip.showText(event.globalPos(), tip, self)
+            return True
+        return super().event(event)
 
     def set_job(self, name: str | None) -> None:
         self.name.setText(name or "İş açılmadı")

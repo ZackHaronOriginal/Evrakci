@@ -312,6 +312,127 @@ def test_guven_stays_in_view_at_150_percent(qtbot, tmp_path):
         manager.set_text_scale(100)
 
 
+_TAB_CHECK = """
+import json, sys, tempfile
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import screenshots as s
+from PySide6.QtWidgets import QApplication
+from evrakci.app import configure_application
+from evrakci.ui import theme
+s.force_custom_frame()
+app = QApplication([])
+configure_application(app)
+theme.manager().set_text_scale(int(sys.argv[2]))
+theme.manager().set_mode("light")
+s._settle(app)
+with tempfile.TemporaryDirectory() as tmp:
+    window = s.build(Path(tmp) / "w")
+    window.resize(1366, 768)
+    window.show()
+    report = []
+    for index, slug in enumerate(s.SLUGS):
+        window.tabs.setCurrentIndex(index)  # as Ctrl+number does, not through the strip
+        s._settle(app, window=window)
+        report.append({"slug": slug, "clipped": s.clipping(window, slug),
+                       "selected_shown": window.title_tabs.isTabVisible(index),
+                       "overflow": window.title_band.overflow.isVisible(),
+                       "name_elided": window.job_switch.name.is_elided()})
+    window.close()
+print(json.dumps(report))
+"""
+
+
+def _tab_report(text: int) -> list[dict]:
+    """Every tab of the demo window at 1366x768 in light, with the app's real look (Inter,
+    stylesheet) and A's title band with caption buttons, exactly as the screenshot matrix
+    builds it; in a child process so the look never leaks into other tests."""
+    import json
+    import os
+    import subprocess
+
+    tools = str(Path(__file__).resolve().parents[2] / "tools")
+    env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+    done = subprocess.run([sys.executable, "-c", _TAB_CHECK, tools, str(text)], env=env,
+                          capture_output=True, text=True, timeout=300, check=True)
+    return json.loads(done.stdout.strip().splitlines()[-1])
+
+
+def test_no_tab_clips_at_1366x768_100_percent():
+    """GOAL §3.3: nothing clipped, elided or overlapping on any tab at the default size,
+    the full job name in the title band included (A's kontrol-light.png)."""
+    report = _tab_report(100)
+    assert [r["slug"] for r in report] == screenshots.SLUGS
+    for tab in report:
+        assert tab["clipped"] == [], tab["slug"]
+        assert not tab["name_elided"] and not tab["overflow"], tab["slug"]
+
+
+def test_title_band_at_150_percent_keeps_selected_tab_and_full_job_name():
+    """Option b at 1366 px and 150 %: the tabs overflow into "»" before the job name gives
+    way, the selected tab is in the strip however it was chosen, and nothing clips."""
+    for tab in _tab_report(150):
+        assert tab["selected_shown"] and tab["overflow"], tab["slug"]
+        assert not tab["name_elided"], tab["slug"]
+        assert tab["clipped"] == [], tab["slug"]
+
+
+@pytest.mark.parametrize("policy, clipped", [
+    (Qt.ScrollBarPolicy.ScrollBarAsNeeded, False),  # the bar shows: scrolled, not clipped
+    (Qt.ScrollBarPolicy.ScrollBarAlwaysOff, True),  # no bar: the cut card is clipped
+])
+def test_card_at_a_scroll_edge_is_clipped_only_without_a_scroll_bar(qtbot, policy, clipped):
+    from PySide6.QtWidgets import QFrame, QScrollArea, QVBoxLayout, QWidget
+
+    area = QScrollArea()
+    qtbot.addWidget(area)
+    area.setVerticalScrollBarPolicy(policy)
+    area.setWidgetResizable(True)
+    content = QWidget()
+    column = QVBoxLayout(content)
+    cards = []
+    for _ in range(4):
+        card = QFrame()
+        card.setProperty("kind", "card")
+        card.setFixedHeight(90)
+        column.addWidget(card)
+        cards.append(card)
+    area.setWidget(content)
+    area.resize(300, 170)  # the second card is cut by the bottom edge
+    area.show()
+    _settle()
+    assert any(screenshots._cut_by_scroll_edge(c) for c in cards) is clipped
+    area.verticalScrollBar().setEnabled(False)  # a disabled bar does not say "more" either
+    assert any(screenshots._cut_by_scroll_edge(c) for c in cards)
+
+
+def test_long_company_name_wraps_and_its_row_grows_at_150_percent(qtbot, tmp_path):
+    """A's 150 % Değerler: a company name too long for its column wraps onto a second line
+    in a taller row instead of eliding; short names keep A's row height."""
+    from evrakci.ui import theme
+
+    manager = theme.manager()
+    manager.set_text_scale(150)
+    try:
+        window = screenshots.build(tmp_path / "w")
+        qtbot.addWidget(window)
+        window.resize(1366, 768)
+        window.show()
+        window.show_tab("degerler")
+        screenshots._settle(QApplication.instance(), window=window)  # thumbnails done too
+        table = window.degerler.table
+        model = table.model()
+        column = next(c for c, col in enumerate(model.columns) if col.title == "Firma Adi")
+        texts = [model.data(model.index(r, column)) for r in range(model.rowCount())]
+        long_row = texts.index("Akçay Tekstil San. ve Tic. Ltd. Şti.")
+        row_h = manager.size("row-h")
+        assert table.rowHeight(long_row) > row_h
+        assert all(table.rowHeight(r) == row_h for r in range(model.rowCount()) if r != long_row)
+        assert screenshots._cells(table, "x") == []
+    finally:
+        manager.set_text_scale(100)
+
+
 # -- Kontrol -------------------------------------------------------------------------------------
 def test_overview_draws_small_left_aligned_squares_for_a_short_job(demo):
     from evrakci.ui.kontrol_overview import SEG_MAX

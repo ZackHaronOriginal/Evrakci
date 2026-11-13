@@ -19,9 +19,19 @@ from PySide6.QtCore import (
     QRectF,
     QSize,
     Qt,
+    QTimer,
     Signal,
 )
-from PySide6.QtGui import QColor, QFont, QFontMetricsF, QKeyEvent, QPainter, QPen
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QFontMetricsF,
+    QKeyEvent,
+    QPainter,
+    QPen,
+    QTextLayout,
+    QTextOption,
+)
 from PySide6.QtWidgets import (
     QAbstractItemDelegate,
     QAbstractItemView,
@@ -304,12 +314,37 @@ class Fonts:
         self.caption = m.font("caption-strong")
 
 
+MAX_LINES = 3  # a wrapped value stops here; a longer one elides its last line
+
+
+def wrap_lines(text: str, font: QFont, width: float) -> list[tuple[int, str]]:
+    """`text` broken into lines no wider than `width`: at word boundaries, or anywhere in a
+    word that is wider than the line by itself. Returns (start index, line text) pairs."""
+    layout = QTextLayout(text, font)
+    option = QTextOption()
+    option.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+    layout.setTextOption(option)
+    layout.beginLayout()
+    lines: list[tuple[int, str]] = []
+    while True:
+        line = layout.createLine()
+        if not line.isValid():
+            break
+        line.setLineWidth(max(1.0, width))
+        start, length = line.textStart(), line.textLength()
+        lines.append((start, text[start:start + length].rstrip()))
+    layout.endLayout()
+    return lines or [(0, text)]
+
+
 def paint_marked(painter: QPainter, rect: QRectF, text: str, font: QFont, colour: QColor,
                  marks: tuple[int, ...] = (), style: str = "uncertain",
-                 right: bool = False, on_highlight: bool = False) -> None:
-    """One line of text with marked characters: "uncertain" = check wash + a 2 px rider-edge
-    underline (what the reader was unsure of); "changed" = accent text + a 2 px accent
-    underline (what the suggestion changes). Elides on the right when it does not fit.
+                 right: bool = False, on_highlight: bool = False, wrap: bool = False) -> None:
+    """Text with marked characters: "uncertain" = check wash + a 2 px rider-edge underline
+    (what the reader was unsure of); "changed" = accent text + a 2 px accent underline (what
+    the suggestion changes). When it does not fit on one line it elides on the right, or with
+    `wrap` it breaks into lines (A's 150 % table: long company names wrap, the row grows),
+    centred on the rect as a block.
 
     In high contrast, and on a Highlight row (`on_highlight`), there is no wash: the wash
     resolves to the text colour there and would hide the very character to check. The
@@ -317,45 +352,61 @@ def paint_marked(painter: QPainter, rect: QRectF, text: str, font: QFont, colour
     m = theme.manager()
     plain = on_highlight or m.theme() == "hc"
     metrics = QFontMetricsF(font)
-    full = metrics.horizontalAdvance(text)
-    if full > rect.width():
-        text = metrics.elidedText(text, Qt.TextElideMode.ElideRight, rect.width())
-        full = metrics.horizontalAdvance(text)
-    x0 = rect.right() - full if right else rect.left()
-    baseline = rect.center().y() + (metrics.ascent() - metrics.descent()) / 2
-    top = baseline - metrics.ascent()
+    if metrics.horizontalAdvance(text) <= rect.width():
+        lines = [(0, text)]
+    elif wrap:
+        lines = wrap_lines(text, font, rect.width())
+        if len(lines) > MAX_LINES:  # the last line takes the rest and elides it
+            lines = lines[:MAX_LINES]
+            start = lines[-1][0]
+            lines[-1] = (start, metrics.elidedText(text[start:], Qt.TextElideMode.ElideRight,
+                                                   rect.width()))
+    else:
+        lines = [(0, metrics.elidedText(text, Qt.TextElideMode.ElideRight, rect.width()))]
     height = metrics.ascent() + metrics.descent()
-    spans = []
-    for i in marks:
-        if i >= len(text) or text[i] == "…":
-            continue
-        left = x0 + metrics.horizontalAdvance(text[:i])
-        spans.append(QRectF(left, top, metrics.horizontalAdvance(text[: i + 1]) - left + x0,
-                            height))
+    step = metrics.lineSpacing()
+    block = height + step * (len(lines) - 1)
+    first = rect.center().y() - block / 2 + metrics.ascent()
+    placed = []  # (x0, baseline, line text, spans)
+    for n, (start, line) in enumerate(lines):
+        full = metrics.horizontalAdvance(line)
+        x0 = rect.right() - full if right else rect.left()
+        baseline = first + n * step
+        top = baseline - metrics.ascent()
+        spans = []
+        for mark in marks:
+            i = mark - start
+            if i < 0 or i >= len(line) or line[i] == "…":
+                continue
+            left = x0 + metrics.horizontalAdvance(line[:i])
+            spans.append(QRectF(left, top, metrics.horizontalAdvance(line[: i + 1]) - left + x0,
+                                height))
+        placed.append((x0, baseline, line, spans))
     painter.setFont(font)
-    if style == "uncertain" and plain:
-        for span in spans:
-            painter.fillRect(QRectF(span.left() - 1, span.bottom() - 2, span.width() + 2, 2),
-                             colour)
-    elif style == "uncertain":
-        painter.setPen(Qt.PenStyle.NoPen)
-        for span in spans:
-            painter.setBrush(m.color("check-wash"))
-            painter.drawRoundedRect(span.adjusted(-1, 0, 1, 0), 2, 2)
-            painter.fillRect(QRectF(span.left() - 1, span.bottom() - 2, span.width() + 2, 2),
-                             m.color("rider-edge"))
-    painter.setPen(colour)
-    painter.drawText(QPointF(x0, baseline), text)
-    if style == "changed":
-        accent = m.color("text-accent")
-        for span in spans:
-            painter.save()
-            painter.setClipRect(span)
-            painter.setPen(accent)
-            painter.drawText(QPointF(x0, baseline), text)
-            painter.restore()
-            painter.fillRect(QRectF(span.left(), span.bottom() - 2, span.width(), 2),
-                             m.color("accent"))
+    for x0, baseline, line, spans in placed:
+        if style == "uncertain" and plain:
+            for span in spans:
+                painter.fillRect(QRectF(span.left() - 1, span.bottom() - 2, span.width() + 2, 2),
+                                 colour)
+        elif style == "uncertain":
+            painter.setPen(Qt.PenStyle.NoPen)
+            for span in spans:
+                painter.setBrush(m.color("check-wash"))
+                painter.drawRoundedRect(span.adjusted(-1, 0, 1, 0), 2, 2)
+                painter.fillRect(QRectF(span.left() - 1, span.bottom() - 2, span.width() + 2, 2),
+                                 m.color("rider-edge"))
+        painter.setPen(colour)
+        painter.drawText(QPointF(x0, baseline), line)
+        if style == "changed":
+            accent = m.color("text-accent")
+            for span in spans:
+                painter.save()
+                painter.setClipRect(span)
+                painter.setPen(accent)
+                painter.drawText(QPointF(x0, baseline), line)
+                painter.restore()
+                painter.fillRect(QRectF(span.left(), span.bottom() - 2, span.width(), 2),
+                                 m.color("accent"))
 
 
 def paint_level(painter: QPainter, rect: QRectF, level: str, percent: int | None,
@@ -395,6 +446,14 @@ def level_width(level: str, percent: int | None, fonts: Fonts) -> int:
     return int(width) + 1
 
 
+def cell_inner(rect: QRectF, kind: str) -> QRectF:
+    """The text room of a cell (and its header): A's s3 sides, s4 before the review mark."""
+    m = theme.manager()
+    s3, s4 = m.size("s3"), m.size("s4")
+    return QRectF(rect).adjusted(s4 if kind == "review" else s3, 0,
+                                 0 if kind == "review" else -s3, -1)
+
+
 class ValuesDelegate(QStyledItemDelegate):
     """Paints A's table: row hairlines, the selected row fill with its 3 px accent bar, the
     review mark, values in their font with uncertain characters tinted, and Güven."""
@@ -406,7 +465,57 @@ class ValuesDelegate(QStyledItemDelegate):
         theme.follow(self, self.fonts.reset, "degerler-fonts")
 
     def sizeHint(self, option, index) -> QSize:  # noqa: N802
-        return QSize(WIDTHS.get(index.data(KIND_ROLE).kind, 120), theme.manager().size("row-h"))
+        row = theme.manager().size("row-h")
+        wrapped = self.row_height(index, self.view.columnWidth(index.column()))
+        return QSize(WIDTHS.get(index.data(KIND_ROLE).kind, 120), max(row, wrapped or 0))
+
+    def _wrap_text(self, index) -> tuple[str, QFont] | None:
+        """The text and font of a cell that wraps instead of eliding: Değişken names and
+        values in a text column (company names); codes, numbers and dates never wrap."""
+        column: Column = index.data(KIND_ROLE)
+        if column.kind == "name":
+            return index.data(Qt.ItemDataRole.DisplayRole) or "", self.fonts.body
+        if column.kind not in VALUE_KINDS:
+            return None
+        cell = index.model().cell_at(index)
+        if cell is None or cell.value is None or not cell.text or cell.level == "okunamadi":
+            return None
+        style = column.style if column.kind == "var" else column_kind([cell.text])
+        return (cell.text, self.fonts.body) if style == "text" else None
+
+    def _line_count(self, index, width: int) -> tuple[int, QFontMetricsF] | None:
+        """How many lines a wrapping cell takes at this column width (None: no wrap)."""
+        found = self._wrap_text(index)
+        if found is None:
+            return None
+        text, font = found
+        metrics = QFontMetricsF(font)
+        room = cell_inner(QRectF(0, 0, width, 1), index.data(KIND_ROLE).kind).width()
+        if not text or metrics.horizontalAdvance(text) <= room:
+            return 1, metrics
+        return len(wrap_lines(text, font, room)), metrics
+
+    @staticmethod
+    def _lines_height(lines: int, metrics: QFontMetricsF) -> int:
+        if lines <= 1:
+            return theme.manager().size("row-h")
+        pad = theme.manager().size("row-h") - metrics.lineSpacing()
+        return int(metrics.lineSpacing() * lines + pad + 0.999)
+
+    def row_height(self, index, width: int) -> int | None:
+        """The row height this cell asks for: its wrapped lines (at most MAX_LINES) plus A's
+        row padding; None for a cell that does not wrap."""
+        found = self._line_count(index, width)
+        return None if found is None else self._lines_height(min(found[0], MAX_LINES),
+                                                             found[1])
+
+    def wrapped_height(self, index, width: int) -> int | None:
+        """The row height a wrapping cell needs to show all of its text; None for a cell
+        that does not wrap or that needs more than MAX_LINES (its last line elides)."""
+        found = self._line_count(index, width)
+        if found is None or found[0] > MAX_LINES:
+            return None
+        return self._lines_height(*found)
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index) -> None:
         m = theme.manager()
@@ -414,6 +523,7 @@ class ValuesDelegate(QStyledItemDelegate):
         row: Row = index.data(ROW_ROLE)
         rect = QRectF(option.rect)
         painter.save()
+        painter.setClipRect(option.rect)  # wrapped lines never spill into the next row
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         selection = self.view.selectionModel()
         current = self.view.currentIndex()
@@ -428,9 +538,8 @@ class ValuesDelegate(QStyledItemDelegate):
         if index.column() == 0 and current.isValid() and current.row() == index.row():
             painter.fillRect(QRectF(rect.left(), rect.top(), 3, rect.height()),
                              m.color(ink or "accent"))
-        s3, s4 = m.size("s3"), m.size("s4")
-        inner = rect.adjusted(s4 if column.kind == "review" else s3, 0,
-                              0 if column.kind == "review" else -s3, -1)
+        s3 = m.size("s3")
+        inner = cell_inner(rect, column.kind)
         kind = column.kind
         sampled = index.model().items[index.row()][1]
         if kind == "review":
@@ -445,8 +554,8 @@ class ValuesDelegate(QStyledItemDelegate):
         elif kind == "pages":
             self._text(painter, inner, row.pages, self.fonts.num, m.color(ink or "text-2"))
         elif kind == "name":
-            self._text(painter, inner, sampled.title if sampled else "", self.fonts.body,
-                       m.color(ink or "text"))
+            paint_marked(painter, inner, sampled.title if sampled else "", self.fonts.body,
+                         m.color(ink or "text"), wrap=True)
         elif kind in VALUE_KINDS:
             self._value(painter, inner, index.model().cell_at(index), column, ink)
         elif kind == "guven":
@@ -481,7 +590,7 @@ class ValuesDelegate(QStyledItemDelegate):
         font = {"number": self.fonts.num, "date": self.fonts.num,
                 "code": self.fonts.value}.get(style, self.fonts.body)
         paint_marked(painter, rect, cell.text, font, m.color(ink or "text"), cell.uncertain,
-                     right=column.right, on_highlight=ink is not None)
+                     right=column.right, on_highlight=ink is not None, wrap=style == "text")
 
     @staticmethod
     def _focus_ring(painter: QPainter, rect: QRectF) -> None:
@@ -552,9 +661,7 @@ class ValuesHeader(QHeaderView):
             return
         sorted_here = self.isSortIndicatorShown() and self.sortIndicatorSection() == logical
         colour = m.color("text" if sorted_here else "text-2")
-        s3, s4 = m.size("s3"), m.size("s4")
-        inner = QRectF(rect).adjusted(s4 if column.kind == "review" else s3, 0,
-                                      0 if column.kind == "review" else -s3, -1)
+        inner = cell_inner(QRectF(rect), column.kind)
         if column.kind == "review":
             icons.paint(painter, "circle-check",
                         QRectF(inner.left() + 1, inner.center().y() - 7, 14, 14), m.hex("text-2"))
@@ -638,15 +745,61 @@ class ValuesTable(QTableView):
         self.setItemDelegate(ValuesDelegate(self))
         self.setAccessibleName("Değerler tablosu")
         self.hint = KeyHint(self.viewport())
+        self._rows_timer = QTimer(self)  # one row-height pass per burst of changes
+        self._rows_timer.setSingleShot(True)
+        self._rows_timer.setInterval(0)
+        self._rows_timer.timeout.connect(self.fit_rows)
+        self.horizontalHeader().sectionResized.connect(lambda *_a: self._rows_timer.start())
         theme.follow(self, self._rescale, "degerler-rows")
 
     def _rescale(self) -> None:
         row = theme.manager().size("row-h")
         self.verticalHeader().setDefaultSectionSize(row)
         self.verticalHeader().setMinimumSectionSize(row)
+        self.fit_rows()
 
     def model(self) -> ValuesModel:  # typed
         return super().model()
+
+    def setModel(self, model) -> None:  # noqa: N802
+        old = super().model()
+        if old is not None:
+            for signal in self._row_signals(old):
+                signal.disconnect(self._rows_timer.start)
+            old.dataChanged.disconnect(self._rows_changed)
+        super().setModel(model)
+        if model is not None:
+            for signal in self._row_signals(model):
+                signal.connect(self._rows_timer.start)
+            model.dataChanged.connect(self._rows_changed)
+        self._rows_timer.start()
+
+    @staticmethod
+    def _row_signals(model) -> tuple:
+        return (model.modelReset, model.layoutChanged, model.rowsInserted, model.rowsRemoved)
+
+    def _rows_changed(self, top: QModelIndex, bottom: QModelIndex, *_roles) -> None:
+        self.fit_rows(top.row(), bottom.row())  # only the rows whose values changed
+
+    def fit_rows(self, first: int = 0, last: int | None = None) -> None:
+        """A's row height, and taller rows where a wrapping cell (a long company name in a
+        narrowed text column) needs more lines; the delegate says how tall."""
+        model = self.model()
+        delegate = self.itemDelegate()
+        if model is None or not hasattr(delegate, "row_height"):
+            return
+        base = theme.manager().size("row-h")
+        wrapping = [c for c, column in enumerate(model.columns)
+                    if column.kind in ("name", *VALUE_KINDS) and not self.isColumnHidden(c)]
+        last = model.rowCount() - 1 if last is None else min(last, model.rowCount() - 1)
+        for r in range(max(0, first), last + 1):
+            height = base
+            for c in wrapping:
+                need = delegate.row_height(model.index(r, c), self.columnWidth(c))
+                if need is not None and need > height:
+                    height = need
+            if self.rowHeight(r) != height:
+                self.setRowHeight(r, height)
 
     # Value-to-value movement
     def step_value(self, index: QModelIndex, step: int) -> QModelIndex:

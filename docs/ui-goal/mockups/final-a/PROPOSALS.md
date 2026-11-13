@@ -224,7 +224,8 @@ nothing here may change A's look until the owner answers. What the build does to
   its tooltip and accessible name), as noted in Phase 2.
 - **P4-6. Item 2 (Değerler at 150 %).** Built as a fit rule, not a new look: when the table is
   wider than its pane, the long text column (then the other value columns, down to a floor)
-  narrows and elides with the full value in its tooltip, so the Güven column stays in view.
+  narrows and its long values wrap onto a second line in a taller row (full value also in
+  its tooltip), so the Güven column stays in view.
   Only when even the floors do not fit does the table scroll sideways as A draws it. Option: pin
   Güven as a frozen right column instead (a second view), or move it next to the value.
 - **P4-7. Dışa Aktar at 150 %.** The file name is never elided: the Şablon column (also in each

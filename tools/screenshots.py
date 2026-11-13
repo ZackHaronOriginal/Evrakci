@@ -10,9 +10,9 @@ need a check) in a temp folder. The matrix mode saves OUT_DIR/<tab>-<theme>-<w>x
 for 6 tabs x {light, dark, hc} x {1366x768, 1920x1080} x text {100, 150}; each theme and text
 size gets a window built fresh in it (the shots never show a runtime switch). It prints a
 clipping report (elided text: drawn "…", text wider than its room, combo boxes against their
-edit field, table cells whose text is wider than their column; widgets outside the window or
-cut by their parent; cards cut by a scroll area's edge) and exits 1 when anything is found,
-unless --allow.
+edit field, table cells whose text is wider than their column and does not wrap onto rows
+tall enough; widgets outside the window or cut by their parent; cards cut by a scroll area's
+edge that has no scroll bar showing) and exits 1 when anything is found, unless --allow.
 
 Every window is built with the custom title band (caption buttons included), as on Windows,
 so the band the owner approved in A is what is shot on every platform. The shots wait for the
@@ -81,8 +81,8 @@ def build(root: Path) -> MainWindow:
     other.add_variable("Sicil_No", required=True)
     templates.save(other)
 
-    job = store.create_job("Kasım 2026 – Faaliyet belgeleri", [pdf])
-    store.create_job("Ekim 2026 – Kapasite raporları", [pdf2])
+    job = store.create_job("Kasım 2026 kapasite raporları", [pdf])  # A's demo job
+    store.create_job("Ekim 2026 – Faaliyet belgeleri", [pdf2])
     window = MainWindow(store, templates, settings_path=root / "ayar.json")
     window.yukle.open_job(store.load(job.id))
     ctl = window.controller()
@@ -187,14 +187,35 @@ def _cells(view: QAbstractItemView, label: str) -> list[str]:
             if not isinstance(text, str) or not text:
                 continue
             need = metrics.horizontalAdvance(text)
+            if need > room and _wraps_in_row(view, model.index(row, column), row):
+                continue  # broken into lines, and the row is tall enough for all of them
             if need > room:
                 found.append(f"{label} {type(view).__name__} hücre ({row}, {column}) "
                              f"kısaltılmış: {text!r} ({need}>{room})")
     return found
 
 
+def _wraps_in_row(view: QAbstractItemView, index, row: int) -> bool:
+    """True when the cell's delegate wraps its text (wrapped_height) and the row is at
+    least as tall as the wrapped lines need; a cell that elides is still reported."""
+    delegate = view.itemDelegateForIndex(index)
+    wrapped = getattr(delegate, "wrapped_height", None)
+    if wrapped is None:
+        return False
+    height = wrapped(index, view.horizontalHeader().sectionSize(index.column()))
+    return height is not None and height <= view.rowHeight(row)
+
+
+def _shows_more(bar) -> bool:
+    """A scroll bar that tells the user there is more: visible, enabled and with a range."""
+    return bar.isVisible() and bar.isEnabled() and bar.maximum() > bar.minimum()
+
+
 def _cut_by_scroll_edge(w: QWidget) -> bool:
-    """A card inside a scroll area that the viewport's edge cuts (half a row showing)."""
+    """A card inside a scroll area that the viewport's edge cuts (half a row showing). A
+    card cut only across an edge whose scroll bar is showing (visible, enabled, with
+    somewhere to go) is scrolled, not clipped: the bar says there is more, as A's 150 %
+    panes do (final-a README: panes scroll instead of clipping, with the thin scrollbar)."""
     if w.property("kind") != "card":
         return False
     parent = w.parentWidget()
@@ -203,15 +224,22 @@ def _cut_by_scroll_edge(w: QWidget) -> bool:
             port = parent.viewport()
             box = w.rect().translated(w.mapTo(port, w.rect().topLeft()))
             inside = port.rect().intersected(box)
-            return not inside.isEmpty() and inside != box
+            if inside.isEmpty() or inside == box:
+                return False
+            across_y = inside.top() != box.top() or inside.bottom() != box.bottom()
+            across_x = inside.left() != box.left() or inside.right() != box.right()
+            if across_y and not _shows_more(parent.verticalScrollBar()):
+                return True
+            return across_x and not _shows_more(parent.horizontalScrollBar())
         parent = parent.parentWidget()
     return False
 
 
 def clipping(window: QWidget, label: str) -> list[str]:
     """Visible text widgets that are elided ("…" drawn or text wider than its room), table
-    cells wider than their column, widgets outside the window or cut by their parent, and
-    cards cut by a scroll area's edge (README §3.3: nothing clipped, nothing elided)."""
+    cells wider than their column (unless wrapped onto a tall enough row), widgets outside
+    the window or cut by their parent, and cards cut by a scroll area's edge with no scroll
+    bar showing (README §3.3: nothing clipped, nothing elided)."""
     found = []
     bounds = window.rect()
     for w in window.findChildren(QWidget):

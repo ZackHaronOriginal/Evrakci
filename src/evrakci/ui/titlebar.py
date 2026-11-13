@@ -12,14 +12,16 @@ from __future__ import annotations
 import os
 import sys
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer
-from PySide6.QtGui import QCursor, QGuiApplication
+from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt, QTimer
+from PySide6.QtGui import QCursor, QGuiApplication, QPainter
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLayout,
     QMainWindow,
     QMenu,
+    QSizePolicy,
+    QSpacerItem,
     QTabBar,
     QToolButton,
     QWidget,
@@ -28,7 +30,7 @@ from PySide6.QtWidgets import (
 from evrakci.ui import icons, theme
 from evrakci.ui.chrome import CaptionButton
 from evrakci.ui.prefs import Prefs
-from evrakci.ui.style import FOOT
+from evrakci.ui.style import FOOT, paint_title_tab
 
 HTCLIENT, HTCAPTION, HTMAXBUTTON = 1, 2, 9
 HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT = 10, 11, 12, 13, 14
@@ -119,9 +121,14 @@ class TitleBand(QWidget):
         self._overflow_menu.aboutToShow.connect(self._fill_overflow)
         self.overflow.setMenu(self._overflow_menu)
         self.overflow.hide()
+        # Room for the selected last tab's right foot before "»" (0 while "»" is hidden).
+        self._foot_gap = QSpacerItem(0, 0, QSizePolicy.Policy.Fixed,
+                                     QSizePolicy.Policy.Minimum)
+        self._row.addItem(self._foot_gap)
         self._row.addWidget(self.overflow, 0, Qt.AlignmentFlag.AlignVCenter)
         self._row.addStretch(1)
         tabs.currentChanged.connect(lambda _i: QTimer.singleShot(0, self, self.fit))
+        tabs.currentChanged.connect(lambda _i: self.update())  # the right foot below
         right = QHBoxLayout()
         right.setSpacing(m.size("s2"))
         for widget in (job_switch, search, menu):
@@ -160,26 +167,41 @@ class TitleBand(QWidget):
         self.fit()
 
     def _rest(self) -> int:
-        """The band's minimum width without the tab strip and the "»" button."""
+        """The band's minimum width without the tab strip, the "»" button and its gap."""
         shown = self.tabs.sizeHint().width()
         button = self.overflow.width() if not self.overflow.isHidden() else 0
-        return super().minimumSizeHint().width() - shown - button
+        gap = self._foot_gap.sizeHint().width()
+        return super().minimumSizeHint().width() - shown - button - gap
 
     def minimumSizeHint(self) -> QSize:  # noqa: N802
         """The selected tab and "»" at least, so a long tab strip never widens the window."""
         hint = super().minimumSizeHint()
         return QSize(self._rest() + self._narrow_tabs, hint.height())
 
+    def _name_room(self) -> int:
+        """What the job switch needs beyond its minimum to show the whole job name and its
+        save state with words (the band's _rest counts only its minimum)."""
+        switch = self.job_switch
+        save = getattr(switch, "save_state", None)
+        hidden = save.text_room() if save is not None else 0
+        return max(0, switch.sizeHint().width() + hidden - switch.minimumSizeHint().width())
+
     def fit(self) -> None:
-        """Every tab with its icon and name while they fit; otherwise as many as fit, in
-        order and always with the selected one, and the rest in the "»" menu (option b)."""
+        """Every tab with its icon and name while they fit (A's strip, unchanged at 100 %);
+        otherwise as many as fit, in order and always with the selected one, and the rest in
+        the "»" menu (option b). Once tabs overflow, they give way to the whole job name
+        first (A's 150 % render shows it in full at 1366 px). When the name still does not
+        fit, the save state drops its words, and only then does the name elide (full name
+        in its tooltip and accessible name)."""
         widths = getattr(self, "_widths", None) or self.tabs.full_widths()
         room = self.width() - self._rest()
+        name = self._name_room()
         count = len(widths)
         if sum(widths) <= room or count == 0:
             shown = set(range(count))
+            used = sum(widths)
         else:
-            room -= self.overflow.width() or theme.manager().title_band().control_height
+            room -= (self.overflow.width() or theme.manager().title_band().control_height) + FOOT
             current = max(0, self.tabs.currentIndex())
             shown: set[int] = set()
             used = widths[current]
@@ -187,12 +209,21 @@ class TitleBand(QWidget):
             for index in range(count):  # the first tabs in order, around the selected one
                 if index == current:
                     continue
-                if used + widths[index] > room:
+                if used + widths[index] + name > room:
                     break
                 shown.add(index)
                 used += widths[index]
         self.tabs.set_shown(shown)
-        self.overflow.setVisible(len(shown) < count)
+        overflow = len(shown) < count
+        if self._foot_gap.sizeHint().width() != (FOOT if overflow else 0):
+            self._foot_gap.changeSize(FOOT if overflow else 0, 0, QSizePolicy.Policy.Fixed,
+                                      QSizePolicy.Policy.Minimum)
+            self._row.invalidate()
+        self.overflow.setVisible(overflow)
+        save = getattr(self.job_switch, "save_state", None)
+        if save is not None and hasattr(save, "set_compact"):
+            save.set_compact(used + name > room)
+        self.update()  # the right foot follows the strip
 
     def _fill_overflow(self) -> None:
         """The hidden tabs, with their icons and Ctrl+number keys, in strip order."""
@@ -209,6 +240,24 @@ class TitleBand(QWidget):
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
         self.fit()
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        """The selected last tab's right foot, which hangs past the strip into the gap before
+        the job switch, as A's .tab.on::after hangs into .grow (the strip keeps no room
+        for it, so the job name gets A's room)."""
+        super().paintEvent(event)
+        tabs, current = self.tabs, self.tabs.currentIndex()
+        shown = [i for i in range(tabs.count()) if tabs.isTabVisible(i)]
+        if not shown or current != shown[-1] or not tabs.isVisible():
+            return
+        rect = QRectF(tabs.tabRect(current)).translated(tabs.pos().x(), tabs.pos().y())
+        if current == shown[0]:
+            rect.adjust(FOOT, 0, 0, 0)
+        strip_end = tabs.geometry().right() + 1
+        painter = QPainter(self)
+        painter.setClipRect(QRectF(strip_end, rect.top(), FOOT + 1, rect.height()))
+        paint_title_tab(painter, rect, True, False)
+        painter.end()
 
     def event(self, event: QEvent) -> bool:
         if event.type() == QEvent.Type.LayoutRequest:  # e.g. a longer "Kaydedildi …" text

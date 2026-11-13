@@ -108,15 +108,18 @@ def _tab_font(option, widget) -> QFont:
 
 
 def title_tab_shape(option) -> QRectF:
-    """The drawn tab inside the tab's rect (room for the feet at the ends, the gap between)."""
+    """The drawn tab inside the tab's rect (room for the left foot of the first tab, the gap
+    between). The last tab's right foot hangs outside the strip, as in A (.tab.on::after);
+    the title band paints it (TitleBand.paintEvent)."""
     rect = QRectF(option.rect)
     first = option.position in (_POS.Beginning, _POS.OnlyOneTab)
     last = option.position in (_POS.End, _POS.OnlyOneTab)
-    return rect.adjusted(FOOT if first else 0, 0, -(FOOT if last else TAB_GAP), 0)
+    return rect.adjusted(FOOT if first else 0, 0, 0 if last else -TAB_GAP, 0)
 
 
 def title_tab_size(option, widget) -> QSize:
-    """Width of icon + label + A's padding (+ feet room / gap); height per title_band_rule."""
+    """Width of icon + label + A's padding (+ left foot room / gap); height per
+    title_band_rule. Like A, no room is kept for the last tab's right foot."""
     m = theme.manager()
     width = TAB_PAD_L + TAB_PAD_R + QFontMetrics(_tab_font(option, widget)).horizontalAdvance(
         option.text)
@@ -124,7 +127,7 @@ def title_tab_size(option, widget) -> QSize:
         width += m.size("icon-sm") + (TAB_ICON_GAP if option.text else 0)
     first = option.position in (_POS.Beginning, _POS.OnlyOneTab)
     last = option.position in (_POS.End, _POS.OnlyOneTab)
-    width += (FOOT if first else 0) + (FOOT if last else TAB_GAP)
+    width += (FOOT if first else 0) + (0 if last else TAB_GAP)
     return QSize(width, m.title_band().tab_height)
 
 

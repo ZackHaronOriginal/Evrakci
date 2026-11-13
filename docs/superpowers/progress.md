@@ -68,7 +68,7 @@ Owner picked direction A on the mockups; the look follows the approved PNGs in
   and the window chrome (tabs in the title band). **Phase 3:** all six tabs rebuilt to A, one undo
   history, context menus, zoom on every view. **Phase 4:** review fixes. **Phase 5:** README
   screenshots, this entry, the report.
-- **Tests:** 1076 passed, 6 skipped; `ruff check .` clean.
+- **Tests:** 1081 passed, 6 skipped; `ruff check .` clean. Screenshot matrix: 72 shots, `0 kırpılma/taşma`.
 - **Top 25 QoL items:** 24 shipped, 1 deferred (item 25: first-run tour and completion sound).
   Details: `docs/ui-goal/top25.md`.
 - **Open:** PROPOSALS items 1, 2, 4, 5 and the phase notes (P4-1 to P4-13, S/K/Y/E/D lists) in

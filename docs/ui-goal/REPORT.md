@@ -66,16 +66,11 @@ Scanning guide with search and the separator sheets to print.
 
 ## Verification numbers
 
-- **Tests:** 1076 passed, 6 skipped. `ruff check .` clean. (Before the overhaul: 525.)
+- **Tests:** 1081 passed, 6 skipped, 1 warning (`pytest -q`, offscreen). `ruff check .`: All checks passed! (Before the overhaul: 525.) One earlier full run under load showed 60 failed / 41 errors in UI tests that pass on their own and on a clean re-run; treated as a load flake, not reproduced.
 - **Contrast:** the theme tests require at least 4.5:1 for every text and background pair in
   light, dark and high contrast; the marked-character wash is held at 7:1. The mockup check
   `_contrast.py` found 0 failing pairs.
-- **Clipping:** `tools/screenshots.py matrix` shot 72 images (6 tabs x 3 themes x 2 window sizes x
-  100/150 % text). It reports 51 items. At 1366 px the job name is shortened with "..." (full name in
-  the tooltip), because the demo job's name is longer than A's: 18 of the 51 are at 100 % text and all
-  are that, nothing else. The other 33 are at 150 %: that same job name, the Değerler company name
-  (so that Güven stays visible), and the last card in a scrolling side panel being cut by the
-  scroll edge (PROPOSALS items 1 and 5). Nothing overlaps and no text is lost.
+- **Clipping:** `tools/screenshots.py matrix docs/ui-goal/shots/final` shot 72 images (6 tabs x 3 themes x 2 window sizes x 100/150 % text). Summary line, verbatim: `ÖZET: 72 görüntü, 0 kırpılma/taşma`. Four shots checked by eye (Kontrol light 1366x768 100 %, Değerler dark 1366x768 150 %, Dışa Aktar high contrast 1920x1080 150 %, Yükle light 1366x768 150 %): no clipped or overlapping text; at 150 % the tabs collapse into the "»" menu, Değerler company names wrap, and the side panels scroll inside (their last card meets the scroll edge by design).
 - **Fidelity to A:** the mockup check `_fidelity.py` passes (52 checks, max channel delta 0/255 for
   Kontrol and Değerler light and dark). The real app against A's PNGs (light, 100 %, coarse pixel
   difference, a drift signal only because the demo data differs): Yükle 2.8 %, Kontrol 6.7 %,

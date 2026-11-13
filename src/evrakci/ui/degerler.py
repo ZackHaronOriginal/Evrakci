@@ -696,7 +696,8 @@ class DegerlerScreen(QWidget):
         if not empty and need > room:
             # The flexible (text) column gives way before the table scrolls sideways, so
             # the Güven column at the right stays in view (GOAL §3.2's confidence marker,
-            # PROPOSALS item 2): its long names elide, the full text is in the tooltip.
+            # PROPOSALS item 2): its long names wrap onto more lines and the row grows
+            # (A's 150 % spec; ValuesTable.fit_rows), the full text is also in the tooltip.
             # Only when even its minimum does not fit does the table scroll, as A does.
             need = max(round(160 * self._scale()), room)
             over = others + need - self.table.viewport().width()

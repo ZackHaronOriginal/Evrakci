@@ -1281,6 +1281,9 @@ class MainWindow(QMainWindow):
             self.title_tabs.setCurrentIndex(index)
             self.title_tabs.blockSignals(False)
             self.title_tabs.refresh()
+            if hasattr(self, "title_band"):  # its currentChanged hook was blocked above:
+                self.title_band.fit()  # show the new tab (option b keeps it in the strip)
+                self.title_band.update()  # and its right foot
         self.registry.set_context(tab)
         self._sync_export_action()
         if hasattr(self, "command_bars"):

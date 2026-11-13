@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr" data-theme="light" data-states="main">
+<html lang="tr" data-theme="light" data-states="main,blocked,running,done,empty">
 <head>
 <meta charset="utf-8">
 <title>Dışa Aktar: direction A (final-a addition)</title>
@@ -77,6 +77,41 @@ tr.cur td { background: var(--selected); }
 tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .u { background: var(--check-wash); border-radius: 2px; box-shadow: inset 0 -2px 0 var(--rider-edge); padding: 0 1px; }
 .empty { color: var(--text-2); }
+
+/* added states: blocked, running, done, empty (A's tokens and components only) */
+.chk .st.bad .ic { color: var(--danger); }
+.chk.block { box-shadow: inset 3px 0 0 var(--danger); }
+.fld.err { border-bottom: 2px solid var(--danger); }
+.hintl { display: flex; align-items: center; gap: 6px; color: var(--text-2); font-size: var(--fs-caption); line-height: var(--lh-caption); }
+.hintl .ic { width: 14px; height: 14px; color: var(--icon); }
+.hintl.err, .hintl.err .ic { color: var(--danger); }
+.hintl.okc, .hintl.okc .ic { color: var(--ok); }
+.banner { padding: var(--s4); display: flex; flex-direction: column; gap: var(--s2); }
+.banner .top { display: flex; align-items: center; gap: var(--s2); }
+.banner .top .ic { color: var(--accent); }
+.banner .top b { font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); }
+.banner .t2, .banner .sub { color: var(--text-2); }
+.banner .sub { font-size: var(--fs-caption); line-height: var(--lh-caption); }
+.bar { height: 8px; border-radius: 2px; background: var(--track); overflow: hidden; margin: var(--s1) 0; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.banner.done { flex-direction: row; align-items: flex-start; gap: var(--s4); }
+.banner.done > .ic { width: 24px; height: 24px; color: var(--ok); margin-top: var(--s1); }
+.banner.done h2 { margin: 0; font-size: var(--fs-panel); line-height: var(--lh-panel); font-weight: var(--w-semibold); }
+.banner.done .line { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s2); }
+.banner.done .row { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }
+.lockn { display: flex; align-items: center; gap: var(--s2); color: var(--text-2); padding: 0 var(--s1); }
+.lockn .ic { width: 14px; height: 14px; color: var(--icon); }
+.fld.ph, .fld .ph { color: var(--text-2); }
+.acts .note { display: flex; align-items: center; gap: 6px; justify-content: center; margin-top: var(--s2); color: var(--text-2); font-size: var(--fs-caption); line-height: var(--lh-caption); }
+.acts .note .ic { width: 14px; height: 14px; }
+.tablecard .empty-state { flex: 1; }
+td .st.info, .st.info { color: var(--text-2); }
+.tpl.dim { color: var(--text-2); }
+[data-state="running"] .set .fld, [data-state="running"] .set .btn, [data-state="running"] .opts { opacity: .55; }
+[data-theme="hc"][data-state="running"] .set .fld, [data-theme="hc"][data-state="running"] .set .btn, [data-theme="hc"][data-state="running"] .opts { opacity: 1; color: var(--text-dis); }
+[data-state="empty"] .set .btn { opacity: .45; }
+[data-theme="hc"][data-state="empty"] .set .btn { opacity: 1; color: var(--text-dis); }
+.chg { color: var(--text-accent); font-weight: var(--w-semibold); }
 </style>
 </head>
 <body>
@@ -106,13 +141,20 @@ tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
       <button class="iconbtn" aria-label="Geri al: Dosya adı kalıbı (Ctrl+Z)"><i class="ic md" data-i="undo-2"></i></button>
       <button class="iconbtn dis" aria-label="Yinele (Ctrl+Y)"><i class="ic md" data-i="redo-2"></i></button>
       <span class="sep"></span>
-      <button class="cmd"><i class="ic md" data-i="download"></i>Dışa aktar</button>
-      <button class="iconbtn dis" aria-label="Dışa aktarmayı durdur (Ctrl+.)"><i class="ic md" data-i="circle-x"></i></button>
+      <button class="cmd" data-in="main,done"><i class="ic md" data-i="download"></i>Dışa aktar</button>
+      <button class="cmd dis" data-in="blocked,running,empty" hidden><i class="ic md" data-i="download"></i>Dışa aktar</button>
+      <button class="iconbtn" data-in="running" aria-label="Dışa aktarmayı durdur (Ctrl+.)" hidden><i class="ic md" data-i="circle-x"></i></button>
+      <button class="iconbtn dis" data-out="running" aria-label="Dışa aktarmayı durdur (Ctrl+.)"><i class="ic md" data-i="circle-x"></i></button>
       <span class="sep"></span>
-      <button class="cmd"><i class="ic md" data-i="refresh-cw"></i>Yenile</button>
-      <button class="iconbtn" aria-label="Dizini yazdır (Ctrl+P)"><i class="ic md" data-i="printer"></i></button>
+      <button class="cmd" data-out="empty,running"><i class="ic md" data-i="refresh-cw"></i>Yenile</button>
+      <button class="cmd dis" data-in="empty,running" hidden><i class="ic md" data-i="refresh-cw"></i>Yenile</button>
+      <button class="iconbtn" data-out="empty" aria-label="Dizini yazdır (Ctrl+P)"><i class="ic md" data-i="printer"></i></button>
+      <button class="iconbtn dis" data-in="empty" aria-label="Dizini yazdır (Ctrl+P)" hidden><i class="ic md" data-i="printer"></i></button>
       <div class="grow"></div>
-      <button class="iconbtn" aria-label="Dosya Gezgini'nde göster (Ctrl+Shift+O)"><i class="ic md" data-i="folder-open"></i></button>
+      <button class="iconbtn" data-in="done" aria-label="index.xlsx'i aç" hidden><i class="ic md" data-i="sheet"></i></button>
+      <button class="iconbtn dis" data-out="done" aria-label="index.xlsx'i aç"><i class="ic md" data-i="sheet"></i></button>
+      <button class="iconbtn" data-out="empty" aria-label="Dosya Gezgini'nde göster (Ctrl+Shift+O)"><i class="ic md" data-i="folder-open"></i></button>
+      <button class="iconbtn dis" data-in="empty" aria-label="Dosya Gezgini'nde göster (Ctrl+Shift+O)" hidden><i class="ic md" data-i="folder-open"></i></button>
       <span class="sep"></span>
       <button class="iconbtn" aria-label="Ayarlar panelini gizle (F9)"><i class="ic md" data-i="panel-right"></i></button>
       <button class="iconbtn" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
@@ -120,50 +162,95 @@ tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 
     <div class="body">
       <section class="col">
-        <div class="card tablecard" aria-label="Ön kontrol">
-          <div class="thead-bar"><div class="pane-title"><b>Ön kontrol</b><span>96 belge, 640 sayfa</span></div></div>
-          <div class="chk"><span class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span><b>Yazmayı engelleyen sorun yok.</b> <span class="t2">Hedef klasör boş ve yazılabilir.</span></span><span></span><span></span></div>
-          <div class="chk"><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span><b>7 belgede emin olunmayan değer var.</b> <span class="t2">Yine de yazılır; index.xlsx'te işaretlenir.</span></span><span class="cnt">7</span><span class="link">Sonraki kontrol</span></div>
-          <div class="chk"><span class="st orta"><i class="ic" data-i="circle-dashed"></i>Eksik</span><span><b>Zorunlu değer eksik: Sicil no.</b> <span class="t2">Ad “Belge 41” gibi olur.</span></span><span class="cnt">2</span><span class="link">Değerler'e git</span></div>
-          <div class="chk"><span class="st orta"><i class="ic" data-i="info"></i>Bilgi</span><span><b>Dosya adı değişti.</b> <span class="t2">Geçersiz karakter ya da çakışma.</span></span><span class="cnt">2</span><span class="link">Adları göster</span></div>
+        <div class="card banner" data-in="running" role="status" hidden>
+          <div class="top"><i class="ic md" data-i="loader-circle"></i><b>Yazılıyor: 58 / 96</b><span class="t2">metin katmanı ekleniyor</span></div>
+          <div class="bar" role="progressbar" aria-valuenow="60" aria-label="Yazma ilerlemesi"><i style="width:60%"></i></div>
+          <div class="sub">%60, yaklaşık 2 dk kaldı. Durdur (Ctrl+.) ile durdurursanız yazılan dosyalar kalır, index.xlsx yazılmaz.</div>
+        </div>
+        <div class="card banner done" data-in="done" role="status" hidden>
+          <i class="ic" data-i="folder-check"></i>
+          <div>
+            <h2>96 belge yazıldı</h2>
+            <div class="t2">D:\Muhasebe\Çıktı\Kasım klasörüne, 14:41'de bitti. İş listede kalır; Yükle'den yeniden açabilirsiniz.</div>
+            <div class="line"><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span>7 belge kontrol gerektiriyor; index.xlsx'te işaretli, nedeni yazılı.</span></div>
+            <div class="row">
+              <button class="btn primary"><i class="ic" data-i="folder-open"></i>Klasörü aç</button>
+              <button class="btn"><i class="ic" data-i="sheet"></i>index.xlsx'i aç</button>
+              <button class="btn"><i class="ic" data-i="folder-open"></i>Dosya Gezgini'nde göster</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card tablecard" aria-label="Ön kontrol" data-in="main,blocked,empty">
+          <div class="thead-bar"><div class="pane-title"><b>Ön kontrol</b><span data-out="empty">96 belge, 640 sayfa</span><span data-in="empty" hidden>belge yok</span></div></div>
+          <div class="chk" data-in="main"><span class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span><b>Yazmayı engelleyen sorun yok.</b> <span class="t2">Hedef klasör boş ve yazılabilir.</span></span><span class="cnt"></span><span class="link"></span></div>
+          <div class="chk block" data-in="blocked" hidden><span class="st bad"><i class="ic" data-i="ban"></i>Engel</span><span><b>Hedef klasör boş değil.</b> <span class="t2">Eski dosyaların üzerine yazılmaz.</span></span><span class="cnt">1</span><span class="link">Yeni alt klasör oluştur</span></div>
+          <div class="chk block" data-in="blocked" hidden><span class="st bad"><i class="ic" data-i="ban"></i>Engel</span><span><b>Kalıpta bilinmeyen değişken: “Firma adı”.</b> <span class="t2">Menüden bir değişken seçin.</span></span><span class="cnt">1</span><span class="link">Kalıbı düzelt</span></div>
+          <div class="chk" data-out="empty"><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span><b>7 belgede emin olunmayan değer var.</b> <span class="t2">Yine de yazılır; index.xlsx'te işaretlenir.</span></span><span class="cnt">7</span><span class="link">Sonraki kontrol</span></div>
+          <div class="chk" data-out="empty"><span class="st orta"><i class="ic" data-i="circle-dashed"></i>Eksik</span><span><b>Zorunlu değer eksik: Sicil no.</b> <span class="t2">Ad “Belge 41” gibi olur.</span></span><span class="cnt">2</span><span class="link">Değerler'e git</span></div>
+          <div class="chk" data-in="main"><span class="st orta"><i class="ic" data-i="info"></i>Bilgi</span><span><b>Dosya adı değişti.</b> <span class="t2">Geçersiz karakter ya da çakışma.</span></span><span class="cnt">2</span><span class="link">Adları göster</span></div>
+          <div class="chk" data-in="empty" hidden><span class="st orta"><i class="ic" data-i="info"></i>Bilgi</span><span><span class="t2">Belge, kontrol ve eksik değer denetimi iş açılınca burada görünür.</span></span><span class="cnt">–</span><span></span></div>
         </div>
 
         <div class="card tablecard grow1" aria-label="Dosya adları">
-          <div class="thead-bar">
+          <div class="thead-bar" data-in="main,blocked">
             <div class="pane-title"><b>Dosya adları</b><span>kontrol gerekenler üstte</span></div>
             <div class="grow"></div>
             <button class="btn"><i class="ic" data-i="list-filter"></i>Yalnızca kontrol gerekenler <span class="t2 num">7</span></button>
           </div>
-          <table>
+          <div class="thead-bar" data-in="running,done" hidden><div class="pane-title"><b>Yazılan dosyalar</b><span>D:\Muhasebe\Çıktı\Kasım</span></div></div>
+          <div class="thead-bar" data-in="empty" hidden><div class="pane-title"><b>Dosya adları</b></div></div>
+          <table data-out="empty">
             <colgroup><col style="width:252px"><col><col style="width:104px"><col style="width:148px"></colgroup>
-            <thead><tr><th>Durum</th><th>Yazılacak dosya adı</th><th class="n">Sayfalar</th><th>Şablon</th></tr></thead>
+            <thead><tr><th>Durum</th><th><span data-in="main,blocked">Yazılacak dosya adı</span><span data-in="running,done" hidden>Yazılan dosya</span></th><th class="n">Sayfalar</th><th>Şablon</th></tr></thead>
             <tbody>
-            <tr><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Sicil no eksik</span></td><td>Belge 41.pdf</td><td class="n p">128–129</td><td class="tpl">Ekspertiz Raporu</td></tr>
-            <tr><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Sicil no eksik</span></td><td>Belge 77.pdf</td><td class="n p">392–393</td><td class="tpl">Ekspertiz Raporu</td></tr>
-            <tr class="cur"><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Firma adı belirsiz</span></td><td>10517_Akdeniz Ambalaj.pdf</td><td class="n p">180–181</td><td class="tpl">Kapasite Raporu</td></tr>
-            <tr><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span class="why">Sicil no belirsiz</span></td><td>10630_Marmara Gıda.pdf</td><td class="n p">301–302</td><td class="tpl">Kapasite Raporu</td></tr>
-            <tr><td><span class="st orta"><i class="ic" data-i="info"></i>Bilgi</span><span class="why">/ yerine - yazıldı</span></td><td>10533_Demir-Çelik Tic. A.Ş.pdf</td><td class="n p">212–213</td><td class="tpl">Kapasite Raporu</td></tr>
-            <tr><td><span class="st orta"><i class="ic" data-i="info"></i>Bilgi</span><span class="why">Ad çakışması, _2 eklendi</span></td><td>10482_Ege Kalıp Sanayi Ltd. Şti_2.pdf</td><td class="n p">14–15</td><td class="tpl">Ekspertiz Raporu</td></tr>
-            <tr><td><span class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span class="why"></span></td><td>10482_Ege Kalıp Sanayi Ltd. Şti.pdf</td><td class="n p">1–2</td><td class="tpl">Ekspertiz Raporu</td></tr>
+            <tr><td><span data-out="running,done" class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span data-in="running,done" class="st ok" hidden><i class="ic" data-i="circle-check"></i>Yazıldı</span><span class="why">Sicil no eksik</span></td><td>Belge 41.pdf</td><td class="n p">128–129</td><td class="tpl">Ekspertiz Raporu</td></tr>
+            <tr><td><span data-out="running,done" class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span data-in="running,done" class="st ok" hidden><i class="ic" data-i="circle-check"></i>Yazıldı</span><span class="why">Sicil no eksik</span></td><td>Belge 77.pdf</td><td class="n p">392–393</td><td class="tpl">Ekspertiz Raporu</td></tr>
+            <tr class="cur"><td><span data-out="running,done" class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span data-in="running,done" class="st ok" hidden><i class="ic" data-i="circle-check"></i>Yazıldı</span><span class="why">Firma adı belirsiz</span></td><td>10517_Akdeniz Ambalaj.pdf</td><td class="n p">180–181</td><td class="tpl">Kapasite Raporu</td></tr>
+            <tr><td><span data-out="running,done" class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span data-in="running,done" class="st ok" hidden><i class="ic" data-i="circle-check"></i>Yazıldı</span><span class="why">Sicil no belirsiz</span></td><td>10630_Marmara Gıda.pdf</td><td class="n p">301–302</td><td class="tpl">Kapasite Raporu</td></tr>
+            <tr><td><span data-out="running,done" class="st orta"><i class="ic" data-i="info"></i>Bilgi</span><span data-in="running,done" class="st ok" hidden><i class="ic" data-i="circle-check"></i>Yazıldı</span><span class="why">"/" yerine "-" yazıldı</span></td><td>10533_Demir<span class="chg">-</span>Çelik Tic. A.Ş.pdf</td><td class="n p">212–213</td><td class="tpl">Kapasite Raporu</td></tr>
+            <tr><td><span data-out="running,done" class="st orta"><i class="ic" data-i="info"></i>Bilgi</span><span data-in="running,done" class="st ok" hidden><i class="ic" data-i="circle-check"></i>Yazıldı</span><span class="why">Ad çakışması, _2 eklendi</span></td><td>10482_Ege Kalıp Sanayi Ltd. Şti<span class="chg">_2</span>.pdf</td><td class="n p">14–15</td><td class="tpl">Ekspertiz Raporu</td></tr>
+            <tr><td><span data-out="running,done" class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span data-in="running" class="st orta" hidden><i class="ic" data-i="loader-circle"></i>Yazılıyor</span><span data-in="done" class="st ok" hidden><i class="ic" data-i="circle-check"></i>Yazıldı</span></td><td>10482_Ege Kalıp Sanayi Ltd. Şti.pdf</td><td class="n p">1–2</td><td class="tpl">Ekspertiz Raporu</td></tr>
+            <tr><td><span data-out="running,done" class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span data-in="running" class="st orta" hidden><i class="ic" data-i="circle-dashed"></i>Bekliyor</span><span data-in="done" class="st ok" hidden><i class="ic" data-i="circle-check"></i>Yazıldı</span></td><td>10491_Karadeniz Tekstil A.Ş.pdf</td><td class="n p">3–4</td><td class="tpl">Kapasite Raporu</td></tr>
             </tbody>
           </table>
+          <div class="empty-state" data-in="empty" hidden>
+            <div class="mark"><i class="ic" data-i="file-output"></i></div>
+            <h2>Dışa aktarılacak belge yok</h2>
+            <p>Önce Yükle'den bir iş açın; belgeler burada listelenir.</p>
+            <div class="acts-row"><button class="btn primary"><i class="ic" data-i="upload"></i>Yükle'ye git<span class="k">Ctrl+1</span></button></div>
+          </div>
         </div>
       </section>
 
       <aside class="side" aria-label="Dışa aktarma ayarları">
+        <div class="lockn" data-in="running" role="status" hidden><i class="ic" data-i="lock"></i>Yazma sürerken ayarlar değiştirilemez.</div>
         <div>
           <div class="group-label">Hedef klasör</div>
           <div class="card set">
-            <div class="line"><div class="fld">D:\Muhasebe\Çıktı\Kasım</div><button class="btn" aria-label="Klasör seç"><i class="ic" data-i="folder-open"></i></button></div>
-            <div class="cap okc cap"><i class="ic" data-i="circle-check"></i>Klasör boş, yazılabilir.</div>
+            <div class="line">
+              <div class="fld" data-in="main,running,done">D:\Muhasebe\Çıktı\Kasım</div>
+              <div class="fld err" data-in="blocked" hidden>D:\Muhasebe\Çıktı</div>
+              <div class="fld"  data-in="empty" hidden><span class="ph">Klasör seçilmedi</span></div>
+              <button class="btn" aria-label="Klasör seç"><i class="ic" data-i="folder-open"></i></button>
+            </div>
+            <div class="hintl okc" data-in="main,running"><i class="ic" data-i="circle-check"></i>Klasör boş, yazılabilir.</div>
+            <div class="hintl okc" data-in="done" hidden><i class="ic" data-i="circle-check"></i>Klasörde 96 PDF ve index.xlsx var.</div>
+            <div class="hintl err" data-in="blocked" hidden><i class="ic" data-i="ban"></i>Klasör boş değil. Boş bir klasör seçin.</div>
+            <div class="hintl" data-in="empty" hidden><i class="ic" data-i="info"></i>İş açılınca klasör seçilebilir.</div>
           </div>
         </div>
         <div>
           <div class="group-label">Dosya adı kalıbı</div>
           <div class="card set">
-            <div class="fld focus">{Oda sicil no}_{Firma unvanı}.pdf</div>
+            <div class="fld focus" data-in="main">{Oda sicil no}_{Firma unvanı}.pdf</div>
+            <div class="fld" data-in="running,done" hidden>{Oda sicil no}_{Firma unvanı}.pdf</div>
+            <div class="fld err" data-in="blocked" hidden>{Oda sicil no}_{Firma adı}.pdf</div>
+            <div class="fld" data-in="empty" hidden><span class="ph">Kalıp yok</span></div>
             <div class="line"><button class="btn"><i class="ic" data-i="braces"></i>Değişken ekle<i class="ic" data-i="chevron-down"></i></button></div>
-            <div class="cap cap"><i class="ic" data-i="info"></i>Örnek: 10517_Akdeniz Ambalaj.pdf</div>
+            <div class="hintl" data-in="main,running,done"><i class="ic" data-i="info"></i>Örnek: 10517_Akdeniz Ambalaj.pdf</div>
+            <div class="hintl err" data-in="blocked" hidden><i class="ic" data-i="ban"></i>“Firma adı” değişkeni yok. Menüden seçin.</div>
+            <div class="hintl" data-in="empty" hidden><i class="ic" data-i="info"></i>Değişkenler işin şablonlarından gelir.</div>
           </div>
         </div>
         <div>
@@ -175,7 +262,10 @@ tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
           </div>
         </div>
         <div class="acts">
-          <button class="btn primary"><i class="ic" data-i="download"></i>Dışa aktar<span class="k">Ctrl+E</span></button>
+          <button class="btn primary" data-in="main"><i class="ic" data-i="download"></i>Dışa aktar<span class="k">Ctrl+E</span></button>
+          <button class="btn primary dis" data-in="blocked,running,empty" hidden><i class="ic" data-i="download"></i>Dışa aktar<span class="k">Ctrl+E</span></button>
+          <button class="btn" data-in="done" hidden><i class="ic" data-i="refresh-cw"></i>Yeniden dışa aktar…</button>
+          <span class="note" data-in="blocked" hidden><i class="ic" data-i="info"></i>Önce iki engeli giderin.</span>
         </div>
       </aside>
     </div>
@@ -183,10 +273,14 @@ tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
   </main>
 
   <footer class="statusbar">
-    <span><b>96</b> belge</span>
-    <span><b>640</b> sayfa</span>
-    <span class="warn"><i class="ic" data-i="triangle-alert"></i><span><b>7</b> belge kontrol bekliyor</span></span>
-    <span class="ok"><i class="ic" data-i="circle-check"></i><span>Hedef klasör yazılabilir</span></span>
+    <span data-out="empty"><b>96</b> belge</span>
+    <span data-out="empty"><b>640</b> sayfa</span>
+    <span class="warn" data-out="empty"><i class="ic" data-i="triangle-alert"></i><span><b>7</b> belge kontrol bekliyor</span></span>
+    <span class="ok" data-in="main"><i class="ic" data-i="circle-check"></i><span>Hedef klasör yazılabilir</span></span>
+    <span class="warn" data-in="blocked" hidden><i class="ic" data-i="ban"></i><span><b>2</b> engel var</span></span>
+    <span class="busy" data-in="running" hidden><i class="ic" data-i="loader-circle"></i><span>Yazılıyor: <b>58</b> / 96</span></span>
+    <span class="ok" data-in="done" hidden><i class="ic" data-i="folder-check"></i><span><b>96</b> belge yazıldı, 14:41</span></span>
+    <span data-in="empty" hidden>İşler Yükle sekmesinde açılır (Ctrl+1)</span>
   </footer>
 </div>
 <script src="state.js"></script>

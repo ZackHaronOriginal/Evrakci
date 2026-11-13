@@ -15,6 +15,17 @@
   if (win) win.dataset.state = state;
   document.querySelectorAll("[data-in]").forEach(el => { el.hidden = !el.dataset.in.split(",").includes(state); });
   document.querySelectorAll("[data-out]").forEach(el => { if (el.dataset.out.split(",").includes(state)) el.hidden = true; });
+  /* 150 % text: the pane content above pinned actions goes into its own scroll area */
+  if (root.dataset.text === "150") {
+    document.querySelectorAll(".inspector, .side").forEach(pane => {
+      const foot = [...pane.children].find(c => c.matches(".ins-foot, .acts"));
+      if (!foot) return;
+      const box = document.createElement("div");
+      box.className = "pane-scroll";
+      while (pane.firstElementChild !== foot) box.appendChild(pane.firstElementChild);
+      pane.insertBefore(box, foot);
+    });
+  }
   document.querySelectorAll("[data-cls]").forEach(el => {
     for (const part of el.dataset.cls.split(";")) {
       const [s, cls] = part.split(":");

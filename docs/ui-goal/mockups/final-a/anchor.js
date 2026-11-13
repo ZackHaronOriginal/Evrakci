@@ -22,6 +22,12 @@
         sub.style.top = (hr.top - 5) + "px";
       }
     }
+    const jm = document.getElementById("jobmenu"), js = document.querySelector(".titlebar .jobswitch:not([hidden])");
+    if (jm && !jm.hidden && js) {
+      const r = rel(js.getBoundingClientRect());
+      jm.style.top = (r.bottom + 4) + "px";
+      jm.style.left = r.left + "px";
+    }
     const pal = document.getElementById("palette"), search = document.querySelector(".titlebar .search");
     if (pal && !pal.hidden && search) {
       const s = rel(search.getBoundingClientRect());

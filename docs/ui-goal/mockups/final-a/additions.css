@@ -52,6 +52,12 @@
   border-top: 1px solid var(--stroke-soft); font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
 .palette .pf b { color: var(--text); font-weight: var(--w-semibold); margin-right: 6px; }
 
+/* ---------- job switch (title-band chevron): A's .menu dropped from the job name ---------- */
+.menu.jobmenu { min-width: 380px; }
+.jobswitch.hov { background: var(--hover); }
+[data-theme="hc"] .jobswitch.hov { outline: 1px solid var(--accent); outline-offset: -1px; }
+.recent > .field.search { width: 100%; margin-bottom: var(--s4); }
+
 /* ---------- empty state: pane skeleton kept, one sentence, one verb-first primary (A §3) ---------- */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
   padding: 0 var(--s6) var(--s8); min-height: 0; min-width: 0; }
@@ -135,6 +141,11 @@
 [data-theme="hc"] .slider { box-shadow: 0 0 0 1px var(--stroke); }
 [data-theme="hc"] .sepage, [data-theme="hc"] .lp-stage, [data-theme="hc"] .well { box-shadow: inset 0 0 0 1px var(--stroke); }
 [data-theme="hc"] .slot.del .bin { box-shadow: 0 0 0 1px var(--stroke); }
+/* deleted page in HC: no dimmed paper (white at 38 % gives #616161, not a system colour). The
+   sheet becomes Window with a GrayText edge and a GrayText hatch; the bin and the label say it. */
+[data-theme="hc"] .slot.del .pg { opacity: 1; background: repeating-linear-gradient(135deg, var(--sys-gray) 0 1px, var(--sys-window) 1px 10px);
+  box-shadow: 0 0 0 1px var(--sys-gray); }
+[data-theme="hc"] .slot.del .pg > * { visibility: hidden; }
 [data-theme="hc"] .cmd.dis, [data-theme="hc"] .iconbtn.dis, [data-theme="hc"] .mi.dis, [data-theme="hc"] .btn.dis,
 [data-theme="hc"] .cb.dis, [data-theme="hc"] .fld.dis { opacity: 1; color: var(--sys-gray); }
 [data-theme="hc"] .cmd.dis .ic, [data-theme="hc"] .iconbtn.dis .ic, [data-theme="hc"] .mi.dis .ic, [data-theme="hc"] .btn.dis .ic { color: var(--sys-gray); }
@@ -147,6 +158,10 @@
 [data-theme="hc"] tr.cur td.edit .caret { background: var(--text); }
 [data-theme="hc"] .num-badge { box-shadow: none; }
 [data-theme="hc"] .tab.on .ic { color: var(--accent); }
+
+/* status-bar progress item (added): A's .ok/.warn layout (icon + 6 px gap, 14 px icon), neutral icon */
+.statusbar .busy { display: inline-flex; align-items: center; gap: 6px; }
+.statusbar .busy .ic { color: var(--icon); width: 14px; height: 14px; }
 
 /* =====================================================================
  * 150 % text (data-text="150"): A's sizes one density up; panes scroll (QScrollArea) instead
@@ -175,8 +190,28 @@
 [data-text="150"] .fld .caret, [data-text="150"] td.edit .caret { height: 26px; }
 [data-text="150"] .cb { width: 26px; height: 26px; }
 [data-text="150"] .num-badge { min-width: 28px; height: 28px; }
-[data-text="150"] .inspector, [data-text="150"] .side, [data-text="150"] .navside { overflow-y: auto; overflow-x: hidden; }
-[data-text="150"] .inspector > *, [data-text="150"] .side > *, [data-text="150"] .navside > * { flex: none; }
+/* Kontrol timeline at 150 %: page thumbnails keep their pixel size, so a row of documents no
+   longer fits beside the wider inspector. Documents wrap to the next line (a document is never
+   split) and the timeline scrolls vertically; no page or page label is cut sideways. */
+[data-text="150"] .timeline { overflow-x: hidden; overflow-y: auto; }
+[data-text="150"] .timeline .row { flex-wrap: wrap; row-gap: var(--s6); }
+[data-text="150"] .navside { overflow-y: auto; overflow-x: hidden; }
+[data-text="150"] .navside > * { flex: none; }
+/* Panes with pinned actions: the content scrolls in its own area ABOVE the actions (Qt: a
+   QScrollArea plus a fixed button box), so no text ever sits half under a pinned button.
+   state.js wraps the content in .pane-scroll at 150 % only; at 100 % A's markup is untouched. */
+[data-text="150"] .inspector, [data-text="150"] .side { overflow: hidden; }
+[data-text="150"] .pane-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; gap: var(--s3); }
+[data-text="150"] .pane-scroll > * { flex: none; }
+/* in the inspector the scrollbar sits in the pane's 16 px right margin, so the cards keep A's width */
+[data-text="150"] .inspector > .pane-scroll { margin-right: -12px; padding-right: 3px; }
+[data-text="150"] .ins-foot, [data-text="150"] .side .acts { flex: none; margin-top: 0; }
+/* the scroll areas that exist only at 150 % show Windows 11's thin scrollbar so "there is more"
+   is visible: 3 px thumb in --text-2 on no track (Qt: QScrollBar QSS, Fluent collapsed size) */
+[data-text="150"] ::-webkit-scrollbar { width: 9px; height: 9px; background: transparent; }
+[data-text="150"] ::-webkit-scrollbar-thumb { background: var(--text-2); border-radius: 4px; border: 3px solid transparent; background-clip: padding-box; }
+[data-text="150"] ::-webkit-scrollbar-corner { background: transparent; }
 [data-text="150"] .kv .r .k { width: 120px; }
 [data-text="150"] .act .r, [data-text="150"] .hist .r { height: auto; min-height: 48px; white-space: normal; }
 [data-text="150"] .tabrow, [data-text="150"] .gtab { height: 34px; }
@@ -194,13 +229,15 @@
 [data-text="150"] .lp-head .t2.cap-hide { display: none; }
 [data-text="150"] .loupe { grid-template-rows: 52px minmax(0, 1fr) 92px; }
 [data-text="150"] .toast { width: auto !important; white-space: nowrap; }
+/* the toast floats bottom-right as in A; at 150 % the pane below it keeps room for it, as A's
+   100 % layout does, so the toast never covers the pinned primary */
+[data-text="150"] .body:has(~ .toast:not([hidden])) .side:not([hidden]) { padding-bottom: 80px; }
 [data-text="150"] .thead-bar { flex: none; flex-wrap: wrap; height: auto; min-height: 64px; padding-top: var(--s2); padding-bottom: var(--s2); row-gap: var(--s2); }
 [data-text="150"] .sel-item { white-space: nowrap; height: 48px; }
 
 /* selected item in a card list (Şablonlar, Rehber contents): A's selected-row look (selected
    fill + 3 px accent bar), as on the Değerler table */
 .act .r.on { background: var(--selected); box-shadow: inset 3px 0 0 var(--accent); }
-[data-text="150"] .ins-foot, [data-text="150"] .side .acts { position: sticky; bottom: calc(-1 * var(--s3)); background: var(--layer); padding-top: var(--s2); padding-bottom: var(--s3); margin-bottom: calc(-1 * var(--s3)); }
 [data-text="150"] .navside { width: 100%; }
 [data-text="150"] .navside .act .r { white-space: nowrap; }
 [data-text="150"] .selector { height: 48px; }

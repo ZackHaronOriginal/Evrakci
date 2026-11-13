@@ -1,3 +1,99 @@
+# final-a
+
+Direction A as approved; additions only.
+
+The visual source of truth is `../directions/a/` (owner, decisions.md: "Owner correction after
+round 3"). The A files are copied here unchanged: `tokens.css`, `shell.css`, `icons.js`,
+`kontrol.html`, `degerler.html`, `_contrast.py`, `_render.py`. The only edits are additions,
+listed below. `_fidelity.py` proves it: the default renders of `kontrol.html` and `degerler.html`
+(light and dark) match `../directions/a/png/` (no pixel off by more than 8/255 per channel, the
+largest delta is printed; today it is 0, i.e. pixel-identical), and the title band, command-bar
+frame and status-bar frame of all six tabs match A's `kontrol-light.png` apart from which tab is
+selected.
+
+## Additions
+
+**Files edited only by appending**
+- `tokens.css`: a `[data-theme="hc"]` block (Windows High Contrast Black: every token maps to a
+  system colour; Highlight for selection, primary and focus; Hotlight for links; GrayText for
+  disabled) and a `[data-text="150"]` block (type ×1.5, controls one density up). No light or dark
+  value changed. The contrast proof at the top gained the HC rows.
+- `icons.js`: more Lucide 0.460.0 icons for the added tabs (`file-plus`, `folder-plus`,
+  `printer`, `download`, `refresh-cw`, `play`, `info` and others).
+- `kontrol.html`, `degerler.html`: A's markup is untouched. They gained `data-states`, the
+  `additions.css`/`state.js`/`anchor.js` includes, and hidden elements for the added states. The
+  logo path is re-pointed because the folder moved (the same file, `docs/logo/kit/evrakci-app-icon.svg`).
+- `_contrast.py`: also checks the hc theme. Light, dark and hc all pass (D10).
+- `_render.py`: renders light, dark and hc plus 150-light for every page and every state in
+  `data-states`, as `png/<name>[-<state>]-<theme>.png`, with A's clipping and layout checks plus
+  a cut-text check: every visible text run is tested against all its clipping ancestors. Text cut
+  by an `overflow: hidden` edge (lost for good) is a warning; text cut only by the edge of a scroll
+  area is printed as `info` (reachable by scrolling). Text half under a pinned (sticky) element is
+  a warning. It takes a page screenshot clipped to the window and waits 1000 ms after load (with
+  A's element screenshot and 350 ms wait, antialiased corners were one colour level off in some
+  runs), and lets Chromium draw scrollbars so the thin Windows 11 scrollbar of scroll areas shows.
+
+**New files**
+- `additions.css`: rules that apply only to added elements, `[data-theme="hc"]` or
+  `[data-text="150"]`. It reuses A's components (menu, card, group label, buttons, icon buttons,
+  rider, status, toast, slider).
+- `state.js` (`?state=`, `?theme=`, `?text=` switch for the mockups; at 150 % it also puts the
+  content of panes with pinned actions into its own scroll area, so A's markup stays untouched)
+  and `anchor.js` (keeps the added popovers attached to the ≡ button, the job switch and the
+  search at any text size).
+- `_fidelity.py`: the PASS/FAIL gate described above.
+- `PROPOSALS.md`: suggested changes to A for the owner. None is applied, except that the
+  provisional 150 % renders show option a of item 3 until the owner decides.
+- `REVIEW.md`: the review findings of round 4 and what was done for each.
+
+**Added states** (content from `../final/` and `../../shortcuts.md`, drawn with A's components)
+- Kontrol `?state=empty`: no job open. The title band says "İş açılmadı", commands are disabled,
+  and the page shows "Henüz açık iş yok" with "Yükle'ye git" and "Son işler".
+- Kontrol `?state=loupe`: a large page preview with Sığdır / Genişlik / %100 / Kapat and a strip
+  of neighbouring pages.
+- Kontrol `?state=menu`: the ≡ / Alt menu (Dosya, Düzen, Görünüm, Git, Araçlar, Yardım) with the
+  Düzen submenu open.
+- Kontrol `?state=palette`: the Ctrl+K palette dropping from the title-band search.
+- Değerler `?state=empty`: no values read yet ("Değerler henüz okunmadı", "38 belgeyi oku").
+- Değerler `?state=ornek`: Örnek kontrol, a check by hand of 20 random "Emin" values.
+
+**Added tabs**, each a copy of A's title band with only the selected tab moved:
+`yukle.html`, `sablonlar.html`, `disa-aktar.html`, `rehber.html`. Their states:
+- Yükle: `main`, `running` (reading a batch), `drop` (PDFs dragged over the window), `empty` (no
+  job: "Henüz iş yok", a search field "İş adı ara" and "Son işler"), `jobs` (the title-band job
+  switch open: open job checked, recent jobs, "Yeni iş oluştur…", "Tüm işler…").
+- Şablonlar: `main` (page in a well with mm rulers top and left; the selected box's extent is
+  marked on both), `empty`, `nudge` (the selected box has keyboard focus and was moved one arrow
+  step; the status bar shows "Kaydır: ok tuşları 0,25 mm, Shift 1 mm" and the box position).
+- Dışa Aktar: `main`, `blocked`, `running`, `done`, `empty`. Rehber: `main`, `empty`, `keys`, `menu`.
+
+**Added themes and text size**
+- High contrast, `png/*-hc.png`. Only system colours: e.g. the page marked for deletion in Kontrol
+  is Window with a GrayText edge and GrayText hatch (no dimmed paper).
+- 150 % text, `png/*-150-light.png`. **Provisional:** in these renders the unselected tabs show
+  only their icon so the title band fits at 1366 px. That changes A's approved tabs at 150 % and
+  waits for the owner's choice (PROPOSALS item 3: icon-only, labels with a "»" overflow, or the
+  job name elided first). At 100 % A's tabs are unchanged. Panes scroll instead of clipping:
+  the content of a pane with pinned actions scrolls in its own area above them, the Kontrol
+  timeline wraps documents to the next line and scrolls vertically, and every scroll area shows
+  the thin Windows 11 scrollbar.
+
+## Proposals
+
+See `PROPOSALS.md` (5 items; only item 3's option a is visible, in the provisional 150 % renders).
+
+## Commands
+
+```
+python3 _contrast.py          # D10 proof for light, dark, hc (--write updates tokens.css)
+python3 _render.py            # all pages × states × light/dark/hc + 150-light → png/; must end with 0 warnings
+python3 _fidelity.py          # must print PASS
+```
+
+---
+
+## Direction A's own README (unchanged)
+
 # Direction A: "Fluent 2 Mica"
 
 Round 2, direction A from `../BRIEF.md` §4. Evrakçı drawn as if it shipped with Windows 11

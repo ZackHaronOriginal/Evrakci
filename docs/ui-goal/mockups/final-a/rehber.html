@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="tr" data-theme="light" data-states="main">
+<html lang="tr" data-theme="light" data-states="main,keys,menu,empty">
 <head>
 <meta charset="utf-8">
-<title>Rehber: direction A (final-a addition)</title>
+<title>Rehber</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="shell.css">
 <link rel="stylesheet" href="additions.css">
@@ -11,7 +11,11 @@
    status bar: A's components. Rules marked "A:" are copied verbatim from A's pages. */
 /* Rehber: the guide (reading card) | search, contents and the separator sheet (cards) */
 .body { display: grid; grid-template-columns: 1fr 368px; gap: var(--s3); padding: 0 var(--s3) var(--s3); min-height: 0; }
-.article { overflow: hidden; min-height: 0; min-width: 0; padding: var(--s6) var(--s8); }
+.article { overflow: hidden; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.article .scroll { overflow-x: hidden; overflow-y: auto; min-height: 0; padding: var(--s6) var(--s8) var(--s8); }
+/* the article is a scroll area (QScrollArea): Windows 11's thin scrollbar, 3 px thumb in --text-2 */
+.article .scroll::-webkit-scrollbar { width: 9px; background: transparent; }
+.article .scroll::-webkit-scrollbar-thumb { background: var(--text-2); border-radius: 4px; border: 3px solid transparent; background-clip: padding-box; }
 .article .doc { max-width: 680px; }
 .article h1 { margin: 0; font-size: var(--fs-page); line-height: var(--lh-page); font-weight: var(--w-semibold); letter-spacing: -.01em; }
 .article .lead { margin: var(--s1) 0 var(--s4); color: var(--text-2); }
@@ -49,6 +53,20 @@ mark.cur { background: var(--accent); color: var(--text-on-accent); box-shadow: 
 [data-text="150"] .print .line .k { width: 120px; }
 [data-text="150"] .print .fld.num { width: 96px; }
 .print .btn .key { font-weight: var(--w-regular); font-size: var(--fs-caption); opacity: .8; margin-left: var(--s1); }
+
+/* A's table (degerler.html): 13/18 header, 40 px rows, hairlines only between rows */
+.article table { width: 100%; border-collapse: collapse; margin-top: var(--s2); }
+.article th { height: 36px; text-align: left; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: var(--w-semibold); color: var(--text-2); padding: 0 var(--s3); border-bottom: 1px solid var(--stroke); white-space: nowrap; }
+.article td { height: var(--row-h); padding: 0 var(--s3); border-bottom: 1px solid var(--stroke-soft); }
+.article th:first-child, .article td:first-child { padding-left: 0; }
+.article td.k { width: 38%; font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); white-space: nowrap; }
+.article td.k span { font-weight: var(--w-regular); color: var(--text-2); }
+.article tbody tr:last-child td { border-bottom: 0; }
+.article p { margin: var(--s2) 0 0; }
+.article .empty-state { flex: 1; }
+.article .empty-state .note { display: block; background: none; padding: 0; border-radius: 0; margin-top: var(--s3); }
+[data-state="menu"] mark, [data-state="keys"] mark, [data-state="empty"] mark { background: none; box-shadow: none; color: inherit; }
+[data-text="150"] .article td.k { white-space: normal; }
 </style>
 </head>
 <body>
@@ -68,7 +86,7 @@ mark.cur { background: var(--accent); color: var(--text-on-accent); box-shadow: 
     <div class="tb-right">
       <div class="jobswitch"><b>Kasım 2026 kapasite raporları</b><span class="saved"><i class="ic" data-i="check"></i>Kaydedildi 14:32</span><i class="ic t2" data-i="chevron-down"></i></div>
       <div class="search"><i class="ic" data-i="search"></i>Ara<span class="k">Ctrl+K</span></div>
-      <button class="iconbtn sm" aria-label="Menü (Alt)"><i class="ic" data-i="menu"></i></button>
+      <button class="iconbtn sm" aria-label="Menü (Alt)" data-cls="menu:hov"><i class="ic" data-i="menu"></i></button>
       <div class="caption"><span><i class="ic" data-i="minus"></i></span><span><i class="ic" data-i="square"></i></span><span><i class="ic" data-i="x"></i></span></div>
     </div>
   </header>
@@ -91,17 +109,18 @@ mark.cur { background: var(--accent); color: var(--text-on-accent); box-shadow: 
 
     <div class="body">
       <article class="card article" data-clip-ok aria-label="Tarama rehberi">
+        <div class="scroll" data-out="empty">
         <div class="doc">
           <h1>Tarama rehberi</h1>
           <p class="lead">Zımbalı evrak destelerini hızlı ve sorunsuz taramak için hazırlık, tarayıcı ayarları ve yükleme adımları.</p>
-          <div class="note"><i class="ic" data-i="info"></i>Ctrl+F ile rehberde arayın, Ctrl+tekerlek ile yazıyı büyütün.<span class="link">Bir daha gösterme</span></div>
-          <h2>Hazırlık</h2>
+          <div class="note" data-out="keys"><i class="ic" data-i="info"></i>Ctrl+F ile rehberde arayın, Ctrl+tekerlek ile yazıyı büyütün.<span class="link">Bir daha gösterme</span></div>
+          <h2 id="hazirlik">Hazırlık</h2>
           <ol>
             <li><span>Her desteyi masaya <b>orijinal sırasıyla</b> koyun.</span></li>
             <li><span>Zımba tellerini <b>zımba sökücü</b> ile çıkarın. Tel kalırsa besleyici sıkışır ve tarayıcı camı çizilebilir.</span></li>
             <li><span>Yırtık, buruşuk veya katlanmış sayfaları düzeltin.</span></li>
           </ol>
-          <h2>QR <mark>ayıraç</mark> sayfaları</h2>
+          <h2 id="ayirac">QR <mark>ayıraç</mark> sayfaları</h2>
           <ol>
             <li><span><mark>Ayıraç</mark> sayfalarını sağdaki panelden yazdırın (Ctrl+P). QR kod yaprağın iki yüzüne de basılır. Komut satırında: <code>evrakci ayirac ayirac.pdf --adet 10</code></span></li>
             <li><span>Ayrılması gereken her belgenin önüne bir <mark class="cur">ayıraç</mark> koyun. Örneğin 5 sayfalık bir kaydı, iki yanındaki 2 sayfalık kayıtlardan <mark>ayıraç</mark>larla ayırın.</span></li>
@@ -113,27 +132,81 @@ mark.cur { background: var(--accent); color: var(--text-on-accent); box-shadow: 
             <li>Hepsi aynı uzunlukta olan belgelerde <mark>ayıraç</mark> gerekmez: taramadan sonra o sayfaları seçip “her N sayfa bir belge” filtresini uygulayın.</li>
             <li>Boş sayfalar hiçbir zaman belge ayırmaz. Çift taraflı taramadaki boş arka yüzleri iş ayarından atabilirsiniz.</li>
           </ul>
-          <h2>Küçük makbuzlar</h2>
+          <h2 id="makbuz">Küçük makbuzlar</h2>
+          <ul>
+            <li>Küçük ve ince makbuzlar besleyiciden düzgün geçmeyebilir.</li>
+            <li>Bunları <b>cam üzerinden</b> tarayın ya da birkaçını bir A4 sayfaya bantlayıp öyle tarayın.</li>
+          </ul>
+          <h2 id="tarayici">Tarayıcı ayarları</h2>
+          <table>
+            <thead><tr><th>Ayar</th><th>Önerilen</th></tr></thead>
+            <tbody>
+              <tr><td class="k">Çözünürlük</td><td>300 dpi</td></tr>
+              <tr><td class="k">Renk</td><td>Gri ton (renkli damga varsa renkli)</td></tr>
+              <tr><td class="k">Çift taraflı</td><td>Belgeler iki yüzlüyse açık</td></tr>
+              <tr><td class="k">Dosya türü</td><td>PDF</td></tr>
+            </tbody>
+          </table>
+          <p>Ayarı bir kez seçip tarayıcıda profil olarak kaydedin.</p>
+          <h2 id="yukleme">Yükleme</h2>
+          <ol>
+            <li><span>Her partiyi ayrı PDF olarak kaydedin ve hepsini aynı işe ekleyin, tarama sırasıyla.</span></li>
+            <li><span>Ayrımları Kontrol sekmesinde gözden geçirin; gerekirse kesim ekleyin veya kaldırın.</span></li>
+            <li><span>Dışa Aktar ile her belgeyi ayrı PDF olarak alın.</span></li>
+          </ol>
+          <h2 id="sonrasi">Sonrası</h2>
+          <ul><li>Kurum kuralına göre orijinal evrakları yeniden zımbalayın ve arşive kaldırın.</li></ul>
+          <h2 id="kisayollar">Kısayollar</h2>
+          <p>Bu sekmede geçerli tuşlar. Diğer sekmelerin tuşları için Shift+F1 tuşuna basın.</p>
+          <table>
+            <thead><tr><th>Kısayol</th><th>Ne yapar</th></tr></thead>
+            <tbody>
+              <tr><td class="k">F1</td><td>Yardım konularını aç</td></tr>
+              <tr><td class="k">Ctrl+6</td><td>Rehber sekmesine geç</td></tr>
+              <tr><td class="k">Ctrl+F</td><td>Rehberde ara</td></tr>
+              <tr><td class="k">F3 <span>ve</span> Shift+F3</td><td>Sonraki ve önceki sonuç</td></tr>
+              <tr><td class="k">Esc</td><td>Aramayı temizle</td></tr>
+              <tr><td class="k">Ctrl+Num+ <span>ve</span> Ctrl+-</td><td>Yazıyı büyüt ve küçült (Ctrl+tekerlek de çalışır)</td></tr>
+              <tr><td class="k">Ctrl+P</td><td><mark>Ayıraç</mark> sayfasını yazdır</td></tr>
+              <tr><td class="k">Shift+F1</td><td>Klavye kısayollarını göster</td></tr>
+              <tr><td class="k">Ctrl+K</td><td>Komut ara</td></tr>
+            </tbody>
+          </table>
+        </div>
+        </div>
+        <div class="empty-state" data-in="empty" hidden>
+          <div class="mark"><i class="ic" data-i="search"></i></div>
+          <h2>“laminasyon” için sonuç yok</h2>
+          <p>Daha kısa bir sözcük deneyin; Türkçe harf fark etmez.</p>
+          <div class="acts-row">
+            <button class="btn primary"><i class="ic" data-i="x"></i>Aramayı temizle</button>
+            <button class="btn"><i class="ic" data-i="keyboard"></i>Kısayolları göster</button>
+          </div>
+          <div class="note">Sık aranan konular: ayıraç, çözünürlük, zımba, makbuz</div>
         </div>
       </article>
 
       <aside class="side" aria-label="Rehber paneli">
         <div class="find">
-          <div class="fld focus"><i class="ic" data-i="search"></i>ayıraç<span class="caret"></span><button class="iconbtn sm" aria-label="Aramayı temizle (Esc)"><i class="ic" data-i="x"></i></button></div>
-          <div class="res"><span><b>8</b> sonuç, 3 / 8</span><span class="grow"></span>
+          <div class="fld focus" data-in="main" hidden><i class="ic" data-i="search"></i>ayıraç<span class="caret"></span><button class="iconbtn sm" aria-label="Aramayı temizle (Esc)"><i class="ic" data-i="x"></i></button></div>
+          <div class="fld focus" data-in="empty" hidden><i class="ic" data-i="search"></i>laminasyon<span class="caret"></span><button class="iconbtn sm" aria-label="Aramayı temizle (Esc)"><i class="ic" data-i="x"></i></button></div>
+          <div class="fld" data-in="keys,menu" hidden><i class="ic" data-i="search"></i><span class="ph">Rehberde ara</span><span class="end">Ctrl+F</span></div>
+          <div class="res" data-in="main" hidden><span><b>8</b> sonuç, 3 / 8</span><span class="grow"></span>
             <button class="iconbtn sm" aria-label="Önceki sonuç (Shift+F3)"><i class="ic" data-i="chevron-up"></i></button>
             <button class="iconbtn sm" aria-label="Sonraki sonuç (F3)"><i class="ic" data-i="chevron-down"></i></button></div>
+          <div class="res" data-in="empty" hidden><span><b>0</b> sonuç</span></div>
+          <div class="res" data-in="keys,menu" hidden><span>7 bölüm, 4 dakikalık okuma</span></div>
         </div>
         <div>
           <div class="group-label">İçindekiler</div>
           <div class="card act">
             <div class="r">Hazırlık</div>
-            <div class="r on">QR ayıraç sayfaları<span class="val">7</span></div>
+            <div class="r" data-cls="main:on">QR ayıraç sayfaları<span class="val" data-in="main" hidden>7</span></div>
             <div class="r">Küçük makbuzlar</div>
             <div class="r">Tarayıcı ayarları</div>
             <div class="r">Yükleme</div>
             <div class="r">Sonrası</div>
-            <div class="r">Kısayollar<span class="val">1</span></div>
+            <div class="r" data-cls="keys:on">Kısayollar<span class="val" data-in="main" hidden>1</span></div>
           </div>
         </div>
         <div>
@@ -150,14 +223,42 @@ mark.cur { background: var(--accent); color: var(--text-on-accent); box-shadow: 
   </main>
 
   <footer class="statusbar">
-    <span>Bölüm <b>2</b> / 7</span>
-    <span><b>8</b> sonuç: ayıraç</span>
+    <span data-out="keys">Bölüm <b>2</b> / 7</span>
+    <span data-in="keys" hidden>Bölüm <b>7</b> / 7</span>
+    <span data-in="main" hidden><b>8</b> sonuç: ayıraç</span>
+    <span data-in="empty" hidden><b>0</b> sonuç: laminasyon</span>
     <span class="grow"></span>
     <span class="zoom" title="Yazı boyutu (Ctrl+tekerlek)"><i class="ic" data-i="zoom-out"></i><span class="slider"><i style="width:50%"></i><b style="left:50%"></b></span><i class="ic" data-i="zoom-in"></i><span class="num">%100</span></span>
   </footer>
+
+  <!-- ADDED STATE menu: "≡" opens the six menus; Yardım is open (same popovers as kontrol.html) -->
+  <div class="menu" data-in="menu" hidden id="hamburger" role="menu" aria-label="Menü">
+    <div class="mi"><span><u>D</u>osya</span><span class="key">Alt+D</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+    <div class="mi"><span>Düz<u>e</u>n</span><span class="key">Alt+E</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+    <div class="mi"><span><u>G</u>örünüm</span><span class="key">Alt+G</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+    <div class="mi"><span>Gi<u>t</u></span><span class="key">Alt+T</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+    <div class="mi"><span><u>A</u>raçlar</span><span class="key">Alt+A</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+    <div class="mi hov"><span><u>Y</u>ardım</span><span class="key">Alt+Y</span><span class="chev"><i class="ic" data-i="chevron-right"></i></span></div>
+  </div>
+  <div class="menu" data-in="menu" hidden id="submenu" role="menu" aria-label="Yardım">
+    <div class="mi hov"><i class="ic" data-i="circle-help"></i><span><u>Y</u>ardım konuları</span><span class="key">F1</span></div>
+    <div class="mi"><i class="ic" data-i="keyboard"></i><span>Klavye <u>k</u>ısayolları</span><span class="key">Shift+F1</span></div>
+    <div class="mi"><i class="ic" data-i="search"></i><span>Komut <u>a</u>ra…</span><span class="key">Ctrl+K</span></div>
+    <hr>
+    <div class="mi"><i class="ic" data-i="info"></i><span>Evrakçı <u>h</u>akkında</span></div>
+  </div>
 </div>
 <script src="state.js"></script>
 <script src="anchor.js"></script>
 <script src="icons.js"></script>
+<script>
+/* keys state: the reader has scrolled to Kısayollar */
+if (document.documentElement.dataset.state === "keys") {
+  const sc = document.querySelector(".article .scroll");
+  const place = () => { sc.scrollTop += document.getElementById("kisayollar").getBoundingClientRect().top - sc.getBoundingClientRect().top - 16; };
+  place();
+  if (document.fonts) document.fonts.ready.then(place);
+}
+</script>
 </body>
 </html>

@@ -139,7 +139,7 @@ QComboBox QAbstractItemView { background: {{popover}}; color: {{text}}; border: 
 QComboBox QAbstractItemView::item { min-height: {{menu-item-h}}; padding: 0 {{s3}}; }
 
 /* ---- checkbox and radio: 20 px, 3:1 edge, accent when on ---- */
-QCheckBox, QRadioButton { spacing: {{s2}}; background: transparent; }
+QCheckBox, QRadioButton { spacing: {{s2}}; background: transparent; min-height: 24px; }
 QCheckBox::indicator, QRadioButton::indicator { width: 18px; height: 18px; border: 1px solid {{edge}};
     background: {{card}}; }
 QCheckBox::indicator { border-radius: {{r-control}}; }
@@ -256,6 +256,8 @@ QSplitter::handle:horizontal { width: {{s1}}; }
 QSplitter::handle:vertical { height: {{s1}}; }
 QSplitter::handle:hover { background: {{stroke}}; }
 QSlider { background: transparent; }
+QSlider:horizontal { min-height: 24px; }  /* WCAG 2.5.8: a 24 px target, groove centred */
+QSlider:vertical { min-width: 24px; }
 QSlider::groove:horizontal { height: 4px; background: {{track}}; border-radius: 2px; }
 QSlider::groove:vertical { width: 4px; background: {{track}}; border-radius: 2px; }
 QSlider::sub-page:horizontal, QSlider::add-page:vertical { background: {{accent}}; border-radius: 2px; }

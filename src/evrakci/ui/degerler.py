@@ -17,6 +17,7 @@ from PySide6.QtCore import QByteArray, QEvent, QModelIndex, QSize, Qt, QTimer, S
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemDelegate,
+    QApplication,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -68,9 +69,12 @@ from evrakci.ui.degerler_table import (
     main_columns,
 )
 from evrakci.ui.thumbnails import to_qimage
+from evrakci.ui.widgets import add_clear_button
 from evrakci.ui.workers import Task, start
 
 ZOOM_KEY = "degerler"
+VIEW_KEY = "degerler.gorunum"  # the chosen view (prefs.view_state)
+TEMPLATE_KEY = "degerler.sablon"  # the chosen template
 ZOOM_DEFAULT = 200  # A's status bar: "%200"
 UNDO_TEXT = "Değeri onayla"
 
@@ -204,7 +208,7 @@ class DegerlerScreen(QWidget):
         self.search = QLineEdit()
         self.search.setPlaceholderText("Ara")
         self.search.setAccessibleName("Değerlerde ara")
-        self.search.setClearButtonEnabled(True)
+        add_clear_button(self.search)  # a 24 px target (WCAG 2.5.8)
         self._search_icon = self.search.addAction(make_icon("search"),
                                                   QLineEdit.ActionPosition.LeadingPosition)
         self.search.textChanged.connect(self._search_changed)
@@ -212,6 +216,7 @@ class DegerlerScreen(QWidget):
         self.template_combo = QComboBox()
         self.template_combo.setAccessibleName("Şablon")
         self.template_combo.setToolTip("Şablon")
+        self.template_combo.setPlaceholderText("Şablon yok")  # no job, or no templated document
         self.template_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.template_combo.currentIndexChanged.connect(self._template_picked)
         self.header_bar = HeaderBar(self.selector, self.search, self.template_combo)
@@ -290,6 +295,13 @@ class DegerlerScreen(QWidget):
         r.connect_tab("app.bul", "degerler", self.focus_search)
         r.connect_tab("app.git", "degerler", self.go_to)
         self.go_tab.connect(window.show_tab)
+        prefs = getattr(window, "prefs", None)
+        if prefs is not None:  # QOL 10: the chosen view and template come back next time
+            view = prefs.view_state(VIEW_KEY, "")
+            if view in ("kontrol", "incelenmemis", "tumu"):
+                self._view = self._main_view = view
+                self.selector.set_view(view)
+            self._template_id = prefs.view_state(TEMPLATE_KEY, "") or self._template_id
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._context_menu)
         slot = window.status_slot("degerler")
@@ -549,13 +561,31 @@ class DegerlerScreen(QWidget):
     def _update_search_hint(self, template: Template | None) -> None:
         """A's "Firma, sicil no ara": the template's first two variables, words first."""
         if template is None:
-            self.search.setPlaceholderText("Ara")
+            self._search_hints = ["Ara"]
+            self._fit_search_hint()
             return
         kinds = {c.key: c.style for c in self.model.columns if c.kind == "var"}
         names = sorted(template.variables, key=lambda v: kinds.get(v.key, "code") != "text")
         shown = [display_name(v.name) for v in names[:2]]
         words = [shown[0]] + [tr_lower(n) for n in shown[1:]] if shown else []
-        self.search.setPlaceholderText(f"{', '.join(words)} ara" if words else "Ara")
+        # Longest first; the first one that fits the field is shown, never an elided hint.
+        self._search_hints = [f"{', '.join(words)} ara"] if len(words) > 1 else []
+        self._search_hints += [f"{words[0]} ara"] if words else []
+        self._search_hints += ["Değerlerde ara", "Ara"]
+        self._fit_search_hint()
+
+    def _fit_search_hint(self) -> None:
+        hints = getattr(self, "_search_hints", ["Ara"])
+        field = self.search
+        room = field.width() - 2 * field.height() - theme.manager().size("s2")
+        metrics = field.fontMetrics()
+        if not field.isVisible():  # not laid out yet: the resize that follows fits it
+            fitting = hints[0]
+        else:
+            fitting = next((h for h in hints if metrics.horizontalAdvance(h) <= room),
+                           hints[-1])
+        if field.placeholderText() != fitting:
+            field.setPlaceholderText(fitting)
 
     def _show_empty(self, mark: str, title: str, text: str, primary=None, secondary=None,
                     note: str = "") -> None:
@@ -663,6 +693,24 @@ class DegerlerScreen(QWidget):
         others = sum(header.sectionSize(c) for c in range(header.count()) if c != flex)
         room = self.table.viewport().width() - others
         need = 0 if empty else max(120, self._content_width(flex))
+        if not empty and need > room:
+            # The flexible (text) column gives way before the table scrolls sideways, so
+            # the Güven column at the right stays in view (GOAL §3.2's confidence marker,
+            # PROPOSALS item 2): its long names elide, the full text is in the tooltip.
+            # Only when even its minimum does not fit does the table scroll, as A does.
+            need = max(round(160 * self._scale()), room)
+            over = others + need - self.table.viewport().width()
+            if over > 0:  # still too wide: the other value columns give way down to a floor
+                floor = round(110 * self._scale())
+                for c, column in enumerate(self.model.columns):
+                    if over <= 0 or c == flex or column.kind not in VALUE_KINDS:
+                        continue
+                    give = min(over, header.sectionSize(c) - floor)
+                    if give > 0:
+                        header.blockSignals(True)
+                        header.resizeSection(c, header.sectionSize(c) - give)
+                        header.blockSignals(False)
+                        over -= give
         header.blockSignals(True)
         header.resizeSection(flex, max(need, room))
         header.blockSignals(False)
@@ -682,6 +730,8 @@ class DegerlerScreen(QWidget):
         table = getattr(self, "table", None)
         if table is not None and obj is table.viewport() and event.type() == QEvent.Type.Resize:
             QTimer.singleShot(0, self._fit_columns)
+        elif obj is self.search and event.type() == QEvent.Type.Resize:
+            self._fit_search_hint()
         elif obj is self.search and event.type() == QEvent.Type.KeyPress and \
                 event.key() == Qt.Key.Key_Escape and self.search.text():
             self.search.clear()
@@ -741,6 +791,9 @@ class DegerlerScreen(QWidget):
                 self._check_action("degerler.tumunu_incele", False)
         self._view = view
         self.selector.set_view(view)
+        prefs = getattr(self.window_, "prefs", None)
+        if prefs is not None and view != "ornek":
+            prefs.set_view_state(VIEW_KEY, view)
         self.refresh()
         return None
 
@@ -792,6 +845,9 @@ class DegerlerScreen(QWidget):
 
     def _template_picked(self, _index: int) -> None:
         self._template_id = self.template_combo.currentData()
+        prefs = getattr(self.window_, "prefs", None)
+        if prefs is not None and self._template_id:
+            prefs.set_view_state(TEMPLATE_KEY, self._template_id)
         self.refresh()
         self._select_first()
 
@@ -904,8 +960,21 @@ class DegerlerScreen(QWidget):
         if target.isValid():
             self.table.setCurrentIndex(target)
             self.table.scrollTo(target)
+            return
+        # Nothing left to check: Enter goes on to the next value nobody has reviewed, so a
+        # second Enter is never a silent no-op, and the message says what is left.
+        unreviewed = lambda c: c.value is not None and not c.reviewed  # noqa: E731
+        left = sum(1 for r in range(self.model.rowCount()) for c in self.model.value_columns()
+                   if (cell := self.model.cell_at(self.model.index(r, c))) is not None
+                   and unreviewed(cell))
+        target = self._find(row, column, 1, unreviewed)
+        if target.isValid():
+            self.table.setCurrentIndex(target)
+            self.table.scrollTo(target)
+            self._say(f"Kontrol gereken değer kalmadı; {left} değer incelenmedi. Enter "
+                      "sıradakini onaylar.")
         else:
-            self._say("Bu görünümde onaylanacak değer kalmadı.")
+            self._say("Bu görünümdeki bütün değerler incelendi.")
 
     def _current_changed(self, *_args) -> None:
         self.table.viewport().update()
@@ -1409,6 +1478,9 @@ class DegerlerScreen(QWidget):
         else:
             self._show_message(message, icon, colour)
         self.refresh()
+        window = self.window()
+        if window is not None and not window.isActiveWindow():  # QOL 19: the OCR ended
+            QApplication.alert(window, 0)
         self.finished.emit()
 
     def _show_message(self, message: str, icon: str, colour: str) -> None:

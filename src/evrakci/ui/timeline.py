@@ -403,6 +403,7 @@ class TimelineDelegate(QStyledItemDelegate):
         painter.save()
         painter.setOpacity(dim)
         painter.drawImage(target, image)
+        kp.tint_scan(painter, target)
         painter.restore()
 
     def _caption(self, painter: QPainter, rect: QRectF, row: int, state: str,

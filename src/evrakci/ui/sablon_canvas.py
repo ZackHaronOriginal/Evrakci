@@ -36,6 +36,7 @@ MM = 25.4
 SCREEN_DPI = 96  # %100 is life size at this resolution
 NUDGE_MM = 0.25
 NUDGE_BIG_MM = 1.0
+DEFAULT_BOX_MM = (40.0, 10.0)  # B then Enter: a box drawn from the keyboard
 SNAP_MM = 1.0
 MIN_BOX_MM = 2.0
 MARGIN_MM = 2.5  # scene room around the sheet (A: 8 px between the ruler and the sheet)
@@ -267,6 +268,7 @@ class PageCanvas(QGraphicsView):
         self._auto = True  # fitted: follows the window until the user zooms
         self._space = False
         self._keyboard = False  # focus came from the keyboard: the D11 ring shows
+        self._last_mm: tuple[float, float] | None = None  # pointer over the sheet, for B Enter
         self._pan: tuple[QPointF, int, int] | None = None
         self._drag: tuple | None = None  # ("move"|"size", item, scene start, start box, corner)
         self._start: QPointF | None = None  # "Kutu çiz"
@@ -382,13 +384,16 @@ class PageCanvas(QGraphicsView):
     def _update_a11y(self) -> None:
         item = self.selected_item()
         if item is None:
-            self.setAccessibleDescription(f"{len(self._items)} kutu. Seçili kutu yok.")
+            self.setAccessibleDescription(
+                f"{len(self._items)} kutu. Seçili kutu yok. Kutu çiz (B) ve Enter, sayfaya "
+                "40 x 10 mm bir kutu koyar.")
             return
         x0, y0, x1, y1 = item.spec.box
         self.setAccessibleDescription(
             f"Kutu {item.spec.number}: {item.spec.name}, bölüm {item.spec.index + 1}. "
             f"x {fmt_mm(x0)} y {fmt_mm(y0)} milimetre, genişlik {fmt_mm(x1 - x0)}, "
-            f"yükseklik {fmt_mm(y1 - y0)}. Ok tuşları 0,25 mm, Shift ile 1 mm kaydırır.")
+            f"yükseklik {fmt_mm(y1 - y0)}. Ok tuşları 0,25 mm, Shift ile 1 mm kaydırır; "
+            "Ctrl ile oklar boyutu değiştirir.")
 
     # -- zoom -------------------------------------------------------------------------------
     def _scale(self) -> float:
@@ -620,8 +625,10 @@ class PageCanvas(QGraphicsView):
             return
         x, y = self.view_to_mm(pos)
         width, height = self.page_mm()
-        self.cursor_moved.emit((round(x, 2), round(y, 2)) if 0 <= x <= width
-                               and 0 <= y <= height else None)
+        inside = 0 <= x <= width and 0 <= y <= height
+        if inside:
+            self._last_mm = (x, y)
+        self.cursor_moved.emit((round(x, 2), round(y, 2)) if inside else None)
 
     def _hover_cursor(self, pos) -> None:
         shape = Qt.CursorShape.ArrowCursor
@@ -680,6 +687,21 @@ class PageCanvas(QGraphicsView):
             self.nudge(*ARROWS[key], NUDGE_BIG_MM if big else NUDGE_MM)
             event.accept()
             return
+        ctrl_only = (mods & Qt.KeyboardModifier.ControlModifier
+                     and not mods & Qt.KeyboardModifier.AltModifier)
+        if key in ARROWS and ctrl_only and self.selected_item() is not None:
+            # WCAG 2.1.1 / 2.5.7: resize without dragging a handle. Ctrl+Right/Down grow
+            # the box, Ctrl+Left/Up shrink it (0,25 mm; with Shift 1 mm).
+            big = bool(mods & Qt.KeyboardModifier.ShiftModifier)
+            self.resize_selected(*ARROWS[key], NUDGE_BIG_MM if big else NUDGE_MM)
+            event.accept()
+            return
+        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and plain and self.drawing:
+            # "Kutu çiz" (B) then Enter: a 40 x 10 mm box where the pointer last was over the
+            # sheet, or in the middle of what is in view; then arrows, Ctrl+arrows adjust it.
+            self.place_default_box()
+            event.accept()
+            return
         if key == Qt.Key.Key_Escape and plain:
             if self.escape_hook is not None and self.escape_hook():
                 event.accept()
@@ -717,6 +739,46 @@ class PageCanvas(QGraphicsView):
         self.view_changed.emit()
         self.box_changed.emit(item.spec.name, item.spec.index, new)
         return True
+
+    def resize_selected(self, dx: int, dy: int, step: float) -> bool:
+        """Grow (Right, Down) or shrink (Left, Up) the selected box by `step` mm at its right
+        or bottom edge, kept on the sheet and at least MIN_BOX_MM."""
+        item = self.selected_item()
+        if item is None:
+            return False
+        x0, y0, x1, y1 = item.spec.box
+        new = self._clamp((x0, y0, max(x0 + MIN_BOX_MM, x1 + dx * step),
+                           max(y0 + MIN_BOX_MM, y1 + dy * step)))
+        if new == item.spec.box:
+            return False
+        item.set_box(new)
+        self._update_a11y()
+        self.view_changed.emit()
+        self.box_changed.emit(item.spec.name, item.spec.index, new)
+        return True
+
+    def place_default_box(self) -> Box | None:
+        """The keyboard's "draw": a DEFAULT_BOX_MM box centred on the last pointer position
+        over the sheet, else on the middle of the view. Emits box_drawn like a drag does."""
+        if not self.has_page():
+            return None
+        width, height = DEFAULT_BOX_MM
+        centre = self._last_mm
+        if centre is None:
+            middle = self.mapToScene(self.viewport().rect().center())
+            centre = (self._mm(middle.x()), self._mm(middle.y()))
+        cx, cy = centre
+        box = self._clamp(self._moved((cx - width / 2, cy - height / 2, cx + width / 2,
+                                       cy + height / 2), 0, 0))
+        page_w, page_h = self.page_mm()
+        x0, y0, x1, y1 = box
+        if x1 - x0 < width:  # the edge cut it: slide it back on the sheet
+            x0, x1 = max(0.0, page_w - width), min(page_w, max(0.0, page_w - width) + width)
+        if y1 - y0 < height:
+            y0, y1 = max(0.0, page_h - height), min(page_h, max(0.0, page_h - height) + height)
+        box = (round(x0, 2), round(y0, 2), round(x1, 2), round(y1, 2))
+        self.box_drawn.emit(box)
+        return box
 
     def focusInEvent(self, event) -> None:  # noqa: N802
         super().focusInEvent(event)

@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import actions, theme
+from evrakci.ui.widgets import add_clear_button
 
 
 class ShortcutSheet(QDialog):
@@ -48,7 +50,7 @@ class ShortcutSheet(QDialog):
         self.search.setProperty("kind", "search")
         self.search.setPlaceholderText("Komut veya tuş yazın")
         self.search.setAccessibleName("Kısayol ara")
-        self.search.setClearButtonEnabled(True)
+        add_clear_button(self.search)  # a 24 px target (WCAG 2.5.8)
         self.search.textChanged.connect(self._fill)
         label.setBuddy(self.search)
         root.addWidget(self.search)
@@ -82,11 +84,25 @@ class ShortcutSheet(QDialog):
         close.clicked.connect(self.close)
         bottom.addWidget(close)
         root.addLayout(bottom)
+        self._opener: QWidget | None = None
+        self.finished.connect(self._restore_focus)
+
+    def _restore_focus(self, *_args) -> None:
+        """Esc or Kapat puts focus back where the sheet was opened from (as the loupe does)."""
+        import shiboken6
+
+        opener, self._opener = self._opener, None
+        if opener is not None and shiboken6.isValid(opener) and opener.isVisible():
+            opener.window().activateWindow()
+            opener.setFocus(Qt.FocusReason.OtherFocusReason)
 
     # Public
     def show_for(self, tab: str) -> None:
         """Fill the sheet for `tab` and show it."""
         self._tab = tab
+        opener = QApplication.focusWidget()
+        if opener is not None and not self.isAncestorOf(opener):
+            self._opener = opener
         self.title.setText(f"Klavye kısayolları · {actions.TABS.get(tab, 'Genel')}")
         self.search.clear()
         self._fill()

@@ -305,7 +305,7 @@ def test_command_bar_follows_the_mockup_and_cancel_shows_only_while_reading(qtbo
     screen = window.yukle
     cancel = screen._own["cancel"]
     assert cancel.isHidden() or not cancel.isVisibleTo(bar)
-    go = screen._go_button
+    go = bar.button_for("app.sekme.kontrol")
     assert not go.isEnabled()  # no job
     _open(window, pdfs)
     assert go.isEnabled()
@@ -313,6 +313,10 @@ def test_command_bar_follows_the_mockup_and_cancel_shows_only_while_reading(qtbo
     screen._sync_actions()
     assert cancel.isVisibleTo(bar) and cancel.text() == "İptal et"
     assert not go.isEnabled()  # A: disabled while a batch is read
+    window.registry.action("app.sekme.kontrol").changed.emit()  # an action change or
+    bar.refresh()  # a restyle does not switch it back on
+    assert not go.isEnabled()
+    assert window.registry.is_enabled("app.sekme.kontrol")  # Ctrl+2 still switches tabs
     assert window.registry.is_enabled("yukle.iptal")
     screen._reading = None
     screen._sync_actions()
@@ -473,8 +477,8 @@ def test_a_failed_read_leaves_an_info_bar_with_the_way_forward(qtbot, tmp_path, 
     screen = _open(window, pdfs[:1])
     broken = tmp_path / "bozuk.pdf"
     broken.write_bytes(b"bu bir pdf degil")
-    screen.add_batches([broken])
-    assert not screen.busy()
+    screen.add_batches([broken])  # pages are counted in the worker, never on the GUI thread
+    qtbot.waitUntil(lambda: not screen.busy())
     bar = screen._error
     assert bar is not None and bar.property("severity") == "error"
     assert "Dosyayı kontrol edip yeniden ekleyin." in screen.last_message
@@ -620,7 +624,7 @@ def test_closing_the_job_returns_to_the_empty_page(qtbot, tmp_path, pdfs):
     assert screen.model.rowCount() == 0
     assert [e.name for e in screen.empty.entries] == ["Kasım"]
     assert not window.registry.is_enabled("yukle.cikar")
-    assert not screen._go_button.isEnabled()
+    assert not window.command_bar("yukle").button_for("app.sekme.kontrol").isEnabled()
 
 
 # -- persistence ---------------------------------------------------------------------------
@@ -779,3 +783,47 @@ def test_real_drag_events_on_the_window_reach_the_overlay_and_make_a_job(qtbot, 
         assert filt.eventFilter(window, drop)
     assert drop.isAccepted() and window.current_tab() == "yukle"
     assert _names(screen) == ["tarama-1.pdf", "tarama-2.pdf"]
+
+
+def test_files_queued_behind_a_cancelled_read_are_reported_not_dropped(qtbot, tmp_path, pdfs,
+                                                                      monkeypatch):
+    window = _window(qtbot, tmp_path)
+    screen = _open(window, pdfs[:1])
+    gate = threading.Event()
+    real = window.store.prepare_batch
+
+    def held(job, path, progress=None):
+        gate.wait(5)
+        return real(job, path, progress)
+
+    monkeypatch.setattr(window.store, "prepare_batch", held)
+    with qtbot.waitSignal(screen.task_finished, timeout=20000):
+        screen.add_paths([pdfs[1]])
+        screen.add_paths([pdfs[2]])  # queued behind the first
+        screen.cancel()
+        gate.set()
+    assert screen.last_message.startswith("Sıradaki 1 dosya eklenmedi")
+    assert window.toaster.current_text() or window.toaster.pending()
+    monkeypatch.setattr(window.store, "prepare_batch", real)
+    with qtbot.waitSignal(screen.task_finished, timeout=20000):
+        screen.add_paths([pdfs[2]])  # what "Yine de ekle" does
+    assert _names(screen) == ["tarama-1.pdf", "tarama-10.pdf"]
+
+
+def test_a_folder_over_the_limit_says_how_many_were_left_out(qtbot, tmp_path, pdfs, monkeypatch):
+    from evrakci.ui import yukle
+
+    window = _window(qtbot, tmp_path)
+    screen = _open(window, pdfs[:1])
+    from evrakci.ui.yukle_parts import find_pdfs
+
+    told = []
+    real_tell = screen._tell
+    monkeypatch.setattr(screen, "_tell", lambda text, *a, **k: (told.append(text),
+                                                                  real_tell(text, *a, **k)))
+    monkeypatch.setattr(yukle, "find_pdfs", lambda paths: (list(pdfs[1:2]), 6200))
+    with qtbot.waitSignal(screen.task_finished, timeout=20000):
+        screen.add_paths([tmp_path])
+    assert any("1 dosya alındı, 6.199 dosya alınmadı" in t for t in told)
+    found, total = find_pdfs([pdfs[0].parent], limit=1)
+    assert len(found) == 1 and total >= 2

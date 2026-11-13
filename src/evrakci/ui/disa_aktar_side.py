@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import icons, theme
-from evrakci.ui.chrome import make_icon
+from evrakci.ui.chrome import card, group_label, make_icon
 from evrakci.ui.disa_aktar_parts import HintLine, PartsButton, scale
 
 SIDE_W = 368  # A: the aside column at 100 % text (440 at 150 %)
@@ -41,19 +41,15 @@ def mark_invalid(widget: QLineEdit, invalid: bool) -> None:
 
 
 def _card() -> tuple[QFrame, QVBoxLayout]:
-    card = QFrame()
-    card.setProperty("kind", "card")
-    col = QVBoxLayout(card)
-    s4 = theme.manager().size("s4")
-    col.setContentsMargins(s4, s4, s4, s4)
-    col.setSpacing(theme.manager().size("s2"))
-    return card, col
+    frame = card(theme.manager().size("s4"))
+    return frame, frame.layout()
 
 
-def _group(text: str) -> QLabel:
-    label = QLabel(text)
-    label.setProperty("kind", "group-label")
-    return label
+_group = group_label
+
+
+CHARS_LOCKED = ("Windows'un kabul etmediği karakterler dosya adlarından her zaman silinir; "
+                "bu seçenek kapatılamaz.")
 
 
 class SidePanel(QWidget):
@@ -89,6 +85,8 @@ class SidePanel(QWidget):
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
+        self.scroll.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.scroll.setAccessibleName("Ayrıntılar")
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll.setStyleSheet("QScrollArea { background: transparent; border: 0; }")
@@ -158,10 +156,12 @@ class SidePanel(QWidget):
         self.layer = self._option("Metin katmanı ekle (OCR)", True)
         self.index_box = self._option("index.xlsx her zaman yazılır", True)
         self.index_box.setEnabled(False)
+        # A draws this one live and checked. The core always takes the characters Windows
+        # refuses out of a name, so unticking it says why it stays on (PROPOSALS E2).
         self.chars_box = self._option("Geçersiz karakterleri değiştir", True)
-        self.chars_box.setEnabled(False)
-        self.chars_box.setToolTip("Windows'un kabul etmediği karakterler dosya adlarından her "
-                                  "zaman silinir.")
+        self.chars_box.setToolTip(CHARS_LOCKED)
+        self.chars_box.setAccessibleDescription(CHARS_LOCKED)
+        self.chars_box.toggled.connect(self._chars_toggled)
         self.layer.setToolTip("Her PDF'e aranabilir metin katmanı ekler (OCR, PDF/A)")
         col.addWidget(card_frame)
         self.body.addWidget(group)
@@ -231,7 +231,7 @@ class SidePanel(QWidget):
                        self.layer):
             widget.setEnabled(not locked)
         self.index_box.setEnabled(False)
-        self.chars_box.setEnabled(False)
+        self.chars_box.setEnabled(not locked)  # A: live (it stays on; see _chars_toggled)
 
     def set_variables(self, names: list[str]) -> None:
         self.variables = names
@@ -254,3 +254,17 @@ class SidePanel(QWidget):
         self.pattern.insert("{" + name + "}")
         self.pattern.setFocus(Qt.FocusReason.OtherFocusReason)
         self.pattern.editingFinished.emit()
+
+    def _chars_toggled(self, on: bool) -> None:
+        """"Geçersiz karakterleri değiştir" cannot be switched off: tick it again and say why
+        where the pointer or focus is."""
+        if on:
+            return
+        from PySide6.QtWidgets import QToolTip
+
+        box = self.chars_box
+        box.blockSignals(True)
+        box.setChecked(True)
+        box.blockSignals(False)
+        QToolTip.showText(box.mapToGlobal(box.rect().bottomLeft()), CHARS_LOCKED, box)
+        self.chars_note = CHARS_LOCKED

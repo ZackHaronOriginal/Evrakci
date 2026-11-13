@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QRectF, QSize, Qt, Signal
+from PySide6.QtCore import QPoint, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QKeyEvent, QPainter, QPen
 from PySide6.QtWidgets import (
     QFrame,
@@ -27,7 +27,8 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import actions, icons, theme
-from evrakci.ui.chrome import ElidedLabel, make_icon
+from evrakci.ui.chrome import ElidedLabel, RecentJobRow, make_icon
+from evrakci.ui.widgets import add_clear_button
 
 PDF_LIMIT = 5000  # a dropped folder tree is read this far; more is almost certainly a mistake
 SHOWN_FILES = 5  # file rows in the drop overlay
@@ -68,11 +69,19 @@ def _natural(path: Path) -> list:
     return [int(p) if p.isdigit() else p.casefold() for p in re.split(r"(\d+)", str(path))]
 
 
-def collect_pdfs(paths: list[Path], limit: int = PDF_LIMIT) -> list[Path]:
-    """The PDFs among dropped or chosen paths: files as they are, folders searched through
-    (every other file is skipped). In natural order, so tarama-2 comes before tarama-10."""
+def thousands(number: int) -> str:
+    """5000 -> "5.000" (Turkish digit grouping)."""
+    return f"{number:,}".replace(",", ".")
+
+
+def find_pdfs(paths: list[Path], limit: int = PDF_LIMIT) -> tuple[list[Path], int]:
+    """The PDFs among dropped or chosen paths (at most `limit`) and how many there are in
+    all, so a caller can say how many were left out. Files are taken as they are, folders
+    searched through (every other file is skipped), in natural order (tarama-2 before
+    tarama-10)."""
     found: list[Path] = []
     seen: set[Path] = set()
+    total = 0
     for path in paths:
         if path.is_dir():
             candidates = sorted((p for p in path.rglob("*") if p.suffix.lower() == ".pdf"
@@ -82,52 +91,21 @@ def collect_pdfs(paths: list[Path], limit: int = PDF_LIMIT) -> list[Path]:
         else:
             continue
         for candidate in candidates:
-            if candidate not in seen:
-                seen.add(candidate)
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            total += 1
+            if len(found) < limit:
                 found.append(candidate)
-            if len(found) >= limit:
-                return found
-    return found
+    return found, total
+
+
+def collect_pdfs(paths: list[Path], limit: int = PDF_LIMIT) -> list[Path]:
+    """The PDFs among `paths`, at most `limit` (find_pdfs also says how many there were)."""
+    return find_pdfs(paths, limit)[0]
 
 
 # -- status bar -------------------------------------------------------------------------
-class StatusPart(QWidget):
-    """One status-bar count: an optional icon and rich text, numbers in text colour (A)."""
-
-    def __init__(self, icon: str | None = None, role: str = "icon",
-                 parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(6)
-        self.icon_name, self.role = icon, role
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-        self.icon = QLabel()
-        self.icon.setFixedSize(14, 14)
-        self.label = QLabel()
-        self.label.setTextFormat(Qt.TextFormat.RichText)
-        if icon:
-            row.addWidget(self.icon)
-        else:
-            self.icon.hide()
-        row.addWidget(self.label)
-        self.parts: tuple[str, ...] = ()
-
-    def set(self, *parts: str) -> None:
-        """Alternating plain and strong parts: set("Okunuyor: ", "77", " / 124")."""
-        self.parts = parts
-        m = theme.manager()
-        if self.icon_name:
-            self.icon.setPixmap(icons.pixmap(self.icon_name, m.hex(self.role), 14))
-        text = "".join(
-            f"<span style='color:{m.hex('text')}; font-weight:600'>{html.escape(p)}</span>"
-            if i % 2 else html.escape(p) for i, p in enumerate(parts))
-        self.label.setText(text)
-        plain = "".join(parts)
-        self.setAccessibleName(plain)
-        self.label.setAccessibleName(plain)
-
-
 # -- reading progress -------------------------------------------------------------------
 class ProgressCard(QFrame):
     """A .progress card: what is read, the bar, and "%62, Yaklaşık 40 sn kaldı, 3,2 sayfa/sn,
@@ -351,41 +329,12 @@ class JobEntry:
         return f"{self.pages} sayfa, {self.age}"
 
 
-class _JobRow(QPushButton):
-    """A .recent .act .r: folder icon, job name, "640 sayfa, dün" at the right."""
+class _JobRow(RecentJobRow):
+    """A recent job on the empty page (chrome.RecentJobRow) with its context menu."""
 
     def __init__(self, entry: JobEntry) -> None:
-        super().__init__()
-        m = theme.manager()
+        super().__init__(entry.name, entry.detail)
         self.entry = entry
-        self.setProperty("kind", "inspector-row")
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setMinimumHeight(m.size("row-h"))
-        self.setAccessibleName(f"{entry.name} işini aç, {entry.detail}")
-        self.setToolTip(f"{entry.name} işini aç")
-        row = QHBoxLayout(self)
-        row.setContentsMargins(m.size("s3"), 0, m.size("s3"), 0)
-        row.setSpacing(m.size("s3"))
-        self.icon = QLabel()
-        self.icon.setFixedSize(16, 16)
-        self.name = ElidedLabel(entry.name, min_chars=12)
-        self.detail = QLabel(entry.detail)
-        self.detail.setProperty("textRole", "secondary")
-        for widget in (self.icon, self.name, self.detail):
-            widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        row.addWidget(self.icon)
-        row.addWidget(self.name, 1)
-        row.addWidget(self.detail)
-        self.refresh()
-
-    def refresh(self) -> None:
-        m = theme.manager()
-        self.icon.setPixmap(icons.pixmap("folder", m.hex("icon"), 16))
-        self.detail.setStyleSheet(f"font-size: {m.size('fs-caption')}px;")
-
-    def sizeHint(self) -> QSize:  # noqa: N802
-        hint = self.layout().sizeHint()
-        return QSize(hint.width(), max(hint.height(), theme.manager().size("row-h")))
 
     def contextMenuEvent(self, event) -> None:  # noqa: N802
         """Right-click (or the menu key) on a job: İşi aç, Klasörünü göster."""
@@ -488,7 +437,7 @@ class EmptyPage(QWidget):
         self.search = _Search()
         self.search.setPlaceholderText("İş adı ara")
         self.search.setAccessibleName("İş adı ara")
-        self.search.setClearButtonEnabled(True)
+        add_clear_button(self.search)  # a 24 px target (WCAG 2.5.8)
         self.search.addAction(make_icon("search"), QLineEdit.ActionPosition.LeadingPosition)
         self.search.textChanged.connect(self.rebuild)
         self.search.returnPressed.connect(self._open_first)

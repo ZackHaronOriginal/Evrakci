@@ -204,6 +204,8 @@ class ValuesModel(QAbstractTableModel):
             cell = self.cell_at(index)
             if cell is not None and cell.needs_check and cell.suggestion:
                 return f"Öneri: {cell.suggestion}"
+            text = self._text(row, sampled, column)
+            return text or None  # the whole value, also where a narrow column elides it
         return None
 
     def _spoken(self, row: Row, sampled: Cell | None, column: Column, index) -> str:
@@ -304,11 +306,16 @@ class Fonts:
 
 def paint_marked(painter: QPainter, rect: QRectF, text: str, font: QFont, colour: QColor,
                  marks: tuple[int, ...] = (), style: str = "uncertain",
-                 right: bool = False) -> None:
+                 right: bool = False, on_highlight: bool = False) -> None:
     """One line of text with marked characters: "uncertain" = check wash + a 2 px rider-edge
     underline (what the reader was unsure of); "changed" = accent text + a 2 px accent
-    underline (what the suggestion changes). Elides on the right when it does not fit."""
+    underline (what the suggestion changes). Elides on the right when it does not fit.
+
+    In high contrast, and on a Highlight row (`on_highlight`), there is no wash: the wash
+    resolves to the text colour there and would hide the very character to check. The
+    character is underlined 2 px in the text's own colour instead (A's degerler-hc)."""
     m = theme.manager()
+    plain = on_highlight or m.theme() == "hc"
     metrics = QFontMetricsF(font)
     full = metrics.horizontalAdvance(text)
     if full > rect.width():
@@ -326,7 +333,11 @@ def paint_marked(painter: QPainter, rect: QRectF, text: str, font: QFont, colour
         spans.append(QRectF(left, top, metrics.horizontalAdvance(text[: i + 1]) - left + x0,
                             height))
     painter.setFont(font)
-    if style == "uncertain":
+    if style == "uncertain" and plain:
+        for span in spans:
+            painter.fillRect(QRectF(span.left() - 1, span.bottom() - 2, span.width() + 2, 2),
+                             colour)
+    elif style == "uncertain":
         painter.setPen(Qt.PenStyle.NoPen)
         for span in spans:
             painter.setBrush(m.color("check-wash"))
@@ -377,7 +388,7 @@ def paint_level(painter: QPainter, rect: QRectF, level: str, percent: int | None
 def level_width(level: str, percent: int | None, fonts: Fonts) -> int:
     word = LEVELS[level][2]
     font = fonts.strong if LEVELS[level][3] else fonts.body
-    width = 16 + 6 + QFontMetricsF(font).horizontalAdvance(word)
+    width = theme.manager().inline_icon(16) + 6 + QFontMetricsF(font).horizontalAdvance(word)
     if percent is not None:
         width += QFontMetricsF(font).horizontalAdvance(" ")
         width += QFontMetricsF(fonts.num).horizontalAdvance(f"%{percent}")
@@ -442,7 +453,7 @@ class ValuesDelegate(QStyledItemDelegate):
             level = sampled.level if sampled is not None else row.level
             percent = sampled.percent if sampled is not None else row.percent
             paint_level(painter, inner.adjusted(0, 0, s3 - 4, 0), level, percent, self.fonts,
-                        ink=ink)
+                        icon_size=m.inline_icon(16), ink=ink)
         if (kind in VALUE_KINDS and current == index and self.view.hasFocus()
                 and self.view.state() != QAbstractItemView.State.EditingState):
             self._focus_ring(painter, rect)
@@ -470,7 +481,7 @@ class ValuesDelegate(QStyledItemDelegate):
         font = {"number": self.fonts.num, "date": self.fonts.num,
                 "code": self.fonts.value}.get(style, self.fonts.body)
         paint_marked(painter, rect, cell.text, font, m.color(ink or "text"), cell.uncertain,
-                     right=column.right)
+                     right=column.right, on_highlight=ink is not None)
 
     @staticmethod
     def _focus_ring(painter: QPainter, rect: QRectF) -> None:

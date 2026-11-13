@@ -152,6 +152,7 @@ class ZoomSlider(QWidget):
         self._in = self._button("zoom-in")
         self.slider = QSlider(Qt.Orientation.Horizontal)
         self.slider.setFixedWidth(SLIDER_WIDTH)
+        self.slider.setMinimumHeight(24)  # WCAG 2.5.8: a 24 px target, the groove centred
         self.slider.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         self.label = QLabel("%100")
         self.label.setProperty("textRole", "secondary")

@@ -314,12 +314,13 @@ class BatchDelegate(QStyledItemDelegate):
         m = theme.manager()
         name, role, strong, word = STATUSES[item.status]
         role = ink or role
-        icons.paint(painter, name, QRectF(rect.left(), rect.center().y() - 8, 16, 16),
+        size = theme.manager().inline_icon(16)  # grows with the text (16 -> 24 at 150 %)
+        icons.paint(painter, name, QRectF(rect.left(), rect.center().y() - size / 2, size, size),
                     m.hex(role))
         font = m.font("body-strong" if strong else "body")
         painter.setFont(font)
         painter.setPen(m.color(role))
-        x = rect.left() + 16 + 6  # A .st gap
+        x = rect.left() + size + 6  # A .st gap
         painter.drawText(QRectF(x, rect.top(), rect.right() - x, rect.height()),
                          Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, word)
 
@@ -340,6 +341,7 @@ class BatchTable(QTableView):
         self.verticalHeader().setDefaultSectionSize(m.size("row-h"))
         self.verticalHeader().setMinimumSectionSize(m.size("row-h"))
         self.setShowGrid(False)
+        self.setTabKeyNavigation(False)  # Tab leaves the table; arrows move inside it
         self.setWordWrap(False)
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)

@@ -5,7 +5,7 @@ Everything here takes its colours from `theme.TOKENS` (see DESIGN.md, Components
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRectF, QSize, Qt
+from PySide6.QtCore import QObject, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QFrame,
@@ -393,3 +393,112 @@ class KeyValue(QWidget):
             self.grid.addWidget(term_label, number, 1)
             self.grid.addWidget(value_label, number, 2)
             self._rows.append((pic, term_label, value_label))
+
+
+class StatusPart(QWidget):
+    """One status-bar item (A .statusbar): an optional icon and rich text whose odd parts
+    are the strong, text-coloured figures: set("Okunuyor: ", "77", " / 124"). The icon
+    grows with the text size (theme.inline_icon) and both follow theme switches."""
+
+    def __init__(self, icon: str | None = None, role: str = "icon",
+                 parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        import html as _html
+
+        self._escape = _html.escape
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)  # A .statusbar .warn gap
+        self.icon_name, self.role = icon, role
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+        self.icon = QLabel(self)  # parented even without an icon: never a stray window
+        self.label = QLabel()
+        self.label.setTextFormat(Qt.TextFormat.RichText)
+        row.addWidget(self.icon)
+        row.addWidget(self.label)
+        self.icon.setVisible(bool(icon))
+        self.parts: tuple[str, ...] = ()
+        theme.follow(self, self._restyle, "status")
+
+    def set_icon(self, icon: str | None, role: str) -> None:
+        self.icon_name, self.role = icon, role
+        self.icon.setVisible(bool(icon))
+        self._restyle()
+
+    def _restyle(self) -> None:
+        self.set(*self.parts)
+
+    def set(self, *parts: str) -> None:
+        """Alternating plain and strong parts."""
+        self.parts = parts
+        m = theme.manager()
+        size = m.inline_icon()
+        self.icon.setFixedSize(size, size)
+        if self.icon_name:
+            self.icon.setPixmap(icons.pixmap(self.icon_name, m.hex(self.role), size))
+        text = "".join(
+            f"<span style='color:{m.hex('text')}; font-weight:600'>{self._escape(p)}</span>"
+            if i % 2 else self._escape(p) for i, p in enumerate(parts))
+        self.label.setText(text)
+        plain = "".join(parts)
+        self.setAccessibleName(plain)
+        self.label.setAccessibleName(plain)
+
+    def text(self) -> str:
+        return "".join(self.parts)
+
+
+class ClearButton(QObject):
+    """A 24 x 24 px "Temizle" button inside a QLineEdit, in place of Qt's own clear button
+    (22 x 18, below WCAG 2.5.8's 24 px). Shown while the field has text; Esc and the
+    button both clear it."""
+
+    def __init__(self, field) -> None:
+        super().__init__(field)
+        from PySide6.QtCore import QEvent
+        from PySide6.QtWidgets import QToolButton
+
+        self._resize = QEvent.Type.Resize
+        self.field = field
+        self.button = QToolButton(field)
+        self.button.setObjectName("clearButton")
+        self.button.setProperty("kind", "icon")
+        self.button.setAutoRaise(True)
+        self.button.setCursor(Qt.CursorShape.ArrowCursor)
+        self.button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.button.setToolTip("Temizle")
+        self.button.setAccessibleName("Aramayı temizle")
+        self.button.setFixedSize(24, 24)
+        self.button.clicked.connect(field.clear)
+        field.textChanged.connect(self._sync)
+        field.installEventFilter(self)
+        margins = field.textMargins()
+        field.setTextMargins(margins.left(), margins.top(), 24, margins.bottom())
+        theme.follow(self.button, self._restyle, "clear")
+        self._sync()
+
+    def _restyle(self) -> None:
+        m = theme.manager()
+        self.button.setIcon(QIcon(icons.pixmap("x", m.hex("icon"), 16)))
+        self.button.setIconSize(QSize(16, 16))
+
+    def _sync(self, *_args) -> None:
+        self.button.setVisible(bool(self.field.text()))
+        self._place()
+
+    def _place(self) -> None:
+        field = self.field
+        self.button.move(field.width() - 24 - 2, (field.height() - 24) // 2)
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if obj is self.field and event.type() == self._resize:
+            self._place()
+        return False
+
+
+def add_clear_button(field) -> ClearButton:
+    """Give `field` the 24 px clear button (see ClearButton)."""
+    field.setClearButtonEnabled(False)
+    clear = ClearButton(field)
+    field._clear_button = clear  # kept alive with the field
+    return clear

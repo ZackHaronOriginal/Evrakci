@@ -34,7 +34,7 @@ def test_levels_and_percentages():
     assert make_cell(VAR, VariableValue("48197", 0.95, 0, False)).level == "emin"
     assert make_cell(VAR, VariableValue("48197", 0.84, 0, False)).level == "orta"
     edited = make_cell(VAR, VariableValue("48197", 0.84, 0, False, edited=True))
-    assert edited.level == "emin" and edited.reviewed and edited.percent == 84
+    assert edited.level == "emin" and edited.reviewed and edited.percent is None
     flagged = make_cell(VAR, VariableValue("", 0.0, None, True, "48213",
                                             (SectionReading(0, "482I3", 0.4),
                                              SectionReading(1, "48213", 0.55))))

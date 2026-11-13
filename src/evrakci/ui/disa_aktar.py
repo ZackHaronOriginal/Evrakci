@@ -24,6 +24,7 @@ from pathlib import Path
 from PySide6.QtCore import QByteArray, QEvent, QModelIndex, QPoint, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QKeySequence, QUndoCommand
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QFrame,
     QHeaderView,
@@ -215,6 +216,8 @@ class DisaAktarScreen(QWidget):
         # file list keeping room for a few rows.
         self.left_scroll = QScrollArea()
         self.left_scroll.setWidgetResizable(True)
+        self.left_scroll.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # its contents take focus
+        self.left_scroll.setAccessibleName("Dışa aktarma özeti")
         self.left_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.left_scroll.setStyleSheet("QScrollArea { background: transparent; border: 0; }")
@@ -318,16 +321,47 @@ class DisaAktarScreen(QWidget):
             if width:
                 header.resizeSection(column, width if k >= 1.4 else round(width * k))
         header.blockSignals(False)
+        self._status_w = header.sectionSize(0)
         self._fit_columns()
 
+    def _name_need(self) -> int:
+        """Width the longest file name needs (the name is what this screen verifies)."""
+        from PySide6.QtGui import QFontMetrics
+
+        m = theme.manager()
+        metrics = QFontMetrics(m.font("body-strong"))
+        rows = [self.model.row_at(r) for r in range(min(self.model.rowCount(), 500))]
+        widest = max([metrics.horizontalAdvance(r.name) for r in rows if r is not None] + [0])
+        return max(round(NAME_MIN * scale()), widest + 2 * m.size("s3") + 4)
+
     def _fit_columns(self) -> None:
-        """The name column takes the room the others leave (at least NAME_MIN, and the table
-        scrolls sideways when that is more than there is)."""
+        """The name column gets what its longest name needs, and the room the others leave.
+        When that does not fit, the Şablon column (also in each row's tooltip) steps aside
+        first, then Durum narrows (its reason caption elides); only then does the table
+        scroll sideways. The names are never cut (GOAL §3.3)."""
         header = self.results.horizontalHeader()
-        others = sum(header.sectionSize(c) for c in (0, 2, 3))
-        room = self.results.viewport().width() - others
+        view = self.results.viewport().width()
+        if view <= 0:
+            return
+        need = self._name_need()
         header.blockSignals(True)
-        header.resizeSection(1, max(round(NAME_MIN * scale()), room))
+        status_w = getattr(self, "_status_w", 0)
+        if status_w and header.sectionSize(0) < status_w:  # room again: Durum widens back
+            header.resizeSection(0, status_w)
+        template_w = header.sectionSize(3) if not header.isSectionHidden(3) else \
+            getattr(self, "_template_w", header.sectionSize(3))
+        self._template_w = template_w
+        fixed = header.sectionSize(0) + header.sectionSize(2)
+        hide_template = fixed + template_w + need > view
+        self.results.setColumnHidden(3, hide_template)
+        if not hide_template:
+            header.resizeSection(3, template_w)
+        others = fixed + (0 if hide_template else template_w)
+        if others + need > view:
+            status_min = round(170 * scale())
+            header.resizeSection(0, max(status_min, view - need - header.sectionSize(2)))
+            others = header.sectionSize(0) + header.sectionSize(2)
+        header.resizeSection(1, max(need, view - others))
         header.blockSignals(False)
 
     def _restore_header(self) -> None:
@@ -344,6 +378,7 @@ class DisaAktarScreen(QWidget):
             for column in range(4):
                 header.setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
             header.blockSignals(False)
+            self._status_w = header.sectionSize(0)
             self._fit_columns()
         self._header_loaded = True
 
@@ -362,6 +397,7 @@ class DisaAktarScreen(QWidget):
 
     def _plan(self, controller: JobController | None) -> None:
         self._items, self._rows = [], []
+        self._patterns: dict[int, str] = {}
         self._variables = []
         self._default_pattern, self._multi_pattern = "", False
         self._problem = ("", [])
@@ -385,6 +421,7 @@ class DisaAktarScreen(QWidget):
         self._items = plan_export(job, effective)
         per_item = {n + 1: (effective[i].filename_pattern if i in used else "")
                     for n, i in enumerate(ids)}
+        self._patterns = per_item
         self._rows = file_rows(job, self._items, per_item)
         self._summary = summarize(self._items, self._rows)
         if override:
@@ -405,12 +442,13 @@ class DisaAktarScreen(QWidget):
         self._sync()
 
     def _prefill_folder(self, controller) -> None:
-        """The default export folder of Ayarlar, until the user types one (it is usually full:
-        the pre-flight then offers a new sub folder named after the job)."""
+        """The default export folder of Ayarlar, else the folder the last export went to,
+        until the user types one (it is usually full: the pre-flight then offers a new sub
+        folder named after the job). The last folder never overwrites Ayarlar' default."""
         prefs = self._prefs()
         if controller is None or self._folder_touched or self.folder.text() or prefs is None:
             return
-        last = prefs.export_folder()
+        last = prefs.export_folder() or prefs.last_export_folder()
         if last:
             self.folder.setText(last)
 
@@ -470,7 +508,25 @@ class DisaAktarScreen(QWidget):
         if showing and self._findings != self._shown_findings:
             self._shown_findings = list(self._findings)
             caption = f"{s.documents} belge, {s.pages} sayfa" if s.documents else "belge yok"
+            caption += self._left_out_note()
             self.preflight.set_findings(self._findings, caption)
+
+    def _left_out_note(self) -> str:
+        """Why the pre-flight's page count is smaller than the status bar's (which counts
+        every scanned page): " (2 ayıraç sayfası hariç)", or a general note when blank or
+        deleted pages are also left out; "" when the counts agree."""
+        controller = self.controller()
+        if controller is None or not self._summary.documents:
+            return ""
+        job = controller.job
+        total = sum(b.page_count for b in job.batches)
+        missing = total - self._summary.pages
+        if missing <= 0:
+            return ""
+        separators = sum(1 for info in job.pages.values() if info.is_separator)
+        if separators == missing:
+            return f" ({missing} ayıraç sayfası hariç)"
+        return f" ({missing} sayfa yazılmaz: ayıraç, boş ya da silinmiş)"
 
     def _sync_files(self, state: str) -> None:
         head, model = self.files_head, self.model
@@ -616,7 +672,26 @@ class DisaAktarScreen(QWidget):
         item.icon.setVisible(bool(icon))
         item.set(*parts)
 
+    def _attention(self) -> None:
+        """QOL 19: flash the taskbar button when the export ends while the window is not
+        the active one (the taskbar progress itself is cleared by the caller)."""
+        window = self.window()
+        if window is not None and not window.isActiveWindow():
+            QApplication.alert(window, 0)
+
+    def find_file(self) -> None:
+        """Ctrl+F: the file list, ready for typing (the first name that starts with what is
+        typed is selected; FilesTable searches the "Yazılacak dosya adı" column)."""
+        self.results.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        if not self.results.currentIndex().isValid() and self.model.rowCount():
+            self.results.setCurrentIndex(self.model.index(0, 1))
+
     # -- actions of the window -------------------------------------------------------------
+    def can_export(self) -> bool:
+        """Whether this screen's state lets an export start (not empty, blocked or running)."""
+        return self._state == "main" or (self._state == "done"
+                                         and self.controller() is not None)
+
     def _sync_actions(self) -> None:
         window = self.window_
         if window is None or getattr(self, "_syncing_actions", False):
@@ -625,13 +700,11 @@ class DisaAktarScreen(QWidget):
         try:
             r = window.registry
             state = self._state
-            has_job = self.controller() is not None
-            on_tab = window.current_tab() == "disa_aktar"
-            can = state == "main" or (state == "done" and has_job)
-            r.set_enabled("app.disa_aktar", has_job and (not on_tab or can))
+            # app.disa_aktar's one owner is MainWindow; it asks can_export().
+            window._sync_export_action()
             r.set_enabled("disa_aktar.durdur", state == "running")
             r.set_enabled("disa_aktar.yazdir", state != "empty" and self.model.rowCount() > 0)
-            r.set_enabled("app.yenile", not on_tab or state not in ("empty", "running"))
+            r.set_enabled_for("app.yenile", "disa_aktar", state not in ("empty", "running"))
             r.set_enabled("disa_aktar.gezginde_goster", self._reveal_target() is not None)
             r.set_enabled("disa_aktar.index_ac",
                           self._index_written and self._index_path().is_file())
@@ -672,7 +745,7 @@ class DisaAktarScreen(QWidget):
         start = self.folder.text().strip()
         prefs = self._prefs()
         if not start and prefs is not None:
-            start = prefs.export_folder()
+            start = prefs.last_export_folder() or prefs.export_folder()
         folder = QFileDialog.getExistingDirectory(self, "Boş bir klasör seçin", start)
         if folder:
             self._folder_touched = True
@@ -842,6 +915,7 @@ class DisaAktarScreen(QWidget):
         job = job_from_dict(job_to_dict(controller.job))
         files = controller.store.batch_files(job)
         self._exporting = (controller, job)
+        self._export_patterns = dict(getattr(self, "_patterns", {}))
         templates = dict(self.templates())
         used = {i for i in (document_template(job, d)[0] for d in controller.documents())
                 if i is not None and templates.get(i) is not None}
@@ -908,11 +982,18 @@ class DisaAktarScreen(QWidget):
     def _done(self, result) -> None:
         controller, job = self._exporting  # the job that was exported, not the open one
         names = [p.name for p in result.paths]
-        self._written_rows = file_rows(job, result.items, {}, names)
+        # The same patterns as the pre-flight, so a name change ("Geçersiz karakter silindi")
+        # still shows after writing.
+        self._written_rows = file_rows(job, result.items,
+                                       getattr(self, "_export_patterns", {}), names)
         self._written = True
         self._written_for = controller
         self._index_written = result.index_written
         self._finished_at = datetime.now().strftime("%H:%M")
+        prefs = self._prefs()
+        if prefs is not None and self.out_dir is not None:
+            prefs.set_last_export_folder(self.out_dir)  # QOL 10: remembered for next time
+        self._attention()
         self._written_hint = (f"Klasörde {len(names)} PDF"
                               + (" ve index.xlsx var." if result.index_written else " var."))
         try:
@@ -946,6 +1027,7 @@ class DisaAktarScreen(QWidget):
         if taskbar is not None:
             taskbar.error()
             QTimer.singleShot(5000, taskbar.clear)
+        self._attention()
         self._finish("Dışa aktarma tamamlanamadı", None)
 
     def _cancelled(self) -> None:

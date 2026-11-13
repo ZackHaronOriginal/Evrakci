@@ -29,22 +29,10 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import actions, icons, theme
-from evrakci.ui.chrome import make_icon
+from evrakci.ui.chrome import card, group_label, make_icon
 from evrakci.ui.yukle_info import JobSummary, ScanProfile
 
 KEY_W = 76  # A .kv .r .k width
-
-
-def group_label(text: str) -> QLabel:
-    label = QLabel(text)
-    label.setProperty("kind", "group-label")
-    return label
-
-
-def card() -> QFrame:
-    frame = QFrame()
-    frame.setProperty("kind", "card")
-    return frame
 
 
 class GapButton(QPushButton):

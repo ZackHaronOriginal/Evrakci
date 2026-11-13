@@ -10,6 +10,7 @@ from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import (
     QColor,
     QFont,
+    QTextBlockFormat,
     QTextCharFormat,
     QTextCursor,
     QTextDocument,
@@ -31,6 +32,7 @@ class Reader(QTextBrowser):
         super().__init__(parent)
         self.setAccessibleName("Tarama rehberi")
         self.setOpenLinks(False)
+        self.setTabChangesFocus(True)  # Tab leaves the text (it is read-only)
         self.setFrameShape(QTextBrowser.Shape.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.viewport().setAutoFillBackground(False)
@@ -41,6 +43,11 @@ class Reader(QTextBrowser):
         self._current = -1
         self._margins = (0, 0, 0)  # top, side, max text width in px
         self._look: Look | None = None
+
+    def focusNextPrevChild(self, next: bool) -> bool:  # noqa: N802, A002
+        """Tab goes on to the next control (QTextBrowser would walk its links and keep
+        focus); the guide's links are reached with the table of contents."""
+        return QWidget.focusNextPrevChild(self, next)
 
     # -- the document ---------------------------------------------------------------------
     def show_guide(self, guide: Guide, look: Look, margins: tuple[int, int, int],
@@ -55,9 +62,24 @@ class Reader(QTextBrowser):
         doc.addResource(QTextDocument.ResourceType.ImageResource, QUrl("rehber:info"),
                         make_icon("info", size=look.body).pixmap(look.body, look.body))
         self.setHtml(guide_html(guide, look, note))
+        self._mark_headings(guide)
         self.apply_margins()
         self._locate_sections()
         self._paint()
+
+    def _mark_headings(self, guide: Guide) -> None:
+        """Give the title and the section heads their heading level (1 and 2): they are
+        written as paragraphs at A's sizes, since Qt's <h1>/<h2> override the CSS size."""
+        titles = [(1, guide.title)] + [(HEADING_LEVEL, s.title) for s in guide.sections]
+        block = self.document().begin()
+        while block.isValid() and titles:
+            level, title = titles[0]
+            if block.text().strip() == title:
+                fmt = QTextBlockFormat()
+                fmt.setHeadingLevel(level)
+                QTextCursor(block).mergeBlockFormat(fmt)
+                titles.pop(0)
+            block = block.next()
 
     def apply_margins(self) -> None:
         """A's reading column: s6 above, s8 at the sides, the text at most 680 px wide."""

@@ -1,59 +1,8 @@
-"""Small parts of Şablonlar: one status-bar count (A .statusbar) and the undo command."""
+"""Small parts of Şablonlar: the undo command (the status-bar item is widgets.StatusPart)."""
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QUndoCommand
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QWidget
-
-from evrakci.ui import icons, theme
-
-
-class StatusPart(QWidget):
-    """One status-bar item: an optional 14 px icon and rich text whose odd parts are the
-    strong, text-coloured figures: set("Örnek ", "1", " / 4")."""
-
-    def __init__(self, icon: str | None = None, role: str = "icon", parent=None) -> None:
-        super().__init__(parent)
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(6)  # A .statusbar .warn gap
-        self.icon_name, self.role = icon, role
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-        self.icon = QLabel()
-        self.icon.setFixedSize(14, 14)
-        self.label = QLabel()
-        self.label.setTextFormat(Qt.TextFormat.RichText)
-        row.addWidget(self.icon)
-        row.addWidget(self.label)
-        self.icon.setVisible(bool(icon))
-        self.parts: tuple[str, ...] = ()
-        theme.follow(self, self._restyle, f"sablon-status-{id(self)}")
-
-    def set_icon(self, icon: str | None, role: str) -> None:
-        self.icon_name, self.role = icon, role
-        self.icon.setVisible(bool(icon))
-        self._restyle()
-
-    def _restyle(self) -> None:
-        m = theme.manager()
-        if self.icon_name:
-            self.icon.setPixmap(icons.pixmap(self.icon_name, m.hex(self.role), 14))
-        self.set(*self.parts)
-
-    def set(self, *parts: str) -> None:
-        self.parts = parts
-        m = theme.manager()
-        html = "".join(
-            f"<span style='color:{m.hex('text')}; font-weight:600'>{p}</span>" if i % 2 else p
-            for i, p in enumerate(parts))
-        self.label.setText(html)
-        plain = "".join(parts)
-        self.setAccessibleName(plain)
-        self.label.setAccessibleName(plain)
-
-    def text(self) -> str:
-        return "".join(self.parts)
 
 
 class TemplateEdit(QUndoCommand):

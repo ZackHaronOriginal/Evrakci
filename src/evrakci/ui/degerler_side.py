@@ -31,7 +31,7 @@ from evrakci.ui.degerler_table import paint_level, paint_marked
 
 SIDE_W = 368  # A: Değerler inspector
 WELL_H = 168  # A: .well height at 100 % text (240 at 150 %)
-BOX_AT = QPointF(96, 86)  # where the box sits on the paper (A's crop: label column, 2nd line)
+MARGIN = 16  # the crop keeps at least this much paper around the value's box
 CACHE = 12
 
 
@@ -130,29 +130,50 @@ class SourceView(QWidget):
         self.update()
 
     def px_per_mm(self) -> float:
-        return 96 / 25.4 * self.zoom / 100
+        """The scale the crop is drawn at: the zoom's, but never so large that the value's
+        box (plus MARGIN on each side) would be cut, the evidence the user checks."""
+        scale = 96 / 25.4 * self.zoom / 100
+        box = self.crop.box if self.crop is not None else None
+        if box is None:
+            return scale
+        paper = self.paper_rect()
+        room_w = max(1.0, paper.width() - 2 * MARGIN)
+        room_h = max(1.0, paper.height() - 2 * MARGIN)
+        width, height = max(0.5, box[2] - box[0]), max(0.5, box[3] - box[1])
+        return min(scale, room_w / width, room_h / height)
 
     def _dpi(self) -> int:
-        wanted = 96 * self.zoom / 100 * self.devicePixelRatioF()
+        wanted = self.px_per_mm() * 25.4 * self.devicePixelRatioF()
         return int(min(400, max(48, -(-wanted // 48) * 48)))
 
     def paper_rect(self) -> QRectF:
+        """The paper inside the well, s2 in from every edge (A's crop: a sheet with margin
+        on all sides, so the box is never cut by the well)."""
         m = theme.manager()
-        return QRectF(self.rect()).adjusted(m.size("s4"), m.size("s4"), 0, 0)
+        s = m.size("s2")
+        return QRectF(self.rect()).adjusted(s, s, -s, -s)
 
     def _origin(self, image: QImage | None, dpi: int) -> QPointF:
-        """Top-left of the visible page area in mm: the box lands at BOX_AT on the paper."""
+        """Top-left of the visible page area in mm: the value's box in the middle of the
+        crop, moved only as far as the page's edges allow (never so far the box is cut)."""
         if self.crop is None or self.crop.box is None:
             return QPointF(0, 0)
         scale = self.px_per_mm()
-        x0, y0, _x1, y1 = self.crop.box
-        x = x0 - BOX_AT.x() / scale
-        y = (y0 + y1) / 2 - BOX_AT.y() / scale
+        paper = self.paper_rect()
+        view_w, view_h = paper.width() / scale, paper.height() / scale
+        x0, y0, x1, y1 = self.crop.box
+        x = (x0 + x1) / 2 - view_w / 2
+        y = (y0 + y1) / 2 - view_h / 2
         if image is not None and not image.isNull():
-            paper = self.paper_rect()
             width_mm, height_mm = image.width() / dpi * 25.4, image.height() / dpi * 25.4
-            x = min(x, width_mm - paper.width() / scale)
-            y = min(y, height_mm - paper.height() / scale)
+            x = min(x, width_mm - view_w)
+            y = min(y, height_mm - view_h)
+        x, y = max(0.0, x), max(0.0, y)
+        margin = MARGIN / scale  # the page edge may push it, but the box stays whole
+        x = min(max(x, x1 + margin - view_w), x0 - margin) if x1 - x0 + 2 * margin <= view_w \
+            else x
+        y = min(max(y, y1 + margin - view_h), y0 - margin) if y1 - y0 + 2 * margin <= view_h \
+            else y
         return QPointF(max(0.0, x), max(0.0, y))
 
     def _to_view(self, box: tuple[float, float, float, float], origin: QPointF) -> QRectF:
@@ -178,7 +199,7 @@ class SourceView(QWidget):
         image = self.images.get(self.crop.pid, dpi)
         origin = self._origin(image, dpi)
         sheet = QPainterPath()
-        sheet.addRoundedRect(paper.adjusted(0, 0, 8, 8), m.size("r-paper"), m.size("r-paper"))
+        sheet.addRoundedRect(paper, m.size("r-paper"), m.size("r-paper"))
         painter.fillPath(sheet, m.color("paper"))
         if image is not None and not image.isNull():
             px = dpi / 25.4
@@ -228,7 +249,7 @@ class MarkedText(QWidget):
         self.marks: tuple[int, ...] = ()
         self.colour = "text"
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        theme.follow(self, self._resize, f"degerler-marked-{id(self)}")
+        theme.follow(self, self._resize, "marked")
 
     def font_(self) -> QFont:
         m = theme.manager()
@@ -324,7 +345,8 @@ class LevelText(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         fonts = _CaptionFonts()
         rect = QRectF(self.rect())
-        paint_level(painter, rect, self.level, self.percent, fonts, 14)
+        paint_level(painter, rect, self.level, self.percent, fonts,
+                    theme.manager().inline_icon())
         if self.note:
             left = level_width(self.level, self.percent, fonts) - 2 + m.size("s4")
             painter.setFont(fonts.body)

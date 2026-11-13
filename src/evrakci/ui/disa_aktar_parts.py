@@ -4,7 +4,6 @@ hint, the card head, one row of "Ön kontrol", the hint line under a field, the 
 from __future__ import annotations
 
 import html
-from collections.abc import Callable
 
 from PySide6.QtCore import QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFontMetrics, QIcon, QPainter
@@ -105,8 +104,13 @@ class PartsButton(QPushButton):
         if self._chevron:
             width += 16 + m.size("s2")
         if self._trail:
-            width += m.size("s1") + QFontMetrics(trail).horizontalAdvance(self._trail)
+            width += self._trail_gap() + QFontMetrics(trail).horizontalAdvance(self._trail)
         return QSize(width, m.size(self._height))
+
+    def _trail_gap(self) -> int:
+        """A's gaps: s3 before a key hint ("Dışa aktar  Ctrl+E"), s1 before a count."""
+        m = theme.manager()
+        return m.size("s3") if not self._trail.strip().isdigit() else m.size("s1")
 
     def minimumSizeHint(self) -> QSize:  # noqa: N802
         return self.sizeHint()
@@ -149,7 +153,7 @@ class PartsButton(QPushButton):
         if self._trail:
             painter.setFont(trail)
             painter.setPen(quiet)
-            painter.drawText(QRectF(x + advance + m.size("s1"), 0,
+            painter.drawText(QRectF(x + advance + self._trail_gap(), 0,
                                     self.width(), self.height()),
                              Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                              self._trail)
@@ -228,8 +232,10 @@ class HintLine(QWidget):
         m = theme.manager()
         role = self.ROLES[self._tone]
         icon_role = "icon" if self._tone == "info" else role
+        size = m.inline_icon()
+        self.icon.setFixedSize(size, size)
         self.icon.setPixmap(icons.pixmap(self._icon_name or self.ICONS[self._tone],
-                                         m.hex(icon_role), 14))
+                                         m.hex(icon_role), size))
         self.text.setStyleSheet(f"color: {m.hex(role)};")
         self.text.setMinimumHeight(m.size("lh-caption"))
 
@@ -402,12 +408,3 @@ class EmptyPane(QWidget):
         self.setAccessibleName("Dışa aktarılacak belge yok")
         theme.follow(self, lambda: self.mark.setPixmap(
             make_icon("file-output", size=24).pixmap(24, 24)), "mark")
-
-
-def connect_once(signal, slot: Callable) -> None:
-    """Connect a signal without doubling an earlier connection."""
-    try:
-        signal.disconnect(slot)
-    except (RuntimeError, TypeError):
-        pass
-    signal.connect(slot)

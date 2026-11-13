@@ -3,13 +3,23 @@
     QT_QPA_PLATFORM=offscreen python tools/screenshots.py OUT_DIR  # README
     QT_QPA_PLATFORM=offscreen python tools/screenshots.py matrix OUT_DIR  # full matrix
     QT_QPA_PLATFORM=offscreen python tools/screenshots.py matrix --allow OUT_DIR  # report only
+    QT_QPA_PLATFORM=offscreen python tools/screenshots.py states OUT_DIR  # A's other states
 
 Builds a throwaway job (fake scanned pages, QR separators, two templates, some values that
 need a check) in a temp folder. The matrix mode saves OUT_DIR/<tab>-<theme>-<w>x<h>-<text>.png
 for 6 tabs x {light, dark, hc} x {1366x768, 1920x1080} x text {100, 150}; each theme and text
 size gets a window built fresh in it (the shots never show a runtime switch). It prints a
 clipping report (elided text: drawn "…", text wider than its room, combo boxes against their
-edit field; widgets outside the window) and exits 1 when anything is found, unless --allow.
+edit field, table cells whose text is wider than their column; widgets outside the window or
+cut by their parent; cards cut by a scroll area's edge) and exits 1 when anything is found,
+unless --allow.
+
+Every window is built with the custom title band (caption buttons included), as on Windows,
+so the band the owner approved in A is what is shot on every platform. The shots wait for the
+Kontrol thumbnails, so a page is never caught half rendered. `states` shoots A's other states
+(empty for every tab, the loupe, the drop overlay, the sample view) at 1366x768 in light, and
+`--compare` prints a coarse pixel difference to the matching final-a PNG (A's demo data
+differs from this job's, so it is a drift signal, not a pass mark).
 """
 
 from __future__ import annotations
@@ -26,6 +36,7 @@ from fakes import empty_page, make_pdf, qr_page, text_page  # noqa: E402
 from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtWidgets import (  # noqa: E402
     QAbstractButton,
+    QAbstractItemView,
     QAbstractScrollArea,
     QApplication,
     QComboBox,
@@ -42,8 +53,10 @@ from evrakci.pipeline.store import JobStore  # noqa: E402
 from evrakci.pipeline.templates.model import Section  # noqa: E402
 from evrakci.pipeline.templates.store import TemplateStore  # noqa: E402
 from evrakci.pipeline.templates.values import VariableValue  # noqa: E402
-from evrakci.ui import theme  # noqa: E402
+from evrakci.ui import theme, titlebar  # noqa: E402
 from evrakci.ui.main_window import TAB_NAMES, MainWindow  # noqa: E402
+
+A_PNG = Path(__file__).resolve().parents[1] / "docs/ui-goal/mockups/final-a/png"
 
 SLUGS = ["yukle", "kontrol", "sablonlar", "degerler", "disa-aktar", "rehber"]
 
@@ -94,7 +107,20 @@ TEXTS = (100, 150)
 ELLIPSES = ("…", "...")
 
 
-def _settle(app: QApplication, rounds: int = 30) -> None:
+def _settle(app: QApplication, rounds: int = 30, window: QWidget | None = None) -> None:
+    """Spin the event loop; with `window`, also wait (up to 5 s) until its thumbnails are
+    rendered, so a shot never shows a page still loading."""
+    import time
+
+    for _ in range(rounds):
+        app.processEvents()
+    service = getattr(window, "thumbnails", None)
+    if service is None:
+        return
+    deadline = time.monotonic() + 5
+    while not service.idle() and time.monotonic() < deadline:
+        app.processEvents()
+        time.sleep(0.01)
     for _ in range(rounds):
         app.processEvents()
 
@@ -132,9 +158,60 @@ def _scrolled(widget: QWidget) -> bool:
     return False
 
 
+def _cells(view: QAbstractItemView, label: str) -> list[str]:
+    """Table cells painted by a delegate whose text is wider than their column (the
+    QLabel check cannot see them)."""
+    from PySide6.QtWidgets import QTableView
+
+    found: list[str] = []
+    model = view.model()
+    if model is None or not isinstance(view, QTableView):
+        return found
+    header = view.horizontalHeader()
+    pad = 2 * theme.manager().size("s3")
+    metrics = view.fontMetrics()
+    first = max(0, view.rowAt(0))
+    last = view.rowAt(view.viewport().height() - 1)
+    last = model.rowCount() - 1 if last < 0 else last
+    for column in range(model.columnCount()):
+        if view.isColumnHidden(column):
+            continue
+        left = header.sectionViewportPosition(column)
+        room = header.sectionSize(column) - pad
+        if left + header.sectionSize(column) <= 0 or left >= view.viewport().width():
+            found.append(f"{label} {type(view).__name__} sütun {column} görünmüyor "
+                         "(yana kaydırmak gerekiyor)")
+            continue
+        for row in range(first, last + 1):
+            text = model.data(model.index(row, column))
+            if not isinstance(text, str) or not text:
+                continue
+            need = metrics.horizontalAdvance(text)
+            if need > room:
+                found.append(f"{label} {type(view).__name__} hücre ({row}, {column}) "
+                             f"kısaltılmış: {text!r} ({need}>{room})")
+    return found
+
+
+def _cut_by_scroll_edge(w: QWidget) -> bool:
+    """A card inside a scroll area that the viewport's edge cuts (half a row showing)."""
+    if w.property("kind") != "card":
+        return False
+    parent = w.parentWidget()
+    while parent is not None:
+        if isinstance(parent, QAbstractScrollArea) and parent.viewport().isAncestorOf(w):
+            port = parent.viewport()
+            box = w.rect().translated(w.mapTo(port, w.rect().topLeft()))
+            inside = port.rect().intersected(box)
+            return not inside.isEmpty() and inside != box
+        parent = parent.parentWidget()
+    return False
+
+
 def clipping(window: QWidget, label: str) -> list[str]:
-    """Visible text widgets that are elided ("…" drawn or text wider than its room) and
-    widgets outside the window (README §3.3: nothing clipped, nothing elided)."""
+    """Visible text widgets that are elided ("…" drawn or text wider than its room), table
+    cells wider than their column, widgets outside the window or cut by their parent, and
+    cards cut by a scroll area's edge (README §3.3: nothing clipped, nothing elided)."""
     found = []
     bounds = window.rect()
     for w in window.findChildren(QWidget):
@@ -144,6 +221,16 @@ def clipping(window: QWidget, label: str) -> list[str]:
         box = w.rect().translated(w.mapTo(window, w.rect().topLeft()))
         if not bounds.adjusted(-1, -1, 1, 1).contains(box) and not _scrolled(w):
             found.append(f"{name} dışarıda: {box.getRect()}")
+        parent = w.parentWidget()
+        if (parent is not None and not w.isWindow() and not _scrolled(w)
+                and not isinstance(parent, QAbstractScrollArea)
+                and not parent.rect().adjusted(-1, -1, 1, 1).contains(w.geometry())
+                and w.objectName() != "focusRing"):
+            found.append(f"{name} kabının dışına taşıyor: {w.geometry().getRect()}")
+        if _cut_by_scroll_edge(w):
+            found.append(f"{name} kaydırma kenarında yarım görünüyor")
+        if isinstance(w, QAbstractItemView):
+            found += _cells(w, label)
         shown = _shown_text(w)
         if shown is None:
             continue
@@ -177,7 +264,7 @@ def run_matrix(app: QApplication, tmp: Path, out: Path) -> list[str]:
                 window.resize(width, height)
                 for index, slug in enumerate(SLUGS):
                     window.tabs.setCurrentIndex(index)
-                    _settle(app)
+                    _settle(app, window=window)
                     name = f"{slug}-{mode}-{width}x{height}-{text}"
                     window.grab().save(str(out / f"{name}.png"))
                     count += 1
@@ -191,8 +278,103 @@ def run_matrix(app: QApplication, tmp: Path, out: Path) -> list[str]:
     return clipped
 
 
+def _difference(ours: Path, theirs: Path) -> float | None:
+    """Mean absolute grey-level difference (0-100 %) of two shots scaled to 1366x768/10."""
+    from PySide6.QtCore import QSize
+    from PySide6.QtGui import QImage
+
+    if not theirs.is_file():
+        return None
+    size = QSize(137, 77)
+    a = QImage(str(ours)).scaled(size).convertToFormat(QImage.Format.Format_Grayscale8)
+    b = QImage(str(theirs)).scaled(size).convertToFormat(QImage.Format.Format_Grayscale8)
+    total = 0
+    for y in range(size.height()):
+        for x in range(size.width()):
+            total += abs(a.pixelColor(x, y).value() - b.pixelColor(x, y).value())
+    return 100 * total / (255 * size.width() * size.height())
+
+
+def _empty_window(root: Path) -> MainWindow:
+    root.mkdir(parents=True, exist_ok=True)
+    return MainWindow(JobStore(root / "jobs"), TemplateStore(root / "tpl"),
+                      settings_path=root / "ayar.json")
+
+
+def run_states(app: QApplication, tmp: Path, out: Path, compare: bool) -> list[str]:
+    """A's other states at 1366x768, light, 100 %: empty for every tab, Kontrol's loupe,
+    Yükle's drop overlay and Değerler' sample view. Returns the clipping report."""
+    manager = theme.manager()
+    manager.set_text_scale(100)
+    manager.set_mode("light")
+    _settle(app)
+    clipped: list[str] = []
+    shots: list[tuple[str, str]] = []  # (our name, A's png name)
+    window = _empty_window(tmp / "empty")
+    window.resize(1366, 768)
+    window.show()
+    for index, slug in enumerate(SLUGS):
+        window.tabs.setCurrentIndex(index)
+        _settle(app, window=window)
+        name = f"{slug}-empty-light"
+        window.grab().save(str(out / f"{name}.png"))
+        clipped += clipping(window, name)
+        shots.append((name, f"{slug}-empty-light.png"))
+    window.close()
+    window.deleteLater()
+    window = build(tmp / "states")
+    window.resize(1366, 768)
+    window.show()
+    window.tabs.setCurrentIndex(SLUGS.index("kontrol"))
+    _settle(app, window=window)
+    window.kontrol.open_loupe(0)
+    _settle(app, window=window)
+    window.grab().save(str(out / "kontrol-loupe-light.png"))
+    clipped += clipping(window, "kontrol-loupe-light")
+    shots.append(("kontrol-loupe-light", "kontrol-loupe-light.png"))
+    window.kontrol.loupe().close_loupe()
+    window.tabs.setCurrentIndex(SLUGS.index("yukle"))
+    _settle(app, window=window)
+    pdfs = sorted((tmp / "states").glob("*.pdf"))
+    window.yukle.overlay.show_drop(pdfs, window.controller().job.name)
+    window.yukle.overlay.place()
+    window.yukle.overlay.show()
+    _settle(app, window=window)
+    window.grab().save(str(out / "yukle-drop-light.png"))
+    shots.append(("yukle-drop-light", "yukle-drop-light.png"))
+    window.yukle.overlay.hide()
+    window.tabs.setCurrentIndex(SLUGS.index("degerler"))
+    _settle(app, window=window)
+    window.degerler.set_view("ornek")
+    _settle(app, window=window)
+    window.grab().save(str(out / "degerler-ornek-light.png"))
+    clipped += clipping(window, "degerler-ornek-light")
+    shots.append(("degerler-ornek-light", "degerler-ornek-light.png"))
+    window.close()
+    window.deleteLater()
+    _settle(app)
+    if compare:
+        for ours, theirs in shots:
+            diff = _difference(out / f"{ours}.png", A_PNG / theirs)
+            print("FARK", ours, "—" if diff is None else f"%{diff:.1f}", theirs)
+    for line in clipped:
+        print("KIRPILMA", line)
+    print(f"ÖZET: {len(shots)} durum görüntüsü, {len(clipped)} kırpılma/taşma")
+    return clipped
+
+
+def force_custom_frame() -> None:
+    """The custom title band with its caption buttons on every platform (README §3.3: the
+    band the owner approved in A, which the Linux build would otherwise replace with the
+    system one). Only for this tool's own run; importing the module changes nothing."""
+    import evrakci.ui.main_window as main_window
+
+    titlebar.use_custom_frame = main_window.use_custom_frame = lambda _prefs=None: True
+
+
 def main() -> int:
-    flags = {a for a in sys.argv[1:] if a.startswith("--") or a == "matrix"}
+    force_custom_frame()
+    flags = {a for a in sys.argv[1:] if a.startswith("--") or a in ("matrix", "states")}
     args = [a for a in sys.argv[1:] if a not in flags]
     matrix = bool(flags & {"--matrix", "matrix"})
     out = Path(args[0] if args else "docs/screenshots")
@@ -200,8 +382,16 @@ def main() -> int:
     app = QApplication.instance() or QApplication(sys.argv)
     configure_application(app)
     with tempfile.TemporaryDirectory() as tmp:
+        if flags & {"states", "--states"}:
+            clipped = run_states(app, Path(tmp), out, "--compare" in flags)
+            return 0 if not clipped or "--allow" in flags else 1
         if matrix:
             clipped = run_matrix(app, Path(tmp), out)
+            if "--compare" in flags:
+                for slug in SLUGS:
+                    ours = out / f"{slug}-light-1366x768-100.png"
+                    diff = _difference(ours, A_PNG / f"{slug}-light.png")
+                    print("FARK", ours.name, "—" if diff is None else f"%{diff:.1f}")
             return 0 if not clipped or "--allow" in flags else 1
         root = Path(tmp) / "readme"
         root.mkdir()
@@ -210,7 +400,7 @@ def main() -> int:
         window.show()
         for index, slug in enumerate(SLUGS):
             window.tabs.setCurrentIndex(index)
-            _settle(app)
+            _settle(app, window=window)
             window.grab().save(str(out / f"{slug}.png"))
             print(out / f"{slug}.png", TAB_NAMES[index])
         window.close()

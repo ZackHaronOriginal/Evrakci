@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -22,46 +22,14 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import actions, icons, theme
-from evrakci.ui.chrome import make_icon
+from evrakci.ui.chrome import RecentJobRow, make_icon
+from evrakci.ui.yukle_side import GapButton
 
 RECENT_W = 440  # A .recent width
 MARK = 48  # A .empty-state .mark
 
 
-class _JobRow(QPushButton):
-    """A .recent .act .r: folder icon, job name, "640 sayfa, dün" at the right."""
-
-    def __init__(self, name: str, detail: str) -> None:
-        super().__init__()
-        m = theme.manager()
-        self.setProperty("kind", "inspector-row")
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setMinimumHeight(m.size("row-h"))
-        self.setAccessibleName(f"{name} işini aç, {detail}")
-        self.setToolTip(f"{name} işini aç")
-        row = QHBoxLayout(self)
-        row.setContentsMargins(m.size("s3"), 0, m.size("s3"), 0)
-        row.setSpacing(m.size("s3"))
-        self.icon = QLabel()
-        self.icon.setFixedSize(16, 16)
-        self.name = QLabel(name)
-        self.detail = QLabel(detail)
-        self.detail.setProperty("textRole", "secondary")
-        for widget in (self.icon, self.name, self.detail):
-            widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        row.addWidget(self.icon)
-        row.addWidget(self.name, 1)
-        row.addWidget(self.detail)
-        self.refresh()
-
-    def refresh(self) -> None:
-        m = theme.manager()
-        self.icon.setPixmap(icons.pixmap("folder", m.hex("icon"), 16))
-        self.detail.setStyleSheet(f"font-size: {m.size('fs-caption')}px;")
-
-    def sizeHint(self) -> QSize:  # noqa: N802
-        hint = self.layout().sizeHint()
-        return QSize(hint.width(), max(hint.height(), theme.manager().size("row-h")))
+_JobRow = RecentJobRow  # shared with Yükle's empty page (chrome.RecentJobRow)
 
 
 class KontrolEmpty(QWidget):
@@ -110,12 +78,14 @@ class KontrolEmpty(QWidget):
         self.go_icon, self.go_text, self.go_key = QLabel(), QLabel("Yükle'ye git"), QLabel(key)
         for label in (self.go_icon, self.go_text, self.go_key):
             label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            if label is self.go_key:  # A: s3 before the key hint, s2 after the icon
+                inside.addSpacing(m.size("s3") - m.size("s2"))
             inside.addWidget(label)
         self.go_icon.setFixedSize(16, 16)
         self.go_button.setAccessibleName(f"Yükle'ye git ({key})")
         self.go_button.setToolTip(f"Yükle sekmesine geç ({key})")
         self.go_button.clicked.connect(go_yukle)
-        self.new_button = QPushButton("Yeni iş oluştur")
+        self.new_button = GapButton("Yeni iş oluştur")  # icon, s2, label (A .btn)
         self.new_button.setProperty("sizeVariant", "lg")
         self.new_button.setToolTip(f"Yeni iş oluştur ({actions.key_text('Ctrl+N')})")
         self.new_button.clicked.connect(new_job)

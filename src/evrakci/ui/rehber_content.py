@@ -221,7 +221,7 @@ class Look:
     page: int
     gap: tuple[int, int, int, int, int]  # s1 s2 s3 s4 s6, scaled with the zoom
     row: int
-    mono: str = "Cascadia Mono, Consolas, monospace"
+    mono: str = "Cascadia Mono, Consolas, monospace"  # the screen appends the system's fixed font
 
 
 def inline(text: str, look: Look) -> str:
@@ -240,10 +240,26 @@ def _block_html(block: Block, look: Look) -> str:
     if block.kind == "p":
         return (f'<p style="margin-top:{s2}px; margin-bottom:0;">'
                 f"{inline(block.items[0], look)}</p>")
-    if block.kind in ("ul", "ol"):
-        items = "".join(f'<li style="margin-bottom:{s1}px;">{inline(i, look)}</li>'
-                        for i in block.items)
-        return f'<{block.kind} style="margin-top:0; margin-bottom:0;">{items}</{block.kind}>'
+    if block.kind == "ol":
+        # A .article ol: the number in its own 32 px column (semibold, text-2, tabular
+        # figures), the text with a hanging indent, s2 between steps.
+        rows = "".join(
+            f'<tr><td width="{round(32 * look.body / 15)}" valign="top" style="font-weight:600;'
+            f' color:{look.text_2}; padding-bottom:{s2}px;">{n}</td>'
+            f'<td valign="top" style="padding-bottom:{s2}px;">{inline(item, look)}</td></tr>'
+            for n, item in enumerate(block.items, start=1))
+        return (f'<table width="100%" cellspacing="0" cellpadding="0"'
+                f' style="margin-top:{s1}px;">{rows}</table>')
+    if block.kind == "ul":
+        # A .article ul: text s6 from the margin, the bullet in front of it, s1 between.
+        indent = look.gap[4]
+        rows = "".join(
+            f'<tr><td width="{indent}" valign="top" align="right"'
+            f' style="padding-right:{s2}px; padding-bottom:{s1}px;">&#8226;</td>'
+            f'<td valign="top" style="padding-bottom:{s1}px;">{inline(item, look)}</td></tr>'
+            for item in block.items)
+        return (f'<table width="100%" cellspacing="0" cellpadding="0"'
+                f' style="margin-top:{s1}px;">{rows}</table>')
     head, *rows = block.items
     border = f"border-bottom:1px solid {look.stroke};"
     cells = "".join(
@@ -266,8 +282,10 @@ def guide_html(guide: Guide, look: Look, note: bool = True) -> str:
     """The whole article. Headings carry anchors `bolum-<slug>` for the contents list."""
     s1, s2, s3, s4, s6 = look.gap
     parts = [f'<body style="color:{look.text}; font-size:{look.body}px;">',
-             f'<h1 style="margin-top:0; margin-bottom:{s1}px; font-size:{look.page}px;'
-             f' font-weight:600;">{html.escape(guide.title)}</h1>']
+             # Headings are paragraphs at A's px sizes (Qt's <h1>/<h2> ignore the CSS size);
+             # the reader marks their heading level afterwards (Reader.show_guide).
+             f'<p style="margin-top:0; margin-bottom:{s1}px; font-size:{look.page}px;'
+             f' font-weight:600;">{html.escape(guide.title)}</p>']
     if guide.lead:
         parts.append(f'<p style="margin-top:0; margin-bottom:{s4}px; color:{look.text_2};">'
                      f"{inline(guide.lead, look)}</p>")
@@ -282,9 +300,9 @@ def guide_html(guide: Guide, look: Look, note: bool = True) -> str:
             f"</td></tr></table>")
     for section in guide.sections:
         parts.append(
-            f'<h2 id="bolum-{section.id}" style="margin-top:{s6}px; margin-bottom:{s2}px;'
+            f'<p style="margin-top:{s6}px; margin-bottom:{s2}px;'
             f' font-size:{look.section}px; font-weight:600;">'
-            f'<a name="bolum-{section.id}"></a>{html.escape(section.title)}</h2>')
+            f'<a name="bolum-{section.id}"></a>{html.escape(section.title)}</p>')
         parts += [_block_html(b, look) for b in section.blocks]
     parts.append("</body>")
     return "".join(parts)

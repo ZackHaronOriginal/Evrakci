@@ -9,20 +9,28 @@ from functools import partial
 from pathlib import Path
 from typing import NamedTuple
 
+import shiboken6
 from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer
 from PySide6.QtGui import QUndoStack
 from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QAbstractScrollArea,
+    QAbstractSpinBox,
     QApplication,
+    QComboBox,
     QFrame,
+    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QMainWindow,
     QMenu,
     QMessageBox,
+    QScrollArea,
     QSplitter,
     QStackedWidget,
     QStatusBar,
     QTabWidget,
+    QTextEdit,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -53,12 +61,14 @@ from evrakci.ui.palette import CommandPalette
 from evrakci.ui.prefs import Prefs
 from evrakci.ui.rehber import RehberScreen
 from evrakci.ui.sablon import SablonScreen
-from evrakci.ui.settings_dialog import SettingsDialog
+from evrakci.ui.settings_dialog import CHARACTER_KEYS, SettingsDialog
 from evrakci.ui.shortcut_sheet import ShortcutSheet
 from evrakci.ui.taskbar import TaskbarProgress
 from evrakci.ui.thumbnails import ThumbnailService, job_renderer
 from evrakci.ui.titlebar import TitleBand, WindowsFrame, use_custom_frame
+from evrakci.ui.widgets import StatusPart
 from evrakci.ui.yukle import YukleScreen
+from evrakci.ui.yukle_parts import ago
 from evrakci.ui.zoomview import ZoomController, ZoomSlider
 
 TAB_IDS = tuple(actions.TABS)
@@ -129,6 +139,7 @@ PANEL_NAMES = {"yukle": "Ayrıntı panelini", "kontrol": "Ayrıntı panelini",
 # Tabs whose status line starts with the window's own job counts ("96 belge  640 sayfa
 # ⚠ 7 belge kontrol bekliyor"); every other tab's mockup draws its own line instead.
 STATUS_COUNTS = frozenset({"disa_aktar"})
+JOB_TABS = ("yukle", "kontrol", "degerler", "disa_aktar")
 TEXT_STEPS = theme.TEXT_SIZES
 STATUS_INSET = 2  # QStatusBar's own item margin
 
@@ -142,34 +153,119 @@ def default_prefs(store: JobStore) -> Prefs:
     return Prefs() if real else Prefs(store.root.parent / PREFS_FILE)
 
 
-def _ago(seconds: float) -> str:
-    """Turkish relative time: "az önce", "3 gün önce", "2 hafta önce"..."""
-    minutes = int(seconds // 60)
-    for size, word in ((525600, "yıl"), (43200, "ay"), (10080, "hafta"), (1440, "gün"),
-                       (60, "saat"), (1, "dakika")):
-        if minutes >= size:
-            count = minutes // size
-            return "dün" if word == "gün" and count == 1 else f"{count} {word} önce"
-    return "az önce"
-
-
 def _accepts_tab(widget: QWidget) -> bool:
     return (widget.isVisible() and widget.isEnabled()
             and bool(widget.focusPolicy().value & Qt.FocusPolicy.TabFocus.value))
 
 
 def first_focusable(region: QWidget) -> QWidget | None:
-    """The first widget inside `region` (or itself) that Tab would stop on."""
+    """The first widget inside `region` (or itself) that Tab would stop on, in reading order."""
     if _accepts_tab(region):
         return region
-    widget = region.nextInFocusChain()
-    for _ in range(2000):
-        if widget is None or widget is region:
-            return None
-        if region.isAncestorOf(widget) and _accepts_tab(widget):
-            return widget
-        widget = widget.nextInFocusChain()
-    return None
+    order = reading_order(region)
+    return order[0] if order else None
+
+
+# Composite widgets whose inner parts are not Tab stops of their own.
+_COMPOSITES = (QAbstractSpinBox, QComboBox, QAbstractItemView, QTextEdit, QGraphicsView)
+
+
+def _tab_stops(region: QWidget) -> list[QWidget]:
+    stops = []
+    for widget in region.findChildren(QWidget):
+        if (not _accepts_tab(widget) or widget.focusProxy() is not None or widget.isWindow()
+                or isinstance(widget, QScrollArea)):  # a frame around controls, not a stop
+            continue
+        parent = widget.parentWidget()
+        inside = False
+        while parent is not None and parent is not region:
+            if isinstance(parent, _COMPOSITES) or parent.isWindow():
+                inside = True
+                break
+            parent = parent.parentWidget()
+        if not inside:
+            stops.append(widget)
+    return stops
+
+
+def _rows(widgets: list[QWidget], origin: QWidget) -> list[QWidget]:
+    """Reading order: top to bottom, and left to right inside a row (a widget whose middle
+    lies within the row's height belongs to the row)."""
+    placed = []
+    for widget in widgets:
+        top_left = widget.mapTo(origin, QPoint(0, 0))
+        placed.append((top_left.y(), top_left.y() + widget.height(), top_left.x(), widget))
+    placed.sort(key=lambda item: (item[0], item[2]))
+    ordered: list[QWidget] = []
+    row: list[tuple[int, int, int, QWidget]] = []
+    bottom = None
+    for item in placed:
+        middle = (item[0] + item[1]) / 2
+        if row and bottom is not None and middle < bottom:
+            row.append(item)
+            bottom = max(bottom, item[1])
+            continue
+        ordered.extend(w for *_, w in sorted(row, key=lambda r: r[2]))
+        row, bottom = [item], item[1]
+    ordered.extend(w for *_, w in sorted(row, key=lambda r: r[2]))
+    return ordered
+
+
+def _main_splitter(region: QWidget) -> QSplitter | None:
+    """The largest visible splitter in `region` that is not inside another one."""
+    best = None
+    for splitter in region.findChildren(QSplitter):
+        if not splitter.isVisible():
+            continue
+        parent = splitter.parentWidget()
+        nested = False
+        while parent is not None and parent is not region:
+            if isinstance(parent, QSplitter):
+                nested = True
+                break
+            parent = parent.parentWidget()
+        if nested:
+            continue
+        area = splitter.width() * splitter.height()
+        if best is None or area > best.width() * best.height():
+            best = splitter
+    return best
+
+
+def reading_order(region: QWidget) -> list[QWidget]:
+    """Tab stops of `region` in the order they are read (GOAL §3.1 "tab order = visual
+    order"): a splitter's panes one after the other (the main pane before the side panel),
+    each pane top to bottom and left to right."""
+    stops = _tab_stops(region)
+    splitter = _main_splitter(region)
+    if splitter is None:
+        return _rows(stops, region)
+    inside = [w for w in stops if splitter.isAncestorOf(w)]
+    outside = [w for w in stops if not splitter.isAncestorOf(w)]
+    top = splitter.mapTo(region, QPoint(0, 0)).y()
+    before = [w for w in outside
+              if w.mapTo(region, QPoint(0, 0)).y() + w.height() / 2 < top]
+    after = [w for w in outside if w not in before]
+    ordered = _rows(before, region)
+    for index in range(splitter.count()):
+        pane = splitter.widget(index)
+        if pane is None or not pane.isVisible():
+            continue
+        if _accepts_tab(pane) and pane in inside:
+            ordered.append(pane)
+        ordered.extend(w for w in reading_order(pane) if w in inside)
+    ordered.extend(_rows(after, region))
+    return ordered
+
+
+def _reveal(widget: QWidget) -> None:
+    """Scroll every scroll area around `widget` so it is in view."""
+    parent = widget.parentWidget()
+    while parent is not None and not parent.isWindow():
+        if isinstance(parent, QScrollArea) and parent.widget() is not None \
+                and parent.widget().isAncestorOf(widget):
+            parent.ensureWidgetVisible(widget)
+        parent = parent.parentWidget()
 
 
 class AltMenus(QObject):
@@ -279,12 +375,15 @@ class MainWindow(QMainWindow):
         self._restoring = True
         self._zoom: dict[str, tuple[ZoomController, str]] = {}
         self._zoom_hidden: set[str] = set()
+        self._zoom_watched: set[tuple[str, int]] = set()
         self._status_counts: dict[str, bool] = {tab: tab in STATUS_COUNTS for tab in TAB_IDS}
         self._splitters: set[int] = set()
         self._wired: JobController | None = None  # the controller whose signals are connected
 
         self.registry = actions.Registry(self)
         self.registry.install_text_guard()
+        self.registry.set_character_keys(self.prefs.flag(CHARACTER_KEYS, True))
+        self._settings_opener: QWidget | None = None
         self._build_screens()
         self._build_title_band()
         self._build_body()
@@ -315,6 +414,11 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
         self.tabs.tabBar().hide()  # the title band's TitleTabs drive it
+        # The hidden tab bar is the QTabWidget's focus proxy; left as a Tab stop it swallows
+        # Tab (focus never leaves the title band). TitleTabs is the tab strip's Tab stop.
+        self.tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.tabs.setFocusProxy(None)
+        self.tabs.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.yukle = YukleScreen(self.store)
         self.yukle.job_opened.connect(self._job_opened)
         self.yukle.can_switch = self._switch_refusal
@@ -397,8 +501,8 @@ class MainWindow(QMainWindow):
         row = QHBoxLayout(left)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(m.size("s6"))
-        self.counts = QLabel("")
-        self.pages = QLabel("")
+        self.counts = StatusPart()  # A: the numbers in bold ("3 belge  15 sayfa")
+        self.pages = StatusPart()
         self.check_icon = QLabel()
         self.checks = QLabel("")
         check = QHBoxLayout()
@@ -469,6 +573,49 @@ class MainWindow(QMainWindow):
                 menu.addSeparator()
             else:
                 menu.addAction(self.registry.action(item))
+            if item == "app.yinele":  # Düzen: the visible undo history right under Yinele
+                menu.addMenu(self._history_menu(menu))
+
+    def undo_history(self) -> list[tuple[int, str, bool]]:
+        """(index, step name, done) of every step of the current undo history, oldest first;
+        `done` is False for the steps that were undone (Yinele brings them back)."""
+        stack = self._undo_stack()
+        if stack is None:
+            return []
+        try:
+            return [(i, stack.text(i), i < stack.index()) for i in range(stack.count())]
+        except RuntimeError:  # the job's stack is already gone while closing
+            return []
+
+    def _history_menu(self, parent: QMenu) -> QMenu:
+        """Düzen > Geri alma geçmişi: every step by name, newest first; choosing one takes the
+        job (or the template on Şablonlar) back to just after it. Undone steps are greyed
+        with "(geri alındı)" and can be chosen to redo up to them."""
+        menu = QMenu("Geri alma &geçmişi", parent)
+        menu.setAccessibleName("Geri alma geçmişi")
+        menu.setIcon(make_icon("history"))
+        history = self.undo_history()
+        menu.setEnabled(bool(history))
+        start = menu.addAction("Başlangıç (hiçbir değişiklik yok)")
+        start.triggered.connect(partial(self._undo_to, 0))
+        for index, text, done in reversed(history[-30:]):
+            label = text.replace("&", "&&") + ("" if done else "  (geri alındı)")
+            action = menu.addAction(label)
+            action.setCheckable(True)
+            action.setChecked(index + 1 == self._undo_index())
+            action.triggered.connect(partial(self._undo_to, index + 1))
+        if not history:
+            start.setEnabled(False)
+        return menu
+
+    def _undo_index(self) -> int:
+        stack = self._undo_stack()
+        return stack.index() if stack is not None else 0
+
+    def _undo_to(self, index: int, *_args) -> None:
+        stack = self._undo_stack()
+        if stack is not None:
+            stack.setIndex(index)
 
     def _fill_command_bars(self) -> None:
         for tab, entries in COMMANDS.items():
@@ -509,13 +656,27 @@ class MainWindow(QMainWindow):
         r = self.registry
         for tab in TAB_IDS:
             r.connect(f"app.sekme.{tab}", partial(self._show_tab_slot, tab))
-        r.connect("app.sonraki_sekme", lambda: self.cycle_tab(1))
-        r.connect("app.onceki_sekme", lambda: self.cycle_tab(-1))
+        r.connect("app.sonraki_sekme", lambda: self.cycle_tab(1, focus=True))
+        r.connect("app.onceki_sekme", lambda: self.cycle_tab(-1, focus=True))
         r.connect("app.sonraki_bolge", lambda: self.focus_region(1))
         r.connect("app.onceki_bolge", lambda: self.focus_region(-1))
+        # Ctrl+F on every tab, each finding what that tab lists (no new fields, A's look):
+        # Değerler and Rehber their search fields (their own routes), Yükle the job list's
+        # search, Kontrol "Belgeye veya sayfaya git", Şablonlar the variable list (type to
+        # jump), Dışa Aktar the file list (type a file name to jump).
+        r.connect_tab("app.bul", "yukle", self.yukle.show_job_list)
+        r.connect_tab("app.bul", "kontrol", lambda: self.kontrol.go_to()
+                      if self.kontrol is not None else None)
+        r.connect_tab("app.bul", "sablonlar", self.sablon.find_variable)
+        r.connect_tab("app.bul", "disa_aktar", self.disa_aktar.find_file)
         r.connect("app.yeni_is", self._new_job)
         r.connect("app.dosya_ekle", self._add_files)
-        r.connect("app.kaydet", lambda: self.sablon.save())
+        # Ctrl+S answers on every tab that has something to save: Şablonlar saves the
+        # template, the job tabs write the job now and say so (it is saved after every edit
+        # anyway). Rehber has nothing to save, so the key is off there.
+        r.connect_tab("app.kaydet", "sablonlar", lambda: self.sablon.save())
+        for tab in JOB_TABS:
+            r.connect_tab("app.kaydet", tab, self.save_job)
         r.connect("app.disa_aktar", self._export)
         r.connect("app.isi_kapat", self.close_job)
         r.connect("app.cikis", self.close)
@@ -596,11 +757,41 @@ class MainWindow(QMainWindow):
     def _sync_job_actions(self) -> None:
         has_job = self.controller() is not None
         self.registry.set_enabled("app.isi_kapat", has_job)
-        self.registry.set_enabled("app.disa_aktar", has_job)
+        for tab in JOB_TABS:
+            self.registry.set_enabled_for("app.kaydet", tab, has_job)
+        for tab in ("kontrol", "disa_aktar"):
+            self.registry.set_enabled_for("app.bul", tab, has_job)
+        self._sync_export_action()
         self._sync_undo()
+
+    def _sync_export_action(self, *_args) -> None:
+        """app.disa_aktar has one owner: enabled with a job, and on Dışa Aktar only while
+        that screen can start an export (not blocked, not running)."""
+        has_job = self.controller() is not None
+        can = getattr(self.disa_aktar, "can_export", lambda: True)()
+        on_tab = hasattr(self, "tabs") and self.current_tab() == "disa_aktar"
+        self.registry.set_enabled("app.disa_aktar", has_job and (not on_tab or can))
+
+    def save_job(self) -> None:
+        """Ctrl+S on a job tab: write the job now and confirm it (edits are saved as they
+        happen, so this only reassures)."""
+        controller = self.controller()
+        if controller is None:
+            return
+        try:
+            controller.store.save(controller.job)
+        except OSError as error:
+            self.job_switch.save_state.set_failed(f"Kaydedilemedi: {error}", self.save_job)
+            self.toaster.show(f"İş kaydedilemedi: {error}", kind="error")
+            return
+        now = datetime.now()
+        self._saved(now)
+        self.toaster.show(f"İş kaydedildi {now:%H:%M}. Değişiklikler zaten kendiliğinden "
+                          "kaydedilir.", kind="success")
 
     def _show_tab_slot(self, tab: str, *_args) -> None:
         self.show_tab(tab)
+        self.focus_work_area()
 
     def show_tab(self, tab: str) -> None:
         self.tabs.setCurrentIndex(TAB_IDS.index(tab))
@@ -608,13 +799,68 @@ class MainWindow(QMainWindow):
     def current_tab(self) -> str:
         return TAB_IDS[self.tabs.currentIndex()]
 
-    def cycle_tab(self, step: int) -> None:
+    def cycle_tab(self, step: int, focus: bool = False) -> None:
         self.tabs.setCurrentIndex((self.tabs.currentIndex() + step) % len(TAB_IDS))
+        if focus:
+            self.focus_work_area()
+
+    def regions(self) -> list[QWidget]:
+        """F6's regions, in reading order: title band, command bar, work area, status bar."""
+        return [self.title_band, self.command_bars.currentWidget(),
+                self.tabs.currentWidget(), self.statusBar()]
+
+    def tab_order(self) -> list[QWidget]:
+        """Every Tab stop of the window in reading order, region by region; anything else
+        that takes Tab (a toast's Geri al) comes last."""
+        ordered: list[QWidget] = []
+        for region in self.regions():
+            if region is not None and region.isVisible():
+                ordered.extend(w for w in reading_order(region) if w not in ordered)
+        seen = set(map(id, ordered))
+        ordered.extend(w for w in _rows(_tab_stops(self), self) if id(w) not in seen)
+        return ordered
+
+    def focusNextPrevChild(self, next: bool) -> bool:  # noqa: N802, A002
+        """Tab and Shift+Tab follow tab_order(), so focus never sticks in a region and the
+        command bar comes before the work area, the side panel after the main pane."""
+        order = self.tab_order()
+        if not order:
+            return super().focusNextPrevChild(next)
+        focus = QApplication.focusWidget()
+        index = next_index = -1
+        for i, widget in enumerate(order):
+            if focus is widget or (focus is not None and widget.isAncestorOf(focus)):
+                index = i
+        if index < 0:
+            next_index = 0 if next else len(order) - 1
+        else:
+            next_index = (index + (1 if next else -1)) % len(order)
+        target = order[next_index]
+        reason = (Qt.FocusReason.TabFocusReason if next
+                  else Qt.FocusReason.BacktabFocusReason)
+        target.setFocus(reason)
+        _reveal(target)
+        return True
+
+    def focus_work_area(self) -> None:
+        """Ctrl+1…6 and Ctrl+Tab put focus on the tab's main region (the timeline, the
+        values table, the canvas, the batch or file list, the guide text), so arrows,
+        Home/End and PgDn act there at once; an empty state's first control otherwise."""
+        area = self.tabs.currentWidget()
+        if area is None:
+            return
+        order = reading_order(area)
+        views = [w for w in order if isinstance(w, QAbstractScrollArea)
+                 and not isinstance(w, QScrollArea)]
+        target = max(views, key=lambda w: w.width() * w.height()) if views else (
+            order[0] if order else None)
+        if target is not None:
+            target.setFocus(Qt.FocusReason.ShortcutFocusReason)
+            _reveal(target)
 
     def focus_region(self, step: int) -> None:
         """F6 / Shift+F6: title band, command bar, work area, status bar."""
-        regions = [self.title_band, self.command_bars.currentWidget(),
-                   self.tabs.currentWidget(), self.statusBar()]
+        regions = self.regions()
         focus = QApplication.focusWidget()
         current = next((i for i, r in enumerate(regions)
                         if focus is not None and (focus is r or r.isAncestorOf(focus))), -1)
@@ -623,6 +869,7 @@ class MainWindow(QMainWindow):
             target = first_focusable(region)
             if target is not None:
                 target.setFocus(Qt.FocusReason.TabFocusReason)
+                _reveal(target)
                 return
 
     def _new_job(self) -> None:
@@ -660,7 +907,18 @@ class MainWindow(QMainWindow):
         if self.settings_dialog is None:
             self.settings_dialog = SettingsDialog(self.prefs, self.registry, self,
                                                   retention_settings_path=self.settings_path)
+            self.settings_dialog.finished.connect(self._settings_closed)
+        opener = QApplication.focusWidget()
+        if opener is not None and not self.settings_dialog.isAncestorOf(opener):
+            self._settings_opener = opener
         self.settings_dialog.open()
+
+    def _settings_closed(self, *_args) -> None:
+        """Esc or Kapat in Ayarlar puts focus back where it was opened from."""
+        opener, self._settings_opener = self._settings_opener, None
+        if opener is not None and shiboken6.isValid(opener) and opener.isVisible():
+            self.activateWindow()
+            opener.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def open_about(self) -> None:
         if self.about_dialog is None:
@@ -734,7 +992,10 @@ class MainWindow(QMainWindow):
             self.unregister_zoom(tab)
             return
         self._zoom[tab] = (controller, target)
-        controller.destroyed.connect(partial(self._zoom_gone, tab, id(controller)))
+        key = (tab, id(controller))
+        if key not in self._zoom_watched:  # one connection per controller and tab, ever
+            self._zoom_watched.add(key)
+            controller.destroyed.connect(partial(self._zoom_gone, tab, id(controller)))
         if tab == self.current_tab():
             self._sync_zoom()
 
@@ -751,6 +1012,7 @@ class MainWindow(QMainWindow):
             self._sync_zoom()
 
     def _zoom_gone(self, tab: str, key: int, *_args) -> None:
+        self._zoom_watched.discard((tab, key))
         entry = self._zoom.get(tab)
         if entry is None or id(entry[0]) != key:
             return
@@ -855,7 +1117,7 @@ class MainWindow(QMainWindow):
                 continue
             path = self._job_file(job_id)
             age = time.time() - path.stat().st_mtime if path.is_file() else 0
-            found.append((job, _ago(age)))
+            found.append((job, ago(age)))
         return found[:5]
 
     # -- shared state ---------------------------------------------------------------------
@@ -996,16 +1258,17 @@ class MainWindow(QMainWindow):
     def _update_counts(self) -> None:
         controller = self.controller()
         if controller is None:
-            for label in (self.counts, self.pages, self.checks):
-                label.setText("")
+            self.counts.set()
+            self.pages.set()
+            self.checks.setText("")
             self._sync_status_counts()
             return
         job = controller.job
         pages = sum(b.page_count for b in job.batches)
         documents = len(controller.documents())
         checks = len(self.kontrol.strip.check_rows) if self.kontrol else 0
-        self.counts.setText(f"{documents} belge")
-        self.pages.setText(f"{pages} sayfa")
+        self.counts.set("", str(documents), " belge")
+        self.pages.set("", str(pages), " sayfa")
         self.checks.setText(f"{checks} belge kontrol bekliyor" if checks else "")
         self._sync_status_counts()
 
@@ -1019,7 +1282,7 @@ class MainWindow(QMainWindow):
             self.title_tabs.blockSignals(False)
             self.title_tabs.refresh()
         self.registry.set_context(tab)
-        self.registry.set_enabled("app.kaydet", tab == "sablonlar")
+        self._sync_export_action()
         if hasattr(self, "command_bars"):
             self.command_bars.setCurrentIndex(index)
         if hasattr(self, "status_slots"):
@@ -1090,7 +1353,9 @@ class MainWindow(QMainWindow):
             bar.refresh()
         self._pad_status_bar()
         m = theme.manager()
-        self.check_icon.setPixmap(icons.pixmap("triangle-alert", m.hex("rider-edge"), 14))
+        size = m.inline_icon()
+        self.check_icon.setFixedSize(size, size)
+        self.check_icon.setPixmap(icons.pixmap("triangle-alert", m.hex("rider-edge"), size))
         if self.frame is not None:
             self.frame.set_dark(m.theme() == "dark")
 

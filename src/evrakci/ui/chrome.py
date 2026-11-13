@@ -142,8 +142,9 @@ class TitleSaveState(SaveState):
         if not self._glyph:
             return
         role = "ok" if self._state == "saved" else self._role
-        self._icon.setFixedSize(14, 14)
-        self._icon.setPixmap(icons.pixmap(self._glyph, theme.manager().hex(role), 14))
+        size = theme.manager().inline_icon()  # grows with the text size
+        self._icon.setFixedSize(size, size)
+        self._icon.setPixmap(icons.pixmap(self._glyph, theme.manager().hex(role), size))
 
 
 class _Clickable(QWidget):
@@ -329,6 +330,62 @@ class CaptionButton(QAbstractButton):
 
 
 # -- command bar ----------------------------------------------------------------------------
+def group_label(text: str) -> QLabel:
+    """A .group-label: the small heading above a group of inspector cards."""
+    label = QLabel(text)
+    label.setProperty("kind", "group-label")
+    return label
+
+
+def card(margins: int | None = None) -> QFrame:
+    """A .card frame. With `margins` (px) it also gets a QVBoxLayout with those margins and
+    s2 spacing, reachable as card.layout()."""
+    frame = QFrame()
+    frame.setProperty("kind", "card")
+    if margins is not None:
+        col = QVBoxLayout(frame)
+        col.setContentsMargins(margins, margins, margins, margins)
+        col.setSpacing(theme.manager().size("s2"))
+    return frame
+
+
+class RecentJobRow(QPushButton):
+    """A .recent .act .r (Yükle and Kontrol empty pages): folder icon, the job's name
+    (elided with its full name in the tooltip) and "640 sayfa, dün" at the right."""
+
+    def __init__(self, name: str, detail: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        m = theme.manager()
+        self.setProperty("kind", "inspector-row")
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setMinimumHeight(m.size("row-h"))
+        self.setAccessibleName(f"{name} işini aç, {detail}")
+        self.setToolTip(f"{name} işini aç")
+        row = QHBoxLayout(self)
+        row.setContentsMargins(m.size("s3"), 0, m.size("s3"), 0)
+        row.setSpacing(m.size("s3"))
+        self.icon = QLabel()
+        self.icon.setFixedSize(16, 16)
+        self.name = ElidedLabel(name, min_chars=12)
+        self.detail = QLabel(detail)
+        self.detail.setProperty("textRole", "secondary")
+        for widget in (self.icon, self.name, self.detail):
+            widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        row.addWidget(self.icon)
+        row.addWidget(self.name, 1)
+        row.addWidget(self.detail)
+        self.refresh()
+
+    def refresh(self) -> None:
+        m = theme.manager()
+        self.icon.setPixmap(icons.pixmap("folder", m.hex("icon"), 16))
+        self.detail.setStyleSheet(f"font-size: {m.size('fs-caption')}px;")
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        hint = self.layout().sizeHint()
+        return QSize(hint.width(), max(hint.height(), theme.manager().size("row-h")))
+
+
 class ActionButton(QToolButton):
     """A command-bar button that mirrors a QAction (enabled, visible, checked, tooltip)."""
 
@@ -339,6 +396,7 @@ class ActionButton(QToolButton):
         self.action_ = action
         self.hide_disabled = hide_disabled  # shown only while the command can run (İptal et)
         self.icon_name = icon or action.property("lucide") or "square"
+        self._gate = None  # a screen's own extra condition (see set_gate)
         self.setAutoRaise(True)
         self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         if label:
@@ -399,10 +457,18 @@ class ActionButton(QToolButton):
         painter.drawText(self.text_rect(), Qt.AlignmentFlag.AlignVCenter
                          | Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextSingleLine, self.text())
 
+    def set_gate(self, gate) -> None:
+        """An extra condition for this button only (Yükle's "Kontrol'e geç" is off while a
+        batch is read, though Ctrl+2 still switches tabs). The button never calls
+        setEnabled from outside, so an action change or a restyle cannot undo it."""
+        self._gate = gate
+        self._sync()
+
     def _sync(self) -> None:
         action = self.action_
-        self.setEnabled(action.isEnabled())
-        self.setVisible(action.isVisible() and (action.isEnabled() or not self.hide_disabled))
+        enabled = action.isEnabled() and (self._gate is None or bool(self._gate()))
+        self.setEnabled(enabled)
+        self.setVisible(action.isVisible() and (enabled or not self.hide_disabled))
         self.setCheckable(action.isCheckable())
         if action.isCheckable():
             self.setChecked(action.isChecked())

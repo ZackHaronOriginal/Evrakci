@@ -213,8 +213,12 @@ def make_cell(variable: Variable, value: VariableValue | None) -> Cell:
                     None, False)
     if not value.flagged:
         level = "emin" if value.edited or value.confidence >= EMIN_AT else "orta"
+        # A value a person accepted or typed is "Emin, İncelendi" with no percentage: the
+        # reader's score no longer applies, and a re-scored %100 next to the row's %90
+        # would be two numbers for one fact.
+        percent = None if value.edited else round(value.confidence * 100)
         return Cell(variable.key, variable.name, variable.required, value, value.value, level,
-                    round(value.confidence * 100), value.edited, source=value.section)
+                    percent, value.edited, source=value.section)
     text, source = _okunan(value)
     if not text and not value.suggestion:
         return Cell(variable.key, variable.name, variable.required, value, "", "okunamadi",

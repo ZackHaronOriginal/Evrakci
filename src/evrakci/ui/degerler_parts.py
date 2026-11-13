@@ -20,9 +20,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.ui import icons, theme
+from evrakci.ui import theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.degerler_model import VIEW_NAMES
+from evrakci.ui.widgets import StatusPart
 
 
 # -- pieces of the table card ---------------------------------------------------------------
@@ -317,34 +318,6 @@ class HeaderBar(QWidget):
         self._place()
 
 
-class StatusItem(QWidget):
-    """One status-bar count: an icon and rich text with the number in text colour (A)."""
+StatusItem = StatusPart  # one shared status-bar item (widgets.StatusPart)
 
-    def __init__(self, icon: str | None = None, role: str = "icon", parent=None) -> None:
-        super().__init__(parent)
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(6)
-        self.icon_name, self.role = icon, role
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-        self.icon = QLabel(self)  # parented even without an icon: never a stray window
-        self.icon.setFixedSize(14, 14)
-        self.label = QLabel()
-        self.label.setTextFormat(Qt.TextFormat.RichText)
-        row.addWidget(self.icon)
-        self.icon.setVisible(bool(icon))
-        row.addWidget(self.label)
-        self.parts: tuple[str, ...] = ()
 
-    def set(self, *parts: str) -> None:
-        """Alternating plain and strong parts: set("Belge ", "16", " / 96")."""
-        self.parts = parts
-        m = theme.manager()
-        if self.icon_name:
-            self.icon.setPixmap(icons.pixmap(self.icon_name, m.hex(self.role), 14))
-        html = "".join(
-            f"<span style='color:{m.hex('text')}; font-weight:600'>{p}</span>" if i % 2 else p
-            for i, p in enumerate(parts))
-        self.label.setText(html)
-        self.setAccessibleName("".join(parts))
-        self.label.setAccessibleName("".join(parts))

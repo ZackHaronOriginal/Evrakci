@@ -168,6 +168,11 @@ class LiveReads:
         self._push_readings()
         flagged = sum(reading.flagged_count(v) for v in results.values())
         total = len(results)
+        window = self.window()
+        if window is not None and not window.isActiveWindow():  # QOL 19: the reads ended
+            from PySide6.QtWidgets import QApplication
+
+            QApplication.alert(window, 0)
         self._toast(f"{total} örnekte denendi. " + (
             f"{flagged} okuma kontrol bekliyor." if flagged else "Kontrol gerektiren okuma yok."),
             kind="kontrol" if flagged else "success")

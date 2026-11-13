@@ -52,12 +52,21 @@ class Shown:
 
 
 NOT_READ = Shown("", "okunmadi", None)
+NO_BOX = Shown("", "okunmadi", None, "Kutu çizilince okunur.")
+
+
+def tried(value: VariableValue) -> bool:
+    """False for a variable nothing was read for (it has no box yet): no section was tried,
+    so "Kontrol" would be a false alarm (D1: orange only for a real check)."""
+    return bool(value.readings) or bool(value.value) or bool(value.suggestion)
 
 
 def shown_for(value: VariableValue | None, section: int | None, minimum: float) -> Shown:
     """The reading of one section, or of the variable when `section` is None."""
     if value is None:
         return NOT_READ
+    if not tried(value):
+        return NO_BOX
     if section is not None:
         reading = next((r for r in value.readings if r.section == section), None)
         if reading is None:
@@ -79,7 +88,7 @@ def lines(template: Template, values: dict[str, VariableValue]) -> list[str]:
     out = []
     for variable in template.variables:
         value = values.get(variable.key)
-        if value is None:
+        if value is None or not tried(value):
             continue
         if value.flagged:
             text = f"Kontrol · {variable.name}: emin değil"
@@ -93,7 +102,8 @@ def lines(template: Template, values: dict[str, VariableValue]) -> list[str]:
 
 
 def flagged_count(values: dict[str, VariableValue]) -> int:
-    return sum(1 for v in values.values() if v.flagged)
+    """Reads that need a check (a variable with no box was not read and is not counted)."""
+    return sum(1 for v in values.values() if v.flagged and tried(v))
 
 
 @dataclass(frozen=True)

@@ -212,34 +212,39 @@ def paint_paper(painter: QPainter, rect: QRectF, dim: float = 1.0) -> None:
 
 
 def paint_placeholder(painter: QPainter, rect: QRectF, row: int, dim: float = 1.0) -> None:
-    """A's paper drawing (.h, .h2, .lines) until the scan's thumbnail arrives; the pattern
-    varies with the page so a row of placeholders does not look like one repeated page."""
+    """A page whose thumbnail has not arrived yet: the paper (already drawn) with a faint
+    "Yükleniyor" and no text lines or tables, so a page that is not rendered can never be
+    taken for a filled form (PRODUCT.md, "nothing silently wrong"). `row` is unused, kept
+    for callers."""
+    del row
     m = theme.manager()
     painter.save()
     painter.setOpacity(dim)
-    s = rect.width() / 148.0
-    x, y = rect.x() + 14 * s, rect.y() + 16 * s
-    w = rect.width() - 28 * s
-    head, line = m.color("paper-head"), m.color("paper-line")
-    if row % 3 != 2:
-        painter.fillRect(QRectF(x, y, w * 0.58, max(2.0, 6 * s)), head)
-        y += 15 * s
-    painter.fillRect(QRectF(x, y, w * 0.34, max(1.0, 4 * s)), line)
-    y += 13 * s
-    if row % 4 == 1:  # a table
-        table = QRectF(x, y, w, 78 * s)
-        painter.setPen(QPen(line, 1))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawRect(table)
-        for k in range(1, 6):
-            painter.drawLine(QPointF(x, y + 13 * s * k), QPointF(x + w, y + 13 * s * k))
-        for k in range(1, 4):
-            painter.drawLine(QPointF(x + w * k / 4, y), QPointF(x + w * k / 4, y + 78 * s))
-        y += 87 * s
-    bottom = rect.bottom() - 16 * s
-    while y + 2 * s < bottom:
-        painter.fillRect(QRectF(x, y, w * 0.92, max(1.0, 2 * s)), line)
-        y += 8 * s
+    font = m.font("caption")
+    if rect.width() < QFontMetrics(font).horizontalAdvance("Yükleniyor") + 8:
+        painter.restore()
+        return
+    painter.setFont(font)
+    painter.setPen(m.color("paper-head"))
+    painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "Yükleniyor")
+    painter.restore()
+
+
+def scan_tint() -> QColor | None:
+    """The colour a scan is multiplied by: the dark theme's dimmed paper (A kontrol-dark,
+    the "paper" token) so white pages do not glare; None in light and high contrast."""
+    m = theme.manager()
+    return m.color("paper") if m.theme() == "dark" else None
+
+
+def tint_scan(painter: QPainter, target: QRectF) -> None:
+    """Multiply what was just drawn in `target` (a scan) by scan_tint(), if any."""
+    tint = scan_tint()
+    if tint is None:
+        return
+    painter.save()
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
+    painter.fillRect(target, tint)
     painter.restore()
 
 

@@ -174,7 +174,7 @@ class LevelWidget(QWidget):
             row.addWidget(widget)
         row.addStretch(1)
         self._level = "okunmadi"
-        theme.follow(self, self._restyle, f"sablon-level-{id(self)}")
+        theme.follow(self, self._restyle, "level")
 
     def set(self, level: str, percent: int | None) -> None:
         self._level = level
@@ -227,6 +227,8 @@ class InspectorPanel(QWidget):
         outer.setSpacing(m.size("s3"))
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        scroll.setAccessibleName("Ayrıntılar")
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         body = QWidget()

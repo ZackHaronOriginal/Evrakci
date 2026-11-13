@@ -141,8 +141,6 @@ class TitleBand(QWidget):
     def fit(self) -> None:
         """Labelled tabs while they fit; otherwise the rule's narrow tabs (title_band_rule)."""
         m = theme.manager()
-        if m.title_band().tab_labels != "all":
-            return
         extra = max(0, self._full_tabs - self.tabs.sizeHint().width())
         need = super().minimumSizeHint().width() + extra
         self.tabs.set_label_mode(m.title_band(fits=self.width() >= need).tab_labels)

@@ -26,6 +26,7 @@ from typing import NamedTuple
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
+    QAbstractButton,
     QAbstractSpinBox,
     QApplication,
     QComboBox,
@@ -86,6 +87,31 @@ def is_typing_key(key: Key) -> bool:
         return False
     combo = seq[0]
     return not (combo.keyboardModifiers() & _MODS) and combo.key().value not in _FKEYS
+
+
+_BUTTON_KEYS = (Qt.Key.Key_Space.value, Qt.Key.Key_Return.value, Qt.Key.Key_Enter.value)
+
+
+def is_button_key(key: Key | QKeySequence) -> bool:
+    """Space, Return or Enter with no modifier: what a focused button presses itself with."""
+    seq = key if isinstance(key, QKeySequence) else key_sequence(key)
+    if seq.isEmpty():
+        return False
+    combo = seq[0]
+    return not (combo.keyboardModifiers() & _MODS) and combo.key().value in _BUTTON_KEYS
+
+
+def is_character_key(key: Key | QKeySequence) -> bool:
+    """A shortcut that is one printable character (a letter, digit or sign such as "?"),
+    WCAG 2.1.4's "character key shortcut". Shift alone counts as part of the character."""
+    seq = key if isinstance(key, QKeySequence) else key_sequence(key)
+    if seq.isEmpty():
+        return False
+    combo = seq[0]
+    if combo.keyboardModifiers() & _MODS:
+        return False
+    code = combo.key().value
+    return 0x21 <= code <= 0x7E or 0xA0 <= code <= 0x24FF
 
 
 @dataclass(frozen=True)
@@ -531,6 +557,8 @@ class Registry(QObject):
         self._tab_disabled: set[tuple[str, str]] = set()
         self._context = next(iter(TABS))
         self._typing = False
+        self._on_button = False
+        self._character_keys = True
         for s in specs:
             action = QAction(plain_text(s.text) if not s.menu else s.text, window)
             action.setObjectName(s.id)
@@ -620,6 +648,24 @@ class Registry(QObject):
             self._typing = typing
             self._refresh()
 
+    def set_on_button(self, on_button: bool) -> None:
+        """While a button (or check box) has focus, Space and Enter belong to it: the
+        single-key actions bound to them (Belgeyi onayla, Önizle...) are unbound."""
+        if on_button != self._on_button:
+            self._on_button = on_button
+            self._refresh()
+
+    def set_character_keys(self, enabled: bool) -> None:
+        """Ayarlar' "Tek tuşlu kısayollar" (WCAG 2.1.4): off unbinds every shortcut that is
+        one character key (K, M, R, N, U, ?...). Enter, Space, Del and the arrows stay."""
+        if enabled != self._character_keys:
+            self._character_keys = enabled
+            self._refresh()
+
+    @property
+    def character_keys(self) -> bool:
+        return self._character_keys
+
     def is_enabled(self, action_id: str) -> bool:
         """Enabled for the user (ignores the typing guard, which only unbinds keys)."""
         return self._actions[action_id].isEnabled()
@@ -639,6 +685,10 @@ class Registry(QObject):
             keys = [] if s.local else [key_sequence(k) for k in s.shortcuts]
             if self._typing and s.single_key:
                 keys = [k for k in keys if not is_typing_key(k)]
+            if self._on_button and s.single_key:
+                keys = [k for k in keys if not is_button_key(k)]
+            if not self._character_keys and s.single_key:
+                keys = [k for k in keys if not is_character_key(k)]
             action.setShortcuts(keys)
 
     # Derived views with live state
@@ -668,14 +718,16 @@ def is_text_input(widget: QWidget | None) -> bool:
 
 
 class TextFocusGuard(QObject):
-    """Unbinds typing keys of single-key actions while a text input has focus."""
+    """Unbinds typing keys of single-key actions while a text input has focus, and Space /
+    Enter while a button has focus (so the button, not the window, takes them)."""
 
     def __init__(self, registry: Registry, app: QApplication | None = None) -> None:
         super().__init__(registry)
         self._registry = registry
         app = app or QApplication.instance()
         app.focusChanged.connect(self._focus_changed)
-        registry.set_typing(is_text_input(app.focusWidget()))
+        self._focus_changed(None, app.focusWidget())
 
     def _focus_changed(self, _old: QWidget | None, new: QWidget | None) -> None:
         self._registry.set_typing(is_text_input(new))
+        self._registry.set_on_button(isinstance(new, QAbstractButton))

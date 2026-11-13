@@ -45,17 +45,19 @@ from evrakci.ui import theme
 from evrakci.ui.chrome import ActionButton
 from evrakci.ui.controller import JobController
 from evrakci.ui.feedback import InfoBar
+from evrakci.ui.widgets import StatusPart
 from evrakci.ui.workers import Task, start
 from evrakci.ui.yukle_info import JobSummary, ScanProfile, scan_profile, summarize
 from evrakci.ui.yukle_parts import (
+    PDF_LIMIT,
     DropOverlay,
     EmptyPage,
     JobEntry,
     ProgressCard,
-    StatusPart,
     ago,
-    collect_pdfs,
     default_folder,
+    find_pdfs,
+    thousands,
 )
 from evrakci.ui.yukle_side import Inspector
 from evrakci.ui.yukle_table import BatchModel, BatchTable
@@ -120,14 +122,18 @@ class _Dropline(QWidget):
 class _Reading:
     """Bookkeeping of one read: which files, how many pages, and the speed so far."""
 
-    def __init__(self, files: list[Path], pages: list[int]) -> None:
+    def __init__(self, files: list[Path], pages: list[int] | None = None) -> None:
         self.files = files
-        self.pages = pages
-        self.total = sum(pages)
+        self.set_pages(pages if pages is not None else [0] * len(files))
         self.done = 0
         self.started = time.monotonic()
         self.shown = 0.0
         self.cancelling = False
+
+    def set_pages(self, pages: list[int]) -> None:
+        """The files' page counts (counted by the worker before it starts reading)."""
+        self.pages = list(pages)
+        self.total = sum(self.pages)
 
     def current(self) -> int:
         """Index of the file the `done`-th page belongs to."""
@@ -439,10 +445,14 @@ class YukleScreen(QWidget):
     def add_paths(self, paths: list[Path]) -> None:
         """Files and folders from a drop or a dialog: the PDFs among them become a new job (no
         job open) or batches at the end of the open one."""
-        pdfs = collect_pdfs(paths)
+        pdfs, found = find_pdfs(paths)
         if not pdfs:
             self._tell("PDF bulunamadı. Yalnızca PDF dosyaları ve klasörleri eklenir.", "kontrol")
             return
+        if found > len(pdfs):  # the limit: say how many were left out, never drop them quietly
+            self._tell(f"{thousands(len(pdfs))} dosya alındı, {thousands(found - len(pdfs))} "
+                       f"dosya alınmadı (bir seferde en çok {thousands(PDF_LIMIT)} dosya). "
+                       "Kalanları ayrı bir parti olarak ekleyin.", "kontrol")
         if self.busy():  # one read at a time: these follow it, as batches of the same job
             self._queued += [p for p in pdfs if p not in self._queued]
             self._tell(f"{len(pdfs)} dosya sıraya alındı; okuma bitince eklenir.", "info")
@@ -721,11 +731,10 @@ class YukleScreen(QWidget):
             button = bar.button_for(action_id)
             if button is not None:
                 self._own[key] = button
-        go_action = window.registry.action("app.sekme.kontrol")
         go_button = bar.button_for("app.sekme.kontrol")
         if go_button is not None:
             self._go_button = go_button
-            go_action.changed.connect(self._sync_go_button)
+            go_button.set_gate(self._go_usable)
         self._sync_go_button()
 
     def _refresh_own_buttons(self) -> None:
@@ -733,13 +742,15 @@ class YukleScreen(QWidget):
             button.refresh()
 
     def _sync_go_button(self) -> None:
-        """"Kontrol'e geç" in the bar: off with no batches and while reading (A: disabled)."""
+        """"Kontrol'e geç" in the bar: off with no batches and while reading (A: disabled).
+        A gate on the button, not setEnabled from here, so the button's own sync (an action
+        change, a restyle) keeps it off. Ctrl+2 stays the tab key and always switches."""
         button = getattr(self, "_go_button", None)
-        if button is None:
-            return
-        usable = self._can_go(self._info) and self._reading is None
-        if button.isEnabled() != (usable and button.action_.isEnabled()):
-            button.setEnabled(usable and button.action_.isEnabled())
+        if button is not None:
+            button._sync()
+
+    def _go_usable(self) -> bool:
+        return self._can_go(self._info) and self._reading is None
 
     def _sync_actions(self) -> None:
         """Every Yükle action is enabled exactly when it can do something."""
@@ -872,14 +883,17 @@ class YukleScreen(QWidget):
         if self.task is not None:
             return
         self._clear_error()
-        try:
-            pages = [count_pages(p) for p in files]
-        except Exception as error:  # noqa: BLE001 - shown in Turkish, the window keeps working
-            self._fail(str(error) or type(error).__name__)
-            return
-        self._reading = _Reading(files, pages)
+        reading = _Reading(files)
+
+        def work(progress):
+            # Counting opens every file: it runs here, in the worker, never on the GUI
+            # thread (a folder of thousands of scans would freeze the window first).
+            reading.set_pages([count_pages(p) for p in files])
+            return make_work(reading.total)(progress)
+
+        self._reading = reading
         self._on_done = on_done
-        self.task = Task(make_work(sum(pages)))
+        self.task = Task(work)
         self.task.signals.progress.connect(self._progress)
         self.task.signals.done.connect(self._done)
         self.task.signals.failed.connect(self._failed)
@@ -949,8 +963,16 @@ class YukleScreen(QWidget):
         self._sync_state()
         self._attention()
         self.task_finished.emit()
-        if queued and error is None and not cancelled and self._controller is not None:
+        if not queued:
+            return
+        if error is None and not cancelled and self._controller is not None:
             self.add_batches(queued)
+            return
+        # The read these files waited for did not finish: they are not dropped silently.
+        count = len(queued)
+        self._tell(f"Sıradaki {count} dosya eklenmedi; önceki okuma "
+                   f"{'iptal edildi' if cancelled else 'tamamlanamadı'}.", "kontrol",
+                   "Yine de ekle", partial(self.add_paths, queued))
 
     def cancel(self) -> None:
         """İptal et (Ctrl+.): stop reading; nothing in the job changes. Esc does not cancel."""

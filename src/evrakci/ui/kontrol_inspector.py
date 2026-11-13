@@ -426,7 +426,8 @@ class Inspector(QWidget):
         if info is None or info.count == 0:
             self.selection_group.hide()
             return
-        span = str(info.first) if info.first == info.last else f"{info.first}–{info.last}"
+        span = (f"sayfa {info.first}" if info.first == info.last
+                else f"{info.first}–{info.last}")
         self.selection_label.setText(f"Seçim: {info.count} sayfa ({span})")
         self.template_button.set_value(info.template or "Şablon yok")
         self.filter_button.set_value(f"Her {info.every_n} sayfa")

@@ -214,7 +214,10 @@ def test_density_and_text_scale_change_sizes(mgr):
 def test_title_band_rule_is_provisional_at_150(mgr):
     assert mgr.title_band().tab_labels == "all" and mgr.title_band().search_width == 148
     mgr.set_text_scale(150)
-    assert mgr.title_band().tab_labels == "selected" and mgr.title_band().tab_height == 44
+    # Labels whenever they fit (TitleBand.fit measures); the provisional icon-only rule
+    # only when they do not.
+    assert mgr.title_band().tab_labels == "all" and mgr.title_band().tab_height == 44
+    assert mgr.title_band(fits=False).tab_labels == "selected"
 
 
 def test_fonts_use_inter_stack_and_tabular_figures(mgr):

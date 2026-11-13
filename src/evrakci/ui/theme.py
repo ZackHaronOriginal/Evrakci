@@ -103,13 +103,14 @@ class Shadow:
 
 
 def title_band_rule(text_size: int, titlebar_h: int, fits: bool = True) -> TitleBand:
-    """The title band per text size. PROVISIONAL (owner decision pending, PROPOSALS item 3):
-    at 150 % additions.css option a, unselected tabs icon-only. Below 150 % A's labelled tabs
-    stay, and the same tab rule applies only when they do not fit (`fits` False: 130 % with
-    the caption buttons at 1366 px). Switch both branches here."""
+    """The title band per text size. A's labelled tabs whenever they fit (TitleBand.fit
+    measures it at every text size, so a 1920 px window at 150 % keeps the names); only when
+    they do not (`fits` False, e.g. 150 % at 1366 px) does the PROVISIONAL rule apply
+    (owner decision pending, PROPOSALS item 3, option a): unselected tabs icon-only."""
+    labels = "all" if fits else "selected"
     if text_size >= 150:
-        return TitleBand(titlebar_h, 44, "selected", 24, 40, 196, 46)
-    return TitleBand(titlebar_h, 36, "all" if fits else "selected", 20, 32, 148, 46)
+        return TitleBand(titlebar_h, 44, labels, 24, 40, 196, 46)
+    return TitleBand(titlebar_h, 36, labels, 20, 32, 148, 46)
 
 
 def _px(value: float) -> int:
@@ -320,6 +321,14 @@ class ThemeManager(QObject):
             base = g.TYPE[step]["size" if kind == "fs" else "line"]
             return _px(base * g.TEXT_SCALES[self._text])
         raise KeyError(f"unknown size: {name}")
+
+    def inline_icon(self, base: int = 14) -> int:
+        """The size of an icon that sits in a line of text (status bar, Durum column, chips):
+        A's `base` at 100 %, growing with the text size and snapped to D8's 16 / 20 / 24, so
+        "icon + word" keeps its icon half at 150 % (14 -> 20 px)."""
+        want = base * g.TEXT_SCALES[self._text]
+        steps = [base] + [s for s in (16, 20, 24) if s > base]
+        return min(steps, key=lambda s: (abs(s - want), s))
 
     def font(self, role: str = "body") -> QFont:
         """A QFont for a type role (FONT_ROLES): Inter stack, scaled px size, weight, features."""

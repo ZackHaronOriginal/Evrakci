@@ -11,8 +11,8 @@
 """
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QObject, QRectF, QSize, Qt
-from PySide6.QtGui import QFont, QFontMetrics, QIcon, QPainter, QPainterPath, QPen
+from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QRectF, QSize, Qt
+from PySide6.QtGui import QFont, QFontMetrics, QIcon, QPainter, QPainterPath, QPen, QRegion
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -214,6 +214,8 @@ class EvrakciStyle(QProxyStyle):
         m = theme.manager()
         if kind == QStyle.ContentsType.CT_MenuItem and result.height() > 4:
             return QSize(result.width(), max(result.height(), m.menu_item_height()))
+        if kind in (QStyle.ContentsType.CT_CheckBox, QStyle.ContentsType.CT_RadioButton):
+            return QSize(result.width(), max(result.height(), 24))  # WCAG 2.5.8 target
         if _is_title_tab(option, widget):
             return title_tab_size(option, widget)
         return result
@@ -244,7 +246,13 @@ class EvrakciStyle(QProxyStyle):
 
 
 class FocusOverlay(QWidget):
-    """Transparent sibling drawn over the focused widget's edge; follows it around."""
+    """Transparent layer on the focused widget's window, drawn over the widget's edge.
+
+    It is a child of the top-level window, never of the widget's own parent: a QSplitter
+    (or any container that adopts new children) would otherwise take the overlay as a pane
+    and re-lay itself out. It follows the widget and every ancestor (scrolling moves an
+    ancestor, not the widget) and is clipped to the ancestors' rects, as a sibling would be.
+    """
 
     def __init__(self) -> None:
         super().__init__()
@@ -255,20 +263,37 @@ class FocusOverlay(QWidget):
                      Qt.WidgetAttribute.WA_TranslucentBackground):
             self.setAttribute(attr, True)
         self._target: QWidget | None = None
+        self._watched: list[QWidget] = []
 
     def target(self) -> QWidget | None:
         return self._target
 
+    def _unwatch(self) -> None:
+        import shiboken6
+
+        for widget in self._watched:
+            if shiboken6.isValid(widget):
+                widget.removeEventFilter(self)
+        self._watched = []
+
     def set_target(self, widget: QWidget | None) -> None:
-        if self._target is not None:
-            self._target.removeEventFilter(self)
+        self._unwatch()
         self._target = widget
         if widget is None or widget.parentWidget() is None:
             self._target = None
             self.hide()
             return
-        widget.installEventFilter(self)
-        self.setParent(widget.parentWidget())
+        window = widget.window()
+        chain = [widget]
+        ancestor = widget.parentWidget()
+        while ancestor is not None and ancestor is not window:
+            chain.append(ancestor)
+            ancestor = ancestor.parentWidget()
+        for item in chain:
+            item.installEventFilter(self)
+        self._watched = chain
+        if self.parentWidget() is not window:
+            self.setParent(window)
         self._follow()
 
     def _follow(self) -> None:
@@ -276,14 +301,33 @@ class FocusOverlay(QWidget):
         if widget is None or not widget.isVisible():
             self.hide()
             return
-        self.setGeometry(widget.geometry().adjusted(-RING, -RING, RING, RING))
+        window = self.parentWidget()
+        if window is None:
+            self.hide()
+            return
+        top_left = widget.mapTo(window, QPoint(0, 0))
+        ring = QRect(top_left, widget.size()).adjusted(-RING, -RING, RING, RING)
+        clip = QRect(QPoint(0, 0), window.size())
+        ancestor = widget.parentWidget()
+        while ancestor is not None and ancestor is not window:
+            clip = clip.intersected(QRect(ancestor.mapTo(window, QPoint(0, 0)), ancestor.size()))
+            ancestor = ancestor.parentWidget()
+        visible = ring.intersected(clip)
+        if visible.isEmpty():
+            self.hide()
+            return
+        self.setGeometry(ring)
+        if visible == ring:
+            self.clearMask()
+        else:
+            self.setMask(QRegion(visible.translated(-ring.topLeft())))
         self.raise_()
         self.show()
         self.update()
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         kind = event.type()
-        if obj is self._target:
+        if obj in self._watched:
             if kind in (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show,
                         QEvent.Type.ZOrderChange):
                 self._follow()

@@ -53,14 +53,16 @@ from evrakci.ui.sablon_empty import EmptyState
 from evrakci.ui.sablon_inspector import InspectorPanel
 from evrakci.ui.sablon_live import LiveReads
 from evrakci.ui.sablon_nav import USER, NavPane
-from evrakci.ui.sablon_parts import StatusPart, TemplateEdit
+from evrakci.ui.sablon_parts import TemplateEdit
 from evrakci.ui.sablon_rulers import CanvasWell
 from evrakci.ui.sablon_sync import Syncing
+from evrakci.ui.widgets import StatusPart
 from evrakci.ui.workers import Task
 
 __all__ = ["CANVAS_DPI", "PageCanvas", "SablonScreen", "pixels_to_mm"]
 
 KEY = "sablonlar"  # the splitter's name and the zoom's key
+SNAP_KEY = "sablonlar.izgara"  # Izgaraya oturt, remembered (prefs.flag)
 BASE = Qt.ItemDataRole.UserRole + 1  # an example's name before "· 1 kontrol"
 ZOOM_RANGE = (25, 400, 10)
 READ_DELAY_MS = 400  # after the last nudge
@@ -289,6 +291,9 @@ class SablonScreen(LiveReads, Syncing, QWidget):
             self._status[name] = part
         layout.addStretch(1)  # the items sit at the left, not centred in the widest tab's slot
         self._make_zoom(getattr(window, "prefs", None))
+        prefs = getattr(window, "prefs", None)
+        if prefs is not None:
+            self.set_snap(prefs.flag(SNAP_KEY, bool(self.canvas.snap)))
         window.register_zoom(KEY, self.zoom, "Sayfa")
         self._sync_all()
 
@@ -848,6 +853,9 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         if value == bool(self.canvas.snap):
             return
         self.canvas.snap = value
+        prefs = getattr(self.window_, "prefs", None)
+        if prefs is not None:  # QOL 10: Izgaraya oturt stays as it was left
+            prefs.set_flag(SNAP_KEY, value)
         self.snap_changed.emit(value)
 
     def set_show_reads(self, on: bool = True) -> None:
@@ -966,6 +974,12 @@ class SablonScreen(LiveReads, Syncing, QWidget):
             self._saved_at = datetime.now()
         self._refresh_template_row()
         self._sync_status()
+
+    def find_variable(self) -> None:
+        """Ctrl+F: the variable list, ready for typing a name (the list jumps to it)."""
+        self.variables.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        if self.variables.currentItem() is None and self.variables.topLevelItemCount():
+            self.variables.setCurrentItem(self.variables.topLevelItem(0))
 
     def save(self) -> None:
         """Ctrl+S and "Şablonu kaydet": saves now and says so."""

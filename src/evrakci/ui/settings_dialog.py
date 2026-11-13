@@ -39,6 +39,7 @@ from evrakci.ui import actions, theme
 from evrakci.ui.prefs import DENSITIES, TEXT_SIZES, Prefs
 from evrakci.ui.shortcut_sheet import ShortcutSheet
 
+CHARACTER_KEYS = "tek_tuslu_kisayollar"
 SECTIONS = ("Görünüm", "Kısayollar", "Saklama", "Dışa aktarma")
 MODES = (("Sistem", "system"), ("Açık", "light"), ("Koyu", "dark"), ("Yüksek karşıtlık", "hc"))
 MOTION = (("Sistem", None), ("Açık", True), ("Kapalı", False))
@@ -214,6 +215,17 @@ class SettingsDialog(QDialog):
         note.setProperty("textRole", "secondary")
         note.setWordWrap(True)
         box.addWidget(note)
+        self.character_keys = QCheckBox("Tek tuşlu kısayollar")
+        self.character_keys.setAccessibleName("Tek tuşlu kısayollar")
+        self.character_keys.setChecked(self._prefs.flag(CHARACTER_KEYS, True))
+        self.character_keys.toggled.connect(self.set_character_keys)
+        box.addWidget(self.character_keys)
+        keys_note = QLabel("Kapalıyken K, M, R, N, U gibi tek harfli kısayollar çalışmaz; "
+                           "komutlar düğmelerden, menülerden ve Ctrl+K'dan açılır. Enter, "
+                           "Boşluk, Del ve oklar çalışmaya devam eder.")
+        keys_note.setProperty("textRole", "secondary")
+        keys_note.setWordWrap(True)
+        box.addWidget(keys_note)
         self.keys_list = QListWidget()
         self.keys_list.setAccessibleName("Genel kısayollar")
         self.keys_list.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -228,6 +240,10 @@ class SettingsDialog(QDialog):
         row.addStretch(1)
         box.addLayout(row)
         return self._finish(page, box)
+
+    def set_character_keys(self, on: bool) -> None:
+        self._prefs.set_flag(CHARACTER_KEYS, bool(on))
+        self._registry.set_character_keys(bool(on))
 
     def show_sheet(self) -> None:
         if self._sheet is None:

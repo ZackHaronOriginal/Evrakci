@@ -458,6 +458,8 @@ class KontrolScreen(QWidget):
             target = next((n for n in numbers if n > here), numbers[0])
         else:
             target = next((n for n in reversed(numbers) if n < here), numbers[-1])
+        if target == here:  # wrapped round to the same one: say so, never a silent no-op
+            self._toast("Kontrol gereken tek belge bu.", undo=False)
         self.go_to_document(target)
 
     def next_unreviewed(self) -> None:
@@ -695,9 +697,12 @@ class KontrolScreen(QWidget):
     def _selection_changed(self, *_args) -> None:
         rows = self.selected_rows()
         ids = [self.model.page_id(r) for r in rows]
-        if rows:
+        # The "Seçim" card counts only pages that are drawn selected (ring and check badge);
+        # the current page alone is where the commands act, not a selection.
+        chosen = sorted(i.row() for i in self.timeline.selectionModel().selectedIndexes())
+        if chosen:
             self.side.show_selection(SelectionInfo(
-                len(rows), rows[0] + 1, rows[-1] + 1,
+                len(chosen), chosen[0] + 1, chosen[-1] + 1,
                 self._template_name(self._template_for_selection()), self._every_n))
         else:
             self.side.show_selection(None)

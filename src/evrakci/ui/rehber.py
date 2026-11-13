@@ -62,6 +62,16 @@ def side_width() -> int:
     return SIDE_W if theme.manager().size("fs-body") / 15 < 1.4 else 440
 
 
+def mono_stack() -> str:
+    """A's code font (Cascadia Mono, Consolas) and then the system's own fixed-width font, so
+    a code span is monospace on every machine (a generic "monospace" is not resolved by Qt's
+    rich text)."""
+    from PySide6.QtGui import QFontDatabase
+
+    fixed = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont).family()
+    return f"Cascadia Mono, Consolas, '{fixed}', monospace"
+
+
 class RehberScreen(QWidget):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -110,6 +120,7 @@ class RehberScreen(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
+        self.scroll.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll.viewport().setAutoFillBackground(False)
@@ -217,9 +228,14 @@ class RehberScreen(QWidget):
         self.count.setRange(*printing.SHEETS)
         self.count.setValue(20)
         self.count.setAlignment(Qt.AlignmentFlag.AlignRight)
+        # A's field is a clean box: no spin buttons and no arrow images (the arrows were the
+        # stray tick at the right edge); Up/Down and PgUp/PgDn still step. Only the 3:1 bottom
+        # edge every input has.
         self.count.setStyleSheet(
             f"QSpinBox {{ padding: 0 {m.size('s3')}px; }}"
-            "QSpinBox::up-button, QSpinBox::down-button { width: 0; height: 0; border: 0; }")
+            "QSpinBox::up-button, QSpinBox::down-button { width: 0; height: 0; border: 0;"
+            " image: none; }"
+            "QSpinBox::up-arrow, QSpinBox::down-arrow { image: none; width: 0; height: 0; }")
         self.count.setAccessibleName("Kaç adet ayıraç sayfası")
         self.count.setToolTip("Yazdırılacak ayıraç sayfası sayısı (1 ile 200 arası)")
         self.count_label.setBuddy(self.count)
@@ -333,7 +349,8 @@ class RehberScreen(QWidget):
                     stroke_soft=m.hex("stroke-soft"), well=m.hex("well"),
                     accent=m.hex("text-accent"), body=px("fs-body"), caption=px("fs-caption"),
                     section=px("fs-section"), page=px("fs-page"),
-                    gap=(px("s1"), px("s2"), px("s3"), px("s4"), px("s6")), row=px("row-h"))
+                    gap=(px("s1"), px("s2"), px("s3"), px("s4"), px("s6")), row=px("row-h"),
+                    mono=mono_stack())
 
     def _render(self) -> None:
         """Show the guide at the zoom and text size in use; hits and the section are kept."""
@@ -559,10 +576,29 @@ class RehberScreen(QWidget):
     def write_separators(self, path: Path, sheets: int) -> Path:
         return make_separator_pdf(Path(path), sheets=sheets)
 
-    def open_separators(self) -> None:
-        """"PDF olarak aç": the sheets as a PDF in the viewer, for printing from there."""
-        path = self.write_separators(data_dir() / "ayirac-sayfalari.pdf", self.count.value())
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+    def open_separators(self) -> Path | None:
+        """"PDF olarak aç": the sheets as a PDF in the viewer, for printing from there. When
+        the usual file is held open (a PDF viewer still shows it, common on Windows), the
+        sheets go to a new numbered file; when nothing can be written, a toast says why."""
+        folder = data_dir()
+        sheets = self.count.value()
+        names = ["ayirac-sayfalari.pdf"] + [f"ayirac-sayfalari-{n}.pdf" for n in range(2, 21)]
+        error: Exception | None = None
+        for name in names:
+            try:
+                path = self.write_separators(folder / name, sheets)
+            except (OSError, ValueError) as failure:
+                error = failure
+                if isinstance(failure, ValueError):
+                    break
+                continue
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+            return path
+        reason = getattr(error, "strerror", None) or str(error)
+        self._tell(f"Ayıraç sayfaları PDF olarak yazılamadı: {reason}. Açık bir PDF "
+                   "görüntüleyiciyi kapatıp yeniden deneyin.", "Yeniden dene",
+                   self.open_separators, kind="error")
+        return None
 
     def print_separators(self, printer: QPrinter | None = None) -> int | None:
         """Ctrl+P: ask for a printer, then print the sheets. Returns the pages sent, or None

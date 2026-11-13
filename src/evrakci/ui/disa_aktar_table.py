@@ -136,7 +136,7 @@ class FilesModel(QAbstractTableModel):
                 return f"{self.word(row)} {row.why}".strip()
             return (row.name, row.pages, row.template or NO_TEMPLATE)[column - 1]
         if role == Qt.ItemDataRole.ToolTipRole and column == 1:
-            return row.name
+            return f"{row.name}\nŞablon: {row.template}" if row.template else row.name
         if role == Qt.ItemDataRole.TextAlignmentRole and column == 2:
             return int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         return None
@@ -211,8 +211,10 @@ class FilesDelegate(QStyledItemDelegate):
         name, role, strong = LOOK[word]
         role = ink or role
         x = rect.left()
-        icons.paint(painter, name, QRectF(x, rect.center().y() - 8, 16, 16), m.hex(role))
-        x += 16 + 6  # A .st gap
+        size = m.inline_icon(16)  # grows with the text (16 -> 24 at 150 %)
+        icons.paint(painter, name, QRectF(x, rect.center().y() - size / 2, size, size),
+                    m.hex(role))
+        x += size + 6  # A .st gap
         font = self._font("body-strong" if strong else "body")
         painter.setFont(font)
         painter.setPen(m.color(role))
@@ -252,7 +254,17 @@ class FilesDelegate(QStyledItemDelegate):
 
 
 class FilesTable(QTableView):
-    """A's table view: rows select as a whole, arrows move, Home / End jump."""
+    """A's table view: rows select as a whole, arrows move, Home / End jump; typing a file
+    name jumps to it (type-ahead on the "Yazılacak dosya adı" column)."""
+
+    def keyboardSearch(self, search: str) -> None:  # noqa: N802
+        model = self.model()
+        if model is None or not search:
+            return
+        current = self.currentIndex()
+        if current.isValid() and current.column() != 1:
+            self.setCurrentIndex(model.index(current.row(), 1))
+        super().keyboardSearch(search)
 
     copy_requested = Signal()
 

@@ -43,7 +43,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.ui import actions, motion, theme
 from evrakci.ui.chrome import make_icon
-from evrakci.ui.kontrol_paint import hc, paint_paper, paint_rider, rider_size
+from evrakci.ui.kontrol_paint import hc, paint_paper, paint_rider, rider_size, tint_scan
 from evrakci.ui.prefs import Prefs
 from evrakci.ui.zoomview import ZoomController
 
@@ -174,6 +174,7 @@ class ThumbStrip(QAbstractScrollArea):
                 painter.save()
                 painter.setClipPath(clip)
                 painter.drawPixmap(target, scaled, QRectF(scaled.rect()))
+                tint_scan(painter, target)
                 painter.restore()
             painter.setFont(strong if current else caption)
             painter.setPen(m.color("text-accent" if current else "text-2"))
@@ -295,6 +296,7 @@ class _Page(QWidget):
         rect = self.page_rect()
         paint_paper(painter, rect)
         painter.drawPixmap(rect, self._pix, QRectF(self._pix.rect()))
+        tint_scan(painter, rect)
 
 
 class _Stage(QWidget):

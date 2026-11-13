@@ -345,7 +345,7 @@ def test_inspector_explains_why_a_document_starts_here(qtbot, tmp_path):
     assert side.reason.text() == "QR ayıraç yok, filtre kesti."
     assert side.previous_row.value.text().startswith(f"Belge {number - 1}, ")
     assert side.state_row.value.text() == "İncelenmedi"
-    assert side.selection_label.text() == "Seçim: 1 sayfa (10)"
+    assert side.selection_label.text() == "Seçim: 1 sayfa (sayfa 10)"
     assert side.filter_button.value.text() == "Her 2 sayfa"
     side.approve_button.click()
     screen.go_to_document(number)

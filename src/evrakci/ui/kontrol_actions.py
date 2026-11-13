@@ -262,8 +262,11 @@ class KontrolStatus(QWidget):
 
     def refresh(self, icons_only: bool = False) -> None:
         m = theme.manager()
-        self.checks_icon.setPixmap(icons.pixmap("triangle-alert", m.hex("rider-edge"), 14))
-        self.reviewed_icon.setPixmap(icons.pixmap("circle-check", m.hex("ok"), 14))
+        size = m.inline_icon()  # A's 14 px at 100 %, 20 px at 150 % text
+        for label in (self.checks_icon, self.reviewed_icon):
+            label.setFixedSize(size, size)
+        self.checks_icon.setPixmap(icons.pixmap("triangle-alert", m.hex("rider-edge"), size))
+        self.reviewed_icon.setPixmap(icons.pixmap("circle-check", m.hex("ok"), size))
         if not icons_only and self._values is not None:
             self.set_counts(*self._values)
 

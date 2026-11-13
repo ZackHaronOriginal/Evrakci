@@ -16,6 +16,7 @@ TRACK_H = 8  # A .track height
 SEG_GAP = 2  # A .track gap
 VP_OUT_V = 6  # A .vp top/bottom -6px
 VP_OUT_H = 4  # A: viewport ring 4 px wider than its segments on both sides
+SEG_MAX = 8  # A: a document is a small square (about 8 px) on the track, never a long bar
 
 
 class OverviewStrip(QWidget):
@@ -97,19 +98,34 @@ class OverviewStrip(QWidget):
         width = self.width() - left - right - (where + m.size("s4") if where else 0)
         return QRectF(left, (self.height() - TRACK_H) / 2, max(0, width), TRACK_H)
 
+    def _pitch(self, track: QRectF) -> tuple[float, float]:
+        """(segment width, gap): A's 8 px squares with 2 px gaps, left-aligned; only when the
+        job has more documents than fit do they share the track (narrower, then no gaps)."""
+        n = max(1, self.documents)
+        if n * (SEG_MAX + SEG_GAP) - SEG_GAP <= track.width():
+            return float(SEG_MAX), float(SEG_GAP)
+        gap = SEG_GAP if track.width() / n >= 4 else 0
+        return (track.width() - gap * (n - 1)) / n, float(gap)
+
+    def run_rect(self) -> QRectF:
+        """The part of the track the documents take (left-aligned)."""
+        track = self.track_rect()
+        width, gap = self._pitch(track)
+        n = max(1, self.documents)
+        return QRectF(track.x(), track.y(), min(track.width(), n * (width + gap) - gap),
+                      track.height())
+
     def _segment(self, number: int, track: QRectF) -> QRectF:
         """The rect of document `number` (1-based) on the track."""
-        n = max(1, self.documents)
-        gap = SEG_GAP if track.width() / n >= 4 else 0
-        width = (track.width() - gap * (n - 1)) / n
+        width, gap = self._pitch(track)
         x = track.x() + (number - 1) * (width + gap)
         return QRectF(x, track.y(), max(width, 1.0), track.height())
 
     def number_at(self, x: float) -> int:
-        track = self.track_rect()
-        if not self.documents or track.width() <= 0:
+        run = self.run_rect()
+        if not self.documents or run.width() <= 0:
             return 0
-        fraction = (x - track.x()) / track.width()
+        fraction = (x - run.x()) / run.width()
         return int(min(max(fraction, 0.0), 0.9999) * self.documents) + 1
 
     # -- painting -----------------------------------------------------------------------------
@@ -123,7 +139,7 @@ class OverviewStrip(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         track = self.track_rect()
         n = self.documents
-        thin = track.width() / n < 4
+        thin = self._pitch(track)[1] == 0
         if thin:  # too many documents for gaps: one track, states drawn on it
             painter.setPen(QPen(m.color("stroke"), 1) if hc else Qt.PenStyle.NoPen)
             painter.setBrush(m.color("track"))
@@ -138,6 +154,10 @@ class OverviewStrip(QWidget):
                 rect = QRectF(rect.center().x() - 1.5, rect.y(), 3, rect.height())
             colour = {"k": "rider", "done": "accent"}.get(state, "track")
             painter.setPen(Qt.PenStyle.NoPen)
+            if state == "k" and hc:  # high contrast: a filled mark, not one more outline
+                painter.setBrush(m.color("text"))
+                painter.drawRoundedRect(rect, 2, 2)
+                continue
             if state == "k":  # A .track i.k: inset 1 px rider edge
                 painter.setBrush(m.color("rider-edge"))
                 painter.drawRoundedRect(rect, 2, 2)
@@ -159,7 +179,7 @@ class OverviewStrip(QWidget):
             painter.drawRoundedRect(ring.adjusted(1, 1, -1, -1), 4, 4)
         text = self.where_text()
         bold, _, rest = text.partition(" / ")
-        x = track.right() + m.size("s4")
+        x = track.right() + m.size("s4")  # A: "Belge 14–18 / 96" at the track's end
         strong, num = m.font("caption-strong"), m.font("caption-num")
         painter.setFont(strong)
         painter.setPen(m.color("text"))

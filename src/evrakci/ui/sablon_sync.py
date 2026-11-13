@@ -118,7 +118,8 @@ class Syncing:
         }
         for action_id, enabled in states.items():
             registry.set_enabled(action_id, enabled)
-        registry.set_enabled("app.kaydet", has)
+        # Only this tab's route: MainWindow and the other tabs own Ctrl+S elsewhere.
+        registry.set_enabled_for("app.kaydet", "sablonlar", has)
         self.side.save.setEnabled(has)
 
     def _sync_status(self) -> None:

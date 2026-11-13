@@ -3,9 +3,11 @@
 Direction A is the visual source of truth (decisions.md, "Owner correction after round 3").
 Nothing below has been applied to the mockups, except item 3, whose option a is what the
 provisional 150 % renders show today (it was there before this list and needs the owner's choice).
-Each item changes or extends how A behaves and waits for the owner's yes or no.
+Each item changes or extends how A behaves and waits for the owner's yes or no. Items 1 and 5
+were approved on 2026-11-13 and are built in the app (not redrawn in the mockups).
 
-1. **Edge above the pinned inspector action at 150 % text.** At 150 % the inspector content
+1. **Approved and built (owner, 2026-11-13).** **Edge above the pinned inspector action at 150 %
+   text.** At 150 % the inspector content
    scrolls (as a QScrollArea) and used to run straight under the pinned primary ("Belgeyi onayla",
    "Onayla ve sonrakine geç"), so a half-visible line sat directly on the button
    (`png/kontrol-150-light.png`, `png/degerler-150-light.png`). The buttons now sit below the
@@ -40,12 +42,20 @@ Each item changes or extends how A behaves and waits for the owner's yes or no.
    primary, with the same icon, close together (`png/yukle-light.png`). A does the same with
    "Değerlerde aç" (menu + inspector), so it follows A's pattern and is left as it is. Option: once
    the inspector primary exists, drop the command-bar copy (it stays in the Git menu and Ctrl+2).
-5. **Scroll areas at 150 % text show a cut row at the edge.** At 150 % the inspector content and
+5. **Approved and built (owner, 2026-11-13).** **Scroll areas at 150 % text show a cut row at the edge.** At 150 % the inspector content and
    the Kontrol timeline scroll (they do not fit), so the last visible row is cut by the scroll
    area's edge (e.g. "Filtre uygula" above "Belgeyi onayla" in `png/kontrol-150-light.png`). The
    pinned buttons now sit below the scroll area instead of over it, and the thin scrollbar shows
    there is more. Together with item 1 (hairline above the pinned buttons) the owner could also
    choose to let the inspector scroll per card (a cut card is never shown; the gap is left empty).
+   *Built (items 1 and 5 together):* `card_scroll.CardScroll`, one class used by every side panel
+   with cards (Yükle, Kontrol, Şablonlar, Değerler, Dışa Aktar, Rehber, plus Şablonlar' left
+   column and Dışa Aktar's summary column). The viewport is trimmed below the last whole card
+   (the rest stays empty); wheel, scroll bar, keys and focus moving into a card stop on card
+   boundaries; the 1 px `stroke` hairline shows above the pinned button group only while more
+   lies below. Nothing changes where the cards fit (100 %). `tools/screenshots.py` is strict
+   again: a card cut by a scroll area's edge is clipped even with a scroll bar showing; only
+   item views (tables, lists, the Kontrol timeline, thumbnail grids) may show a part row.
 
 Apart from item 3 (which describes a change already visible in the provisional 150 % renders
 and asks for a decision), no proposal touches the title band, logo, tabs, ≡, job name, search, caption buttons, command

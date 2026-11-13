@@ -66,7 +66,7 @@ Scanning guide with search and the separator sheets to print.
 
 ## Verification numbers
 
-- **Tests:** 1081 passed, 6 skipped, 1 warning (`pytest -q`, offscreen). `ruff check .`: All checks passed! (Before the overhaul: 525.) One earlier full run under load showed 60 failed / 41 errors in UI tests that pass on their own and on a clean re-run; treated as a load flake, not reproduced.
+- **Tests:** 1091 passed, 6 skipped, 1 warning (`pytest -q`, offscreen; two sequential runs, same result). `ruff check .`: All checks passed! (Before the overhaul: 525.) One earlier full run under load showed 60 failed / 41 errors in UI tests that pass on their own and on a clean re-run; treated as a load flake, not reproduced.
 - **Contrast:** the theme tests require at least 4.5:1 for every text and background pair in
   light, dark and high contrast; the marked-character wash is held at 7:1. The mockup check
   `_contrast.py` found 0 failing pairs.

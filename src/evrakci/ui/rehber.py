@@ -32,6 +32,7 @@ from evrakci.pipeline.ocr.models import data_dir
 from evrakci.pipeline.separator import make_separator_pdf
 from evrakci.ui import actions, theme
 from evrakci.ui import rehber_print as printing
+from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.disa_aktar_parts import PartsButton
 from evrakci.ui.feedback import announce
@@ -136,6 +137,7 @@ class RehberScreen(QWidget):
         col.addLayout(self._group("Ayıraç sayfası", self._build_print()))
         col.addStretch(1)
         self.splitter.addWidget(self.side)
+        self.card_scroll = CardScroll(self.scroll)  # no pinned button: no hairline
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 0)
 

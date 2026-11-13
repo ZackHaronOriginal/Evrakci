@@ -211,7 +211,15 @@ The canvas is a 1366×768 window; three bands, 116 px of chrome (Kontrol 148 wit
 
 Spacing: 4, 8, 12, 16, 24, 32, 48. Tight inside a group (4–8), wide between groups (12–28).
 Each screen's default state fits 1366×768 without scrolling the window; at 150 % panes scroll
-in their own area (thin scrollbar) above pinned actions.
+in their own area (thin scrollbar) above pinned actions. A side panel of cards (Yükle, Kontrol,
+Şablonlar, Değerler, Dışa Aktar, Rehber; also Şablonlar' left column and Dışa Aktar's summary
+column) shows whole cards only: its viewport ends at the bottom of the last card that fits and
+the space left over stays empty; the wheel, the scroll bar, the keyboard and focus moving into a
+card all stop on card boundaries (a card's group label scrolls with it). While more lies below,
+a 1 px `stroke` hairline sits centred in the gap above the pinned button group. When the cards
+fit (100 %) nothing scrolls, nothing is trimmed and no hairline shows. One class does this for
+every panel: `card_scroll.CardScroll` (owner-approved PROPOSALS items 1 and 5). Long lists
+(tables, the Kontrol timeline, thumbnail grids) still scroll by pixel and may show a part row.
 
 **Density (D5):** Sıkı / Normal / Geniş = controls 28 / 32 / 40, rows 32 / 40 / 48. Normal is A;
 Geniş is A's 150 % chrome (icon buttons 44, bands 52, status 36, inspector 400, icons 20 / 24);

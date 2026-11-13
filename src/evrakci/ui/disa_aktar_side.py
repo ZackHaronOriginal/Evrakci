@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import icons, theme
+from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import card, group_label, make_icon
 from evrakci.ui.disa_aktar_parts import HintLine, PartsButton, scale
 
@@ -183,6 +184,7 @@ class SidePanel(QWidget):
         acts.addWidget(self.again_button)
         acts.addWidget(self.note, 0, Qt.AlignmentFlag.AlignHCenter)
         outer.addLayout(acts)
+        self.card_scroll = CardScroll(self.scroll, self.export_button)
         theme.follow(self, self._restyle, "side")
 
     def _group_card(self, title: str) -> tuple[QWidget, QVBoxLayout]:

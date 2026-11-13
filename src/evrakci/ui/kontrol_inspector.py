@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import icons, theme
+from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.kontrol_paint import RiderLabel
 
@@ -379,6 +380,7 @@ class Inspector(QWidget):
         foot.addWidget(self.approve_button)
         foot.addWidget(self.values_button)
         outer.addLayout(foot)
+        self.card_scroll = CardScroll(self.scroll, self.approve_button)
         self.set_history([])
         self.show_nothing()
         theme.follow(self, self.refresh)

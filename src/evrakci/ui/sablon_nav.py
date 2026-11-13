@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import icons, theme
+from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.sablon_parts import small_button_style
 from evrakci.ui.style import paint_ring
@@ -355,6 +356,7 @@ class NavPane(QScrollArea):
         self.foot.setContentsMargins(m.size("s1"), 0, m.size("s1"), 0)
         col.addWidget(self.foot)
         self.setWidget(body)
+        self.card_scroll = CardScroll(self)
         self.add_template_button.clicked.connect(self.add_template)
         self.add_variable_button.clicked.connect(self.add_variable)
         theme.follow(self, self._restyle, "sablon-nav")

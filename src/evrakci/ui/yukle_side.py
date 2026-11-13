@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import actions, icons, theme
+from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import card, group_label, make_icon
 from evrakci.ui.yukle_info import JobSummary, ScanProfile
 
@@ -308,6 +309,7 @@ class Inspector(QWidget):
         for widget in (self.go_button, self.close_button, self.note_box):
             foot.addWidget(widget)
         outer.addLayout(foot)
+        self.card_scroll = CardScroll(self.scroll, self.go_button)
         self.reading = False
         self.set_actions(False, False)
         theme.follow(self, self.refresh)

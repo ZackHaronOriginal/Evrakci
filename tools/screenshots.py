@@ -12,7 +12,8 @@ size gets a window built fresh in it (the shots never show a runtime switch). It
 clipping report (elided text: drawn "…", text wider than its room, combo boxes against their
 edit field, table cells whose text is wider than their column and does not wrap onto rows
 tall enough; widgets outside the window or cut by their parent; cards cut by a scroll area's
-edge that has no scroll bar showing) and exits 1 when anything is found, unless --allow.
+edge, even with a scroll bar showing; only long lists (tables, lists, thumbnail grids) may
+show a part row) and exits 1 when anything is found, unless --allow.
 
 Every window is built with the custom title band (caption buttons included), as on Windows,
 so the band the owner approved in A is what is shot on every platform. The shots wait for the
@@ -206,31 +207,31 @@ def _wraps_in_row(view: QAbstractItemView, index, row: int) -> bool:
     return height is not None and height <= view.rowHeight(row)
 
 
-def _shows_more(bar) -> bool:
-    """A scroll bar that tells the user there is more: visible, enabled and with a range."""
-    return bar.isVisible() and bar.isEnabled() and bar.maximum() > bar.minimum()
+def _long_list(area: QAbstractScrollArea) -> bool:
+    """Tables, lists and thumbnail grids (every QAbstractItemView: the Yükle and Değerler
+    tables, the Dışa Aktar file list, the Kontrol timeline, the loupe strip's lists) are long
+    lists: a row cut at their edge is normal list behaviour, not a clipped card."""
+    return isinstance(area, QAbstractItemView)
 
 
 def _cut_by_scroll_edge(w: QWidget) -> bool:
-    """A card inside a scroll area that the viewport's edge cuts (half a row showing). A
-    card cut only across an edge whose scroll bar is showing (visible, enabled, with
-    somewhere to go) is scrolled, not clipped: the bar says there is more, as A's 150 %
-    panes do (final-a README: panes scroll instead of clipping, with the thin scrollbar)."""
+    """A card inside a scroll area that the viewport's edge cuts (part of it showing). Strict:
+    a scroll bar does not excuse it (PROPOSALS 1 and 5, approved: a scrolling panel shows
+    whole cards only). The viewport's mask counts as its edge (card_scroll.CardScroll trims
+    the viewport below the last whole card). Long lists are exempt (_long_list)."""
     if w.property("kind") != "card":
         return False
     parent = w.parentWidget()
     while parent is not None:
         if isinstance(parent, QAbstractScrollArea) and parent.viewport().isAncestorOf(w):
-            port = parent.viewport()
-            box = w.rect().translated(w.mapTo(port, w.rect().topLeft()))
-            inside = port.rect().intersected(box)
-            if inside.isEmpty() or inside == box:
+            if _long_list(parent):
                 return False
-            across_y = inside.top() != box.top() or inside.bottom() != box.bottom()
-            across_x = inside.left() != box.left() or inside.right() != box.right()
-            if across_y and not _shows_more(parent.verticalScrollBar()):
-                return True
-            return across_x and not _shows_more(parent.horizontalScrollBar())
+            port = parent.viewport()
+            mask = port.mask()
+            shown = port.rect() if mask.isEmpty() else mask.boundingRect().intersected(port.rect())
+            box = w.rect().translated(w.mapTo(port, w.rect().topLeft()))
+            inside = shown.intersected(box)
+            return not inside.isEmpty() and inside != box
         parent = parent.parentWidget()
     return False
 
@@ -238,8 +239,8 @@ def _cut_by_scroll_edge(w: QWidget) -> bool:
 def clipping(window: QWidget, label: str) -> list[str]:
     """Visible text widgets that are elided ("…" drawn or text wider than its room), table
     cells wider than their column (unless wrapped onto a tall enough row), widgets outside
-    the window or cut by their parent, and cards cut by a scroll area's edge with no scroll
-    bar showing (README §3.3: nothing clipped, nothing elided)."""
+    the window or cut by their parent, and cards cut by a scroll area's edge, scroll bar or
+    not (README §3.3: nothing clipped, nothing elided)."""
     found = []
     bounds = window.rect()
     for w in window.findChildren(QWidget):

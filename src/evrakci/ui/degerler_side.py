@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import theme
+from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.degerler_table import paint_level, paint_marked
 
@@ -569,6 +570,7 @@ class SidePanel(QWidget):
         acts.addWidget(self.accept_button)
         acts.addLayout(pair)
         col.addLayout(acts)
+        self.card_scroll = CardScroll(self.scroll, self.accept_button)
         col.addStretch(1)  # index 3: grows in the normal state
         self._icons = (("accept_button", "check", "text-on-accent"), ("type_button", "pencil",
                                                                         "icon"),

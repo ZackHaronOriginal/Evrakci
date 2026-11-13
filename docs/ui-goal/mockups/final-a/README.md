@@ -76,11 +76,16 @@ selected.
   job name elided first). At 100 % A's tabs are unchanged. Panes scroll instead of clipping:
   the content of a pane with pinned actions scrolls in its own area above them, the Kontrol
   timeline wraps documents to the next line and scrolls vertically, and every scroll area shows
-  the thin Windows 11 scrollbar.
+  the thin Windows 11 scrollbar. In the app (owner-approved PROPOSALS items 1 and 5, built) a
+  side panel of cards shows whole cards only: it scrolls card by card, the space under the last
+  whole card stays empty, and a 1 px `--stroke` hairline sits above the pinned buttons while
+  there is more below. These mockup renders predate that and still show a cut row; the app
+  screenshots (`tools/screenshots.py matrix`) show the built behaviour.
 
 ## Proposals
 
-See `PROPOSALS.md` (5 items; only item 3's option a is visible, in the provisional 150 % renders).
+See `PROPOSALS.md` (5 items; only item 3's option a is visible, in the provisional 150 % renders;
+items 1, 3 and 5 are since decided and built in the app).
 
 ## Commands
 

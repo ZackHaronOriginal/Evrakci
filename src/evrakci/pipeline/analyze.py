@@ -9,6 +9,7 @@ from pathlib import Path
 import pypdfium2 as pdfium
 import zxingcpp
 
+from evrakci.pipeline.pdfium_lock import PDFIUM_LOCK
 from evrakci.pipeline.separator import is_separator_payload
 
 # A page with less ink than this share of its area counts as empty.
@@ -50,23 +51,25 @@ def _is_separator(image) -> bool:
 def _open(path: Path) -> pdfium.PdfDocument:
     if not path.is_file():
         raise BatchError(f"Dosya bulunamadı: {path.name}")
-    try:
-        pdf = pdfium.PdfDocument(str(path))
-    except pdfium.PdfiumError as error:
-        raise BatchError(f"PDF açılamadı: {path.name}") from error
-    if len(pdf) == 0:
-        pdf.close()
-        raise BatchError(f"PDF boş: {path.name}")
+    with PDFIUM_LOCK:
+        try:
+            pdf = pdfium.PdfDocument(str(path))
+        except pdfium.PdfiumError as error:
+            raise BatchError(f"PDF açılamadı: {path.name}") from error
+        if len(pdf) == 0:
+            pdf.close()
+            raise BatchError(f"PDF boş: {path.name}")
     return pdf
 
 
 def count_pages(path: Path) -> int:
     """Page count, with the same checks as `analyze_pdf`. Fast: nothing is rendered."""
     pdf = _open(Path(path))
-    try:
-        return len(pdf)
-    finally:
-        pdf.close()
+    with PDFIUM_LOCK:
+        try:
+            return len(pdf)
+        finally:
+            pdf.close()
 
 
 def analyze_pdf(path: Path, progress: Callable[[int, int], None] | None = None) -> list[PageInfo]:
@@ -77,12 +80,13 @@ def analyze_pdf(path: Path, progress: Callable[[int, int], None] | None = None) 
         infos = []
         for index in range(total):
             try:
-                page = pdf[index]
-                try:
-                    bitmap = page.render(scale=_RENDER_DPI / 72, grayscale=True)
-                    image = bitmap.to_pil().convert("L")
-                finally:
-                    page.close()
+                with PDFIUM_LOCK:  # per page, so thumbnail threads can render in between
+                    page = pdf[index]
+                    try:
+                        bitmap = page.render(scale=_RENDER_DPI / 72, grayscale=True)
+                        image = bitmap.to_pil().convert("L")
+                    finally:
+                        page.close()
             except pdfium.PdfiumError as error:
                 raise BatchError(f"Sayfa {index + 1} okunamadı: {path.name}") from error
             infos.append(PageInfo(_ink_ratio(image), _is_separator(image)))
@@ -90,4 +94,5 @@ def analyze_pdf(path: Path, progress: Callable[[int, int], None] | None = None) 
                 progress(index + 1, total)
         return infos
     finally:
-        pdf.close()
+        with PDFIUM_LOCK:
+            pdf.close()

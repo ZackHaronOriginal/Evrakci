@@ -46,6 +46,7 @@ from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, SettingsError, load_settings
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
+from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.controller import JobController
 from evrakci.ui.degerler_parts import StatusItem
 from evrakci.ui.disa_aktar_banners import OutcomeBanner, RunBanner
@@ -225,6 +226,7 @@ class DisaAktarScreen(QWidget):
         left.setAutoFillBackground(False)
         self.left_scroll.setWidget(left)
         self.splitter.addWidget(self.left_scroll)
+        self.left_cards = CardScroll(self.left_scroll)
 
         # Right: the settings (F9 toggles it)
         self.side = SidePanel()

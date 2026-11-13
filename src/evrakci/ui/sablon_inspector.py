@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import icons, theme
+from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import ElidedLabel, make_icon
 from evrakci.ui.sablon_canvas import MIN_BOX_MM, NUDGE_MM, fmt_mm
 from evrakci.ui.sablon_parts import small_button_style
@@ -249,6 +250,8 @@ class InspectorPanel(QWidget):
         self.save.setToolTip("Şablonu kaydet (Ctrl+S)")
         self.save.clicked.connect(self.save_clicked)
         outer.addWidget(self.save)
+        self.scroll = scroll
+        self.card_scroll = CardScroll(scroll, self.save)
         self.name.editingFinished.connect(self._name_done)
         self.required.toggled.connect(self.required_toggled)
         self.page.valueChanged.connect(self.page_edited)

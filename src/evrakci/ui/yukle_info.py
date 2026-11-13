@@ -110,17 +110,20 @@ def scan_profile(path: Path) -> ScanProfile | None:
         import pypdfium2 as pdfium
         import pypdfium2.raw as raw
 
-        pdf = pdfium.PdfDocument(str(path))
-        try:
-            page = pdf[0]
+        from evrakci.pipeline.pdfium_lock import PDFIUM_LOCK
+
+        with PDFIUM_LOCK:
+            pdf = pdfium.PdfDocument(str(path))
             try:
-                size = page.get_size()
-                images = [o.get_metadata() for o in page.get_objects(
-                    filter=[raw.FPDF_PAGEOBJ_IMAGE])]
+                page = pdf[0]
+                try:
+                    size = page.get_size()
+                    images = [o.get_metadata() for o in page.get_objects(
+                        filter=[raw.FPDF_PAGEOBJ_IMAGE])]
+                finally:
+                    page.close()
             finally:
-                page.close()
-        finally:
-            pdf.close()
+                pdf.close()
     except Exception:  # noqa: BLE001 - an unreadable file just has no profile
         return None
     if not images:

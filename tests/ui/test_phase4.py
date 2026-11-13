@@ -377,11 +377,11 @@ def test_title_band_at_150_percent_keeps_selected_tab_and_full_job_name():
         assert tab["clipped"] == [], tab["slug"]
 
 
-@pytest.mark.parametrize("policy, clipped", [
-    (Qt.ScrollBarPolicy.ScrollBarAsNeeded, False),  # the bar shows: scrolled, not clipped
-    (Qt.ScrollBarPolicy.ScrollBarAlwaysOff, True),  # no bar: the cut card is clipped
+@pytest.mark.parametrize("policy", [
+    Qt.ScrollBarPolicy.ScrollBarAsNeeded,  # strict (PROPOSALS 1 and 5): a bar excuses nothing
+    Qt.ScrollBarPolicy.ScrollBarAlwaysOff,
 ])
-def test_card_at_a_scroll_edge_is_clipped_only_without_a_scroll_bar(qtbot, policy, clipped):
+def test_card_at_a_scroll_edge_is_clipped_with_or_without_a_scroll_bar(qtbot, policy):
     from PySide6.QtWidgets import QFrame, QScrollArea, QVBoxLayout, QWidget
 
     area = QScrollArea()
@@ -401,8 +401,6 @@ def test_card_at_a_scroll_edge_is_clipped_only_without_a_scroll_bar(qtbot, polic
     area.resize(300, 170)  # the second card is cut by the bottom edge
     area.show()
     _settle()
-    assert any(screenshots._cut_by_scroll_edge(c) for c in cards) is clipped
-    area.verticalScrollBar().setEnabled(False)  # a disabled bar does not say "more" either
     assert any(screenshots._cut_by_scroll_edge(c) for c in cards)
 
 

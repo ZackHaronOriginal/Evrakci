@@ -303,15 +303,23 @@ def test_title_band_fits_1366_with_caption_buttons_and_a_long_name(qapp, look, t
         for a, b in zip(boxes, boxes[1:], strict=False):
             assert a.right() < b.left(), (a, b)
         tabs = band.tabs
-        assert tabs.width() >= tabs.sizeHint().width()  # every tab is shown whole
+        assert tabs.width() >= tabs.sizeHint().width()  # every shown tab is whole
         for i in range(tabs.count()):
-            assert tabs.tabRect(i).right() < tabs.width()
+            if tabs.isTabVisible(i):
+                assert tabs.tabRect(i).right() < tabs.width()
+            assert tabs.tabText(i) == tabs.label(i)  # option b: names stay, never icon-only
         name = band.job_switch.name
         assert name.full_text() == LONG_NAME
         shown = name.fontMetrics().horizontalAdvance(name.displayed_text())
         assert shown <= name.contentsRect().width()  # elided to the space left, never cut
-        assert name.is_elided() or tabs.label_mode() == "selected"
-        assert tabs.label_mode() == ("all" if text == 100 else "selected")
+        hidden = tabs.hidden_tabs()
+        assert band.overflow.isVisible() == bool(hidden)  # the rest is in the "»" menu
+        assert tabs.currentIndex() not in hidden
+        if text == 100:
+            assert not hidden
+        band._fill_overflow()
+        assert [a.text().split("\t")[0] for a in band._overflow_menu.actions()] == \
+            [tabs.label(i) for i in hidden]
         assert band.minimumSizeHint().width() <= 1366  # never widens the window
         assert LONG_NAME in band.job_switch.accessibleName()
         assert LONG_NAME in band.job_switch.toolTip()

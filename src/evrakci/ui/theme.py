@@ -83,7 +83,7 @@ class TitleBand:
 
     height: int
     tab_height: int
-    tab_labels: str  # "all", or "selected" (unselected tabs show only their icon + tooltip)
+    tab_labels: str  # "all" (since option b: tabs that do not fit go into the "»" menu)
     logo: int
     control_height: int  # job switch, search, ≡ button
     search_width: int
@@ -103,14 +103,14 @@ class Shadow:
 
 
 def title_band_rule(text_size: int, titlebar_h: int, fits: bool = True) -> TitleBand:
-    """The title band per text size. A's labelled tabs whenever they fit (TitleBand.fit
-    measures it at every text size, so a 1920 px window at 150 % keeps the names); only when
-    they do not (`fits` False, e.g. 150 % at 1366 px) does the PROVISIONAL rule apply
-    (owner decision pending, PROPOSALS item 3, option a): unselected tabs icon-only."""
-    labels = "all" if fits else "selected"
+    """The title band per text size. Tabs always keep A's icon and name; the tabs that do not
+    fit go into a "»" overflow menu at the end of the strip (owner's answer, 2026-11-13,
+    option b; TitleBand.fit decides how many fit). `fits` is kept for callers and no longer
+    changes the labels."""
+    del fits
     if text_size >= 150:
-        return TitleBand(titlebar_h, 44, labels, 24, 40, 196, 46)
-    return TitleBand(titlebar_h, 36, labels, 20, 32, 148, 46)
+        return TitleBand(titlebar_h, 44, "all", 24, 40, 196, 46)
+    return TitleBand(titlebar_h, 36, "all", 20, 32, 148, 46)
 
 
 def _px(value: float) -> int:

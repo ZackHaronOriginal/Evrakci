@@ -54,7 +54,7 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 | Ctrl+Q | Çıkış | Dosya | |
 | Ctrl+Z | Geri al | Düzen | one action, routed to the current tab's undo stack |
 | Ctrl+Y / Ctrl+Shift+Z | Yinele | Düzen | |
-| Ctrl+F | Bul… | Düzen | |
+| Ctrl+F | Bul… | Düzen | every tab but Rehber's empty case: Değerler and Rehber their search field, Yükle the job list's search ("Tüm işler"), Kontrol "Belgeye veya sayfaya git", Şablonlar the variable list (type a name), Dışa Aktar the file list (type a file name). Phase 4 |
 | F3 / Shift+F3 | Sonraki sonuç / Önceki sonuç | Düzen | |
 | Ctrl+Num+ (also Ctrl++ and Ctrl+=) | Yakınlaştır | Görünüm | the tooltip shows Ctrl+Num+; Ctrl+wheel is handled by the view |
 | Ctrl+- / Ctrl+Num- | Uzaklaştır | Görünüm | |
@@ -118,6 +118,11 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 | Shift+arrows | Kutuyu 1 mm kaydır | — | yerel |
 | Space (hold) | Sayfayı sürükle | — | yerel |
 
+Phase 4 (WCAG 2.1.1 / 2.5.7, no visual change): on the canvas, **B then Enter** places a
+40 × 10 mm box where the pointer last was over the sheet (else in the middle of the view), and
+**Ctrl+Right / Ctrl+Down** grow, **Ctrl+Left / Ctrl+Up** shrink the selected box by 0,25 mm
+(with Shift 1 mm). Both are local keys of the canvas, like the arrows.
+
 `sablonlar.kaydir`, `sablonlar.kaydir_1mm` and `sablonlar.el` are local keys of the canvas: the
 canvas handles them itself while it has focus, so the arrows keep moving focus in the variable
 list and the inspector fields.
@@ -153,6 +158,22 @@ list and the inspector fields.
 |---|---|---|---|
 | Ctrl+P | Ayıraç sayfasını yazdır… | Dosya | |
 | Esc | Aramayı temizle | — | yerel (search field) |
+
+## Phase 4 rules (keyboard review)
+
+- **Space and Enter belong to a focused button.** While any button or check box has focus, the
+  single-key actions bound to Space, Return or Enter (Belgeyi onayla, Önizle, Onayla ve
+  sonrakine geç, Tüm sayfayı göster) are unbound, exactly as typing keys are while a text field
+  has focus (`Registry.set_on_button`).
+- **Ayarlar > Kısayollar > "Tek tuşlu kısayollar"** (default on, WCAG 2.1.4): off unbinds every
+  shortcut that is one character key (K, M, R, N, U, T, F, B, G, V, ?). Enter, Space, Del, the
+  arrows and every Ctrl/Alt/F-key shortcut keep working.
+- **Ctrl+1…6 and Ctrl+Tab** put focus in the tab's main view (timeline, table, canvas, guide), so
+  arrows work at once. A click on a tab leaves focus where it is.
+- **Tab order is reading order** on every tab: title band, command bar, main pane, side panel
+  (primary button last), status bar, and back to the tabs (`MainWindow.tab_order`).
+- **Ctrl+S** confirms on Yükle, Kontrol, Değerler and Dışa Aktar ("İş kaydedildi 14:32") and
+  saves the template on Şablonlar; it is off on Rehber, which has nothing to save.
 
 ## Changes against `docs/research/07-qol-audit.md` §3, and why
 

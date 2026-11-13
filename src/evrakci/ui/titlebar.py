@@ -14,7 +14,16 @@ import sys
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QLayout, QMainWindow, QTabBar, QWidget
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QLayout,
+    QMainWindow,
+    QMenu,
+    QTabBar,
+    QToolButton,
+    QWidget,
+)
 
 from evrakci.ui import icons, theme
 from evrakci.ui.chrome import CaptionButton
@@ -95,7 +104,23 @@ class TitleBand(QWidget):
         # A's .logo margin-right is s2; the selected tab's left foot hangs into it.
         self._row.addSpacing(max(0, m.size("s2") - FOOT))
         self._row.addWidget(tabs, 0, Qt.AlignmentFlag.AlignBottom)
+        # Owner's option b: the tabs that do not fit are one click away in a "»" menu.
+        self.overflow = QToolButton()
+        self.overflow.setObjectName("tabOverflow")
+        self.overflow.setText("»")
+        self.overflow.setProperty("kind", "icon")
+        self.overflow.setAutoRaise(True)
+        self.overflow.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        self.overflow.setToolTip("Diğer sekmeler")
+        self.overflow.setAccessibleName("Diğer sekmeler")
+        self.overflow.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self._overflow_menu = QMenu(self.overflow)
+        self._overflow_menu.aboutToShow.connect(self._fill_overflow)
+        self.overflow.setMenu(self._overflow_menu)
+        self.overflow.hide()
+        self._row.addWidget(self.overflow, 0, Qt.AlignmentFlag.AlignVCenter)
         self._row.addStretch(1)
+        tabs.currentChanged.connect(lambda _i: QTimer.singleShot(0, self.fit))
         right = QHBoxLayout()
         right.setSpacing(m.size("s2"))
         for widget in (job_switch, search, menu):
@@ -125,25 +150,60 @@ class TitleBand(QWidget):
         for button in self.caption.values():
             button.setFixedSize(band.caption_width, band.control_height)
         self.menu.setFixedSize(band.control_height, band.control_height)  # A .iconbtn.sm
-        self.tabs.set_label_mode(m.title_band(fits=False).tab_labels)
-        self._narrow_tabs = self.tabs.sizeHint().width()
+        self.overflow.setFixedSize(band.control_height, band.control_height)
         self.tabs.set_label_mode(band.tab_labels)
-        self._full_tabs = self.tabs.sizeHint().width()
+        self._widths = self.tabs.full_widths()
+        self._full_tabs = sum(self._widths)
+        self._narrow_tabs = max(self._widths, default=0) + band.control_height
         self.updateGeometry()
         self.fit()
 
+    def _rest(self) -> int:
+        """The band's minimum width without the tab strip and the "»" button."""
+        shown = self.tabs.sizeHint().width()
+        button = self.overflow.width() if not self.overflow.isHidden() else 0
+        return super().minimumSizeHint().width() - shown - button
+
     def minimumSizeHint(self) -> QSize:  # noqa: N802
-        """The narrow-tab minimum, so a long tab strip never widens the window (see fit)."""
+        """The selected tab and "»" at least, so a long tab strip never widens the window."""
         hint = super().minimumSizeHint()
-        shrink = self.tabs.sizeHint().width() - self._narrow_tabs if self._narrow_tabs else 0
-        return QSize(hint.width() - max(0, shrink), hint.height())
+        return QSize(self._rest() + self._narrow_tabs, hint.height())
 
     def fit(self) -> None:
-        """Labelled tabs while they fit; otherwise the rule's narrow tabs (title_band_rule)."""
-        m = theme.manager()
-        extra = max(0, self._full_tabs - self.tabs.sizeHint().width())
-        need = super().minimumSizeHint().width() + extra
-        self.tabs.set_label_mode(m.title_band(fits=self.width() >= need).tab_labels)
+        """Every tab with its icon and name while they fit; otherwise as many as fit, in
+        order and always with the selected one, and the rest in the "»" menu (option b)."""
+        widths = getattr(self, "_widths", None) or self.tabs.full_widths()
+        room = self.width() - self._rest()
+        count = len(widths)
+        if sum(widths) <= room or count == 0:
+            shown = set(range(count))
+        else:
+            room -= self.overflow.width() or theme.manager().title_band().control_height
+            current = max(0, self.tabs.currentIndex())
+            shown: set[int] = set()
+            used = widths[current]
+            shown.add(current)
+            for index in range(count):  # the first tabs in order, around the selected one
+                if index == current:
+                    continue
+                if used + widths[index] > room:
+                    break
+                shown.add(index)
+                used += widths[index]
+        self.tabs.set_shown(shown)
+        self.overflow.setVisible(len(shown) < count)
+
+    def _fill_overflow(self) -> None:
+        """The hidden tabs, with their icons and Ctrl+number keys, in strip order."""
+        from evrakci.ui.chrome import TAB_ICONS, make_icon
+
+        menu = self._overflow_menu
+        menu.clear()
+        for index in self.tabs.hidden_tabs():
+            label = self.tabs.label(index)
+            action = menu.addAction(make_icon(TAB_ICONS[self.tabs.tab_id(index)]),
+                                    f"{label}\tCtrl+{index + 1}")
+            action.triggered.connect(lambda _c=False, i=index: self.tabs.setCurrentIndex(i))
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)

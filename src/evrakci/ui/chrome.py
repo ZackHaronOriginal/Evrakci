@@ -90,8 +90,9 @@ def mark_danger(menu: QMenu, action: QAction) -> None:
 class TitleTabs(QTabBar):
     """A's six title-band tabs: icon + label, the selected one filled with feet (EvrakciStyle).
 
-    At 150 % text the title-band rule may show only the selected tab's label; the others keep
-    their icon, tooltip and accessible name.
+    When the band is too narrow (150 % text on a 1366 px window), the tabs that do not fit are
+    hidden here and listed in the band's "»" menu (owner's option b); the order and Ctrl+1–6
+    stay, and the selected tab is always one of the visible ones.
     """
 
     def __init__(self, tabs: list[tuple[str, str]], parent: QWidget | None = None) -> None:
@@ -115,6 +116,23 @@ class TitleTabs(QTabBar):
 
     def label(self, index: int) -> str:
         return self._tabs[index][1]
+
+    def tab_id(self, index: int) -> str:
+        return self._tabs[index][0]
+
+    def full_widths(self) -> list[int]:
+        """Each tab's width with its icon and name (measured whether or not it is shown)."""
+        return [self.tabSizeHint(i).width() for i in range(self.count())]
+
+    def set_shown(self, indices: set[int]) -> None:
+        """Show these tabs, hide the rest (they are in the "»" menu)."""
+        for index in range(self.count()):
+            visible = index in indices
+            if self.isTabVisible(index) != visible:
+                self.setTabVisible(index, visible)
+
+    def hidden_tabs(self) -> list[int]:
+        return [i for i in range(self.count()) if not self.isTabVisible(i)]
 
     def set_label_mode(self, mode: str) -> None:
         """"all" or "selected" (TitleBand decides it from the rule and its width)."""

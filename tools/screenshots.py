@@ -224,9 +224,9 @@ def clipping(window: QWidget, label: str) -> list[str]:
         parent = w.parentWidget()
         if (parent is not None and not w.isWindow() and not _scrolled(w)
                 and not isinstance(parent, QAbstractScrollArea)
-                and not parent.rect().adjusted(-1, -1, 1, 1).contains(w.geometry())
+                and not parent.rect().adjusted(-1, -1, 1, 1).contains(QWidget.geometry(w))
                 and w.objectName() != "focusRing"):
-            found.append(f"{name} kabının dışına taşıyor: {w.geometry().getRect()}")
+            found.append(f"{name} kabının dışına taşıyor: {QWidget.geometry(w).getRect()}")
         if _cut_by_scroll_edge(w):
             found.append(f"{name} kaydırma kenarında yarım görünüyor")
         if isinstance(w, QAbstractItemView):

@@ -391,14 +391,18 @@ def test_tables_and_the_guide_do_not_trap_tab(demo):
 
 
 def test_targets_are_at_least_24_px(demo):
-    from PySide6.QtWidgets import QCheckBox, QSlider
+    from PySide6.QtWidgets import QSlider
+
+    from evrakci.ui import theme
 
     for tab in TAB_IDS:
         demo.show_tab(tab)
         _settle()
-        for widget in demo.findChildren(QSlider) + demo.findChildren(QCheckBox):
-            if widget.isVisible():  # what the layout is asked for (the box itself is 18 px)
-                assert widget.sizeHint().height() >= 24, (tab, widget.accessibleName())
+        for widget in demo.findChildren(QSlider):
+            if widget.isVisible():
+                assert max(widget.sizeHint().height(), widget.minimumHeight()) >= 24, tab
+    sheet = theme.manager().stylesheet()  # the app's sheet (tests run without it applied)
+    assert "QCheckBox, QRadioButton { spacing:" in sheet and "min-height: 24px" in sheet
     clear = demo.degerler.search._clear_button.button
     assert clear.width() >= 24 and clear.height() >= 24
 

@@ -195,3 +195,53 @@ The owner said yes to these on 2026-11-13, but for a later update, after the cur
 
 - **Şablonlar: show only the selected variable's boxes.** A command-bar toggle (key H) that hides the other variables' boxes and variants on the canvas.
 - **Şablonlar: delete the selected box.** The Del key (and a context-menu item) removes the selected box or variant. It is undoable, with no confirmation, and names the box ("Kutuyu sil: Firma_Adi, Varyant 2").
+
+## Phase 4 review (2026-11-13): decisions the owner still has to make
+
+The Phase 4 reviewers flagged the build notes below as deviations from A. Under the owner rule
+nothing here may change A's look until the owner answers. What the build does today, and why:
+
+- **P4-1. S1, "Şablon kaydedildi" as the resting state.** Still built as S1 describes. A's resting
+  "Şablon kaydedilmedi" with circle-dashed would tell the user an autosaved template is unsaved,
+  which is false ("nothing silently wrong", PRODUCT.md). Options: (a) keep S1; (b) make saving
+  manual as A draws it (needs a dirty guard on every tab switch). Needs a yes or no.
+- **P4-2. S2, the "Dosya adı" card on Şablonlar.** Still shown. Hiding it would leave no way in the
+  app to set a template's default file name (the core's `filename_pattern`, also used by the CLI);
+  every new template would then export numbered names unless each export overrides it on Dışa
+  Aktar (E1). Options as in S2. Needs a yes or no.
+- **P4-3. S4, dashed boxes for a variant or another example's box.** Still dashed: a solid box
+  that does not belong to this example would be mistaken for one that does. Needs a yes or no.
+- **P4-4. E2 is now A's look.** "Geçersiz karakterleri değiştir" is a live, checked box as A draws
+  it; unticking it ticks it again and says why ("bu seçenek kapatılamaz") in a tooltip and the
+  accessible description. No owner decision needed unless the owner wants a real choice.
+- **P4-5. Item 3 (title-band tabs at 150 %).** The provisional icon-only rule now applies only
+  when the labelled tabs do not fit (1366 px at 150 %); at 1920 px and 150 % the tabs keep A's
+  labels. The option a / b / c choice is still open for the narrow case.
+- **P4-6. Item 2 (Değerler at 150 %).** Built as a fit rule, not a new look: when the table is
+  wider than its pane, the long text column (then the other value columns, down to a floor)
+  narrows and elides with the full value in its tooltip, so the Güven column stays in view.
+  Only when even the floors do not fit does the table scroll sideways as A draws it. Option: pin
+  Güven as a frozen right column instead (a second view), or move it next to the value.
+- **P4-7. Dışa Aktar at 150 %.** The file name is never elided: the Şablon column (also in each
+  row's tooltip) steps aside first, then Durum narrows; this matches A's own 150 % render, where
+  Şablon is out of view.
+
+## Phase 4 additions that need the owner's yes (not yet visible, or visible only in Ayarlar)
+
+- **P4-8. Ayarlar > Kısayollar: "Tek tuşlu kısayollar" check box** (default on, WCAG 2.1.4). It is
+  a settings-dialog row, not a change to A's screens. Needs a yes or no on the wording.
+- **P4-9. Düzen > "Geri alma geçmişi" submenu** (the GOAL §3.1 "one visible undo history"): every
+  step by name, newest first; choosing one goes back (or forward) to it. A has no drawing for it.
+- **P4-10. Visible mm fields in Şablonlar' Kutu card.** The card already has X, Y, width and height
+  spin boxes; the keyboard can now also place (B, Enter) and resize (Ctrl+arrows) a box. Proposal:
+  a one-line hint under the fields ("B ve Enter: kutu koy · Ctrl+oklar: boyut").
+- **P4-11. Yükle's empty page while jobs exist.** A titles it "Henüz iş yok" above a list of
+  existing jobs. Proposal: when jobs exist, title "Açık iş yok" with "Bir iş seçin ya da yeni bir iş
+  oluşturun." (copy only).
+- **P4-12. Uncertain characters drawn on the Değerler crop.** A marks them on the scan. The app
+  does not know where each character sits inside the box (the readers return text, not glyph
+  positions), so marking them would be a guess drawn as evidence. Option: a core hook for glyph
+  boxes from the OCR engines (D13), then draw them.
+- **P4-13. A filter field for the Dışa Aktar file list** (QOL 8, 1,000-file exports). Today Ctrl+F
+  focuses the list and typing a file name jumps to it. Option: a search field in the list's head
+  bar, as Değerler has.

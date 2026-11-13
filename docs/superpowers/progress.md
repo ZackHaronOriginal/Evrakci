@@ -85,3 +85,14 @@ Owner picked direction A on the mockups; the look follows the approved PNGs in
   - `pipeline/pdfium_lock.py` now puts every PDFium call (`render.py`, `analyze.py`, `ui/yukle_info.py`) under one process-wide lock. This is a minimal core hook under D13, tested in `tests/test_pdfium_lock.py`.
   - After the fix, three consecutive full runs passed: 1093 passed, 6 skipped.
   - **Known risk, not locked:** OCRmyPDF uses PDFium in its own threads during export. It is not under the lock, because locking it would stall thumbnails for the whole export.
+
+### Builds on CI (2026-11-13)
+
+- **Windows installer:** green at `e1e3276`, [run 43505690241](https://github.com/ZackHaronOriginal/Evrakci/actions/runs/43505690241).
+  - The tests passed on Windows and the artifact `Evrakci-Kurulum` (63 MB) was built.
+  - Earlier runs on this branch had stopped at their test step on three Windows-only failures. Fixed in `2fc5cb7` and `e1e3276`:
+    - a PySide str→QChar quirk in the Turkish-glyph test;
+    - the Değerler template picker 1 px short at 150 %;
+    - a `/` vs `\` path compare.
+- **Linux build:** green at the same commit, [run 43505690497](https://github.com/ZackHaronOriginal/Evrakci/actions/runs/43505690497).
+- **Not done:** the installer has not been installed and clicked through on a real Windows desktop. That step needs a person.

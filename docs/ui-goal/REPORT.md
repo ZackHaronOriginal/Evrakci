@@ -104,3 +104,8 @@ Scanning guide with search and the separator sheets to print.
    - Phase 4: P4-1 save wording, P4-2 file-name card, P4-3 dashed variant boxes, P4-6 Güven fit
      rule, P4-8 single-key shortcuts row, P4-9 undo history submenu, P4-10 Kutu key hint,
      P4-11 Yükle empty-page title, P4-12 uncertain characters on the scan, P4-13 file-list filter.
+
+
+## Builds
+
+On this branch's last commit both CI builds are green: the Windows installer (tests pass on Windows, `Evrakci-Kurulum` built) and the Linux build. The installer has not yet been installed and tried by hand on a Windows PC.

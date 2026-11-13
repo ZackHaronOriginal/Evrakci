@@ -5,7 +5,9 @@ keys give ready text (font family, icon urls). `render()` fills them; a missing 
 Component classes: objectName for the one-off chrome (titleBand, titleTabs, jobSwitch,
 searchBox, menuButton, layer, commandBar, statusBar) and the dynamic property `kind` for
 repeated ones (card, inspector-row, group-label, rider, badge, toast, infobar, ...); buttons
-take `variant` (primary / secondary / subtle / link) and `size="lg"`.
+take `variant` (primary / secondary / subtle / link) and `sizeVariant="lg"`; icon buttons
+`sizeVariant="sm"` (not `size`: QWidget.size is a built-in QSize property, so a dynamic property
+of that name is refused and its selector never matches).
 """
 # ruff: noqa: E501  (stylesheet template text)
 from __future__ import annotations
@@ -73,8 +75,11 @@ QToolButton:checked { background: {{selected}}; }
 QToolButton:disabled { color: {{text-disabled}}; }
 QToolButton[kind="icon"], QToolBar#commandBar QToolButton, QWidget#commandBar QToolButton {
     min-width: {{icon-btn}}; min-height: {{icon-btn}}; max-height: {{icon-btn}}; padding: 0; }
-QToolButton[kind="icon"][size="sm"] { min-width: {{tb-control-h}}; max-width: {{tb-control-h}};
-    min-height: {{tb-control-h}}; max-height: {{tb-control-h}}; }
+QToolButton[kind="icon"][sizeVariant="sm"] { min-width: {{tb-control-h-in}}; max-width: {{tb-control-h-in}};
+    min-height: {{tb-control-h-in}}; max-height: {{tb-control-h-in}}; }
+/* status-bar icon buttons (zoom out / in): A's bare 16 px icon on a 24 px target in the 28 px bar */
+QToolButton[kind="status-icon"] { min-width: {{status-icon-in}}; max-width: {{status-icon-in}};
+    min-height: {{status-icon-in}}; max-height: {{status-icon-in}}; padding: 0; }
 QToolButton[kind="command"], QToolBar#commandBar QToolButton[kind="command"] {
     padding: 0 {{s3}} 0 {{s2}}; font-weight: 500; }
 
@@ -91,15 +96,15 @@ QPushButton[variant="primary"]:pressed, QPushButton[primary="true"]:pressed,
 QPushButton[variant="primary"]:checked, QPushButton[primary="true"]:checked {
     background: {{accent-hover}}; border-color: {{accent-hover}}; }
 QPushButton[variant="primary"]:disabled, QPushButton[primary="true"]:disabled,
-QPushButton#primary:disabled { background: {{accent-disabled}}; border-color: {{accent-disabled}};
-    color: {{on-accent-disabled}}; }
+QPushButton#primary:disabled { background: {{primary-off-bg}}; border-color: {{primary-off-edge}};
+    color: {{primary-off-fg}}; }
 QPushButton[variant="subtle"] { background: transparent; border-color: transparent; }
 QPushButton[variant="subtle"]:hover { background: {{hover}}; }
 QPushButton[variant="subtle"]:pressed { background: {{pressed}}; }
 QPushButton[variant="link"] { background: transparent; border-color: transparent;
     color: {{text-accent}}; font-weight: 600; }
 QPushButton[variant="link"]:hover { background: {{hover}}; }
-QPushButton[size="lg"] { min-height: {{lg-in-h}}; font-size: {{fs-body}}; }
+QPushButton[sizeVariant="lg"] { min-height: {{lg-in-h}}; font-size: {{fs-body}}; }
 QPushButton[kind="inspector-row"] { background: transparent; border: 0; text-align: left;
     padding: 0 {{s3}}; min-height: {{row-h}}; font-weight: 400; }
 QPushButton[kind="inspector-row"]:hover { background: {{hover}}; }
@@ -116,6 +121,7 @@ QLineEdit:focus, QAbstractSpinBox:focus, QComboBox:focus, QPlainTextEdit:focus, 
 QLineEdit:disabled, QAbstractSpinBox:disabled, QComboBox:disabled, QPlainTextEdit:disabled,
 QTextEdit:disabled { background: {{layer}}; color: {{text-disabled}}; border-color: {{stroke-soft}}; }
 QLineEdit[kind="search"] { background: {{layer}}; }
+QLineEdit[invalid="true"], QLineEdit[invalid="true"]:focus { border-bottom: 2px solid {{danger}}; }
 QAbstractSpinBox { padding-right: {{s6}}; }
 QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { subcontrol-origin: border; width: 20px;
     border: 0; background: transparent; }
@@ -147,8 +153,8 @@ QRadioButton::indicator:checked { border: 5px solid {{accent}}; background: {{te
     width: 10px; height: 10px; }
 QCheckBox::indicator:disabled, QRadioButton::indicator:disabled { border-color: {{stroke}};
     background: {{layer}}; }
-QCheckBox::indicator:checked:disabled { background: {{accent-disabled}};
-    border-color: {{accent-disabled}}; }
+QCheckBox::indicator:checked:disabled { background: {{check-off-bg}};
+    border-color: {{check-off-edge}}; image: url("{{icon-check-off}}"); }
 QCheckBox:disabled, QRadioButton:disabled { color: {{text-disabled}}; }
 
 /* ---- tables and lists: card fill, hairline rows, selected fill ---- */

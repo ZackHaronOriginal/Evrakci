@@ -20,6 +20,7 @@ from __future__ import annotations
 import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from typing import NamedTuple
 
 from PySide6.QtCore import QObject, Qt
@@ -62,9 +63,17 @@ def key_sequence(key: Key) -> QKeySequence:
     return QKeySequence(key)
 
 
+# Key names Qt prints in English that the Turkish UI names itself (shortcuts.md).
+_KEY_NAMES = {"Space": "Boşluk"}
+
+
 def key_text(key: Key) -> str:
-    """The key as the platform shows it (NativeText)."""
-    return key_sequence(key).toString(QKeySequence.SequenceFormat.NativeText)
+    """The key as the platform shows it (NativeText), Space as "Boşluk"."""
+    text = key_sequence(key).toString(QKeySequence.SequenceFormat.NativeText)
+    parts = text.split("+")
+    if parts and parts[-1] in _KEY_NAMES:
+        parts[-1] = _KEY_NAMES[parts[-1]]
+    return "+".join(parts)
 
 
 def is_typing_key(key: Key) -> bool:
@@ -125,15 +134,21 @@ SPECS: tuple[ActionSpec, ...] = (
     _a("app.yeni_is", "&Yeni iş oluştur…", "file-plus", "Ctrl+N", menu="dosya", kw="iş aç"),
     _a("app.dosya_ekle", "Dosya &ekle…", "folder-open", "Ctrl+O", menu="dosya",
        kw="parti pdf tarama aç yükle"),
+    _a("yukle.klasor_ekle", "K&lasör ekle…", "folder-plus", ctx="yukle", menu="dosya",
+       tip="Bir klasördeki bütün PDF'leri parti olarak ekle", kw="parti pdf tarama klasör"),
     _a("app.kaydet", "Kayde&t", "save", "Ctrl+S", menu="dosya"),
     _a("app.disa_aktar", "&Dışa aktar…", "download", "Ctrl+E", menu="dosya",
        kw="excel klasör yaz"),
     _a("yukle.gezginde_goster", "Dosya &Gezgini'nde göster", "folder-open", "Ctrl+Shift+O",
        ctx="yukle", menu="dosya", kw="klasör explorer"),
+    _a("disa_aktar.index_ac", "index.xlsx'i &aç", "sheet", ctx="disa_aktar", menu="dosya",
+       kw="excel dizin liste"),
     _a("disa_aktar.gezginde_goster", "Dosya &Gezgini'nde göster", "folder-open",
        "Ctrl+Shift+O", ctx="disa_aktar", menu="dosya", kw="klasör explorer"),
     _a("rehber.yazdir", "Ayıraç sayfasını ya&zdır…", "printer", "Ctrl+P", ctx="rehber",
        menu="dosya", kw="baskı ayraç"),
+    _a("rehber.pdf_ac", "PDF ola&rak aç", "file-text", ctx="rehber", menu="dosya",
+       tip="Ayıraç sayfasını PDF olarak aç", kw="ayraç baskı pdf"),
     _a("disa_aktar.yazdir", "Dizini ya&zdır…", "printer", "Ctrl+P", ctx="disa_aktar",
        menu="dosya", kw="baskı liste"),
     _a("app.isi_kapat", "İşi ka&pat", "x", "Ctrl+W", menu="dosya"),
@@ -297,8 +312,10 @@ SPECS: tuple[ActionSpec, ...] = (
 
 MENU_LAYOUT: dict[str, tuple[str | None, ...]] = {
     "dosya": ("app.yeni_is", "app.dosya_ekle", SEPARATOR, "app.kaydet", "app.disa_aktar",
-              "yukle.gezginde_goster", "disa_aktar.gezginde_goster", SEPARATOR,
-              "rehber.yazdir", "disa_aktar.yazdir", SEPARATOR, "app.isi_kapat", "app.cikis"),
+              "yukle.klasor_ekle", "disa_aktar.index_ac", "yukle.gezginde_goster",
+              "disa_aktar.gezginde_goster", SEPARATOR,
+              "rehber.yazdir", "rehber.pdf_ac", "disa_aktar.yazdir", SEPARATOR, "app.isi_kapat",
+              "app.cikis"),
     "duzen": ("app.geri_al", "app.yinele", SEPARATOR, "kontrol.tumunu_sec",
               "kontrol.secimi_kaldir", "degerler.tumunu_sec", SEPARATOR,
               "kontrol.onayla", "kontrol.kes", "kontrol.birlestir", "kontrol.saga_dondur",
@@ -507,6 +524,8 @@ class Registry(QObject):
         self._actions: dict[str, QAction] = {}
         self._connected: set[str] = set()
         self._disabled: set[str] = set()
+        self._routes: dict[str, dict[str, Callable[..., object]]] = {}
+        self._tab_disabled: set[tuple[str, str]] = set()
         self._context = next(iter(TABS))
         self._typing = False
         for s in specs:
@@ -543,6 +562,48 @@ class Registry(QObject):
         (self._disabled.discard if enabled else self._disabled.add)(action_id)
         self._refresh(action_id)
 
+    def connect_tab(self, action_id: str, tab: str, slot: Callable[..., object]) -> None:
+        """Route an app-wide action (Ctrl+F, F3, Ctrl+G...) to `slot` only while `tab` is
+        current. Each tab has at most one route; a tab without one leaves the action disabled,
+        so a key never silently does nothing and two tabs' slots never both fire."""
+        if tab not in TABS:
+            raise ValueError(f"unknown tab: {tab}")
+        routes = self._routes.get(action_id)
+        if routes is None:
+            routes = self._routes[action_id] = {}
+            self._actions[action_id].triggered.connect(partial(self._dispatch, action_id))
+        routes[tab] = slot
+        self._refresh(action_id)
+
+    def set_enabled_for(self, action_id: str, tab: str, enabled: bool) -> None:
+        """Per-tab state of a routed action (e.g. Rehber's F3 with no hits)."""
+        key = (action_id, tab)
+        (self._tab_disabled.discard if enabled else self._tab_disabled.add)(key)
+        if tab == self._context:
+            self._refresh(action_id)
+
+    def routes(self, action_id: str) -> tuple[str, ...]:
+        """The tabs that answer a routed action."""
+        return tuple(self._routes.get(action_id, ()))
+
+    def _dispatch(self, action_id: str, checked: bool = False) -> None:
+        slot = self._routes.get(action_id, {}).get(self._context)
+        if slot is None:
+            return
+        if self._specs[action_id].checkable:
+            slot(checked)
+        else:
+            slot()
+
+    def _handled(self, action_id: str, tab: str) -> bool:
+        if action_id in self._connected:
+            return True
+        return tab in self._routes.get(action_id, {})
+
+    def _usable(self, action_id: str, tab: str) -> bool:
+        return (self._handled(action_id, tab) and action_id not in self._disabled
+                and (action_id, tab) not in self._tab_disabled)
+
     def set_context(self, tab: str) -> None:
         """Make `tab` current: only "app" actions and this tab's actions stay active."""
         if tab not in TABS:
@@ -571,8 +632,7 @@ class Registry(QObject):
             action = self._actions[action_id]
             active = _active(s, self._context)
             action.setVisible(active)
-            action.setEnabled(active and action_id in self._connected
-                              and action_id not in self._disabled)
+            action.setEnabled(active and self._usable(action_id, self._context))
             keys = [] if s.local else [key_sequence(k) for k in s.shortcuts]
             if self._typing and s.single_key:
                 keys = [k for k in keys if not is_typing_key(k)]
@@ -583,8 +643,7 @@ class Registry(QObject):
         """Every palette action of "app" and `tab` (default: the current tab)."""
         tab = tab or self._context
         return [PaletteEntry(s.id, plain_text(s.text), [key_text(k) for k in s.shortcuts],
-                             s.id in self._connected and s.id not in self._disabled,
-                             search_text(s))
+                             self._usable(s.id, tab), search_text(s))
                 for s in self._specs.values() if s.palette and _active(s, tab)]
 
     def install_text_guard(self, app: QApplication | None = None) -> TextFocusGuard:

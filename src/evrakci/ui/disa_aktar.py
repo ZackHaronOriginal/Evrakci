@@ -1,193 +1,110 @@
-"""The Dışa Aktar screen: write the named PDFs and index.xlsx, never silently."""
+"""The Dışa Aktar screen (final-a/disa-aktar.html): write the named PDFs and index.xlsx, never
+silently.
+
+Left: the pre-flight ("Ön kontrol", graded engel / kontrol / eksik / bilgi) and the file names.
+Right ("Ayarlar", F9): target folder, file-name pattern, options and the primary action. While
+writing, a progress card sits on top and the settings are locked; afterwards the outcome card
+offers Klasörü aç / index.xlsx'i aç / Dosya Gezgini'nde göster.
+
+Only an engel stops the export. A kontrol never does: the file is written and flagged in
+index.xlsx. The window's command bar, status bar slot, toasts and taskbar progress are used once
+the screen sits in a MainWindow (`attach`).
+"""
 
 from __future__ import annotations
 
+import dataclasses
+import subprocess
+import sys
 import time
 from collections.abc import Callable, Mapping
+from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QRectF, QSize, Qt, QUrl, Signal
-from PySide6.QtGui import (
-    QColor,
-    QDesktopServices,
-    QFont,
-    QFontMetrics,
-    QKeySequence,
-    QPainter,
-    QShortcut,
-)
+from PySide6.QtCore import QByteArray, QEvent, QModelIndex, QPoint, Qt, QTimer, QUrl, Signal
+from PySide6.QtGui import QDesktopServices, QGuiApplication, QKeySequence, QUndoCommand
 from PySide6.QtWidgets import (
-    QAbstractItemView,
-    QCheckBox,
-    QComboBox,
     QFileDialog,
     QFrame,
-    QGridLayout,
-    QHBoxLayout,
     QHeaderView,
-    QLabel,
-    QLineEdit,
-    QProgressBar,
-    QStyledItemDelegate,
-    QTableWidget,
-    QTableWidgetItem,
+    QMenu,
+    QScrollArea,
+    QSizePolicy,
+    QSplitter,
+    QStackedLayout,
     QVBoxLayout,
     QWidget,
 )
 
+from evrakci.pipeline.cuts import document_template
 from evrakci.pipeline.export import plan_export
 from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after_export
 from evrakci.pipeline.job import job_from_dict, job_to_dict
+from evrakci.pipeline.naming import safe_filename
 from evrakci.pipeline.ocr.engine import EngineUnavailable
-from evrakci.pipeline.settings import (
-    DELETE_AFTER_EXPORT,
-    KEEP,
-    Settings,
-    SettingsError,
-    load_settings,
-    save_settings,
-)
+from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, SettingsError, load_settings
 from evrakci.pipeline.templates.model import Template
-from evrakci.ui import icons, theme
+from evrakci.ui import disa_aktar_icons, theme
 from evrakci.ui.controller import JobController
-from evrakci.ui.widgets import Heading, Rider, icon_label, key_button, label, paint_rider, rule
+from evrakci.ui.degerler_parts import StatusItem
+from evrakci.ui.disa_aktar_banners import OutcomeBanner, RunBanner
+from evrakci.ui.disa_aktar_model import (
+    FileRow,
+    Finding,
+    file_rows,
+    findings,
+    folder_state,
+    pattern_problem,
+    summarize,
+)
+from evrakci.ui.disa_aktar_parts import EmptyPane, HeadBar, PartsButton, PreflightCard, scale
+from evrakci.ui.disa_aktar_side import SidePanel, mark_invalid, side_width
+from evrakci.ui.disa_aktar_table import NAME_MIN, WIDTHS, WIDTHS_150, FilesModel, FilesTable
+from evrakci.ui.feedback import announce
 from evrakci.ui.workers import Task, start
 
-RETENTION = [
-    (KEEP, "Süresiz"),
-    (DELETE_AFTER_EXPORT, "Tam dışa aktarınca sil"),
-    ("30", "30 gün"),
-    ("90", "90 gün"),
-]
-
-MONO = 'Consolas, "DejaVu Sans Mono", monospace'
-STATE_ROLE = Qt.ItemDataRole.UserRole + 1  # Durum: "check", "ok", "info" or "none"
-FLAG_ROLE = Qt.ItemDataRole.UserRole + 2  # the whole row needs a check (wash)
-NOTE_ROLE = Qt.ItemDataRole.UserRole + 3  # a second line under the file name
-FILE_ROLE = Qt.ItemDataRole.UserRole + 4  # a file name: mono
-DIM_ROLE = Qt.ItemDataRole.UserRole + 5  # muted text ("Şablon yok")
-
-STATE_LOOK = {  # state: (icon, token)
-    "ok": ("ok", "ok"),
-    "info": ("info", "qr"),
-    "none": ("no", "ink_2"),
-}
+assert disa_aktar_icons
 STAGES = {"write": "dosyalar yazılıyor", "layer": "metin katmanı ekleniyor"}
+HEADER_KEY = "disa_aktar/dosyalar"
+SPLITTER_NAME = "disa_aktar"
+STOP_HINT = ("Durdur (Ctrl+.) ile durdurursanız yazılan dosyalar kalır, index.xlsx yazılmaz.")
 
 
-def _font(base: QFont, size: int, weight: QFont.Weight, mono: bool = False) -> QFont:
-    font = QFont(base)
-    if mono:
-        font.setFamilies(["Consolas", "DejaVu Sans Mono", "monospace"])
-        font.setStyleHint(QFont.StyleHint.Monospace)
-    font.setPixelSize(size)
-    font.setWeight(weight)
-    return font
+def open_path(path: Path) -> None:
+    """Open a file or folder with the system's default app."""
+    QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
 
-def _pages(job, document) -> str:
-    positions = [job.position_of(pid) for pid in document.page_ids]
-    return f"{positions[0]}–{positions[-1]}" if len(positions) > 1 else str(positions[0])
+def reveal_path(path: Path) -> None:
+    """Show `path` in the file manager: selected in Explorer on Windows, else its folder."""
+    if sys.platform == "win32" and path.is_file():
+        subprocess.Popen(["explorer", f"/select,{path}"])  # noqa: S603, S607
+    else:
+        open_path(path if path.is_dir() else path.parent)
 
 
-class _FileDelegate(QStyledItemDelegate):
-    """Rows like the mockup: rules not grid, file names in mono, flagged rows on the check
-    wash, and the Durum column as a rider (Kontrol) or icon + word."""
+class _PatternChange(QUndoCommand):
+    """"Dosya adı kalıbı" as one undoable edit (Ctrl+Z names it in the Geri al tooltip)."""
 
-    def __init__(self, view: QTableWidget) -> None:
-        super().__init__(view)
-        self.view = view
+    def __init__(self, screen: DisaAktarScreen, job_id: str, before: str, after: str) -> None:
+        super().__init__("Dosya adı kalıbı")
+        self._screen, self._job_id, self._before, self._after = screen, job_id, before, after
+        self._first = True
 
-    def sizeHint(self, option, index) -> QSize:
-        height = 56 if index.siblingAtColumn(0).data(NOTE_ROLE) else 36
-        text = index.data(Qt.ItemDataRole.DisplayRole) or ""
-        mono = bool(index.data(FILE_ROLE))
-        flagged = bool(index.data(FLAG_ROLE))
-        size = 14 if mono else (theme.SMALL if index.data(STATE_ROLE) == "check" else 15)
-        weight = QFont.Weight.Bold if (mono and flagged) or index.data(STATE_ROLE) else \
-            QFont.Weight.Normal
-        width = QFontMetrics(_font(option.font, size, weight, mono)).horizontalAdvance(text)
-        if index.data(STATE_ROLE):
-            width += 28
-        return QSize(width + 20, height)
+    def redo(self) -> None:
+        if self._first:  # already applied when the command is pushed
+            self._first = False
+            return
+        self._screen._set_pattern(self._job_id, self._after)
 
-    def paint(self, painter: QPainter, option, index) -> None:
-        t = theme.TOKENS
-        rect = option.rect
-        painter.save()
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        flagged = bool(index.data(FLAG_ROLE))
-        if flagged:
-            painter.fillRect(rect, QColor(t["check_wash"]))
-        elif self.view.currentIndex().row() == index.row():
-            painter.fillRect(rect, QColor(t["row_cur"]))
-        painter.fillRect(rect.left(), rect.bottom(), rect.width(), 1, QColor(t["rule"]))
-        inner = QRectF(rect.adjusted(10, 0, -8, -1))
-        text = index.data(Qt.ItemDataRole.DisplayRole) or ""
-        state = index.data(STATE_ROLE)
-        note = index.data(NOTE_ROLE)
-        if state == "check":
-            font = _font(option.font, theme.SMALL, QFont.Weight.Bold)
-            room = int(inner.width()) - 31
-            shown = QFontMetrics(font).elidedText(text, Qt.TextElideMode.ElideRight, room)
-            width = min(inner.width(), 5 + 14 + 4 + QFontMetrics(font).horizontalAdvance(shown)
-                        + 8)
-            paint_rider(painter, QRectF(inner.left(), inner.center().y() - 11, width, 22), shown)
-        elif state:
-            name, token = STATE_LOOK[state]
-            icons.paint(painter, name, QRectF(inner.left(), inner.center().y() - 9, 18, 18),
-                        token)
-            font = _font(option.font, 14, QFont.Weight.DemiBold)
-            painter.setFont(font)
-            painter.setPen(QColor(t["ok"] if state == "ok" else t["ink"]))
-            area = inner.adjusted(24, 0, 0, 0)
-            painter.drawText(area, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                             QFontMetrics(font).elidedText(text, Qt.TextElideMode.ElideRight,
-                                                           int(area.width())))
-        else:
-            mono = bool(index.data(FILE_ROLE))
-            bold = mono and flagged
-            font = _font(option.font, 14 if mono else theme.FONT_SIZE,
-                         QFont.Weight.Bold if bold else QFont.Weight.Normal, mono)
-            colour = t["check_ink"] if bold else (t["ink_2"] if index.data(DIM_ROLE)
-                                                   else t["ink"])
-            area = QRectF(inner)
-            if note:
-                area = QRectF(inner.left(), inner.top() + 6, inner.width(), 22)
-            painter.setFont(font)
-            painter.setPen(QColor(colour))
-            painter.drawText(area, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                             QFontMetrics(font).elidedText(text, Qt.TextElideMode.ElideMiddle,
-                                                           int(area.width())))
-            if note:
-                line = QRectF(inner.left(), area.bottom(), inner.width(), 22)
-                icons.paint(painter, "info", QRectF(line.left(), line.center().y() - 8, 16, 16),
-                            "qr")
-                small = _font(option.font, 14, QFont.Weight.Normal)
-                painter.setFont(small)
-                painter.setPen(QColor(t["ink_2"]))
-                rest = line.adjusted(22, 0, 0, 0)
-                painter.drawText(rest, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                                 QFontMetrics(small).elidedText(note, Qt.TextElideMode.ElideRight,
-                                                                int(rest.width())))
-        painter.restore()
-
-
-def _icon_row(icon_widget: QWidget, text: QLabel, figure: QLabel | None = None) -> QHBoxLayout:
-    row = QHBoxLayout()
-    row.setContentsMargins(0, 0, 0, 0)
-    row.setSpacing(8)
-    row.addWidget(icon_widget)
-    row.addWidget(text, 1)
-    if figure is not None:
-        figure.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        row.addWidget(figure)
-    return row
+    def undo(self) -> None:
+        self._screen._set_pattern(self._job_id, self._before)
 
 
 class DisaAktarScreen(QWidget):
     finished = Signal()
     job_deleted = Signal()
+    go_tab = Signal(str)
 
     def __init__(
         self,
@@ -201,409 +118,739 @@ class DisaAktarScreen(QWidget):
         self.controller = controller
         self.templates = templates
         self.settings_path = settings_path
+        self.window_ = None
         self.task: Task | None = None
         self.out_dir: Path | None = None
+        self._exporting: tuple[JobController, object] | None = None
         self._written = False  # the table shows what was written, not the preview
         self._written_for: JobController | None = None
+        self._written_rows: list[FileRow] = []
+        self._outcome: dict | None = None  # the outcome card's content (done / stopped / failed)
+        self._index_written = False
         self._stage = "write"
+        self._stage_seen: str | None = None
         self._stage_started = 0.0
+        self._with_layer = True
+        self._overrides: dict[str, str] = {}  # job id -> the user's file-name pattern
+        self._default_pattern = ""
+        self._multi_pattern = False
+        self._variables: list[str] = []
+        self._items: list = []
+        self._rows: list[FileRow] = []
+        self._summary = summarize([], [])
+        self._findings: list[Finding] = []
+        self._shown_findings: list[Finding] | None = None
+        self._shown_rows: list[FileRow] | None = None
+        self._folder = folder_state("")
+        self._folder_touched = False
+        self._problem: tuple[str, list[str]] = ("", [])
+        self._job_name = ""
+        self._pending_pattern = ""
+        self._state = "empty"
+        self._syncing = False
+        self._header_loaded = False
+        self.status_items: dict[str, StatusItem] = {}
 
-        root = QHBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
+        m = theme.manager()
+        root = QVBoxLayout(self)
+        root.setContentsMargins(m.size("s3"), 0, m.size("s3"), m.size("s3"))
         root.setSpacing(0)
-        left = QFrame()
-        left.setObjectName("card")
-        left.setProperty("edge", "right")
-        left.setFixedWidth(420)
-        form = QVBoxLayout(left)
-        form.setContentsMargins(24, 16, 24, 16)
-        form.setSpacing(0)
-        self.heading = Heading("Dışa aktar")
-        form.addWidget(self.heading)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.setObjectName(SPLITTER_NAME)
+        self.splitter.setChildrenCollapsible(False)
+        root.addWidget(self.splitter, 1)
 
-        # Target folder
-        form.addSpacing(12)
-        form.addWidget(self._strong("Hedef klasör"))
-        form.addSpacing(6)
-        row = QHBoxLayout()
-        row.setSpacing(8)
-        self.folder = QLineEdit()
-        self.folder.setPlaceholderText("Boş bir klasör seçin")
-        self.folder.textChanged.connect(self._check_folder)
-        self.choose_button = key_button("Seç…", "", icon="folder")
-        self.choose_button.clicked.connect(self.choose_folder)
-        row.addWidget(self.folder, 1)
-        row.addWidget(self.choose_button)
-        form.addLayout(row)
-        form.addSpacing(6)
-        self.folder_icon = icon_label("info", "qr")
-        self.folder_state = label("", "hint", wrap=True)
-        form.addLayout(_icon_row(self.folder_icon, self.folder_state))
-        form.addSpacing(12)
-        form.addWidget(rule())
-
-        # What is written
-        form.addSpacing(12)
-        self.layer = QCheckBox("Aranabilir metin katmanı ekle")
-        self.layer.setChecked(True)
-        form.addWidget(self.layer)
-        form.addWidget(self._indented("OCR, PDF/A"))
-        form.addSpacing(8)
-        index_row = QHBoxLayout()
-        index_row.setSpacing(8)
-        index_row.addSpacing(1)
-        index_row.addWidget(icon_label("sheet", "ink_2"))
-        index_row.addWidget(label("index.xlsx her zaman yazılır", "value"), 1)
-        form.addLayout(index_row)
-        form.addWidget(self._indented("Her dosya bir satır: adı, sayfaları, değerleri"))
-        form.addSpacing(12)
-        form.addWidget(rule())
-
-        # Retention
-        form.addSpacing(10)
-        row = QHBoxLayout()
-        row.setSpacing(12)
-        row.addWidget(self._strong("İşi sakla"))
-        self.retention = QComboBox()
-        self.retention.setMinimumWidth(200)
-        self.retention.setToolTip("Dışa aktarılan iş bu bilgisayarda ne kadar saklansın")
-        for value, text in RETENTION:
-            self.retention.addItem(text, value)
-        row.addWidget(self.retention)
-        row.addStretch(1)
-        form.addLayout(row)
-        form.addSpacing(10)
-        form.addWidget(rule())
-
-        # Before export: the summary
-        form.addSpacing(10)
-        form.addWidget(self._strong("Yazılmadan önce"))
-        form.addSpacing(4)
-        summary = QGridLayout()
-        summary.setContentsMargins(0, 0, 0, 0)
-        summary.setHorizontalSpacing(8)
-        summary.setVerticalSpacing(0)
-        summary.setColumnStretch(1, 1)
-        self.count_all = label("", "figure")
-        self.count_ok = label("", "figure")
-        self.count_check = label("", "figure")
-        self.count_none = label("", "figure")
-        check_cell = QHBoxLayout()
-        check_cell.setSpacing(8)
-        check_cell.addWidget(Rider())
-        check_cell.addWidget(QLabel("işaretli"), 1)
-        lines = [
-            (icon_label("file", "ink"), QLabel("Yazılacak belge"), self.count_all),
-            (icon_label("ok", "ok"), QLabel("Tamam"), self.count_ok),
-            (None, check_cell, self.count_check),
-            (icon_label("no", "ink_2"), QLabel("Şablon yok"), self.count_none),
-        ]
-        for number, (pic, text, figure) in enumerate(lines):
-            summary.setRowMinimumHeight(number, 30)
-            if pic is None:
-                summary.addLayout(text, number, 0, 1, 2)
-            else:
-                summary.addWidget(pic, number, 0)
-                summary.addWidget(text, number, 1)
-            figure.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            summary.addWidget(figure, number, 2)
-        form.addLayout(summary)
-        form.addSpacing(4)
-        self.preflight = label("", "hint", wrap=True)
-        form.addWidget(self.preflight)
-
-        # Go
-        form.addSpacing(14)
-        row = QHBoxLayout()
-        row.setSpacing(10)
-        self.export_button = key_button("Dışa aktar", "Ctrl+E", primary=True, icon="drop")
-        self.export_button.clicked.connect(self.export)
-        row.addWidget(self.export_button)
-        self.lock_hint = label("Yazma sürerken kilitli", "hint")
-        row.addWidget(self.lock_hint)
-        row.addStretch(1)
-        form.addLayout(row)
-        form.addStretch(1)
-        root.addWidget(left)
-
-        # Right: the file names (preview, then what was written)
-        right = QVBoxLayout()
-        right.setContentsMargins(24, 16, 24, 12)
-        right.setSpacing(0)
-        self.results_heading = Heading("Dosya adları")
-        right.addWidget(self.results_heading)
-        self.progress_block = QWidget()
-        block = QVBoxLayout(self.progress_block)
-        block.setContentsMargins(0, 12, 0, 12)
-        block.setSpacing(10)
-        top = QHBoxLayout()
-        top.setSpacing(12)
-        self.progress_label = QLabel("")
-        self.progress_label.setStyleSheet("font-weight: 700;")
-        self.stage_label = QLabel("")
-        self.eta_label = label("", "hint")
-        self.cancel_button = key_button("İptal", "Esc", icon="no")
-        self.cancel_button.clicked.connect(self.cancel)
-        top.addWidget(self.progress_label)
-        top.addWidget(self.stage_label)
-        top.addStretch(1)
-        top.addWidget(self.eta_label)
-        top.addWidget(self.cancel_button)
-        block.addLayout(top)
-        self.progress = QProgressBar()
-        self.progress.setTextVisible(False)
-        block.addWidget(self.progress)
-        block.addWidget(rule())
-        right.addWidget(self.progress_block)
-        right.addSpacing(14)
-        self.results = QTableWidget(0, 4)
-        self.results.setHorizontalHeaderLabels(["Dosya", "Sayfalar", "Şablon", "Durum"])
-        self.results.verticalHeader().setVisible(False)
-        self.results.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.results.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.results.setShowGrid(False)
-        self.results.setWordWrap(False)
-        self.results.setFrameShape(QFrame.Shape.NoFrame)
-        self.results.setItemDelegate(_FileDelegate(self.results))
-        self.results.currentCellChanged.connect(lambda *_: self.results.viewport().update())
-        header = self.results.horizontalHeader()
-        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        header.setHighlightSections(False)
-        header.setMinimumSectionSize(80)
+        # Left: banners, Ön kontrol, Dosya adları
+        left = QWidget()
+        col = QVBoxLayout(left)
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(m.size("s3"))
+        self.run_banner = RunBanner()
+        self.run_banner.hide()
+        self.outcome = OutcomeBanner()
+        self.outcome.hide()
+        self.outcome.open_folder.connect(lambda: self._open_out(self.out_dir))
+        self.outcome.open_index.connect(self.open_index)
+        self.outcome.reveal.connect(self.reveal_in_explorer)
+        self.outcome.closed.connect(self.dismiss_outcome)
+        self.message = self.outcome.message  # the sentence of the outcome card
+        self.preflight = PreflightCard()
+        self.preflight.action.connect(self._finding_action)
+        self.files_card = QFrame()
+        self.files_card.setProperty("kind", "table-card")
+        self.files_card.setAccessibleName("Dosya adları")
+        card = QVBoxLayout(self.files_card)
+        card.setContentsMargins(1, 1, 1, 1)
+        card.setSpacing(0)
+        self.files_head = HeadBar("Dosya adları", "kontrol gerekenler üstte")
+        self.filter_button = PartsButton("Yalnızca kontrol gerekenler", "list-filter", "0")
+        self.filter_button.setCheckable(True)
+        self.filter_button.toggled.connect(self._filter_toggled)
+        self.files_head.add_widget(self.filter_button)
+        card.addWidget(self.files_head)
+        self.model = FilesModel(self)
+        self.results = FilesTable()
+        self.results.setModel(self.model)
+        self.results.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.results.customContextMenuRequested.connect(self._row_menu)
+        self.results.copy_requested.connect(self.copy_names)
+        self.results.viewport().installEventFilter(self)
         theme.bind_style(self.results, lambda: (
-            f"QTableWidget {{ background: {theme.TOKENS['ground']}; }}"
-            f"QHeaderView::section {{ background: {theme.TOKENS['ground']}; "
-            "padding: 0 10px 6px 10px; }"))
-        right.addWidget(self.results, 1)
-        right.addSpacing(8)
-        self.count_line = label("", "hint", wrap=True)
-        right.addWidget(self.count_line)
-        right.addSpacing(10)
-        self.message_icon = icon_label("ok", "ok")
-        self.message_icon.hide()
-        self.message = label("", wrap=True)
-        self.message.setStyleSheet("font-weight: 600;")
-        self.message.hide()
-        message_row = _icon_row(self.message_icon, self.message)
-        message_row.setAlignment(self.message_icon, Qt.AlignmentFlag.AlignTop)
-        right.addLayout(message_row)
-        right.addSpacing(14)
-        right.addWidget(rule())
-        right.addSpacing(14)
-        buttons = QHBoxLayout()
-        buttons.setSpacing(10)
-        self.open_index = key_button("index.xlsx'i aç", "", icon="sheet")
-        self.open_folder = key_button("Klasörü aç", "", icon="folder")
-        self.open_index.clicked.connect(lambda: self._open(self.out_dir / "index.xlsx"))
-        self.open_folder.clicked.connect(lambda: self._open(self.out_dir))
-        self.after_hint = QWidget()
-        hint_row = QHBoxLayout(self.after_hint)
-        hint_row.setContentsMargins(0, 0, 0, 0)
-        hint_row.setSpacing(6)
-        hint_row.addWidget(icon_label("clock", "ink_2"))
-        hint_row.addWidget(label("Yazma bitince açılır", "hint"))
-        buttons.addWidget(self.open_index)
-        buttons.addWidget(self.open_folder)
-        buttons.addWidget(self.after_hint)
-        buttons.addStretch(1)
-        right.addLayout(buttons)
-        right.addStretch(1)
-        root.addLayout(right, 1)
+            f"QTableView {{ background: {theme.manager().hex('card')}; }}"
+            f"QHeaderView::section {{ background: {theme.manager().hex('card')}; }}"))
+        self.empty = EmptyPane()
+        self.empty.go.clicked.connect(lambda: self.go_tab.emit("yukle"))
+        self.stack_host = QWidget()
+        # The list takes the room that is left; its own size hint must not push the column
+        self.stack_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
+        self.stack = QStackedLayout(self.stack_host)
+        self.stack.setContentsMargins(0, 0, 0, 0)
+        self.stack.addWidget(self.results)
+        self.stack.addWidget(self.empty)
+        card.addWidget(self.stack_host, 1)
+        col.addWidget(self.run_banner)
+        col.addWidget(self.outcome)
+        col.addWidget(self.preflight)
+        col.addWidget(self.files_card, 1)
+        # At large text the left column scrolls in its own area (A's 150 % renders), with the
+        # file list keeping room for a few rows.
+        self.left_scroll = QScrollArea()
+        self.left_scroll.setWidgetResizable(True)
+        self.left_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.left_scroll.setStyleSheet("QScrollArea { background: transparent; border: 0; }")
+        self.left_scroll.viewport().setAutoFillBackground(False)
+        left.setAutoFillBackground(False)
+        self.left_scroll.setWidget(left)
+        self.splitter.addWidget(self.left_scroll)
 
-        # Ctrl+E is the registry action app.disa_aktar (main window).
-        for key, slot in {"Esc": self.cancel}.items():
-            shortcut = QShortcut(QKeySequence(key), self)
-            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-            shortcut.activated.connect(slot)
+        # Right: the settings (F9 toggles it)
+        self.side = SidePanel()
+        self.folder = self.side.folder
+        self.layer = self.side.layer
+        self.pattern = self.side.pattern
+        self.export_button = self.side.export_button
+        self.again_button = self.side.again_button
+        self.splitter.addWidget(self.side)
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 0)
+        self.side.choose_clicked.connect(self.choose_folder)
+        self.folder.textChanged.connect(self._folder_changed)
+        self.folder.textEdited.connect(self._folder_edited)
+        self.side.pattern_committed.connect(self._pattern_committed)
+        self.side.pattern_edited.connect(self._pattern_edited)
+        self.export_button.clicked.connect(self.export)
+        self.again_button.clicked.connect(self.again)
 
-        self._load_settings()
-        self.retention.currentIndexChanged.connect(self._save_settings)
-        self._set_busy(False)
-        self._set_opened(False)
-        self._check_folder()
+        self._header_timer = QTimer(self)
+        self._header_timer.setSingleShot(True)
+        self._header_timer.setInterval(300)
+        self._header_timer.timeout.connect(self._save_header)
+        header = self.results.horizontalHeader()
+        header.sectionResized.connect(lambda *_: self._header_timer.start())
+        theme.follow(self, self._restyle, "screen")
+        self.refresh()
+        QTimer.singleShot(0, self._try_attach)
+
+    # -- the window -----------------------------------------------------------------------
+    def _try_attach(self) -> None:
+        window = self.window()
+        if self.window_ is None and window is not self and hasattr(window, "registry"):
+            self.attach(window)
+
+    def attach(self, window) -> None:
+        """Hook this tab into its MainWindow: the registry actions the window does not wire
+        itself, the extra command-bar button, the status bar slot, the remembered columns."""
+        if self.window_ is window:
+            return
+        self.window_ = window
+        r = window.registry
+        r.connect("disa_aktar.yazdir", self.print_index)
+        r.connect("disa_aktar.gezginde_goster", self.reveal_in_explorer)
+        self.go_tab.connect(window.show_tab)
+        # The window's own labels already say "96 belge  640 sayfa  7 belge kontrol bekliyor";
+        # this tab adds the state after them.
+        layout = window.status_slot("disa_aktar").layout()
+        item = StatusItem(None, "icon")
+        layout.addWidget(item)
+        self.status_items["state"] = item
+        layout.addStretch(1)
+        r.connect("disa_aktar.index_ac", self.open_index)
+        window.tabs.currentChanged.connect(lambda _i: self._sync_actions())
+        r.action("app.disa_aktar").changed.connect(self._sync_actions)
+        self._restore_header()
         self.refresh()
 
-    @staticmethod
-    def _strong(text: str) -> QLabel:
-        widget = QLabel(text)
-        widget.setStyleSheet("font-weight: 700;")
-        return widget
+    def _toaster(self):
+        return getattr(self.window_, "toaster", None)
 
-    @staticmethod
-    def _indented(text: str) -> QLabel:
-        widget = label(text, "hint", wrap=True)
-        widget.setContentsMargins(26, 0, 0, 0)
-        return widget
+    def _taskbar(self):
+        return getattr(self.window_, "taskbar", None)
 
-    # Settings
-    def _load_settings(self) -> None:
-        try:
-            value = load_settings(self.settings_path).retention
-        except SettingsError as error:
-            self._say(str(error), "warn", "check_ink")
-            value = KEEP
-        index = self.retention.findData(value)
-        if index < 0:
-            self.retention.addItem(f"{value} gün", value)
-            index = self.retention.count() - 1
-        self.retention.setCurrentIndex(index)
+    def _prefs(self):
+        return getattr(self.window_, "prefs", None)
 
-    def _save_settings(self) -> None:
-        save_settings(Settings(self.retention.currentData()), self.settings_path)
+    def _restyle(self) -> None:
+        m = theme.manager()
+        self.splitter.setHandleWidth(m.size("s3"))
+        self.side.setMinimumWidth(min(side_width(), 320))
+        self.splitter.setSizes([max(400, self.width() - side_width()), side_width()])
+        self.results.horizontalHeader().setMinimumSectionSize(round(80 * scale()))
+        self.files_card.setMinimumHeight(self.files_head.height() + m.size("header-h")
+                                         + 2 * m.size("row-h") + 2)
+        if not self._header_loaded or self._prefs() is None:
+            self._default_widths()
+        self._sync()
 
-    # Messages
-    def _say(self, text: str, icon: str = "ok", colour: str = "ok") -> None:
-        self.message.setText(text)
-        self.message_icon.setPixmap(icons.pixmap(icon, colour, 18))
-        self.message_icon.setVisible(bool(text))
-        self.message.setVisible(bool(text))
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if obj is self.results.viewport() and event.type() == QEvent.Type.Resize:
+            QTimer.singleShot(0, self._fit_columns)
+        return False
 
-    # Before export
-    def _check_folder(self) -> None:
-        """Say under the field whether the folder can take the export."""
-        text = self.folder.text().strip()
-        icon, colour = "info", "qr"
-        if not text:
-            message = "Boş bir klasör seçin ya da yazın; yoksa oluşturulur."
-        else:
-            path = Path(text)
-            try:
-                if not path.exists():
-                    message = "Klasör yok; dışa aktarınca oluşturulur."
-                elif not path.is_dir():
-                    icon, colour = "no", "ink"
-                    message = "Bu bir dosya, klasör değil."
-                else:
-                    old = [p for p in path.iterdir()
-                           if p.suffix.lower() == ".pdf" or p.name.lower() == "index.xlsx"]
-                    if old:
-                        icon, colour = "no", "ink"
-                        message = ("Klasörde önceki bir dışa aktarım var; "
-                                   "boş bir klasör seçin.")
-                    else:
-                        icon, colour = "ok", "ok"
-                        message = "Klasör boş"
-            except OSError as error:
-                icon, colour = "no", "ink"
-                message = f"Klasöre bakılamadı: {error.strerror or error}"
-        self.folder_icon.setPixmap(icons.pixmap(icon, colour, 18))
-        self.folder_state.setText(message)
-        self.folder_state.setProperty("role", "ok" if icon == "ok" else "hint")
-        self.folder_state.style().unpolish(self.folder_state)
-        self.folder_state.style().polish(self.folder_state)
+    # -- columns --------------------------------------------------------------------------
+    def _default_widths(self) -> None:
+        header = self.results.horizontalHeader()
+        header.blockSignals(True)
+        header.setStretchLastSection(False)
+        k = scale()
+        widths = WIDTHS if k < 1.4 else WIDTHS_150
+        for column, width in enumerate(widths):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
+            if width:
+                header.resizeSection(column, width if k >= 1.4 else round(width * k))
+        header.blockSignals(False)
+        self._fit_columns()
+
+    def _fit_columns(self) -> None:
+        """The name column takes the room the others leave (at least NAME_MIN, and the table
+        scrolls sideways when that is more than there is)."""
+        header = self.results.horizontalHeader()
+        others = sum(header.sectionSize(c) for c in (0, 2, 3))
+        room = self.results.viewport().width() - others
+        header.blockSignals(True)
+        header.resizeSection(1, max(round(NAME_MIN * scale()), room))
+        header.blockSignals(False)
+
+    def _restore_header(self) -> None:
+        prefs = self._prefs()
+        if prefs is None:
+            return
+        self._default_widths()
+        state = prefs.header_state(HEADER_KEY)
+        header = self.results.horizontalHeader()
+        if not state.isEmpty():
+            header.blockSignals(True)
+            if not (header.restoreState(state) and header.count() == 4):
+                self._default_widths()
+            for column in range(4):
+                header.setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
+            header.blockSignals(False)
+            self._fit_columns()
+        self._header_loaded = True
+
+    def _save_header(self) -> None:
+        prefs = self._prefs()
+        if prefs is not None and self._header_loaded:
+            prefs.set_header_state(HEADER_KEY, self.results.horizontalHeader().saveState())
+
+    # -- planning: what would be written ---------------------------------------------------
+    def _effective(self, job, templates: dict, used: set[str]) -> dict:
+        override = self._overrides.get(job.id, "")
+        if not override:
+            return templates
+        return {**templates, **{i: dataclasses.replace(templates[i], filename_pattern=override)
+                                for i in used}}
+
+    def _plan(self, controller: JobController | None) -> None:
+        self._items, self._rows = [], []
+        self._variables = []
+        self._default_pattern, self._multi_pattern = "", False
+        self._problem = ("", [])
+        if controller is None:
+            self._job_name = ""
+            self._summary = summarize([], [])
+            return
+        job = controller.job
+        self._job_name = job.name
+        templates = dict(self.templates())
+        ids = [document_template(job, d)[0] for d in controller.documents()]
+        used = {i for i in ids if i is not None and templates.get(i) is not None}
+        patterns = {i: templates[i].filename_pattern for i in used}
+        distinct = set(patterns.values())
+        self._default_pattern = next(iter(distinct)) if len(distinct) == 1 else ""
+        self._multi_pattern = len(distinct) > 1
+        known = {v.name for i in used for v in templates[i].variables}
+        self._variables = sorted(known, key=str.casefold)
+        override = self._overrides.get(job.id, "")
+        effective = self._effective(job, templates, used)
+        self._items = plan_export(job, effective)
+        per_item = {n + 1: (effective[i].filename_pattern if i in used else "")
+                    for n, i in enumerate(ids)}
+        self._rows = file_rows(job, self._items, per_item)
+        self._summary = summarize(self._items, self._rows)
+        if override:
+            self._problem = pattern_problem(override, known)
 
     def refresh(self) -> None:
         controller = self.controller()
-        if self._written and controller is not self._written_for and self.task is None:
-            self._written = False  # another job is open: show its names again
-            self._set_opened(False)
-        if controller is None:
-            self.heading.setText("Dışa aktar", "")
-            for figure in (self.count_all, self.count_ok, self.count_check, self.count_none):
-                figure.setText("–")
-            self.preflight.setText("Önce Yükle sekmesinden bir iş açın.")
-            self.export_button.setEnabled(False)
-            if not self._written:
-                self._fill([])
-                self.results_heading.setText("Dosya adları", "")
-                self.count_line.setText("")
+        if self.task is not None:
+            self._sync()
             return
-        self.export_button.setEnabled(self.task is None)
-        job = controller.job
-        items = plan_export(job, self.templates())
-        checks = sum(1 for item in items if item.checks)
-        no_template = sum(1 for item in items if item.template_name is None and not item.checks)
-        pages = sum(len(item.document.page_ids) for item in items)
-        self.heading.setText("Dışa aktar", f"{len(items)} belge · {pages} sayfa")
-        self.count_all.setText(str(len(items)))
-        self.count_ok.setText(str(len(items) - checks - no_template))
-        self.count_check.setText(str(checks))
-        self.count_none.setText(str(no_template))
-        self.preflight.setText(
-            "Kontrol gerekenler de yazılır; index.xlsx'te işaretlenir ve nedeni yazılır. "
-            "Hiçbiri sessizce geçmez."
-        )
+        if self._written and controller is not self._written_for:
+            self._written = False  # another job is open: show its names again
+            self._written_rows, self._outcome = [], None
         if not self._written:
-            self._show_preview(job, items)
+            self._plan(controller)
+            self._prefill_folder(controller)
+            self._folder = folder_state(self.folder.text())  # the disk may have changed
+        self._sync()
 
-    def _show_preview(self, job, items) -> None:
-        ordered = sorted(items, key=lambda item: not item.checks)  # flagged first
-        rows = []
-        for item in ordered:
-            if item.checks:
-                state, text = "check", "Kontrol · " + item.checks[0]
-            elif item.template_name is None:
-                state, text = "none", "Şablon yok · numaralı ad"
-            else:
-                state, text = "ok", "Tamam"
-            rows.append((f"{item.name}.pdf", _pages(job, item.document), item.template_name,
-                         state, text, "; ".join(item.checks), None))
-        self._fill(rows)
-        self.results_heading.setText("Dosya adları", f"önizleme · {len(items)} dosya")
-        self.count_line.setText(
-            "Adlar şablondaki kalıptan gelir; klasör yolu uzunsa yazarken kısaltılabilir. "
-            "İşaretliler üstte." if items else "Yazılacak belge yok.")
+    def _prefill_folder(self, controller) -> None:
+        """The default export folder of Ayarlar, until the user types one (it is usually full:
+        the pre-flight then offers a new sub folder named after the job)."""
+        prefs = self._prefs()
+        if controller is None or self._folder_touched or self.folder.text() or prefs is None:
+            return
+        last = prefs.export_folder()
+        if last:
+            self.folder.setText(last)
 
-    def _fill(self, rows) -> None:
-        """rows: (file name, pages, template name, state, status text, tooltip, note)."""
-        self.results.setRowCount(len(rows))
-        for row, (name, pages, template, state, text, tip, note) in enumerate(rows):
-            flagged = state == "check"
-            cells = [QTableWidgetItem(name), QTableWidgetItem(pages),
-                     QTableWidgetItem(template or "Şablon yok"), QTableWidgetItem(text)]
-            cells[0].setData(FILE_ROLE, True)
-            cells[0].setToolTip(name)
-            if note:
-                cells[0].setData(NOTE_ROLE, note)
-            if not template:
-                cells[2].setData(DIM_ROLE, True)
-            cells[3].setData(STATE_ROLE, state)
-            if tip:
-                cells[3].setToolTip(tip)
-            for column, cell in enumerate(cells):
-                if flagged:
-                    cell.setData(FLAG_ROLE, True)
-                self.results.setItem(row, column, cell)
-            self.results.setRowHeight(row, 56 if note else 36)
-        header = self.results.horizontalHeader()
-        self.results.resizeColumnsToContents()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        for column in (1, 2):
-            header.setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
-        self.results.setColumnWidth(3, min(max(self.results.columnWidth(3), 160), 360))
-        # Only as tall as its rows, so the notes and buttons sit right under them.
-        rows = sum(self.results.rowHeight(r) for r in range(self.results.rowCount())) or 36
-        self.results.setMaximumHeight(header.sizeHint().height() + rows + 2
-                                      + self.results.horizontalScrollBar().sizeHint().height())
+    # -- the state ------------------------------------------------------------------------
+    def _compute_state(self) -> str:
+        if self.task is not None:
+            return "running"
+        if self._written:
+            return "done"
+        if not self._items:
+            return "empty"
+        if any(f.level == "engel" for f in self._findings):
+            return "blocked"
+        return "main"
 
-    def _path_heading(self, folder: Path) -> None:
-        """"Yazılan dosyalar" with the folder beside it, shortened in the middle to fit."""
-        metrics = QFontMetrics(self.results_heading.subtitle.font())
-        text = metrics.elidedText(str(folder), Qt.TextElideMode.ElideMiddle, 520)
-        self.results_heading.setText("Yazılan dosyalar", text)
-        self.results_heading.subtitle.setToolTip(str(folder))
+    def busy(self) -> bool:
+        return self.task is not None
+
+    def folder_hint_text(self) -> str:
+        """The line under the target folder field."""
+        return self.side.folder_hint.text.text()
+
+    def state(self) -> str:
+        return self._state
+
+    def _build_findings(self) -> list[Finding]:
+        if not self._items:
+            return [Finding("bilgi", "", "Belge, kontrol ve eksik değer denetimi iş açılınca "
+                            "burada görünür.", None, count_text="–")]
+        return findings(self._summary, self._folder, self._problem)
+
+    def _sync(self) -> None:
+        """Make every part show the current state (one place; cheap when nothing changed)."""
+        if self._syncing:
+            return
+        self._syncing = True
+        try:
+            self._findings = self._build_findings()
+            self._state = state = self._compute_state()
+            self._sync_cards(state)
+            self._sync_files(state)
+            self._sync_side(state)
+            self._sync_status(state)
+            self._sync_window_counts()
+            self._sync_actions()
+        finally:
+            self._syncing = False
+
+    def _sync_cards(self, state: str) -> None:
+        s = self._summary
+        self.run_banner.setVisible(state == "running")
+        showing = state in ("main", "blocked", "empty")
+        self.outcome.setVisible(state == "done" or (showing and self._outcome is not None))
+        if self.outcome.isVisibleTo(self) and self._outcome is not None:
+            self.outcome.show_outcome(**self._outcome)
+        self.preflight.setVisible(showing)
+        if showing and self._findings != self._shown_findings:
+            self._shown_findings = list(self._findings)
+            caption = f"{s.documents} belge, {s.pages} sayfa" if s.documents else "belge yok"
+            self.preflight.set_findings(self._findings, caption)
+
+    def _sync_files(self, state: str) -> None:
+        head, model = self.files_head, self.model
+        if state == "empty":
+            head.set_text("Dosya adları")
+            self.filter_button.hide()
+            self.stack.setCurrentWidget(self.empty)
+            if self._shown_rows != []:
+                self._shown_rows = []
+                model.set_rows([], "preview")
+            return
+        self.stack.setCurrentWidget(self.results)
+        mode = {"running": "run", "done": "written"}.get(state, "preview")
+        rows = self._written_rows if state == "done" else self._rows
+        if (rows, mode) != (self._shown_rows, model.mode) or state == "running" and \
+                model.mode != "run":
+            self._shown_rows = list(rows)
+            model.set_rows(rows, mode)
+        if state in ("running", "done"):
+            folder = str(self.out_dir or "")
+            head.set_text("Yazılan dosyalar", self._short_path(folder))
+            head.label.setToolTip(folder)
+            self.filter_button.hide()
+        else:
+            head.set_text("Dosya adları", "kontrol gerekenler üstte")
+            head.label.setToolTip("")
+            count = model.kontrol_count()
+            self.filter_button.set_parts(trail=str(count))
+            self.filter_button.setVisible(count > 0)
+            if count == 0 and self.filter_button.isChecked():
+                self.filter_button.setChecked(False)
+
+    def _short_path(self, text: str) -> str:
+        from PySide6.QtGui import QFontMetrics
+
+        font = theme.manager().font("caption")
+        return QFontMetrics(font).elidedText(text, Qt.TextElideMode.ElideMiddle,
+                                             round(520 * scale()))
+
+    def _sync_side(self, state: str) -> None:
+        side = self.side
+        has_job = bool(self._items) or self.controller() is not None
+        running = state == "running"
+        side.set_locked(running)
+        side.choose_button.setEnabled(not running and has_job)
+        side.variable_button.setEnabled(not running and bool(self._variables))
+        # Folder: the line under the field
+        text = self.folder.text().strip()
+        if state == "empty" and self.controller() is None:
+            side.folder_hint.set("İş açılınca klasör seçilebilir.", "info")
+            mark_invalid(self.folder, False)
+        elif state == "done" and self.out_dir is not None and text == str(self.out_dir):
+            side.folder_hint.set(self._written_hint, "ok")
+            mark_invalid(self.folder, False)
+        elif self._folder_error:
+            side.folder_hint.set("Bir hedef klasör seçin.", "err")
+            mark_invalid(self.folder, True)
+        else:
+            tone = self._folder.tone
+            side.folder_hint.set(self._folder.text, tone)
+            mark_invalid(self.folder, self._folder.blocks)
+        # Pattern
+        self._sync_pattern(state)
+        # The primary action
+        blocked = [f for f in self._findings if f.level == "engel"]
+        side.export_button.setVisible(state != "done")
+        side.again_button.setVisible(state == "done")
+        side.export_button.setEnabled(state == "main")
+        if state == "blocked":
+            n = len(blocked)
+            words = {1: "Önce engeli giderin.", 2: "Önce iki engeli giderin."}
+            side.note.set(words.get(n, f"Önce {n} engeli giderin."), "info")
+            side.note.show()
+            side.export_button.setAccessibleDescription(side.note.text.text())
+        else:
+            side.note.hide()
+            side.export_button.setAccessibleDescription("")
+
+    def _sync_pattern(self, state: str) -> None:
+        side = self.side
+        job_id = self._job_id()
+        if not self.pattern.hasFocus():
+            shown = self._overrides.get(job_id, "") or self._default_pattern
+            if self.pattern.text() != shown:
+                self.pattern.blockSignals(True)
+                self.pattern.setText(shown)
+                self.pattern.blockSignals(False)
+        self.pattern.setPlaceholderText(
+            "Şablondaki kalıplar kullanılır" if self._multi_pattern else "Kalıp yok")
+        kind, unknown = self._problem
+        side.set_variables(self._variables)
+        if not self._items:
+            side.pattern_hint.set("Değişkenler işin şablonlarından gelir.", "info")
+            mark_invalid(self.pattern, False)
+        elif kind == "unknown":
+            first = f"“{unknown[0]}” değişkeni yok. Menüden seçin."
+            side.pattern_hint.set(first, "err")
+            mark_invalid(self.pattern, True)
+        elif kind == "brace":
+            side.pattern_hint.set("Süslü parantezler eşleşmiyor. Her { için bir } olmalı.", "err")
+            mark_invalid(self.pattern, True)
+        else:
+            example = next((r for r in self._rows if r.state != "kontrol"),
+                           self._rows[0] if self._rows else None)
+            side.pattern_hint.set(f"Örnek: {example.name}" if example else "", "info")
+            mark_invalid(self.pattern, False)
+
+    def _job_id(self) -> str:
+        controller = self.controller()
+        return controller.job.id if controller is not None else ""
+
+    def _sync_status(self, state: str) -> None:
+        item = self.status_items.get("state")
+        if item is None:
+            return
+        blocked = sum(1 for f in self._findings if f.level == "engel")
+        if state == "empty":
+            self._set_status(item, None, "icon", "İşler Yükle sekmesinde açılır (Ctrl+1)")
+        elif state == "blocked":
+            self._set_status(item, "ban", "danger", "", str(blocked), " engel var")
+        elif state == "running":
+            self._set_status(item, "loader-circle", "icon", "Yazılıyor: ", str(self._done_count),
+                             f" / {self._total}")
+        elif state == "done":
+            self._set_status(item, "folder-check", "ok", "", str(len(self._written_rows)),
+                             f" belge yazıldı, {self._finished_at}")
+        elif self._folder.kind in ("ok", "other", "new"):
+            self._set_status(item, "circle-check", "ok", "Hedef klasör yazılabilir")
+        else:
+            self._set_status(item, "info", "icon", "Hedef klasör seçilmedi")
+
+    def _sync_window_counts(self) -> None:
+        """The window's own job counts start this tab's line ("96 belge  640 sayfa  7 belge
+        kontrol bekliyor"); with no job A's one line "İşler Yükle sekmesinde açılır" stands
+        alone at the left edge."""
+        window = self.window_
+        if window is not None and hasattr(window, "set_status_counts"):
+            window.set_status_counts("disa_aktar", self._state != "empty")
+
+    @staticmethod
+    def _set_status(item: StatusItem, icon: str | None, role: str, *parts: str) -> None:
+        item.icon_name, item.role = icon, role
+        if icon and item.icon.parent() is None:
+            item.layout().insertWidget(0, item.icon)  # StatusItem(None) never placed it
+        item.icon.setVisible(bool(icon) and item.icon.parent() is not None)
+        item.set(*parts)
+
+    # -- actions of the window -------------------------------------------------------------
+    def _sync_actions(self) -> None:
+        window = self.window_
+        if window is None or getattr(self, "_syncing_actions", False):
+            return
+        self._syncing_actions = True
+        try:
+            r = window.registry
+            state = self._state
+            has_job = self.controller() is not None
+            on_tab = window.current_tab() == "disa_aktar"
+            can = state == "main" or (state == "done" and has_job)
+            r.set_enabled("app.disa_aktar", has_job and (not on_tab or can))
+            r.set_enabled("disa_aktar.durdur", state == "running")
+            r.set_enabled("disa_aktar.yazdir", state != "empty" and self.model.rowCount() > 0)
+            r.set_enabled("app.yenile", not on_tab or state not in ("empty", "running"))
+            r.set_enabled("disa_aktar.gezginde_goster", self._reveal_target() is not None)
+            r.set_enabled("disa_aktar.index_ac",
+                          self._index_written and self._index_path().is_file())
+        finally:
+            self._syncing_actions = False
+
+    def _index_path(self) -> Path:
+        return (self.out_dir or Path()) / "index.xlsx"
+
+    def _reveal_target(self) -> Path | None:
+        if self.out_dir is not None and self.out_dir.exists() and (
+                self._written or self._outcome is not None):
+            index = self._index_path()
+            return index if index.is_file() else self.out_dir
+        text = self.folder.text().strip()
+        if text and Path(text).is_dir():
+            return Path(text)
+        return None
+
+    # -- folder and pattern ---------------------------------------------------------------
+    _folder_error = False
+    _written_hint = ""
+    _done_count = 0
+    _total = 0
+    _finished_at = ""
+
+    def _folder_edited(self, _text: str) -> None:
+        self._folder_touched = True
+        self._folder_error = False
+
+    def _folder_changed(self, text: str) -> None:
+        self._folder = folder_state(text)
+        if text.strip():
+            self._folder_error = False
+        self._sync()
 
     def choose_folder(self) -> None:
-        folder = QFileDialog.getExistingDirectory(self, "Boş bir klasör seçin")
+        start = self.folder.text().strip()
+        prefs = self._prefs()
+        if not start and prefs is not None:
+            start = prefs.export_folder()
+        folder = QFileDialog.getExistingDirectory(self, "Boş bir klasör seçin", start)
         if folder:
+            self._folder_touched = True
             self.folder.setText(folder)
+            self.folder.setFocus(Qt.FocusReason.OtherFocusReason)
 
-    # Export
+    def make_subfolder(self) -> Path | None:
+        """"Yeni alt klasör oluştur": a new folder inside the full one, named after the job."""
+        parent = Path(self.folder.text().strip())
+        base = safe_filename(self._job_name) or "Dışa aktarım"
+        target, number = parent / base, 1
+        while target.exists():
+            number += 1
+            target = parent / f"{base} ({number})"
+        try:
+            target.mkdir(parents=True)
+        except OSError as error:
+            self.side.folder_hint.set(f"Alt klasör oluşturulamadı: {error.strerror or error}. "
+                                      "Başka bir klasör seçin.", "err")
+            return None
+        self._folder_touched = True
+        self.folder.setText(str(target))
+        toaster = self._toaster()
+        if toaster is not None:
+            toaster.show(f"“{target.name}” klasörü oluşturuldu.", kind="info")
+        return target
+
+    def _pattern_edited(self) -> None:
+        """Typing clears a shown error at once (it is shown again when the field is left)."""
+        if self.pattern.property("invalid"):
+            mark_invalid(self.pattern, False)
+
+    def _pattern_committed(self, text: str) -> None:
+        job_id = self._job_id()
+        if not job_id:
+            return
+        text = text.strip()
+        if text == self._default_pattern:
+            text = ""  # the template's own pattern needs no override
+        before = self._overrides.get(job_id, "")
+        if text == before:
+            self._sync_after_pattern()
+            return
+        self._set_pattern(job_id, text)
+        controller = self.controller()
+        if controller is not None:
+            controller.undo_stack.push(_PatternChange(self, job_id, before, text))
+        self._sync_after_pattern()
+
+    def _sync_after_pattern(self) -> None:
+        self._plan(self.controller())
+        self._shown_findings = None
+        self._sync()
+
+    def _set_pattern(self, job_id: str, text: str) -> None:
+        """The pattern of a job (also by undo and redo)."""
+        if text:
+            self._overrides[job_id] = text
+        else:
+            self._overrides.pop(job_id, None)
+        if job_id == self._job_id() and self.task is None and not self._written:
+            self.pattern.blockSignals(True)
+            self.pattern.setText(text or self._default_pattern)
+            self.pattern.blockSignals(False)
+            self._sync_after_pattern()
+
+    def pattern_text(self) -> str:
+        """The pattern in force: the user's, else the templates' own."""
+        return self._overrides.get(self._job_id(), "") or self._default_pattern
+
+    # -- the links of the pre-flight --------------------------------------------------------
+    def _finding_action(self, action: str) -> None:
+        if action == "choose":
+            self.choose_folder()
+        elif action == "subfolder":
+            self.make_subfolder()
+        elif action == "pattern":
+            self.pattern.setFocus(Qt.FocusReason.OtherFocusReason)
+            self.pattern.selectAll()
+        elif action == "next_check":
+            self.go_tab.emit("kontrol")
+            kontrol = getattr(self.window_, "kontrol", None)
+            if kontrol is not None and hasattr(kontrol, "jump_to_check"):
+                QTimer.singleShot(0, lambda: kontrol.jump_to_check(1))
+        elif action == "values":
+            self.go_tab.emit("degerler")
+        elif action == "kontrol":
+            self.go_tab.emit("kontrol")
+        elif action == "show_names":
+            self.show_changed_names()
+
+    def show_changed_names(self) -> None:
+        """"Adları göster": the first file whose name changed, selected in the list."""
+        self.filter_button.setChecked(False)
+        row = self.model.row_of(lambda r: r.state == "bilgi" and r.why.startswith(
+            ("Ad çakışması", "Geçersiz karakter")))
+        if row >= 0:
+            self.results.selectRow(row)
+            self.results.scrollTo(self.model.index(row, 1))
+            self.results.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _filter_toggled(self, on: bool) -> None:
+        self.model.set_filter(on)
+        self.filter_button.setAccessibleName(
+            f"Yalnızca kontrol gerekenler: {self.model.kontrol_count()}"
+            + (" (açık)" if on else ""))
+
+    # -- the list -------------------------------------------------------------------------
+    def selected_names(self) -> list[str]:
+        rows = sorted({i.row() for i in self.results.selectionModel().selectedRows()})
+        return [r.name for r in (self.model.row_at(i) for i in rows) if r is not None]
+
+    def copy_names(self) -> None:
+        names = self.selected_names()
+        if names:
+            QGuiApplication.clipboard().setText("\n".join(names))
+
+    def _row_menu(self, pos: QPoint) -> None:
+        index = self.results.indexAt(pos)
+        if not index.isValid():
+            return
+        if not self.results.selectionModel().isRowSelected(index.row(), QModelIndex()):
+            self.results.selectRow(index.row())
+        menu = QMenu(self.results)
+        copy = menu.addAction("Dosya adını kopyala")
+        copy.setShortcut(QKeySequence.StandardKey.Copy)
+        copy.triggered.connect(self.copy_names)
+        if self.model.mode == "written":
+            show = menu.addAction("Dosya Gezgini'nde göster")
+            show.triggered.connect(self.reveal_selected)
+        menu.popup(self.results.viewport().mapToGlobal(pos))
+        self._menu = menu
+
+    def reveal_selected(self) -> None:
+        names = self.selected_names()
+        if names and self.out_dir is not None and (self.out_dir / names[0]).exists():
+            reveal_path(self.out_dir / names[0])
+
+    # -- export ---------------------------------------------------------------------------
     def export(self) -> None:
         controller = self.controller()
         if controller is None or self.task is not None:
             return
-        if not self.folder.text().strip():
-            self._say("Önce boş bir hedef klasör seçin.", "warn", "check_ink")
+        if self._written:
+            self.again()
             return
-        out_dir = Path(self.folder.text().strip())
+        self._plan(controller)
+        self._folder = folder_state(self.folder.text())
+        self._outcome = None
+        self._sync()
+        if self._state == "blocked":
+            blocked = [f for f in self._findings if f.level == "engel"]
+            toaster = self._toaster()
+            if toaster is not None:
+                toaster.show("Dışa aktarılamıyor: " + blocked[0].title, kind="info")
+            return
+        text = self.folder.text().strip()
+        if not text:
+            self._folder_error = True
+            self._sync()
+            self.folder.setFocus(Qt.FocusReason.OtherFocusReason)
+            announce(self.side.folder_hint, "Bir hedef klasör seçin.")
+            return
+        out_dir = Path(text)
         controller.store.save(controller.job)  # marks the job as in use for the day limit
         # The worker gets its own copy: the live job can still be edited meanwhile.
         job = job_from_dict(job_to_dict(controller.job))
         files = controller.store.batch_files(job)
         self._exporting = (controller, job)
         templates = dict(self.templates())
+        used = {i for i in (document_template(job, d)[0] for d in controller.documents())
+                if i is not None and templates.get(i) is not None}
+        templates = self._effective(job, templates, used)
         with_layer = self.layer.isChecked()
+        self._with_layer = with_layer
 
         def report(progress, stage, done, total):
             self._stage = stage  # read by the window thread with the next progress signal
@@ -616,124 +863,204 @@ class DisaAktarScreen(QWidget):
                                                                              done, total))
             except EngineUnavailable as error:
                 raise ExportError(f"{error}. Metin katmanı olmadan yazmak için "
-                                  "“Aranabilir metin katmanı ekle” kutusunu kapatın.") from None
+                                  "“Metin katmanı ekle (OCR)” kutusunu kapatın.") from None
 
         self.out_dir = out_dir
-        self._say("")
-        self._written = False
-        self._set_opened(False)
-        self._stage = "write"
-        self._stage_seen = None
+        self._written, self._index_written = False, False
+        self._stage, self._stage_seen = "write", None
+        self._done_count, self._total = 0, len(self._items)
         self.task = Task(work)
         self.task.signals.progress.connect(self._progress)
         self.task.signals.done.connect(self._done)
         self.task.signals.failed.connect(self._failed)
         self.task.signals.cancelled.connect(self._cancelled)
-        self.progress_label.setText("Yazılıyor…")
-        self.stage_label.setText("")
-        self.eta_label.setText("")
-        self.progress.setRange(0, 0)
-        self._path_heading(out_dir)
-        self._set_busy(True)
+        self.run_banner.start(STOP_HINT)
+        self._shown_rows = None
+        self._sync()
+        taskbar = self._taskbar()
+        if taskbar is not None:
+            taskbar.indeterminate()
         start(self.task)
 
     def _progress(self, done: int, total: int) -> None:
         stage = self._stage
-        if stage != getattr(self, "_stage_seen", None):
+        if stage != self._stage_seen:
             self._stage_seen = stage
             self._stage_started = time.monotonic()
-        self.progress.setRange(0, max(1, total))
-        self.progress.setValue(done)
-        self.progress_label.setText(f"Yazılıyor: {done} / {total}")
-        self.stage_label.setText(f"· {STAGES.get(stage, '')}")
         percent = round(done * 100 / total) if total else 0
-        eta = f"%{percent}"
+        sub = f"%{percent}"
         if 0 < done < total:
             left = (time.monotonic() - self._stage_started) / done * (total - done)
-            eta += (f" · yaklaşık {max(1, round(left / 60))} dk kaldı" if left >= 60
-                    else " · bir dakikadan az kaldı")
-        self.eta_label.setText(eta)
+            sub += (f", yaklaşık {max(1, round(left / 60))} dk kaldı" if left >= 60
+                    else ", bir dakikadan az kaldı")
+        sub += f". {STOP_HINT}"
+        self.run_banner.set_progress(done, total, STAGES.get(stage, ""), sub)
+        self._done_count, self._total = done, total
+        final = stage == "layer" or not self._with_layer
+        self.model.set_progress(done, final)
+        if stage == "layer" or not self._with_layer:
+            overall, whole = done + (total if self._with_layer else 0), \
+                total * (2 if self._with_layer else 1)
+        else:
+            overall, whole = done, total * 2
+        taskbar = self._taskbar()
+        if taskbar is not None:
+            taskbar.set(overall, max(1, whole))
+        self._sync_status(self._state)
 
     def _done(self, result) -> None:
         controller, job = self._exporting  # the job that was exported, not the open one
-        ordered = sorted(zip(result.paths, result.items, strict=True),
-                         key=lambda pair: not pair[1].checks)  # flagged files first
-        rows = []
-        for path, item in ordered:
-            pdfa_notes = [c for c in item.checks if c.startswith("PDF/A değil")]
-            others = [c for c in item.checks if c not in pdfa_notes]
-            note = None
-            if others:
-                state, text = "check", "Kontrol · " + others[0]
-            elif pdfa_notes:
-                state, text = "info", "Yazıldı · PDF/A değil"
-                note = pdfa_notes[0]
-            elif item.template_name is None:
-                state, text = "none", "Yazıldı · şablon yok"
-            else:
-                state, text = "ok", "Yazıldı"
-            rows.append((path.name, _pages(job, item.document), item.template_name, state, text,
-                         "; ".join(item.checks), note))
-        self._fill(rows)
+        names = [p.name for p in result.paths]
+        self._written_rows = file_rows(job, result.items, {}, names)
         self._written = True
         self._written_for = controller
-        self._path_heading(self.out_dir)
-        self.count_line.setText(f"{len(result.paths)} dosya yazıldı · işaretliler üstte"
-                                + (" · liste kaydırılır" if len(rows) > 12 else ""))
-        message = (f"{len(result.paths)} belge yazıldı, {result.needing_check} belge kontrol "
-                   "gerektiriyor. Liste: index.xlsx")
-        if self.retention.currentData() == DELETE_AFTER_EXPORT and may_delete_after_export(result):
+        self._index_written = result.index_written
+        self._finished_at = datetime.now().strftime("%H:%M")
+        self._written_hint = (f"Klasörde {len(names)} PDF"
+                              + (" ve index.xlsx var." if result.index_written else " var."))
+        try:
+            retention = load_settings(self.settings_path).retention
+        except SettingsError:
+            retention = ""  # a broken settings file never deletes a job
+        count = len(result.paths)
+        kept = "İş listede kalır; Yükle'den yeniden açabilirsiniz."
+        if retention == DELETE_AFTER_EXPORT and may_delete_after_export(result):
             controller.store.delete(job.id)
-            message += " İş silindi (saklama ayarı)."
+            kept = "İş silindi (saklama ayarı)."
             self.job_deleted.emit()
-        elif (self.retention.currentData() == DELETE_AFTER_EXPORT and result.paths
-              and not result.with_layer):
-            message += " İş saklandı: metin katmanı eklenmedi."
-        self._set_opened(True, index=bool(result.paths))
-        self._finish(message, *(("warn", "check_ink") if result.needing_check else ("ok", "ok")))
+        elif retention == DELETE_AFTER_EXPORT and result.paths and not result.with_layer:
+            kept = "İş saklandı: metin katmanı eklenmedi."
+        check = ""
+        if result.needing_check:
+            check = (f"{result.needing_check} belge kontrol gerektiriyor; index.xlsx'te işaretli,"
+                     " nedeni yazılı.")
+        self._outcome = {
+            "kind": "done", "title": f"{count} belge yazıldı",
+            "message": f"{self.out_dir} klasörüne, {self._finished_at}'de bitti. {kept}",
+            "check": check, "folder": True, "index": result.index_written, "reveal": True,
+        }
+        self._finish(f"{count} belge yazıldı", "kontrol" if result.needing_check else "success")
 
     def _failed(self, message: str) -> None:
-        self._finish(message, "warn", "check_ink")
+        exists = self.out_dir is not None and self.out_dir.exists()
+        self._outcome = {"kind": "failed", "title": "Dışa aktarma tamamlanamadı",
+                         "message": message, "folder": exists, "closable": True}
+        taskbar = self._taskbar()
+        if taskbar is not None:
+            taskbar.error()
+            QTimer.singleShot(5000, taskbar.clear)
+        self._finish("Dışa aktarma tamamlanamadı", None)
 
     def _cancelled(self) -> None:
         written = sorted(p.name for p in self.out_dir.glob("*.pdf")) if self.out_dir else []
-        if written:
-            self._set_opened(True, index=False)
-        self._finish(
-            f"Dışa aktarma durduruldu: {len(written)} dosya yazıldı, index.xlsx yazılmadı. "
-            "Yeniden dışa aktarmak için boş bir klasör seçin.", "info", "qr"
-        )
+        self._outcome = {
+            "kind": "stopped", "title": "Dışa aktarma durduruldu",
+            "message": f"Dışa aktarma durduruldu: {len(written)} dosya yazıldı, index.xlsx "
+                       "yazılmadı. Yeniden dışa aktarmak için boş bir klasör seçin.",
+            "folder": bool(written), "closable": True,
+        }
+        self._finish("Dışa aktarma durduruldu", "info")
 
-    def _finish(self, message: str, icon: str = "ok", colour: str = "ok") -> None:
+    def _finish(self, toast: str, kind: str | None) -> None:
         self.task = None
         self._exporting = None
-        self._set_busy(False)
-        self.progress_label.setText("")
-        self._say(message, icon, colour)
-        self._check_folder()
+        taskbar = self._taskbar()
+        if taskbar is not None and kind is not None:
+            taskbar.clear()
+        self._shown_rows = None
+        self._shown_findings = None
         self.refresh()
+        outcome = self._outcome
+        if outcome is not None:
+            announce(self.outcome, f"{outcome['title']}. {outcome['message']}")
+            if self.isVisible():
+                target = (self.outcome.folder_button if outcome.get("folder")
+                          else self.again_button if self._written else self.export_button)
+                target.setFocus(Qt.FocusReason.OtherFocusReason)
+        toaster = self._toaster()
+        if toaster is not None and kind is not None and self.window_ is not None:
+            if self.window_.current_tab() != "disa_aktar" or kind == "info":
+                toaster.show(toast, "Klasörü aç" if self.out_dir is not None and
+                             self.out_dir.exists() else None,
+                             lambda: self._open_out(self.out_dir),
+                             kind="success" if kind == "success" else kind,
+                             timeout_ms=10000)
         self.finished.emit()
 
     def cancel(self) -> None:
         if self.task is not None:
             self.task.cancel()
+            self.run_banner.sub.setText("Durduruluyor; o ana kadar yazılanlar kalır…")
 
-    def busy(self) -> bool:
-        return self.task is not None
+    def dismiss_outcome(self) -> None:
+        self._outcome = None
+        self._sync()
+        self.export_button.setFocus(Qt.FocusReason.OtherFocusReason)
 
-    def _set_busy(self, busy: bool) -> None:
-        self.progress_block.setVisible(busy)
-        self.cancel_button.setVisible(busy)
-        self.progress.setVisible(busy)
-        self.export_button.setEnabled(not busy and self.controller() is not None)
-        self.lock_hint.setVisible(busy)
-        for widget in (self.folder, self.choose_button, self.layer, self.retention):
-            widget.setEnabled(not busy)
+    def again(self) -> None:
+        """"Yeniden dışa aktar…": back to the pre-flight, with the folder field in front (the
+        folder just written is full, so the pre-flight asks for a new one)."""
+        self._written, self._written_rows, self._outcome = False, [], None
+        self._plan(self.controller())
+        self._folder = folder_state(self.folder.text())
+        self._shown_rows, self._shown_findings = None, None
+        self._sync()
+        self.folder.setFocus(Qt.FocusReason.OtherFocusReason)
+        self.folder.selectAll()
 
-    def _set_opened(self, folder: bool, index: bool | None = None) -> None:
-        self.open_folder.setEnabled(folder)
-        self.open_index.setEnabled(folder if index is None else index)
-        self.after_hint.setVisible(not folder)
+    # -- open ----------------------------------------------------------------------------
+    def _open_out(self, folder: Path | None) -> None:
+        if folder is not None and Path(folder).exists():
+            open_path(Path(folder))
 
-    def _open(self, path: Path) -> None:
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+    def open_index(self) -> None:
+        if self._index_written and self._index_path().is_file():
+            open_path(self._index_path())
+
+    def reveal_in_explorer(self) -> None:
+        target = self._reveal_target()
+        if target is not None:
+            reveal_path(target)
+
+    # -- print ---------------------------------------------------------------------------
+    def index_html(self) -> str:
+        """The list as a printable table (what index.xlsx lists: name, pages, template, state)."""
+        from html import escape
+
+        rows = self.model._all
+        head = "".join(f"<th align='left'>{escape(t)}</th>"
+                       for t in ("Durum", "Dosya adı", "Sayfalar", "Şablon", "Not"))
+        body = "".join(
+            f"<tr><td>{escape(self.model.word(r))}</td><td>{escape(r.name)}</td>"
+            f"<td align='right'>{escape(r.pages)}</td><td>{escape(r.template or 'Şablon yok')}"
+            f"</td><td>{escape(r.why)}</td></tr>" for r in rows)
+        return (f"<h2>{escape(self._job_name or 'Dışa aktarma')}</h2>"
+                f"<p>{len(rows)} belge, {self._summary.pages} sayfa</p>"
+                f"<table border='1' cellspacing='0' cellpadding='4' width='100%'>"
+                f"<tr>{head}</tr>{body}</table>")
+
+    def print_index(self, printer=None) -> None:
+        """"Dizini yazdır…": the file list on paper (or to the printer given)."""
+        from PySide6.QtGui import QTextDocument
+        from PySide6.QtPrintSupport import QPrintDialog, QPrinter
+
+        if self.model.rowCount() == 0:
+            return
+        if printer is None:
+            printer = QPrinter()
+            dialog = QPrintDialog(printer, self)
+            dialog.setWindowTitle("Dizini yazdır")
+            if dialog.exec() != QPrintDialog.DialogCode.Accepted:
+                return
+        document = QTextDocument()
+        document.setHtml(self.index_html())
+        document.print_(printer)
+
+    # Compatibility for the window and old callers
+    def header_state(self) -> QByteArray:
+        return self.results.horizontalHeader().saveState()
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        self._try_attach()
+        self._sync_actions()

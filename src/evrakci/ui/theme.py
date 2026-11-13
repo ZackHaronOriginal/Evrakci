@@ -389,6 +389,7 @@ class ThemeManager(QObject):
             "sep-margin-v": (self.size("commandbar-h") - self.size("sep-h")) // 2,
             "scrollbar-w": SCROLLBAR_W, "tb-tab-h": band.tab_height,
             "tb-control-h": band.control_height, "tb-control-h-in": band.control_height - 2,
+            "status-icon-in": self.size("s6") - 2,
             "tb-search-w-in": band.search_width - 2,
         }
         values.update({k: f"{v}px" for k, v in px.items()})
@@ -399,10 +400,18 @@ class ThemeManager(QObject):
             "hover-edge": values["accent"] if hc else "transparent",
             "hover-stroke": values["accent" if hc else "stroke"],
             "rider-border": "2px" if hc else "1px",
+            # A's hc renders keep a GrayText edge on a disabled primary button and a disabled
+            # checked box (an accent-disabled fill would erase the control in hc)
+            "primary-off-bg": values["card" if hc else "accent-disabled"],
+            "primary-off-edge": values["text-disabled" if hc else "accent-disabled"],
+            "primary-off-fg": values["text-disabled" if hc else "on-accent-disabled"],
+            "check-off-bg": values["card" if hc else "accent-disabled"],
+            "check-off-edge": values["text-disabled" if hc else "accent-disabled"],
         })
         values["font-family"] = ", ".join(f'"{f}"' for f in fonts.font_stack())
         for key, name, colour, stroke in (
             ("icon-check", "check", "text-on-accent", 3),
+            ("icon-check-off", "check", "text-disabled" if hc else "text-on-accent", 3),
             ("icon-minus", "minus", "text-on-accent", 3),
             ("icon-chevron-down", "chevron-down", "text-2", 2),
             ("icon-chevron-up", "chevron-up", "text-2", 2),

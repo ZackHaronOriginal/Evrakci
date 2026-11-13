@@ -1,137 +1,69 @@
-"""The Kontrol screen: check and fix how the pile was split, with the keyboard."""
+"""The Kontrol screen (direction A): check and fix how the pile was split, with the keyboard.
+
+Above, the whole job as a row of segments with the part in view ringed (OverviewStrip). Below,
+the timeline: documents under manila guide tabs, an orange rider where a human has to look
+(TimelineView). On the right, the inspector of the current document (Inspector), hidden with
+F9. Space opens the loupe over the timeline (the overview and the inspector stay), Esc closes it.
+
+Keys (actions.py, context "kontrol"): K cut here, M merge, R / Shift+R rotate, Del delete or
+restore (undoable, never confirmed, the label names the count), F filter, T template, Enter
+approve the document and go on, N / Shift+N next / previous kontrol, U next not reviewed,
+Ctrl+Right / Ctrl+Left next / previous document, Ctrl+G go to, Ctrl+A select all, Esc clear
+the selection (or close the loupe), Space preview. In the timeline: arrows, Home / End,
+PgUp / PgDn, Shift to extend; drag on the background for a rubber band.
+
+The window gives the screen its command bar, status-bar slot, zoom slider (thumbnail size),
+toasts and prefs once the screen is placed in it; on its own (tests) it works without them.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from datetime import datetime
+from functools import partial
 
-from PySide6.QtCore import QItemSelectionModel, QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QKeySequence, QPainter, QPen, QShortcut
-from PySide6.QtWidgets import (
-    QComboBox,
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QSpinBox,
-    QVBoxLayout,
-    QWidget,
-)
+import shiboken6
+from PySide6.QtCore import QEvent, QItemSelectionModel, QPoint, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QMenu, QSplitter, QVBoxLayout, QWidget
 
 from evrakci.pipeline.export import plan_export
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
 from evrakci.ui.controller import JobController
-from evrakci.ui.thumbnails import ThumbnailService
-from evrakci.ui.timeline import Roles, TimelineModel, TimelineView
-from evrakci.ui.widgets import index_rule, key_button
+from evrakci.ui.kontrol_actions import (
+    KontrolBinder,
+    KontrolStatus,
+    context_menu,
+    fallback_action,
+    label_delete,
+)
+from evrakci.ui.kontrol_dialogs import FilterDialog, GoToDialog
+from evrakci.ui.kontrol_inspector import Change, DocumentInfo, Inspector, SelectionInfo
+from evrakci.ui.kontrol_overview import OverviewStrip
+from evrakci.ui.kontrol_paint import CUT_ICONS, CUT_WORDS
+from evrakci.ui.kontrol_review import ReviewStore
+from evrakci.ui.loupe import Loupe
+from evrakci.ui.thumbnails import ThumbnailService, job_renderer, to_qimage
+from evrakci.ui.timeline import ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, Roles, TimelineModel, TimelineView
+from evrakci.ui.zoomview import ZoomController
 
-KIND_TEXT = {
-    "qr": "QR ayıraç",
-    "filter": "Filtre",
-    "manual": "Elle kesim",
-    "start": "İşin başı",
-}
-
-
-class WholeJobStrip(QWidget):
-    """The whole job at true density: one hairline per page, a rider per document to check."""
-
-    jump = Signal(int)  # row
-
-    def __init__(self, model: TimelineModel, parent=None) -> None:
-        super().__init__(parent)
-        self.model = model
-        self.visible = range(0)
-        self.check_rows: list[tuple[int, int]] = []  # (row, document number)
-        self.setFixedHeight(64)
-        self.setToolTip("Tüm iş: her çizgi bir sayfa. Tıklayınca oraya gider.")
-
-    def _x(self, row: float) -> float:
-        total = max(1, self.model.rowCount())
-        return 16 + (self.width() - 32) * row / total
-
-    def paintEvent(self, event) -> None:
-        t = theme.TOKENS
-        painter = QPainter(self)
-        painter.fillRect(self.rect(), QColor(t["layer"]))  # A: the strip sits on the layer
-        total = self.model.rowCount()
-        base = 54
-        painter.setPen(QPen(QColor("#7f8c84"), 1))
-        step = max(1, total // max(1, self.width() - 32))
-        for row in range(0, total, step):
-            x = self._x(row)
-            painter.drawLine(QPointF(x, base - 20), QPointF(x, base))
-        painter.drawLine(QPointF(16, base), QPointF(self.width() - 16, base))
-        for row, number in self.check_rows:
-            x = self._x(row)
-            painter.setPen(QPen(QColor(t["rider"]), 2))
-            painter.drawLine(QPointF(x, base - 28), QPointF(x, base))
-            painter.fillRect(QRectF(x - 4, base - 32, 9, 7), QColor(t["rider"]))
-            painter.setPen(QColor(t["check_ink"]))
-            painter.drawText(QRectF(x - 20, base - 52, 40, 18), Qt.AlignmentFlag.AlignCenter,
-                             str(number))
-        if self.visible:
-            a, b = self._x(self.visible.start), self._x(self.visible.stop)
-            painter.setPen(QPen(QColor(t["ink"]), 2))
-            painter.setBrush(QColor(63, 90, 76, 46))
-            painter.drawRect(QRectF(a, base - 24, max(4, b - a), 28))
-
-    def mousePressEvent(self, event) -> None:
-        total = self.model.rowCount()
-        if total:
-            fraction = (event.position().x() - 16) / max(1, self.width() - 32)
-            self.jump.emit(int(min(max(fraction, 0), 0.9999) * total))
+KIND_TEXT = CUT_WORDS  # kept for callers of the old name
+SPLITTER = "kontrol.govde"
+ZOOM_KEY = "kontrol"
+ZOOM_TARGET = "Küçük resim boyutu"
+REASONS = {"qr": "QR ayıraç sayfası ayırdı.", "filter": "QR ayıraç yok, filtre kesti.",
+           "manual": "Elle kesildi.", "start": "İşin ilk belgesi."}
+THUMB_DELAY_MS = 150  # re-render thumbnails once zooming pauses
 
 
-class SidePanel(QFrame):
-    open_values = Signal(int)  # document number
-
-    def __init__(self, parent=None) -> None:
-        super().__init__(parent)
-        self.setObjectName("card")
-        self.setFixedWidth(340)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 16, 20, 16)
-        self.title = QLabel("Belge seçilmedi")
-        self.title.setStyleSheet("font-size: 20px; font-weight: 700;")
-        self.meta = QLabel("")
-        self.meta.setProperty("role", "muted")
-        layout.addWidget(self.title)
-        layout.addWidget(self.meta)
-        layout.addWidget(index_rule())
-        self.notice = QLabel("")
-        self.notice.setWordWrap(True)
-        theme.bind_style(self.notice, lambda: f"color: {theme.colour('check_ink')}; "
-                         "font-weight: 700;")
-        self.values_button = key_button("Değerlerde aç", "Ctrl+4", primary=True)
-        self.values_button.clicked.connect(lambda: self.open_values.emit(self.document))
-        layout.addWidget(self.notice)
-        layout.addWidget(self.values_button)
-        why = QLabel("Neden burada başlıyor?")
-        why.setStyleSheet("font-weight: 700; margin-top: 12px;")
-        layout.addWidget(why)
-        self.why = QLabel("")
-        self.why.setWordWrap(True)
-        layout.addWidget(self.why)
-        self.merge_button = key_button("Öncekiyle birleştir", "M")
-        layout.addWidget(self.merge_button)
-        layout.addStretch(1)
-        self.document = 0
-        self.notice.hide()
-        self.values_button.hide()
-
-    def show_document(self, number: int, info: dict) -> None:
-        self.document = number
-        self.title.setText(f"Belge {number} · {info['template'] or 'Şablon yok'}")
-        self.meta.setText(info["meta"])
-        checks = info["checks"]
-        self.notice.setText("Kontrol: " + "; ".join(checks) if checks else "")
-        self.notice.setVisible(bool(checks))
-        self.values_button.setVisible(bool(checks))
-        self.why.setText(info["why"])
+def _sentence(checks: list[str]) -> str:
+    text = ", ".join(checks)
+    return (text[:1].upper() + text[1:] + ".") if text else ""
 
 
 class KontrolScreen(QWidget):
-    open_values = Signal(int)
+    open_values = Signal(int)  # document number
 
     def __init__(
         self,
@@ -142,203 +74,563 @@ class KontrolScreen(QWidget):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
+        self.setAccessibleName("Kontrol")
         self.controller = controller
         self.templates = templates
+        self.thumbnails = thumbnails
         self.model = TimelineModel(controller, templates)
+        self.reviews = ReviewStore(controller, self)
+        self.registry = None  # the window's action registry, once the screen is placed
+        self._window: QWidget | None = None
+        self._every_n = 2
+        self._template_choice: str | None = None
+        self._history: list[tuple[int, Change]] = []
+        self._loupe: Loupe | None = None
+        self._hires = None
+        self._kept: tuple[list[str], str | None] = ([], None)
+        self._rotations = dict(controller.job.rotations)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
-        root.addWidget(self._toolbar())
-        self.strip = WholeJobStrip(self.model)
-        self.strip.jump.connect(self.go_to_row)
-        root.addWidget(self.strip)
-
-        body = QHBoxLayout()
-        body.setContentsMargins(0, 0, 0, 0)
-        work = QVBoxLayout()
-        work.setContentsMargins(24, 12, 24, 0)
-        heading = QHBoxLayout()
-        self.guide_words = QLabel("")
-        self.guide_words.setProperty("role", "heading")
-        heading.addWidget(self.guide_words)
-        heading.addStretch(1)
-        self.prev_check = key_button("Önceki kontrol", "Shift+N")
-        self.next_check = key_button("Sonraki kontrol", "N")
-        self.prev_check.clicked.connect(lambda: self.jump_to_check(-1))
-        self.next_check.clicked.connect(lambda: self.jump_to_check(1))
-        heading.addWidget(self.prev_check)
-        heading.addWidget(self.next_check)
-        work.addLayout(heading)
-        work.addWidget(index_rule())
+        self.body = QSplitter(Qt.Orientation.Horizontal)
+        self.body.setObjectName(SPLITTER)
+        self.body.setChildrenCollapsible(False)
+        self.body.setHandleWidth(theme.manager().size("s1"))
+        work = QWidget()
+        work.setObjectName("kontrolWork")
+        column = QVBoxLayout(work)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+        self.strip = OverviewStrip()
+        self.strip.jump.connect(self.go_to_document)
+        column.addWidget(self.strip)
+        self.work_area = QWidget()
+        area = QVBoxLayout(self.work_area)
+        area.setContentsMargins(0, 0, 0, 0)
         self.timeline = TimelineView(thumbnails)
         self.timeline.setModel(self.model)
-        work.addWidget(self.timeline, 1)
-        body.addLayout(work, 1)
-        self.side = SidePanel()
-        self.side.merge_button.clicked.connect(self.merge_current)
-        self.side.open_values.connect(self.open_values)
-        body.addWidget(self.side)
-        root.addLayout(body, 1)
+        self.timeline.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.timeline.customContextMenuRequested.connect(self._context_menu)
+        self.timeline.doubleClicked.connect(lambda index: self.open_loupe(index.row()))
+        area.addWidget(self.timeline)
+        column.addWidget(self.work_area, 1)
+        self.side = Inspector(self._fill_more)
+        self.side.approve.connect(self.approve_document)
+        self.side.open_values.connect(self.open_in_values)
+        self.side.template_row.connect(self._template_menu)
+        self.side.filter_row.connect(lambda: self.apply_filter())
+        self.body.addWidget(work)
+        self.body.addWidget(self.side)
+        self.body.setStretchFactor(0, 1)
+        self.body.setStretchFactor(1, 0)
+        inspector = theme.manager().size("inspector-w")
+        self.body.setSizes([max(400, 1366 - 16 - inspector), inspector])
+        root.addWidget(self.body)
+
+        self.zoom = self._make_zoom(None)
+        self._thumb_timer = QTimer(self)
+        self._thumb_timer.setSingleShot(True)
+        self._thumb_timer.setInterval(THUMB_DELAY_MS)
+        self._thumb_timer.timeout.connect(self._rerender)
 
         self.model.modelAboutToBeReset.connect(self._remember_selection)
         self.model.modelReset.connect(self._restore_selection)
-        self._kept: tuple[list[str], str | None] = ([], None)
-        self._rotations = dict(controller.job.rotations)
-        self.thumbnails = thumbnails
-        self.timeline.selectionModel().selectionChanged.connect(self._selection_changed)
-        self.timeline.selectionModel().currentChanged.connect(self._current_changed)
-        self.timeline.horizontalScrollBar().valueChanged.connect(self._scrolled)
+        selection = self.timeline.selectionModel()
+        selection.selectionChanged.connect(self._selection_changed)
+        selection.currentChanged.connect(self._current_changed)
+        self.timeline.verticalScrollBar().valueChanged.connect(self._scrolled)
         controller.job_changed.connect(self._job_changed)
-        self._shortcuts()
+        controller.undo_stack.indexChanged.connect(self._undo_moved)
+        self.reviews.changed.connect(self._reviews_changed)
         if self.model.rowCount():  # focus the first page without selecting it
-            self.timeline.selectionModel().setCurrentIndex(
-                self.model.index(0), QItemSelectionModel.SelectionFlag.NoUpdate)
+            selection.setCurrentIndex(self.model.index(0),
+                                      QItemSelectionModel.SelectionFlag.NoUpdate)
+        if thumbnails is not None:
+            thumbnails.set_height(self.timeline.thumbnail_height())
         self._job_changed()
+        self._built = True
+        if self.reviews.error:
+            controller.status.emit(self.reviews.error)
 
-    # Building
-    def _toolbar(self) -> QWidget:
-        bar = QFrame()
-        bar.setObjectName("card")
-        layout = QHBoxLayout(bar)
-        layout.setContentsMargins(16, 8, 16, 8)
-        self.undo_button = key_button("Geri al", "Ctrl+Z")
-        self.redo_button = key_button("Yinele", "Ctrl+Y")
-        self.undo_button.clicked.connect(self.controller.undo)
-        self.redo_button.clicked.connect(self.controller.redo)
-        self.selection_label = QLabel("Seçim yok")
-        self.selection_label.setStyleSheet("font-weight: 700;")
-        self.every_n = QSpinBox()
-        self.every_n.setRange(1, 999)
-        self.every_n.setValue(2)
-        self.every_n.setToolTip("Seçili sayfalarda her kaç sayfa bir belge olsun")
-        self.filter_button = key_button("Filtreyi uygula", "F", primary=True)
-        self.filter_button.clicked.connect(self.apply_filter)
-        self.cut_button = key_button("Kesim", "K")
-        self.cut_button.clicked.connect(self.toggle_cut)
-        self.template_box = QComboBox()
-        self.template_box.setToolTip("Uygulanacak şablon")
-        self.template_button = key_button("Şablon uygula", "T")
-        self.template_button.clicked.connect(self.apply_template)
-        self.rotate_button = key_button("Döndür", "R")
-        self.rotate_button.clicked.connect(self.rotate_selected)
-        self.delete_button = key_button("Sil", "Del")
-        self.delete_button.clicked.connect(self.toggle_delete)
-        for widget in (self.undo_button, self.redo_button, self.selection_label):
-            layout.addWidget(widget)
-        layout.addSpacing(8)
-        layout.addWidget(QLabel("Her"))
-        layout.addWidget(self.every_n)
-        layout.addWidget(QLabel("sayfada bir belge"))
-        for widget in (self.filter_button, self.cut_button, self.template_box,
-                       self.template_button, self.rotate_button, self.delete_button):
-            layout.addWidget(widget)
-        layout.addStretch(1)
-        return bar
+    # -- the window ---------------------------------------------------------------------------
+    def event(self, event) -> bool:
+        if (event.type() in (QEvent.Type.ParentChange, QEvent.Type.Show)
+                and getattr(self, "_built", False)):
+            self._attach()
+        return super().event(event)
 
-    def _shortcuts(self) -> None:
-        # Ctrl+Z/Y, F, K, T, R, Del, M, N, Shift+N are registry actions (main window).
-        bindings: dict = {}
-        for key, slot in bindings.items():
-            shortcut = QShortcut(QKeySequence(key), self)
-            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-            shortcut.activated.connect(slot)
+    def _attach(self) -> None:
+        window = self.window()
+        registry = getattr(window, "registry", None)
+        if window is self or registry is None or self._window is window:
+            return
+        self._window = window
+        self.registry = registry
+        self.binder = KontrolBinder.for_registry(registry)
+        self.binder.attach(self)
+        QTimer.singleShot(0, self._sync_binder)  # once the window names this screen
+        prefs = getattr(window, "prefs", None)
+        if prefs is not None:
+            self.zoom = self._make_zoom(prefs)
+            self.timeline.set_zoom(self.zoom.zoom())
+            self._rerender()
+        if hasattr(window, "register_zoom"):
+            window.register_zoom("kontrol", self.zoom, ZOOM_TARGET)
+        if hasattr(window, "status_slot"):
+            self.status = KontrolStatus.in_slot(window.status_slot("kontrol"))
+        self.destroyed.connect(partial(_forget_screen, window))
+        self._update_status()
+        self._selection_changed()
 
-    # Reading the state
-    def selected_ids(self) -> list[str]:
+    def _sync_binder(self) -> None:
+        binder = getattr(self, "binder", None)
+        if binder is not None and shiboken6.isValid(binder):
+            binder.sync()
+            if binder.screen() is None and self._window is not None:
+                _forget_screen(self._window)  # the job was closed
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        self._sync_binder()
+
+    def hideEvent(self, event) -> None:  # noqa: N802
+        super().hideEvent(event)
+        # closing the job hides the screen; once the window has let it go, its commands go off
+        QTimer.singleShot(0, self._sync_binder)
+
+    def _make_zoom(self, prefs) -> ZoomController:
+        old = getattr(self, "zoom", None)
+        if old is not None:
+            self.timeline.removeEventFilter(old)
+            self.timeline.viewport().removeEventFilter(old)
+            old.deleteLater()
+        zoom = ZoomController(self.timeline, prefs, ZOOM_KEY, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP,
+                              lambda: 100)
+        zoom.zoom_changed.connect(self.set_zoom)
+        return zoom
+
+    def set_zoom(self, percent: int) -> None:
+        """Thumbnail size (status-bar slider, Ctrl+wheel, Ctrl+plus / minus / 0)."""
+        self.timeline.set_zoom(percent)
+        self._thumb_timer.start()
+        self._scrolled()
+
+    def _rerender(self) -> None:
+        if self.thumbnails is not None:
+            self.thumbnails.set_height(self.timeline.thumbnail_height())
+        self.timeline.viewport().update()
+
+    def _toast(self, text: str, undo: bool = True) -> None:
+        toaster = getattr(self._window, "toaster", None)
+        if toaster is not None:
+            toaster.show(text, "Geri al" if undo else None,
+                         self.controller.undo if undo else None)
+        else:
+            self.controller.status.emit(text)
+
+    # -- reading the state --------------------------------------------------------------------
+    def selected_rows(self) -> list[int]:
         rows = sorted(i.row() for i in self.timeline.selectionModel().selectedIndexes())
         if not rows and self.timeline.currentIndex().isValid():
             rows = [self.timeline.currentIndex().row()]
-        return [self.model.page_id(r) for r in rows]
+        return rows
+
+    def selected_ids(self) -> list[str]:
+        return [self.model.page_id(r) for r in self.selected_rows()]
+
+    def current_row(self) -> int:
+        index = self.timeline.currentIndex()
+        return index.row() if index.isValid() else -1
 
     def current_document(self) -> int:
         index = self.timeline.currentIndex()
-        return index.data(Roles.DOC) if index.isValid() else 0
+        if not index.isValid():
+            return 0
+        number = index.data(Roles.DOC)
+        if number:
+            return number
+        for group in self.model.groups():  # a page to delete belongs to its document
+            if group.first <= index.row() <= group.last:
+                return group.doc
+        return 0
 
-    # Actions
-    def apply_filter(self) -> None:
-        ids = [pid for pid in self.selected_ids()
-               if not self.controller.job.pages[pid].is_separator]
+    def _pages(self, ids: list[str]) -> list[str]:
+        job = self.controller.job
+        return [pid for pid in ids if not job.pages[pid].is_separator]
+
+    def _span(self, ids: list[str]) -> str:
+        job = self.controller.job
+        positions = sorted(job.position_of(pid) for pid in ids)
+        if len(positions) == 1:
+            return f"sayfa {positions[0]}"
+        return f"sayfa {positions[0]}–{positions[-1]}"
+
+    def _remember(self, icon: str, text: str) -> None:
+        self._history.insert(0, (self.controller.undo_stack.index(),
+                                 Change(icon, text, datetime.now().strftime("%H:%M"))))
+        del self._history[10:]
+        self.side.set_history([c for _, c in self._history])
+
+    def _undo_moved(self, index: int) -> None:
+        kept = [(i, c) for i, c in self._history if i <= index]
+        if len(kept) != len(self._history):
+            self._history = kept
+            self.side.set_history([c for _, c in kept])
+
+    # -- edits --------------------------------------------------------------------------------
+    def apply_filter(self, every_n: int | None = None) -> None:
+        """F, Filtre uygula…: asks every how many pages unless `every_n` is given."""
+        ids = self._pages(self.selected_ids())
         if not ids:
             self.controller.status.emit("Önce sayfaları seçin.")
             return
-        self.controller.apply_filter(ids, self.every_n.value())
+        if every_n is None:
+            dialog = FilterDialog(len(ids), self._every_n, self)
+            if not dialog.exec():
+                self.timeline.setFocus()
+                return
+            every_n = dialog.value()
+            self.timeline.setFocus()
+        self._every_n = every_n
+        if self.controller.apply_filter(ids, every_n):
+            self._remember("funnel", f"Filtre her {every_n} sayfa, {self._span(ids)}")
 
-    def apply_template(self) -> None:
-        template_id = self.template_box.currentData()
+    def apply_template(self, template_id: str | None = None) -> None:
+        """T: the template the inspector shows (or `template_id`) on the selected pages."""
+        templates = self.templates()
+        template_id = template_id or self._template_for_selection()
         ids = self.selected_ids()
-        if not template_id or not ids:
+        if not templates:
+            self.controller.status.emit("Önce Şablonlar sekmesinde bir şablon oluşturun.")
+            return
+        if not template_id or template_id not in templates or not ids:
             self.controller.status.emit("Önce sayfaları ve bir şablonu seçin.")
             return
-        self.controller.apply_template(ids, template_id)
+        self._template_choice = template_id
+        if self.controller.apply_template(ids, template_id):
+            self._remember("stamp", f"{templates[template_id].name} uygulandı, "
+                                    f"{len(ids)} sayfa")
 
     def toggle_cut(self) -> None:
+        """K: cut before the current page, or remove the cut that is there."""
         index = self.timeline.currentIndex()
         if not index.isValid():
             return
         pid = index.data(Roles.PID)
+        position = index.row() + 1
         if pid in self.controller.job.manual_cuts:
-            self.controller.remove_cut(pid)
-        else:
-            self.controller.add_cut(pid)
+            if self.controller.remove_cut(pid):
+                self._remember("scissors", f"Kesim kaldırıldı, sayfa {position}")
+        elif self.controller.add_cut(pid):
+            self._remember("scissors", f"Kesim eklendi, sayfa {position}")
 
-    def rotate_selected(self) -> None:
-        ids = self.selected_ids()
-        if ids:  # one undo step for the whole selection
-            self.controller.run("Döndür", lambda job: [job.rotate(pid, 90) for pid in ids])
-
-    def toggle_delete(self) -> None:
-        ids = self.selected_ids()
+    def rotate_selected(self, degrees: int = 90) -> None:
+        """R / Shift+R: rotate the selected pages; one undo step for the whole selection."""
+        ids = self._pages(self.selected_ids())
         if not ids:
             return
+        if self.controller.run("Döndür", lambda job: [job.rotate(pid, degrees) for pid in ids]):
+            side = "sağa" if degrees > 0 else "sola"
+            what = (f"Sayfa {self.controller.job.position_of(ids[0])}" if len(ids) == 1
+                    else f"{len(ids)} sayfa")
+            self._remember("rotate-cw" if degrees > 0 else "rotate-ccw",
+                           f"{what} {side} döndürüldü")
 
-        def toggle(job) -> None:
-            for pid in ids:
-                if pid in job.deleted:
-                    job.undelete_page(pid)
-                else:
-                    job.delete_page(pid)
+    def toggle_delete(self) -> None:
+        """Del: delete the selected pages, or restore them when all are already deleted.
 
-        self.controller.run("Sil / geri al", toggle)
+        Undoable instead of confirmed; a toast offers "Geri al" and says so when a document
+        loses all its pages, so nothing disappears silently."""
+        ids = self._pages(self.selected_ids())
+        if not ids:
+            if self.selected_ids():
+                self.controller.status.emit("Ayraç sayfaları zaten dışa aktarılmaz. "
+                                            "Kesimi kaldırmak için M.")
+            return
+        job = self.controller.job
+        restore = all(pid in job.deleted for pid in ids)
+        if restore:
+            if self.controller.run("Sayfayı geri getir",
+                                   lambda j: [j.undelete_page(p) for p in ids]):
+                text = (f"Sayfa {job.position_of(ids[0])} geri getirildi" if len(ids) == 1
+                        else f"{len(ids)} sayfa geri getirildi")
+                self._remember("undo-2", text)
+            return
+        targets = [pid for pid in ids if pid not in job.deleted]
+        emptied = [n for n, d in enumerate(self.controller.documents(), start=1)
+                   if set(d.page_ids) <= set(targets)]
+        label = "Sayfayı sil" if len(targets) == 1 else f"{len(targets)} sayfayı sil"
+        if not self.controller.run(label, lambda j: [j.delete_page(p) for p in targets]):
+            return
+        text = (f"Sayfa {job.position_of(targets[0])} silinecek" if len(targets) == 1
+                else f"{len(targets)} sayfa silinecek")
+        self._remember("trash-2", text)
+        if emptied:
+            names = ", ".join(f"Belge {n}" for n in emptied)
+            self._toast(f"{names}: bütün sayfaları silinecek, belge dışa aktarılmayacak.")
+        else:
+            self._toast(f"{text}.")
 
     def merge_current(self) -> None:
+        """M: join the current document to the one before (removes the cut between them)."""
         number = self.current_document()
         if not number:
             return
         document = self.controller.documents()[number - 1]
         first = document.page_ids[0]
         kind = self.controller.cut_kinds().get(first)
+        done = False
         if kind == "manual":
-            self.controller.remove_cut(first)
+            done = self.controller.remove_cut(first)
         elif kind == "qr":
             ordered = self.controller.job.ordered_page_ids()
             before = ordered[: ordered.index(first)]
             separator = next(pid for pid in reversed(before)
                              if self.controller.job.pages[pid].is_separator)
-            self.controller.remove_cut(separator)
+            done = self.controller.remove_cut(separator)
         elif kind == "filter":
-            self.controller.status.emit("Bu kesimi filtre yaptı; filtreyi değiştirin.")
+            self.controller.status.emit("Bu kesimi filtre yaptı; filtreyi değiştirin (F).")
         else:
             self.controller.status.emit("İlk belgenin öncesi yok.")
+        if done:
+            self._remember("merge", f"Belge {number}, Belge {number - 1} ile birleşti")
+            self._toast(f"Belge {number}, Belge {number - 1} ile birleştirildi.")
 
+    def approve_document(self) -> None:
+        """Enter, Belgeyi onayla: the document is İncelendi; go on to the next one."""
+        number = self.current_document()
+        if not number:
+            self.controller.status.emit("Önce bir sayfa seçin.")
+            return
+        documents = self.controller.documents()
+        if self.reviews.set_reviewed([documents[number - 1]]):
+            self._remember("circle-check", f"Belge {number} onaylandı")
+        if number < len(documents):
+            self.go_to_document(number + 1)
+        else:
+            self.controller.status.emit(f"Belge {number} onaylandı; bu son belge.")
+
+    def open_in_values(self) -> None:
+        number = self.current_document()
+        if number:
+            self.open_values.emit(number)
+
+    # -- moving around ------------------------------------------------------------------------
     def go_to_row(self, row: int) -> None:
+        if not 0 <= row < self.model.rowCount():
+            return
         index = self.model.index(row)
         self.timeline.setCurrentIndex(index)
-        self.timeline.scrollTo(index, TimelineView.ScrollHint.PositionAtCenter)
+        self.timeline.scrollTo(index, TimelineView.ScrollHint.EnsureVisible)
+        if self._loupe is not None and self._loupe.is_open():
+            self._loupe.set_index(row)
+
+    def go_to_document(self, number: int) -> None:
+        row = self.model.first_row(number)
+        if row >= 0:
+            self.go_to_row(row)
+
+    def go_to_page(self, position: int) -> None:
+        self.go_to_row(position - 1)
+
+    def jump_document(self, step: int) -> None:
+        """Ctrl+Right / Ctrl+Left: first page of the next / previous document."""
+        count = len(self.controller.documents())
+        here = self.current_document()
+        if not count:
+            return
+        target = (1 if step > 0 else count) if not here else max(1, min(count, here + step))
+        if target == here:
+            edge = "son" if step > 0 else "ilk"
+            self.controller.status.emit(f"Bu {edge} belge.")
+            return
+        self.go_to_document(target)
 
     def jump_to_check(self, direction: int) -> None:
-        rows = [row for row, _ in self.strip.check_rows]
-        if not rows:
+        """N / Shift+N: the next / previous document that needs a check."""
+        numbers = sorted(n for _row, n in self.strip.check_rows)
+        if not numbers:
             self.controller.status.emit("Kontrol bekleyen belge yok.")
             return
-        here = self.timeline.currentIndex().row() if self.timeline.currentIndex().isValid() else -1
+        here = self.current_document()
         if direction > 0:
-            target = next((r for r in rows if r > here), rows[0])
+            target = next((n for n in numbers if n > here), numbers[0])
         else:
-            target = next((r for r in reversed(rows) if r < here), rows[-1])
-        self.go_to_row(target)
+            target = next((n for n in reversed(numbers) if n < here), numbers[-1])
+        self.go_to_document(target)
 
-    # Refreshing
+    def next_unreviewed(self) -> None:
+        """U: the next document nobody has approved yet (wraps around)."""
+        count = len(self.controller.documents())
+        reviewed = self.model.reviewed
+        here = self.current_document()
+        order = [*range(here + 1, count + 1), *range(1, here + 1)]
+        target = next((n for n in order if n not in reviewed), 0)
+        if not target:
+            self.controller.status.emit("Bütün belgeler incelendi.")
+            return
+        self.go_to_document(target)
+
+    def go_to(self) -> None:
+        """Ctrl+G: Belgeye veya sayfaya git…"""
+        documents = len(self.controller.documents())
+        dialog = GoToDialog(documents, self.model.rowCount(), "belge",
+                            max(1, self.current_document()), self)
+        if dialog.exec():
+            if dialog.kind() == "belge":
+                self.go_to_document(dialog.value())
+            else:
+                self.go_to_page(dialog.value())
+        self.timeline.setFocus()
+
+    def select_all(self) -> None:
+        self.timeline.selectAll()
+
+    def escape(self) -> None:
+        """Esc: close the loupe if it is open, else clear the selection."""
+        if self._loupe is not None and self._loupe.is_open():
+            self.close_loupe()
+            return
+        self.timeline.selectionModel().clearSelection()
+
+    # -- loupe --------------------------------------------------------------------------------
+    def loupe(self) -> Loupe:
+        if self._loupe is None:
+            self._loupe = Loupe(self.work_area, getattr(self._window, "prefs", None))
+            self._loupe.index_changed.connect(self._loupe_moved)
+            self._loupe.closed.connect(self._loupe_closed)
+        return self._loupe
+
+    def toggle_loupe(self) -> None:
+        """Space: the current page large, or back to the timeline."""
+        if self._loupe is not None and self._loupe.is_open():
+            self.close_loupe()
+        else:
+            self.open_loupe()
+
+    def open_loupe(self, row: int | None = None) -> None:
+        row = self.current_row() if row is None else row
+        if row < 0 or not self.model.rowCount():
+            return
+        loupe = self.loupe()
+        loupe.open(self.model.rowCount(), self._render_page, row, self._loupe_title)
+        if self._window is not None and hasattr(self._window, "register_zoom"):
+            self._window.register_zoom("kontrol", loupe.zoom, "Önizleme")
+
+    def close_loupe(self) -> None:
+        if self._loupe is not None:
+            self._loupe.close_loupe()
+
+    def _loupe_moved(self, row: int) -> None:
+        index = self.model.index(row)
+        if self.timeline.currentIndex() != index:
+            self.timeline.selectionModel().setCurrentIndex(
+                index, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+
+    def _loupe_closed(self, row: int) -> None:
+        if self._window is not None and hasattr(self._window, "register_zoom"):
+            self._window.register_zoom("kontrol", self.zoom, ZOOM_TARGET)
+        self.timeline.scrollTo(self.model.index(row))
+        self.timeline.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _loupe_title(self, row: int) -> str:
+        total = self.model.rowCount()
+        text = f"Sayfa {row + 1} / {total}"
+        number = self.model.doc_of_row(row)
+        if theme.manager().text_scale() >= 130:  # A hides the second part at 150 %
+            return text
+        if self.model.state(row) == "separator":
+            return f"{text}   QR ayıraç"
+        if number:
+            rows = self.model.document_rows(number)
+            nth = sum(1 for r in rows if r <= row and self.model.state(r) != "separator")
+            template = self.model.data(self.model.index(rows.start), Roles.TEMPLATE)
+            parts = [f"Belge {number}", template, f"{nth}. sayfa"]
+            text += "   " + ", ".join(p for p in parts if p)
+        return text
+
+    def _render_page(self, row: int, size: QSize) -> QPixmap:
+        """A page for the loupe: the cached thumbnail for small sizes, else rendered from the
+        batch PDF at the resolution `size` needs."""
+        pid = self.model.page_id(row)
+        image = None
+        if size.height() <= 300 and self.thumbnails is not None:
+            image = self.thumbnails.cache.get(pid)
+        if image is None:
+            try:
+                if self._hires is None:
+                    job, store = self.controller.job, self.controller.store
+                    self._hires = job_renderer(job, lambda: store.batch_files(job))
+                image = to_qimage(self._hires(pid, size.height()))
+            except Exception:  # no PDF (or unreadable): the thumbnail renderer, else paper
+                try:
+                    if self.thumbnails is None:
+                        raise LookupError(pid)
+                    image = to_qimage(self.thumbnails.renderer(pid, size.height()))
+                except Exception:
+                    pixmap = QPixmap(size.width() or 1, size.height() or 1)
+                    pixmap.fill(theme.manager().color("paper"))
+                    return pixmap
+        pixmap = QPixmap.fromImage(image)
+        if pixmap.size() != size:
+            pixmap = pixmap.scaled(size, Qt.AspectRatioMode.KeepAspectRatio,
+                                   Qt.TransformationMode.SmoothTransformation)
+        return pixmap
+
+    # -- menus --------------------------------------------------------------------------------
+    def _action(self, action_id: str):
+        if self.registry is not None:
+            return self.registry.action(action_id)
+        return fallback_action(self, action_id, self)
+
+    def _context_menu(self, pos: QPoint) -> None:
+        index = self.timeline.indexAt(pos)
+        selection = self.timeline.selectionModel()
+        if index.isValid() and not selection.isSelected(index):
+            selection.setCurrentIndex(index, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+        elif not index.isValid():
+            index = self.timeline.currentIndex()
+            if not index.isValid():
+                return
+            pos = self.timeline.visualRect(index).center()
+        elif index != self.timeline.currentIndex():
+            selection.setCurrentIndex(index, QItemSelectionModel.SelectionFlag.NoUpdate)
+        self.menu = context_menu(self, self._action, self)
+        self.menu.popup(self.timeline.viewport().mapToGlobal(pos))
+
+    def _fill_more(self, menu: QMenu) -> None:
+        for action_id in ("kontrol.birlestir", "kontrol.onceki_belge", "kontrol.sonraki_belge",
+                          "kontrol.sonraki_incelenmemis"):
+            menu.addAction(self._action(action_id))
+
+    def _template_menu(self) -> None:
+        menu = QMenu(self)
+        menu.setAccessibleName("Şablon uygula")
+        templates = sorted(self.templates().items(), key=lambda kv: kv[1].name)
+        for template_id, template in templates:
+            item = menu.addAction(template.name, partial(self.apply_template, template_id))
+            item.setCheckable(True)
+            item.setChecked(template_id == self._template_for_selection())
+        if not templates:
+            menu.addAction("Önce Şablonlar sekmesinde bir şablon oluşturun").setEnabled(False)
+        button = self.side.template_button
+        self.menu = menu
+        menu.popup(button.mapToGlobal(QPoint(button.width() - menu.sizeHint().width(),
+                                             button.height())))
+
+    def _template_for_selection(self) -> str | None:
+        templates = self.templates()
+        if self._template_choice in templates:
+            return self._template_choice
+        for pid in self.selected_ids():
+            for application in reversed(self.controller.job.templates):
+                if pid in application.page_ids and application.template_id in templates:
+                    return application.template_id
+        ordered = sorted(templates.items(), key=lambda kv: kv[1].name)
+        return ordered[0][0] if ordered else None
+
+    # -- refreshing ---------------------------------------------------------------------------
     def _remember_selection(self) -> None:
         rows = sorted(i.row() for i in self.timeline.selectionModel().selectedIndexes())
         current = self.timeline.currentIndex()
@@ -373,65 +665,102 @@ class KontrolScreen(QWidget):
     def _job_changed(self) -> None:
         self._refresh_thumbnails()
         items = plan_export(self.controller.job, self.templates())
-        checks = {item.number: item.checks for item in items}
+        checks = {item.number: item.checks for item in items if item.checks}
         self.model.set_checks(checks)
-        self.strip.check_rows = [
-            (self.model.row_of(item.document.page_ids[0]), item.number)
-            for item in items if item.checks
-        ]
-        current = self.template_box.currentData()
-        self.template_box.clear()
-        for template_id, template in sorted(self.templates().items(), key=lambda kv: kv[1].name):
-            self.template_box.addItem(template.name, template_id)
-        if current:
-            self.template_box.setCurrentIndex(max(0, self.template_box.findData(current)))
-        self.undo_button.setEnabled(self.controller.undo_stack.canUndo())
-        self.redo_button.setEnabled(self.controller.undo_stack.canRedo())
+        self.strip.check_rows = [(self.model.first_row(n), n) for n in sorted(checks)]
+        self._reviews_changed()
+
+    def _reviews_changed(self) -> None:
+        reviewed = self.reviews.reviewed_numbers()
+        self.model.set_reviewed(reviewed)
+        self.strip.set_state(len(self.controller.documents()), set(self.model.checks), reviewed)
         self._scrolled()
         self._current_changed(self.timeline.currentIndex())
+        self._selection_changed()
 
-    def _scrolled(self) -> None:
+    def _scrolled(self, *_args) -> None:
         rows = self.timeline.visible_rows()
-        self.strip.visible = rows
-        self.strip.update()
-        numbers = sorted({self.model.data(self.model.index(r), Roles.DOC) for r in rows} - {0})
+        numbers = [n for n in (self.model.doc_of_row(r) for r in rows) if n]
         if numbers:
-            self.guide_words.setText(f"Belge {numbers[0]} — Belge {numbers[-1]}")
+            self.strip.set_visible(min(numbers), max(numbers))
         else:
-            self.guide_words.setText("")
+            self.strip.set_visible(0, 0)
 
-    def _selection_changed(self) -> None:
-        ids = self.selected_ids()
-        if not ids:
-            self.selection_label.setText("Seçim yok")
-            return
-        first = self.controller.job.position_of(ids[0])
-        last = self.controller.job.position_of(ids[-1])
-        span = f"Sayfa {first}" if first == last else f"Sayfa {first}–{last}"
-        self.selection_label.setText(f"{span} seçili · {len(ids)} sayfa")
+    def _selection_changed(self, *_args) -> None:
+        rows = self.selected_rows()
+        ids = [self.model.page_id(r) for r in rows]
+        if rows:
+            self.side.show_selection(SelectionInfo(
+                len(rows), rows[0] + 1, rows[-1] + 1,
+                self._template_name(self._template_for_selection()), self._every_n))
+        else:
+            self.side.show_selection(None)
+        job = self.controller.job
+        pages = self._pages(ids)
+        restore = bool(pages) and all(pid in job.deleted for pid in pages)
+        label_delete(self.registry, len(pages), restore)
+        self._update_status()
 
-    def _current_changed(self, index) -> None:
-        number = index.data(Roles.DOC) if index.isValid() else 0
-        if not number:
-            return
+    def _template_name(self, template_id: str | None) -> str:
+        template = self.templates().get(template_id) if template_id else None
+        return template.name if template is not None else ""
+
+    def _current_changed(self, index, *_args) -> None:
+        number = self.current_document()
         documents = self.controller.documents()
-        if number > len(documents):
+        if not number or number > len(documents):
+            self.side.show_nothing()
+            self._update_status()
             return
         document = documents[number - 1]
-        kinds = self.controller.cut_kinds()
         job = self.controller.job
-        first, last = job.position_of(document.page_ids[0]), job.position_of(document.page_ids[-1])
-        dropped = sum(
-            1 for pid in job.ordered_page_ids()[first - 1:last]
-            if pid not in document.page_ids and not job.pages[pid].is_separator
-        )
-        why = f"Önceki kesim: {KIND_TEXT[kinds.get(document.page_ids[0], 'start')]}"
-        if dropped:
-            why += f"\nAtlanan sayfa: {dropped}"
-        self.side.show_document(number, {
-            "template": self.model.data(self.model.index(self.model.row_of(document.page_ids[0])),
-                                        Roles.TEMPLATE),
-            "meta": f"Sayfa {first}–{last} · {len(document.page_ids)} sayfa",
-            "checks": self.model.checks.get(number, []),
-            "why": why,
-        })
+        first = job.position_of(document.page_ids[0])
+        last = job.position_of(document.page_ids[-1])
+        kind = self.controller.cut_kinds().get(document.page_ids[0], "start")
+        template = self.model.data(self.model.index(self.model.row_of(document.page_ids[0])),
+                                   Roles.TEMPLATE)
+        cut_text = CUT_WORDS.get(kind, kind)
+        if kind == "filter":
+            every = next((f.every_n for f in reversed(job.filters)
+                          if document.page_ids[0] in f.page_ids), 0)
+            cut_text = f"Filtre, her {every} sayfada" if every else "Filtre"
+        icon, role = CUT_ICONS.get(kind, (None, "icon"))
+        if kind == "filter":
+            role = "cut-filter-text"
+        previous = "Yok"
+        if number > 1:
+            pages = len(documents[number - 2].page_ids)
+            previous = f"Belge {number - 1}, {pages} sayfa"
+        checks = self.model.checks.get(number, [])
+        self.side.show_document(DocumentInfo(
+            number=number, template=template or "Şablon yok", first=first, last=last,
+            pages=len(document.page_ids),
+            reason=_sentence(checks) if checks else REASONS.get(kind, ""),
+            cut_icon=icon, cut_role=role, cut_text=cut_text, previous=previous,
+            check=bool(checks), reviewed=number in self.model.reviewed))
+        self._update_status()
+
+    def _update_status(self) -> None:
+        status = getattr(self, "status", None)
+        if status is None or not shiboken6.isValid(status):
+            return
+        row = self.current_row()
+        status.set_counts(self.current_document(), len(self.controller.documents()),
+                          row + 1 if row >= 0 else 0, self.model.rowCount(),
+                          len(self.timeline.selectionModel().selectedIndexes()),
+                          len(self.model.checks), len(self.model.reviewed))
+
+
+def _forget_screen(window: QWidget, *_args) -> None:
+    """The job's screen is gone (job closed or another opened): the status slot shows the
+    empty state's line and the zoom slider no longer points at the screen's controller."""
+    if not shiboken6.isValid(window) or getattr(window, "kontrol", None) is not None:
+        return  # another job's screen took over and registered its own zoom
+    unregister = getattr(window, "unregister_zoom", None)
+    if callable(unregister):
+        unregister("kontrol")
+    slot = getattr(window, "status_slot", None)
+    if callable(slot):
+        status = slot("kontrol").findChild(KontrolStatus, KontrolStatus.NAME)
+        if status is not None:
+            status.set_empty()

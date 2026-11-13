@@ -384,7 +384,8 @@ def test_theme_switch_restyles_the_screens_token_sheets(qtbot, tmp_path, look):
 
     window = _window(qtbot, tmp_path, show=True)
     look.set_mode("light")
-    assert g.COLORS["light"]["base"] in window.degerler.table.styleSheet()
+    # Değerler's table sits in a card (A): its token sheet uses `card`, not the old `base`
+    assert g.COLORS["light"]["card"] in window.degerler.table.styleSheet()
     look.set_mode("hc")
     QApplication.processEvents()
     for sheet in (window.degerler.table.styleSheet(), window.disa_aktar.results.styleSheet()):

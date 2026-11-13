@@ -22,6 +22,7 @@ THEMES = ("system", "light", "dark", "hc")
 MRU_MAX = 10
 ZOOM_RANGE = (10, 800)  # percent
 THUMB_RANGE = (64, 512)  # px
+VIEW_STATE_MAX = 200  # characters
 NATIVE_TITLE_BAR = "native_title_bar"
 
 
@@ -145,6 +146,34 @@ class Prefs(QObject):
             raise ValueError(f"Geçersiz yakınlaştırma: {percent!r}")
         self._set(f"zoom/{key}", percent)
 
+    # -- small named view flags and choices -----------------------------------
+    @staticmethod
+    def _key_name(key: str) -> str:
+        if not isinstance(key, str) or not key or any(c in key for c in "/\\ ="):
+            raise ValueError(f"Geçersiz ayar adı: {key!r}")
+        return key
+
+    def flag(self, key: str, default: bool = False) -> bool:
+        """A remembered yes/no, e.g. "Bir daha gösterme" on a tip."""
+        value = _to_bool(self._s.value(f"flags/{self._key_name(key)}"))
+        return default if value is None else value
+
+    def set_flag(self, key: str, value: bool) -> None:
+        if not isinstance(value, bool):
+            raise ValueError(f"Geçersiz değer: {value!r}")
+        self._set(f"flags/{self._key_name(key)}", value)
+
+    def view_state(self, key: str, default: str = "") -> str:
+        """A remembered short choice of a view (a filter, a mode, a template id)."""
+        value = self._s.value(f"views/{self._key_name(key)}")
+        text = "" if value is None else str(value)
+        return text if text and len(text) <= VIEW_STATE_MAX else default
+
+    def set_view_state(self, key: str, value: str) -> None:
+        if not isinstance(value, str) or len(value) > VIEW_STATE_MAX or "\n" in value:
+            raise ValueError(f"Geçersiz görünüm durumu: {value!r}")
+        self._set(f"views/{self._key_name(key)}", value)
+
     def thumbnail_size(self) -> int:
         return self._int("view/thumbnail_size", 160, *THUMB_RANGE)
 
@@ -225,3 +254,10 @@ class Prefs(QObject):
 
     def set_export_folder(self, folder: str | Path) -> None:
         self._set("paths/export_folder", str(folder))
+
+    def last_export_folder(self) -> str:
+        """The folder the last export went to (Ayarlar' default stays `export_folder`)."""
+        return str(self._s.value("paths/last_export_folder", ""))
+
+    def set_last_export_folder(self, folder: str | Path) -> None:
+        self._set("paths/last_export_folder", str(folder))

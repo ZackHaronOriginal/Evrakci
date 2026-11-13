@@ -52,7 +52,7 @@ def _close_button(callback: Callable[[], None], tip: str) -> QToolButton:
     m = theme.manager()
     button = QToolButton()
     button.setProperty("kind", "icon")
-    button.setProperty("size", "sm")
+    button.setProperty("sizeVariant", "sm")
     button.setIcon(icons.icon("x", m.hex("icon")))
     button.setToolTip(tip)
     button.setAccessibleName(tip)

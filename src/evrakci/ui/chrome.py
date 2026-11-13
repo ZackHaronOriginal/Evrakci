@@ -346,9 +346,11 @@ class ActionButton(QToolButton):
     """A command-bar button that mirrors a QAction (enabled, visible, checked, tooltip)."""
 
     def __init__(self, action: QAction, label: bool = False, icon: str | None = None,
-                 text: str | None = None, parent: QWidget | None = None) -> None:
+                 text: str | None = None, parent: QWidget | None = None,
+                 hide_disabled: bool = False) -> None:
         super().__init__(parent)
         self.action_ = action
+        self.hide_disabled = hide_disabled  # shown only while the command can run (İptal et)
         self.icon_name = icon or action.property("lucide") or "square"
         self.setAutoRaise(True)
         self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
@@ -413,7 +415,7 @@ class ActionButton(QToolButton):
     def _sync(self) -> None:
         action = self.action_
         self.setEnabled(action.isEnabled())
-        self.setVisible(action.isVisible())
+        self.setVisible(action.isVisible() and (action.isEnabled() or not self.hide_disabled))
         self.setCheckable(action.isCheckable())
         if action.isCheckable():
             self.setChecked(action.isChecked())
@@ -436,10 +438,10 @@ class CommandBar(QWidget):
         self._buttons: list[QToolButton] = []
 
     def add_action(self, action: QAction, label: bool = False, icon: str | None = None,
-                   text: str | None = None) -> ActionButton:
+                   text: str | None = None, hide_disabled: bool = False) -> ActionButton:
         """An icon button (or icon + label) that triggers `action`; `icon` overrides its Lucide
-        name and `text` its label."""
-        button = ActionButton(action, label, icon, text, self)
+        name and `text` its label; `hide_disabled` shows it only while the action is enabled."""
+        button = ActionButton(action, label, icon, text, self, hide_disabled)
         self._row.addWidget(button)
         self._buttons.append(button)
         return button
@@ -484,6 +486,11 @@ class CommandBar(QWidget):
 
     def buttons(self) -> list[QToolButton]:
         return list(self._buttons)
+
+    def button_for(self, action_id: str) -> ActionButton | None:
+        """The bar's button of the registry action `action_id` (its objectName), or None."""
+        return next((b for b in self._buttons if isinstance(b, ActionButton)
+                     and b.action_.objectName() == action_id), None)
 
     def refresh(self) -> None:
         for button in self._buttons:

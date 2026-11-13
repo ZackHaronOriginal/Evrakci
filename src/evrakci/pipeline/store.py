@@ -97,13 +97,15 @@ class JobStore:
             raise
         return batch
 
-    def prepare_batch(self, job: Job, pdf_path: Path) -> PreparedBatch:
+    def prepare_batch(
+        self, job: Job, pdf_path: Path, progress: Progress | None = None
+    ) -> PreparedBatch:
         """Analyze a PDF and copy it into the job folder, without changing `job`.
 
         Attach it afterwards with `job.attach_batch`, so slow analysis can run on the side
-        while the job is still being edited.
+        while the job is still being edited. `progress(done, total)` reports pages read.
         """
-        infos = analyze_pdf(Path(pdf_path))
+        infos = analyze_pdf(Path(pdf_path), progress)
         number = max((int(b.id[1:]) for b in job.batches), default=0) + 1
         while self.batch_file(job, Batch(f"b{number}", "", 0)).exists():
             number += 1  # a file left by an undone earlier batch keeps its name

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt, Signal
-from PySide6.QtGui import QKeyEvent, QWheelEvent
+from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, Signal
+from PySide6.QtGui import QFontMetrics, QKeyEvent, QWheelEvent
 from PySide6.QtWidgets import (
     QAbstractScrollArea,
     QHBoxLayout,
@@ -156,7 +156,7 @@ class ZoomSlider(QWidget):
         self.label = QLabel("%100")
         self.label.setProperty("textRole", "secondary")
         self.label.setFont(m.font("caption-num"))
-        self.label.setMinimumWidth(m.size("s12"))
+        self.label.setMinimumWidth(self._label_width())
         self.label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         for widget in (self._out, self.slider, self._in, self.label):
             row.addWidget(widget)
@@ -167,13 +167,33 @@ class ZoomSlider(QWidget):
         self._out.clicked.connect(lambda: self._controller and self._controller.zoom_out())
         self._in.clicked.connect(lambda: self._controller and self._controller.zoom_in())
         self.bind(controller, target)
+        theme.manager().changed.connect(self._restyle)
+
+    def _restyle(self) -> None:
+        """Icons in the new theme's colour, the label as wide as the new text size needs."""
+        m = theme.manager()
+        for button in (self._out, self._in):
+            button.setIcon(icons.icon(button.property("lucide"), m.hex("icon")))
+            button.setFixedSize(m.size("s6"), m.size("s6"))
+        self.label.setFont(m.font("caption-num"))
+        self.label.setMinimumWidth(self._label_width())
+
+    def _label_width(self) -> int:
+        """Room for the widest value ("%800") in the label's font at any text size."""
+        metrics = QFontMetrics(self.label.font())
+        return max(theme.manager().size("s12"),
+                   metrics.horizontalAdvance(f"%{ZOOM_RANGE[1]}") + 2)
 
     def _button(self, icon: str) -> QToolButton:
+        """A's bare 16 px icon on a 24 px target, so it fits the 28 px status bar."""
+        m = theme.manager()
         button = QToolButton()
-        button.setProperty("kind", "icon")
-        button.setProperty("size", "sm")
+        button.setProperty("kind", "status-icon")
         button.setAutoRaise(True)
-        button.setIcon(icons.icon(icon, theme.manager().hex("icon")))
+        button.setIcon(icons.icon(icon, m.hex("icon")))
+        button.setIconSize(QSize(16, 16))
+        button.setFixedSize(m.size("s6"), m.size("s6"))
+        button.setProperty("lucide", icon)
         button.setFocusPolicy(Qt.FocusPolicy.TabFocus)
         return button
 

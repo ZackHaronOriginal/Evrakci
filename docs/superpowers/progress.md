@@ -96,3 +96,9 @@ Owner picked direction A on the mockups; the look follows the approved PNGs in
     - a `/` vs `\` path compare.
 - **Linux build:** green at the same commit, [run 43505690497](https://github.com/ZackHaronOriginal/Evrakci/actions/runs/43505690497).
 - **Not done:** the installer has not been installed and clicked through on a real Windows desktop. That step needs a person.
+
+### PDFium race confirmed (2026-11-14)
+
+- **Without the lock:** 400 mixed render/analyse jobs on 8 threads gave 129 PDFium errors ("Sayfa 1 okunamadı"). After that, a fresh `render_page` on a valid PDF failed with "Failed to load page". These are the same symptoms as the earlier bulk test failures.
+- **With `PDFIUM_LOCK`:** 0 errors, and later opens work.
+- **Cause:** confirmed as unsynchronised PDFium use from several threads. The real settings-file leak (`tests/conftest.py`) was a separate issue, and both are fixed.

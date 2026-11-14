@@ -66,3 +66,7 @@ Option **b**: at 150 % text the title-band tabs keep their icon and name, and an
 
 - **Scrolling side panels at 150 % text: tidy them.** PROPOSALS items 1 and 5 are approved. A side panel that scrolls shows whole cards only: it scrolls card by card, and the space left over stays empty. A 1 px hairline separates the scrolling content from the pinned main button while there is more to scroll. Normal text size is unchanged.
 - **Deferred items accepted.** These ship later: the first-run tour, the completion sound, and invert selection (its key, I, is unreliable on Turkish keyboards).
+
+## Owner sign-off (2026-11-14)
+
+The owner will sign off once they have tried the build themselves: "Done after I try it". The candidate is the Windows installer artifact `Evrakci-Kurulum` from commit `e1e3276` (CI run 43505690241).

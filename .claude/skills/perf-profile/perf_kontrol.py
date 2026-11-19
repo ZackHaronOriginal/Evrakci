@@ -26,6 +26,18 @@ Extra options:
                    are frames_with_wrong, frames_with_stale, blank_rows_after_settle (summed over
                    the 4 jumps) and max_blank_rows_in_frame. Needs the fake renderer, whose
                    pages are solid colours unique per page id.
+  --text-scale {100,115,130,150}  text size in percent and --theme {light,dark,hc}: applied
+                   through theme.manager() (set_text_scale, set_mode) before the screen is built,
+                   as tools/screenshots.py does. Default: 100 and light.
+  --disk-delay-ms N  slow disk: N ms of extra sleep around EVERY renderer call, inside the worker
+                   thread (added to --delay-ms in fake mode, to the pdfium render with --real).
+                   The real renderer's own file reads (pipeline.render) cannot be hooked without
+                   touching src/, so this models the read as one delay per page render.
+  --memory-ceiling-mb N  low memory: after Qt start-up (a limit set before Qt starts breaks it)
+                   the subprocess sets resource.setrlimit(RLIMIT_AS, N MB) and runs the measured
+                   part. RLIMIT_AS limits virtual address space, far above RSS (see vm_mb_at_cap).
+                   The result has memory_run_completed (1/0); on a failure memory_error holds the
+                   exception. Linux only.
   Metrics: renders_at_first_paint counts distinct pids passed to ThumbnailService.request by the
   time the first paint returns (requested, not finished); renders_at_first_settle counts renderer
   calls until the first screen is fully loaded; rss_mb_after_sweep is the resident memory after
@@ -169,6 +181,13 @@ def build(args, tmp: Path):
         def renderer(pid: str, height: int) -> Image.Image:
             time.sleep(args.delay_ms / 1000)
             return Image.new("RGB", (round(height * 0.7), height), page_colour(pid))
+
+    if args.disk_delay_ms:
+        inner = renderer
+
+        def renderer(pid: str, height: int) -> Image.Image:  # noqa: F811
+            time.sleep(args.disk_delay_ms / 1000)
+            return inner(pid, height)
 
     return JobController(store, job), CountingRenderer(renderer)
 
@@ -437,9 +456,47 @@ def real_jumps(args, app: QApplication, ctl, renderer) -> float:
     return round(100 * loaded / total, 1) if total else 0.0
 
 
+def vm_mb() -> float:
+    try:
+        for line in Path("/proc/self/status").read_text().splitlines():
+            if line.startswith("VmSize:"):
+                return int(line.split()[1]) / 1024
+    except OSError:
+        pass
+    return 0.0
+
+
+def apply_theme(args) -> None:
+    from evrakci.ui import theme
+
+    manager = theme.manager()
+    manager.set_text_scale(args.text_scale)
+    manager.set_mode(args.theme)
+
+
 def measure(args) -> dict:
     app = QApplication.instance() or QApplication(sys.argv)
     configure_application(app)
+    apply_theme(args)
+    if args.memory_ceiling_mb:
+        import resource
+
+        pump(app, 50)
+        cap = int(args.memory_ceiling_mb * 1024 * 1024)
+        resource.setrlimit(resource.RLIMIT_AS, (cap, resource.RLIM_INFINITY))
+        try:
+            result = measure_part(args, app)
+        except (MemoryError, OSError, RuntimeError) as exc:
+            return {"pages": args.pages, "memory_run_completed": 0,
+                    "memory_error": f"{type(exc).__name__}: {exc}"[:200],
+                    "vm_mb_at_cap": round(vm_mb(), 1), "memory_ceiling_mb": args.memory_ceiling_mb}
+        result.update(memory_run_completed=1, vm_mb_at_cap=round(vm_mb(), 1),
+                      memory_ceiling_mb=args.memory_ceiling_mb)
+        return result
+    return measure_part(args, app)
+
+
+def measure_part(args, app) -> dict:
     with tempfile.TemporaryDirectory() as tmpdir:
         ctl, renderer = build(args, Path(tmpdir))
         service = ThumbnailService(renderer, height=110)
@@ -484,6 +541,8 @@ def measure(args) -> dict:
                     if service.is_current(view.model().page_id(r)))
         result = {
             "pages": args.pages, "mode": "real" if args.real else f"fake {args.delay_ms} ms",
+            "text_scale": args.text_scale, "theme": args.theme,
+            "disk_delay_ms": args.disk_delay_ms,
             "first_paint_ms": round(first_paint, 1),
             "renders_at_first_paint": renders_at_first_paint,
             "first_settle_ms": round(settle_first, 1),
@@ -535,6 +594,10 @@ def run_subprocesses(args) -> dict:
                    "--step-px", str(args.step_px), "--width", str(args.width),
                    "--height", str(args.height), "--frame-interval-ms",
                    str(args.frame_interval_ms), "--out", str(out)]
+            cmd += ["--text-scale", str(args.text_scale), "--theme", args.theme,
+                    "--disk-delay-ms", str(args.disk_delay_ms)]
+            if args.memory_ceiling_mb:
+                cmd += ["--memory-ceiling-mb", str(args.memory_ceiling_mb)]
             if args.real:
                 cmd.append("--real")
             if args.frame_log:
@@ -562,6 +625,12 @@ def main() -> int:
     ap.add_argument("--frame-log", type=Path, help="JSON lines of the real scroll path (fake only)")
     ap.add_argument("--frame-interval-ms", type=float, default=16.0,
                     help="pause between frame-log steps (events keep running)")
+    ap.add_argument("--text-scale", type=int, choices=(100, 115, 130, 150), default=100)
+    ap.add_argument("--theme", choices=("light", "dark", "hc"), default="light")
+    ap.add_argument("--disk-delay-ms", type=float, default=0.0,
+                    help="extra sleep around every renderer call (worker thread)")
+    ap.add_argument("--memory-ceiling-mb", type=int, default=0,
+                    help="RLIMIT_AS (virtual MB) applied after Qt start-up; 0 = none")
     ap.add_argument("--out", type=Path)
     ap.add_argument("--baseline", type=Path, help="JSON from an earlier run to compare with")
     args = ap.parse_args()
@@ -583,6 +652,10 @@ def main() -> int:
     base = base.get("median", base)
     failed = []
     for key, limit in THRESHOLDS.items():
+        if key not in result:  # a memory-capped run that did not complete has no metrics
+            print(f"FAIL {key:26} missing")
+            failed.append(key)
+            continue
         value = result[key]
         bad = value < limit if key.startswith("settled_loaded_pct") else value > limit
         mark = "FAIL" if bad else "ok"

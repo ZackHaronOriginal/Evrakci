@@ -76,6 +76,19 @@ Options:
 a tile showing the placeholder paper counts as blank, never wrong. One JSON line per frame; summary metrics `frames_with_wrong`, `frames_with_stale`,
   `blank_rows_after_settle`, `max_blank_rows_in_frame`. With `--runs`, run k > 1 logs to `PATH.k`.
 
+- `--text-scale {100,115,130,150}` and `--theme {light,dark,hc}`: applied through
+  `theme.manager()` (`set_text_scale`, `set_mode`) before the screen is built, like
+  `tools/screenshots.py`. Default 100 / light.
+- `--disk-delay-ms N`: slow disk. N ms of extra sleep around every renderer call, inside the
+  worker thread (added to `--delay-ms` in fake mode; with `--real` it wraps the pdfium render).
+  The file reads inside `pipeline.render` are not hooked (no change under src/), so this models
+  them as one delay per page render.
+- `--memory-ceiling-mb N`: low memory. After Qt start-up (a limit before start-up breaks Qt) the
+  subprocess sets `RLIMIT_AS` to N MB and runs the measured part; the result has
+  `memory_run_completed` (1/0), `memory_error` on failure, `vm_mb_at_cap`. RLIMIT_AS limits
+  virtual address space (Qt alone is about 1 GB), so pick N from `vm_mb_at_cap`, not from RSS.
+  Linux only.
+
 When a threshold fails, find the hotspot:
 
 ```bash

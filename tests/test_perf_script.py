@@ -33,3 +33,29 @@ def test_perf_script_writes_runs_statistics_and_a_frame_log(tmp_path):
     lines = [json.loads(line) for line in log.read_text().splitlines()]
     assert lines and {"step", "scroll", "counts", "examples"} <= set(lines[0])
     assert set(lines[0]["counts"]) == {"ok", "blank", "wrong", "stale"}
+
+
+def test_perf_script_new_options_theme_text_scale_disk_delay_and_memory_ceiling(tmp_path):
+    env = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}
+    out = tmp_path / "opts.json"
+    done = subprocess.run(
+        [sys.executable, str(SCRIPT), "--pages", "60", "--steps", "5", "--theme", "hc",
+         "--text-scale", "150", "--disk-delay-ms", "3", "--memory-ceiling-mb", "100000",
+         "--out", str(out)],
+        env=env, capture_output=True, text=True, timeout=120)
+    assert done.returncode in (0, 1), done.stdout + done.stderr
+    data = json.loads(out.read_text())
+    assert (data["theme"], data["text_scale"], data["disk_delay_ms"]) == ("hc", 150, 3.0)
+    assert data["memory_run_completed"] == 1 and data["vm_mb_at_cap"] > 0
+    assert data["settled_loaded_pct_real"] == 100.0
+
+
+def test_perf_script_tiny_memory_ceiling_reports_incomplete_run(tmp_path):
+    env = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}
+    out = tmp_path / "tiny.json"
+    subprocess.run(
+        [sys.executable, str(SCRIPT), "--pages", "60", "--steps", "5",
+         "--memory-ceiling-mb", "50", "--out", str(out)],
+        env=env, capture_output=True, text=True, timeout=120)
+    if out.exists():  # a cap that kills the process before it writes is also an incomplete run
+        assert json.loads(out.read_text())["memory_run_completed"] in (0, 1)

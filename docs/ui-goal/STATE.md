@@ -19,15 +19,16 @@ Updated after every accepted step. A new session or a compacted one reads this f
   full suite 1118 passed / 6 skipped / 26 xfailed (before f35f56b, which was checked with the
   Kontrol test files); Opus review found no S1/S2 (.claude/gorevler/p2-phase-review.md); F6/F7
   ledgered (B-042, B-043). Owner check Q-07. Report sent.
-- Phase 3: all steps done. 3A/3B contract + audit (1625c5f, 8c98d02); 3C/3D tests for all 319
-  rows + typing guard (f618cc1, f57eaa5); 3E fixes (76a0678: 32 mismatches, B-047 S1, B-015);
-  gates passed (lenses + Sonnet GEÇTİ). Strict xfail left: 205 (Q-08 owner text/decisions and 5
-  rows conflicting with older tests that pin "disabled", asked in Q-09). Owner checks Q-09.
-  Running: full suite in worktree /tmp/claude-0/wt-p3 (output /tmp/claude-0/suite-p3.txt;
-  remove worktree after; watch test_disa_aktar.py::test_copy_names_and_the_printable_index,
-  clipboard flaky once), Opus phase review (.claude/gorevler/p3-phase-review.md). Then fix/ledger,
-  Phase 3 report.
-- Phase 4 next: spec .claude/gorevler/2026-11-19-p4-audit.md, one screen at a time (Kontrol,
+- Phase 3: DONE except its exit rule, which waits on the owner: 110 of 319 rows keep a strict
+  xfail (Q-08 texts/decisions, Q-09 keys kept disabled because older tests pin it). Last fixes
+  be26e31 (3F). Full suite on 3F: 2121 passed / 6 skipped / 205 xfailed, 1 flaky (margin test,
+  fixed in be26e31, passes 3/3 under load). Review .claude/gorevler/p3-phase-review.md; leftovers
+  ledgered B-048..B-050. Report sent.
+- Phase 4 IN PROGRESS: Kontrol audit + lenses committed (22a3ef5, 3f91213: 32 findings);
+  Yükle audit + lenses (1457706, c51c251: 49 findings); Değerler audit running. Next: Kontrol fix
+  step (S2 01/02/03/08 + cheap S3 without owner), Yükle fix step (check F-yukle-42 undo first,
+  F-yukle-39 load Qt's Turkish translation), then Şablonlar, Dışa Aktar, Rehber.
+  Plan: spec .claude/gorevler/2026-11-19-p4-audit.md, one screen at a time (Kontrol,
   Yükle, Değerler, Şablonlar, Dışa Aktar, Rehber); skill ui-bug-hunt + design/a11y lenses;
   rules are all "reported" until Q-03, look changes need the owner (collect as proposals).
 - Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.

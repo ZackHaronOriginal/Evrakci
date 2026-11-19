@@ -7,6 +7,14 @@ import pytest
 from evrakci.pipeline.ocr.tesseract import TesseractEngine
 
 
+@pytest.fixture(autouse=True)
+def _private_ui_settings(tmp_path, monkeypatch):
+    """Every test gets its own window-settings file (prefs.default_settings_file), so no test
+    reads or writes the real ~/.config/Evrakçı/Evrakçı.ini and one run cannot leak column
+    widths, geometry or the last tab into the next."""
+    monkeypatch.setenv("EVRAKCI_UI_AYARLAR", str(tmp_path / "ui-ayarlar.ini"))
+
+
 def _tesseract_missing() -> str | None:
     return TesseractEngine().available()
 

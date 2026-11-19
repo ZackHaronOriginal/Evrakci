@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>A: guide tabs out of a card stack, forming an E</title>
+  <rect x="48" y="40" width="60" height="176" rx="14"/>
+  <path d="M118 40h66a22 22 0 0 1 22 22v0a22 22 0 0 1-22 22h-66z"/>
+  <path d="M118 106h44a22 22 0 0 1 22 22v0a22 22 0 0 1-22 22h-44z"/>
+  <path d="M118 172h66a22 22 0 0 1 22 22v0a22 22 0 0 1-22 22h-66z"/>
+</svg>

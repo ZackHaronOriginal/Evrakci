@@ -41,6 +41,10 @@ include_files = freeze_include_files(STAGE)
 # The Rehber tab shows the scanning guide.
 include_files.append((str(HERE.parent / "docs" / "tarama-rehberi.md"), "docs/tarama-rehberi.md"))
 
+# Inter (fonts.py looks in lib/evrakci/ui/assets/fonts of the folder build).
+include_files.append((str(HERE.parent / "src" / "evrakci" / "ui" / "assets" / "fonts"),
+                      "lib/evrakci/ui/assets/fonts"))
+
 setup(
     name="Evrakci",
     version=__version__.split("+")[0],
@@ -60,7 +64,9 @@ setup(
                 "_cffi_backend",
                 "unittest",  # OCRmyPDF imports unittest.mock at run time
             ],
-            "includes": ["PySide6.QtCore", "PySide6.QtGui", "PySide6.QtWidgets", "unittest.mock"],
+            # QtSvg paints the icon set (LGPL, like the rest of Qt).
+            "includes": ["PySide6.QtCore", "PySide6.QtGui", "PySide6.QtWidgets", "PySide6.QtSvg",
+                         "unittest.mock"],
             # readline and dbm.gnu link GNU Readline and GDBM (GPL-3.0), which must not ship;
             # curses is unused and would bring ncurses.
             "excludes": [
@@ -80,6 +86,7 @@ setup(
             str(HERE / "entry_gui.py"),
             target_name="evrakci-arayuz",
             base="gui" if sys.platform == "win32" else "console",
+            icon=str(HERE / "evrakci.ico") if sys.platform == "win32" else None,
         ),
     ],
 )

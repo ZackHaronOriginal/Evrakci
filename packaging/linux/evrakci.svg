@@ -1,12 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <title>Evrakçı</title>
-  <!-- Kartotek: a green-grey cabinet card with a manila guide tab and the red index rule -->
-  <rect x="4" y="10" width="56" height="48" rx="6" fill="#3f5a4c"/>
-  <path d="M14 18h14l3-6h14l3 6h2a2 2 0 0 1 2 2v30a2 2 0 0 1-2 2H14a2 2 0 0 1-2-2V20a2 2 0 0 1 2-2z"
-        fill="#e9d9a6" stroke="#b9a66a" stroke-width="1.5"/>
-  <rect x="17" y="27" width="30" height="2.5" fill="#c8372d"/>
-  <rect x="17" y="34" width="24" height="2" fill="#2b2410" opacity=".55"/>
-  <rect x="17" y="40" width="27" height="2" fill="#2b2410" opacity=".55"/>
-  <rect x="17" y="46" width="18" height="2" fill="#2b2410" opacity=".55"/>
-  <rect x="44" y="12" width="7" height="9" rx="1" fill="#e8731a"/>
+  <rect width="256" height="256" rx="56" fill="#3f5a4c"/>
+  <g transform="translate(25.6 25.6) scale(.8)"><path d="M44 51l14-25h36l14 25z" fill="#e9d9a6"/>
+  <path d="M41 50h174a9 9 0 0 1 9 9v22a9 9 0 0 1 -9 9h-174a9 9 0 0 1 -9 -9v-22a9 9 0 0 1 9 -9z" fill="#e9d9a6"/>
+  <path d="M96 121l14-25h36l14 25z" fill="#e8731a"/>
+  <path d="M41 120h174a9 9 0 0 1 9 9v22a9 9 0 0 1 -9 9h-174a9 9 0 0 1 -9 -9v-22a9 9 0 0 1 9 -9z" fill="#e9d9a6"/>
+  <path d="M148 191l14-25h36l14 25z" fill="#e9d9a6"/>
+  <path d="M41 190h174a9 9 0 0 1 9 9v22a9 9 0 0 1 -9 9h-174a9 9 0 0 1 -9 -9v-22a9 9 0 0 1 9 -9z" fill="#e9d9a6"/></g>
 </svg>

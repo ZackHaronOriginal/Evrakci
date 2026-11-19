@@ -1,6 +1,6 @@
 # Progress: Plans 1–7
 
-Last checked 2026-11-09: **525 tests pass**, `ruff check .` is clean.
+Last checked 2026-11-13: **1091 tests pass** (6 skipped), `ruff check .` is clean.
 
 | Plan | State | Review fixes (commit) |
 |---|---|---|
@@ -56,3 +56,49 @@ Six tabs over the same core as the CLI, in the approved Kartotek look (`DESIGN.m
 Decisions: font is Segoe UI (Atkinson not approved); export and "corrections win" moved into
 the core so CLI and window share them; batch add is an undoable edit; template edits have
 their own undo. Full list of rulings: Plan 5 section of the final summary.
+
+## 2026-11-13: UI overhaul (direction A, Fluent 2 Mica)
+
+Owner picked direction A on the mockups; the look follows the approved PNGs in
+`docs/ui-goal/mockups/final-a/png` exactly. Report with before/after images: `docs/ui-goal/REPORT.md`.
+
+- **Phase 0-1:** decisions and HTML mockups of the six tabs. **Phase 2:** foundation (Inter font,
+  Lucide icons, tokens, light/dark/high-contrast themes, motion with reduced motion, central action
+  and shortcut registry, command palette, shortcut sheet, settings, toasts, taskbar, zoom, loupe)
+  and the window chrome (tabs in the title band). **Phase 3:** all six tabs rebuilt to A, one undo
+  history, context menus, zoom on every view. **Phase 4:** review fixes. **Phase 5:** README
+  screenshots, this entry, the report.
+- **Tests:** 1091 passed, 6 skipped; `ruff check .` clean. Screenshot matrix: 72 shots, `0 kırpılma/taşma`.
+- **Top 25 QoL items:** 24 shipped, 1 deferred (item 25: first-run tour and completion sound).
+  Details: `docs/ui-goal/top25.md`.
+- **Open:** PROPOSALS items 1, 2, 4, 5 and the phase notes (P4-1 to P4-13, S/K/Y/E/D lists) in
+  `docs/ui-goal/mockups/final-a/PROPOSALS.md` wait for the owner. Tabs at 150 % text: owner chose
+  option b (overflow menu), built and tested.
+  Approved for a later update: Şablonlar "show only the selected variable's boxes" (H) and
+  "delete the selected box" (Del). Not tried with a real screen reader or on a real Windows machine.
+
+### Test stability note (2026-11-13)
+
+- **Settings leak, fixed in `f46c409`.** UI tests wrote into the real `~/.config/Evrakçı/Evrakçı.ini`, so a second full run inherited the first run's column widths, geometry and last tab and failed in bulk. `tests/conftest.py` now gives every test its own settings file.
+- **Runs since then.** Four consecutive full runs passed: 1082 passed, 6 skipped, about 6 minutes each. They included a run stopping at the first failure, a run under deliberate CPU load, and two runs back to back.
+- **PDFium threading, fixed.** The remaining bulk failures came from PDFium being used from several threads at once: window thumbnail workers and the main-thread analysis could clash. One clash left PDFium broken ("Data format error"), and every later PDF open in that process failed.
+  - `pipeline/pdfium_lock.py` now puts every PDFium call (`render.py`, `analyze.py`, `ui/yukle_info.py`) under one process-wide lock. This is a minimal core hook under D13, tested in `tests/test_pdfium_lock.py`.
+  - After the fix, three consecutive full runs passed: 1093 passed, 6 skipped.
+  - **Known risk, not locked:** OCRmyPDF uses PDFium in its own threads during export. It is not under the lock, because locking it would stall thumbnails for the whole export.
+
+### Builds on CI (2026-11-13)
+
+- **Windows installer:** green at `e1e3276`, [run 43505690241](https://github.com/ZackHaronOriginal/Evrakci/actions/runs/43505690241).
+  - The tests passed on Windows and the artifact `Evrakci-Kurulum` (63 MB) was built.
+  - Earlier runs on this branch had stopped at their test step on three Windows-only failures. Fixed in `2fc5cb7` and `e1e3276`:
+    - a PySide str→QChar quirk in the Turkish-glyph test;
+    - the Değerler template picker 1 px short at 150 %;
+    - a `/` vs `\` path compare.
+- **Linux build:** green at the same commit, [run 43505690497](https://github.com/ZackHaronOriginal/Evrakci/actions/runs/43505690497).
+- **Not done:** the installer has not been installed and clicked through on a real Windows desktop. That step needs a person.
+
+### PDFium race confirmed (2026-11-14)
+
+- **Without the lock:** 400 mixed render/analyse jobs on 8 threads gave 129 PDFium errors ("Sayfa 1 okunamadı"). After that, a fresh `render_page` on a valid PDF failed with "Failed to load page". These are the same symptoms as the earlier bulk test failures.
+- **With `PDFIUM_LOCK`:** 0 errors, and later opens work.
+- **Cause:** confirmed as unsynchronised PDFium use from several threads. The real settings-file leak (`tests/conftest.py`) was a separate issue, and both are fixed.

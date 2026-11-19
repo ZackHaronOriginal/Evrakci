@@ -8,6 +8,7 @@ import pytest
 from fakes import job_from_kinds, make_pdf, qr_page, text_page
 from PIL import Image
 from PySide6.QtCore import QItemSelectionModel
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QLineEdit, QMessageBox
 
 from evrakci.pipeline.cuts import current_values, record_values
@@ -216,13 +217,15 @@ def test_text_being_typed_survives_a_read_finishing(qtbot, values_setup):
     screen = DegerlerScreen(lambda: ctl, lambda: {t.id: t for t in templates.list()},
                             engine=lambda: Slow(gate))
     qtbot.addWidget(screen)
-    screen.only_checks.setChecked(False)
+    screen.show()
     screen.read_button.click()
-    cell = screen.table.item(0, screen.column_of("Sicil_No"))
-    screen.table.setCurrentItem(cell)
-    screen.table.editItem(cell)
-    editor = screen.table.findChild(QLineEdit)
-    editor.setText("55555")
+    # Değerler is a model view now (A): open the in-place editor and type into it
+    index = screen.cell(1, "Sicil_No")
+    screen.table.open_editor(index)
+    editor = screen.table.open_editor_widget()
+    assert isinstance(editor, QLineEdit)
+    editor.selectAll()
+    QTest.keyClicks(editor, "55555")
     gate.set()
     qtbot.waitUntil(lambda: not screen.busy(), timeout=20000)
     assert current_values(ctl.job, ctl.documents()[0])[variable.key].value == "55555"
@@ -262,11 +265,11 @@ def test_side_panel_clears_for_a_cell_without_a_value(qtbot, values_setup):
     ctl, templates, _, _ = values_setup
     screen = DegerlerScreen(lambda: ctl, lambda: {t.id: t for t in templates.list()})
     qtbot.addWidget(screen)
-    screen.only_checks.setChecked(False)
-    screen.table.setCurrentCell(0, screen.column_of("Sicil_No"))
-    assert screen.side.suggestion.text() == "48213"
-    screen.side.show_nothing()
-    assert screen.side.suggestion.text() == "" and screen.side.read.text() == ""
+    screen.table.setCurrentIndex(screen.cell(1, "Sicil_No"))
+    assert screen.side.value.suggestion.text == "48213"
+    screen.search.setText("eşleşmeyen")  # no row left, so no value is selected (A's blank)
+    assert screen.side.source.title.text() == "Değer seçilmedi"
+    assert screen.side.value.isHidden() and not screen.side.accept_button.isEnabled()
 
 
 # 6. Rotating refreshes the thumbnail; stale renders are thrown away.
@@ -287,10 +290,11 @@ def test_rotating_drops_the_cached_thumbnail(qtbot, tmp_path):
     service = ThumbnailService(Counting(), height=50)
     screen = KontrolScreen(ctl, service)
     qtbot.addWidget(screen)
+    screen.resize(1366, 640)  # A's timeline wraps: page 2 must be in view to be rendered
     screen.show()
     qtbot.waitUntil(lambda: "a/1" in service.cache, timeout=5000)
     screen.timeline.setCurrentIndex(screen.model.index(1))
-    screen.rotate_button.click()
+    screen.rotate_selected()  # A: R / the command bar
     assert "a/1" not in service.cache or service.calls.count("a/1") >= 2
 
 
@@ -329,7 +333,7 @@ def test_rotating_a_selection_is_one_undo_step_and_keeps_the_selection(qtbot, tm
         selection.select(screen.model.index(row), QItemSelectionModel.SelectionFlag.Select)
     screen.timeline.selectionModel().setCurrentIndex(
         screen.model.index(2), QItemSelectionModel.SelectionFlag.NoUpdate)
-    screen.rotate_button.click()
+    screen.rotate_selected()  # A: R / the command bar
     assert set(ctl.job.rotations) == {"a/1", "a/2", "a/3"}
     assert screen.timeline.currentIndex().row() == 2
     assert {i.row() for i in selection.selectedIndexes()} == {1, 2, 3}
@@ -360,9 +364,9 @@ def test_adding_a_batch_keeps_edits_made_while_it_was_analysed(qtbot, tmp_path, 
     gate = threading.Event()
     real = store.prepare_batch
 
-    def held(job_arg, path):
+    def held(job_arg, path, progress=None):
         gate.wait(5)
-        return real(job_arg, path)
+        return real(job_arg, path, progress)
 
     monkeypatch.setattr(store, "prepare_batch", held)
     extra = make_pdf(tmp_path / "ek.pdf", [text_page()])

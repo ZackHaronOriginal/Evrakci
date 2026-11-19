@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Evrakçı: three filed documents; tabs at the app's three cut positions (left, centre, right)</title>
+  <path d="M48 56l13-22h30l13 22z"/>
+  <rect x="36" y="56" width="184" height="30" rx="8"/>
+  <path d="M100 124l13-22h30l13 22z"/>
+  <rect x="36" y="124" width="184" height="30" rx="8"/>
+  <path d="M152 192l13-22h30l13 22z"/>
+  <rect x="36" y="192" width="184" height="30" rx="8"/>
+</svg>

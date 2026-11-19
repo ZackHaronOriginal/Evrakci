@@ -8,7 +8,9 @@ from PySide6.QtWidgets import QApplication
 from evrakci.pipeline.settings import SettingsError, load_settings
 from evrakci.pipeline.store import JobStore, default_root
 from evrakci.pipeline.templates.store import TemplateStore, default_template_root
+from evrakci.ui import fonts, icons, theme
 from evrakci.ui.main_window import MainWindow
+from evrakci.ui.prefs import Prefs
 
 
 def build_window(
@@ -38,10 +40,19 @@ def build_window(
     return window
 
 
-def configure_application(app: QApplication) -> None:
+def configure_application(app: QApplication, prefs: Prefs | None = None) -> None:
+    """Name, fonts, icon and the look: EvrakciStyle (Fusion + D11 focus ring), palette, font and
+    stylesheet from the ThemeManager, which follows `prefs` (theme, density, text size, motion)
+    when given."""
     app.setApplicationName("Evrakçı")
     # Matches the Linux menu entry (evrakci-arayuz.desktop), so the dock shows its icon.
     app.setDesktopFileName("evrakci-arayuz")
+    fonts.register_fonts()
+    manager = theme.manager()
+    if prefs is not None:
+        manager.bind_prefs(prefs)
+    manager.apply(app)
+    app.setWindowIcon(icons.app_icon())
 
 
 def hide_console_for_children(windows=None, frozen=None, kernel32=None, user32=None) -> bool:
@@ -71,7 +82,7 @@ def main() -> int:
     freeze_support()  # OCRmyPDF's worker processes in the frozen Windows app
     hide_console_for_children()
     app = QApplication(sys.argv)
-    configure_application(app)
+    configure_application(app, Prefs())
     window = build_window()
     window.show()
     close_after = os.environ.get("EVRAKCI_KAPAT_MS")  # smoke tests: start, then close itself

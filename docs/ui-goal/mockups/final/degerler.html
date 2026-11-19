@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-states="main,ornek,empty">
+<head>
+<meta charset="utf-8">
+<title>Değerler</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---------- Değerler: split pane, table card + linked source ---------- */
+:root { --side-w: 368px; --c-belge: 68px; --c-p: 76px; --c-sicil: 132px; --c-tarih: 112px; --c-kap: 92px; --c-guven: 140px; --c-var: 136px; }
+[data-large] { --side-w: 360px; --c-belge: 84px; --c-sicil: 176px; --c-tarih: 160px; --c-kap: 116px; --c-guven: 184px; --c-var: 168px; }
+.body { grid-template-columns: minmax(0, 1fr) var(--side-w); }
+.tablecard { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+
+/* card header: Fluent SelectorBar as the view switch, search + template on the right */
+.thead-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); min-height: 52px; padding: 0 var(--s3) 0 var(--s2); flex: none; min-width: 0; }
+.selector { display: flex; gap: 2px; align-self: stretch; min-height: 52px; }
+.sel-item { position: relative; display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3); color: var(--text-2); font-weight: var(--w-medium); white-space: nowrap; }
+.sel-item .n { font-size: var(--fs-caption); font-feature-settings: var(--ff-num); color: var(--text-2); font-weight: var(--w-regular); }
+.sel-item.on { color: var(--text); font-weight: var(--w-semibold); }
+.sel-item.on::after { content: ""; position: absolute; left: 50%; bottom: 8px; width: 16px; height: 3px; margin-left: -8px; border-radius: 2px; background: var(--accent); }
+.field.search { min-width: 200px; }
+[data-large] .thead-bar { padding-bottom: var(--s2); }
+
+/* the table: 13/18 header, 15/21 cells, 40px rows, hairlines only between rows */
+.tscroll { min-height: 0; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+th { height: calc(36px * var(--ts)); text-align: left; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: var(--w-semibold); color: var(--text-2);
+  padding: 0 var(--s3); border-bottom: 1px solid var(--stroke); white-space: nowrap; position: sticky; top: 0; background: var(--card); }
+th .ic { width: 14px; height: 14px; vertical-align: -2px; }
+th.sorted { color: var(--text); }
+td { height: var(--row-h); padding: 0 var(--s3); border-bottom: 1px solid var(--stroke-soft); white-space: nowrap; }
+td.n, th.n { text-align: right; }
+td.n, td.d, td.p { font-feature-settings: var(--ff-num); }
+td.v { font-feature-settings: var(--ff-value); }
+td.p { color: var(--text-2); }
+th:first-child, td:first-child { padding-left: var(--s4); padding-right: 0; }
+td.rv .ic { color: var(--ok); }
+td.rv .ic.no { color: var(--text-2); }
+tbody tr:last-child td { border-bottom: 0; }
+tr.cur td { background: var(--selected); }
+tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.nil { color: var(--text-2); }
+/* single-field inline edit: same box, zero layout shift; D11 ring */
+td.edit { position: relative; padding: 0; }
+td.edit .in { position: absolute; inset: 4px 4px; display: flex; align-items: center; padding: 0 8px;
+  background: var(--card); border-radius: var(--r-control); border-bottom: 2px solid var(--accent);
+  outline: 2px solid var(--focus-outer); outline-offset: 1px; box-shadow: 0 0 0 1px var(--focus-inner); }
+td.edit .caret { width: 1px; height: 18px; background: var(--text); margin-left: 1px; }
+/* the edit hint lives in the table card's own foot while a cell is edited: it never covers a row */
+.editbar { flex: none; display: flex; align-items: center; gap: var(--s4); min-height: calc(36px * var(--ts)); padding: var(--s1) var(--s4);
+  border-top: 1px solid var(--stroke); font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); flex-wrap: wrap; }
+.editbar .ic { color: var(--accent); }
+.editbar .what { color: var(--text); font-weight: var(--w-semibold); display: inline-flex; align-items: center; gap: var(--s2); }
+.editbar b { color: var(--text); font-weight: var(--w-semibold); margin-right: 4px; }
+/* 150 % text: the page column moves to the source pane, company names may wrap */
+[data-large] .c-p { display: none; }
+[data-large] td.f { white-space: normal; line-height: var(--lh-body); padding-top: 6px; padding-bottom: 6px; }
+
+/* inspector: the linked source, on the shared inspector template
+   (20/28 title + subtitle, group labels + cards, foot with one primary + subtle secondaries) */
+.side { min-height: 0; min-width: 0; }
+.src { padding: var(--s2) var(--s3) var(--s3); }
+.src-head { display: flex; align-items: center; gap: var(--s1); padding: 0 0 var(--s2) var(--s1); }
+.src-head .t { flex: 1; min-width: 0; font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
+.well { background: var(--well); border-radius: var(--r-control); padding: var(--s4) 0 0 var(--s4); height: 168px; overflow: hidden; }
+.crop { background: var(--paper); color: var(--paper-ink); border-radius: var(--r-paper) 0 0 0; height: 100%; padding: 14px 18px;
+  box-shadow: var(--shadow-paper); font-size: 14px; white-space: nowrap; }
+.crop .bar { height: 6px; width: 46%; background: var(--paper-head); border-radius: 1px; margin-bottom: 14px; }
+.crop .fr { display: grid; grid-template-columns: 82px 1fr; align-items: center; height: 34px; }
+.crop .fr span:first-child { color: var(--paper-head); }
+.crop .box { justify-self: start; padding: 2px 8px; border-radius: 2px; box-shadow: 0 0 0 2px var(--paper-box); font-feature-settings: var(--ff-value); font-size: 17px; letter-spacing: .02em; }
+.crop .box .x { box-shadow: inset 0 0 0 1.5px var(--paper-mark); border-radius: 2px; }
+.crop .tail { height: 4px; width: 70%; background: var(--paper-line); margin-top: 12px; }
+
+.val { padding: var(--s4); }
+.val .lbl { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
+.val .read { font-size: var(--fs-panel); line-height: var(--lh-panel); font-feature-settings: var(--ff-value); margin: 2px 0 var(--s3); letter-spacing: .01em; }
+.val .sugg { font-size: var(--fs-page); line-height: var(--lh-page); font-weight: var(--w-semibold); font-feature-settings: var(--ff-value); margin-top: 2px; letter-spacing: .01em; }
+.val .sugg ins { text-decoration: none; color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.val .meta { display: flex; align-items: center; gap: var(--s4); margin-top: var(--s3); font-size: var(--fs-caption); flex-wrap: wrap; }
+.val .why { margin-top: var(--s1); font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
+.ins-foot .pair { display: flex; gap: var(--s1); justify-content: center; flex-wrap: wrap; }
+/* empty */
+.tbody-empty { flex: 1; }
+.tbody-empty .ic.lg { width: 32px; height: 32px; color: var(--icon); }
+.side .placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s2); text-align: center; padding: var(--s6) var(--s4); color: var(--text-2); }
+.side .placeholder .ic { color: var(--icon); }
+/* empty: nothing is selected, so the value commands are disabled too (still listed) */
+[data-state="empty"] .commandbar .nk { color: var(--dis-ink); opacity: var(--dis-alpha); }
+[data-state="empty"] .commandbar .nk .ic { color: var(--dis-ink); }
+</style>
+</head>
+<body>
+<div class="window">
+  <header class="titlebar" data-tab="degerler"></header>
+
+  <main class="layer">
+    <div class="commandbar" role="toolbar" aria-label="Değerler komutları">
+      <button class="iconbtn" data-out="empty" title="Geri al: 8 değeri onayla (Ctrl+Z)" aria-label="Geri al: 8 değeri onayla (Ctrl+Z)"><i class="ic md" data-i="undo-2"></i></button>
+      <button class="iconbtn dis" data-in="empty" aria-label="Geri al (Ctrl+Z)"><i class="ic md" data-i="undo-2"></i></button>
+      <button class="iconbtn dis" aria-label="Yinele (Ctrl+Y)"><i class="ic md" data-i="redo-2"></i></button>
+      <span class="sep"></span>
+      <button class="cmd" title="Değerleri oku"><i class="ic md" data-i="scan-text"></i>Değerleri oku</button>
+      <button class="iconbtn" title="Yalnızca eksikleri oku" aria-label="Yalnızca eksikleri oku"><i class="ic md" data-i="list-filter"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" data-out="ornek" title="Tümünü incele" aria-label="Tümünü incele"><i class="ic md" data-i="list-checks"></i></button>
+      <button class="iconbtn" data-out="ornek" title="Örnek kontrol" aria-label="Örnek kontrol"><i class="ic md" data-i="shuffle"></i></button>
+      <button class="iconbtn" data-in="ornek" title="Tümünü incele" aria-label="Tümünü incele"><i class="ic md" data-i="list-checks"></i></button>
+      <button class="iconbtn on" data-in="ornek" title="Örnek kontrol (açık)" aria-label="Örnek kontrol (açık)"><i class="ic md" data-i="shuffle"></i></button>
+      <div class="grow"></div>
+      <button class="iconbtn nk" title="Önceki kontrol (Shift+N)" aria-label="Önceki kontrol (Shift+N)"><i class="ic md" data-i="chevron-up"></i></button>
+      <button class="cmd nk" title="Sonraki kontrol (N)"><i class="ic md" data-i="triangle-alert"></i>Sonraki kontrol</button>
+      <button class="iconbtn nk" title="Seçilenleri onayla (Ctrl+Enter)" aria-label="Seçilenleri onayla (Ctrl+Enter)"><i class="ic md" data-i="check-check"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" title="Kaynak panelini gizle" aria-label="Kaynak panelini gizle"><i class="ic md" data-i="panel-right"></i></button>
+      <button class="iconbtn" title="Diğer komutlar" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
+    </div>
+
+    <div class="body">
+      <section class="card tablecard" aria-label="Değerler tablosu">
+        <div class="thead-bar">
+          <div class="selector" role="tablist">
+            <div class="sel-item">Kontrol gerekenler <span class="n" data-out="empty">12</span><span class="n" data-in="empty">0</span></div>
+            <div class="sel-item">İncelenmemiş <span class="n" data-out="empty">105</span><span class="n" data-in="empty">0</span></div>
+            <div class="sel-item on" data-out="ornek">Tümü <span class="n" data-out="empty">152</span><span class="n" data-in="empty">0</span></div>
+            <div class="sel-item" data-in="ornek">Tümü <span class="n">152</span></div>
+            <div class="sel-item" data-out="ornek" title="Örnek kontrol: rastgele 20 emin değer">Örnek <span class="n" data-out="empty">20</span><span class="n" data-in="empty">0</span></div>
+            <div class="sel-item on" data-in="ornek" title="Örnek kontrol: rastgele 20 emin değer">Örnek <span class="n">20</span></div>
+          </div>
+          <div class="grow"></div>
+          <div class="field search ph" title="Ara (Ctrl+F)"><i class="ic" data-i="search"></i><span>Firma, sicil no ara</span></div>
+          <div class="field select">Ekspertiz Raporu<i class="ic" data-i="chevron-down"></i></div>
+        </div>
+
+        <!-- all values -->
+        <div class="tscroll scroll" data-out="ornek,empty">
+        <table>
+          <colgroup><col style="width:44px"><col style="width:var(--c-belge)"><col class="c-p" style="width:var(--c-p)"><col><col style="width:var(--c-sicil)"><col style="width:var(--c-tarih)"><col style="width:var(--c-kap)"><col style="width:var(--c-guven)"></colgroup>
+          <thead><tr>
+            <th aria-label="İncelendi" title="İncelendi"><i class="ic" data-i="circle-check"></i></th>
+            <th class="n sorted">Belge <i class="ic" data-i="chevron-up"></i></th>
+            <th class="c-p">Sayfa</th><th>Firma</th><th>Sicil no</th><th>Rapor tarihi</th><th class="n">Kapasite</th><th>Güven</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">11</td><td class="p c-p">57–58</td><td class="f">Gediz Tekstil San. A.Ş.</td><td class="v">35-0211-G/1</td><td class="d">22.09.2026</td><td class="n">1.250</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%98</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">12</td><td class="p c-p">59–60</td><td class="f">Marmara Döküm A.Ş.</td><td class="v">34-1127-D/4</td><td class="d">03.10.2026</td><td class="n">840</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%96</span></span></td></tr>
+            <tr><td class="rv" title="İncelenmedi"><i class="ic no" data-i="circle-dashed" role="img" aria-label="İncelenmedi"></i></td><td class="n">13</td><td class="p c-p">61–64</td><td class="f">Anadolu Pres Makina</td><td class="v nil">boş</td><td class="d">08.10.2026</td><td class="n">1.640</td><td><span class="st bad"><i class="ic" data-i="circle-x"></i>Okunamadı</span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">14</td><td class="p c-p">67–69</td><td class="f">Karadeniz Metal Ltd.</td><td class="v">06-2210-K/1</td><td class="d">19.10.2026</td><td class="n">960</td><td><span class="st orta"><i class="ic" data-i="signal-medium"></i>Orta <span class="pct">%84</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">15</td><td class="p c-p">70</td><td class="f">Trakya Boru A.Ş.</td><td class="v">22-0418-T/2</td><td class="d">21.10.2026</td><td class="n">2.100</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%97</span></span></td></tr>
+            <tr class="cur"><td class="rv" title="İncelenmedi"><i class="ic no" data-i="circle-dashed" role="img" aria-label="İncelenmedi"></i></td><td class="n">16</td><td class="p c-p">72–73</td><td class="f">Ege Kalıp San. Ltd.</td><td class="v edit"><span class="in">34-0172-K/8<span class="caret"></span></span></td><td class="d">05.11.2026</td><td class="n">1.250</td><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol <span class="pct">%55</span></span></td></tr>
+            <tr><td class="rv" title="İncelenmedi"><i class="ic no" data-i="circle-dashed" role="img" aria-label="İncelenmedi"></i></td><td class="n">17</td><td class="p c-p">74–75</td><td class="f">Akdeniz Soğutma Ltd.</td><td class="v">07-0555-S/3</td><td class="d">28.10.2026</td><td class="n">2.1<span class="u">B</span>0</td><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol <span class="pct">%60</span></span></td></tr>
+            <tr><td class="rv" title="İncelenmedi"><i class="ic no" data-i="circle-dashed" role="img" aria-label="İncelenmedi"></i></td><td class="n">18</td><td class="p c-p">77–78</td><td class="f">Çukurova Ambalaj A.Ş.</td><td class="v">01-0388-C/7</td><td class="d">26.10.2026</td><td class="n">780</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%97</span></span></td></tr>
+            <tr><td class="rv" title="İncelenmedi"><i class="ic no" data-i="circle-dashed" role="img" aria-label="İncelenmedi"></i></td><td class="n">19</td><td class="p c-p">80–81</td><td class="f">Bursa Yan Sanayi A.Ş.</td><td class="v">16-0840-B/2</td><td class="d"><span class="u">O</span>4.11.2026</td><td class="n">1.500</td><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol <span class="pct">%62</span></span></td></tr>
+            <tr><td class="rv" title="İncelenmedi"><i class="ic no" data-i="circle-dashed" role="img" aria-label="İncelenmedi"></i></td><td class="n">20</td><td class="p c-p">82–83</td><td class="f">İzmir Vana ve Pompa</td><td class="v">35-0932-İ/6</td><td class="d">30.10.2026</td><td class="n">1.320</td><td><span class="st orta"><i class="ic" data-i="signal-medium"></i>Orta <span class="pct">%81</span></span></td></tr>
+            <tr><td class="rv" title="İncelenmedi"><i class="ic no" data-i="circle-dashed" role="img" aria-label="İncelenmedi"></i></td><td class="n">21</td><td class="p c-p">84–86</td><td class="f">Konya Dişli Sanayi</td><td class="v">42-0671-<span class="u">O</span>/5</td><td class="d">02.11.2026</td><td class="n">1.080</td><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol <span class="pct">%59</span></span></td></tr>
+            <tr><td class="rv" title="İncelenmedi"><i class="ic no" data-i="circle-dashed" role="img" aria-label="İncelenmedi"></i></td><td class="n">22</td><td class="p c-p">88–89</td><td class="f">Kayseri Mobilya A.Ş.</td><td class="v">38-1190-M/3</td><td class="d">04.11.2026</td><td class="n">650</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%95</span></span></td></tr>
+            <tr><td class="rv" title="İncelenmedi"><i class="ic no" data-i="circle-dashed" role="img" aria-label="İncelenmedi"></i></td><td class="n">23</td><td class="p c-p">90–91</td><td class="f">Sakarya Otomotiv Ltd.</td><td class="v">54-0302-A/9</td><td class="d">06.11.2026</td><td class="n">3.400</td><td><span class="st orta"><i class="ic" data-i="signal-medium"></i>Orta <span class="pct">%88</span></span></td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="editbar" data-in="main" role="status">
+          <span class="what"><i class="ic" data-i="pencil"></i>Sicil no, Belge 16 düzenleniyor</span>
+          <span><b>Enter</b>onayla, sonraki kontrol</span><span><b>Esc</b>vazgeç</span>
+        </div>
+
+        <!-- spot-check sample: one value per row, drawn at random from "Emin" values -->
+        <div class="tscroll scroll" data-in="ornek">
+        <table>
+          <colgroup><col style="width:44px"><col style="width:var(--c-belge)"><col class="c-p" style="width:var(--c-p)"><col style="width:var(--c-var)"><col><col style="width:var(--c-guven)"></colgroup>
+          <thead><tr><th aria-label="İncelendi" title="İncelendi"><i class="ic" data-i="circle-check"></i></th><th class="n">Belge</th><th class="c-p">Sayfa</th><th>Değişken</th><th>Okunan değer</th><th>Güven</th></tr></thead>
+          <tbody>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">5</td><td class="p c-p">19</td><td>Firma</td><td class="v f">Denizli Havlu San. A.Ş.</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%97</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">8</td><td class="p c-p">35</td><td>Sicil no</td><td class="v">38-0845-K/1</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%98</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">11</td><td class="p c-p">51</td><td>Rapor tarihi</td><td class="v">12.10.2026</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%99</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">14</td><td class="p c-p">67</td><td>Kapasite</td><td class="v">1.350</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%96</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">22</td><td class="p c-p">95</td><td>Firma</td><td class="v f">Çorlu Boya Kimya Ltd.</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%95</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">25</td><td class="p c-p">108</td><td>Sicil no</td><td class="v">59-1102-Ç/3</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%97</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">29</td><td class="p c-p">128</td><td>Rapor tarihi</td><td class="v">27.10.2026</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%98</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">33</td><td class="p c-p">146</td><td>Kapasite</td><td class="v">2.400</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%99</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">36</td><td class="p c-p">163</td><td>Firma</td><td class="v f">Aydın İncir Kurutma A.Ş.</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%96</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">40</td><td class="p c-p">182</td><td>Sicil no</td><td class="v">09-0417-A/2</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%97</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">47</td><td class="p c-p">217</td><td>Rapor tarihi</td><td class="v">03.11.2026</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%98</span></span></td></tr>
+            <tr><td class="rv" title="İncelendi"><i class="ic" data-i="circle-check" role="img" aria-label="İncelendi"></i></td><td class="n">52</td><td class="p c-p">240</td><td>Kapasite</td><td class="v">860</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%95</span></span></td></tr>
+            <tr class="cur"><td class="rv" title="İncelenmedi"><i class="ic no" data-i="circle-dashed" role="img" aria-label="İncelenmedi"></i></td><td class="n">58</td><td class="p c-p">266</td><td>Firma</td><td class="v f">Kocaeli Kauçuk San. Ltd.</td><td><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%97</span></span></td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <!-- empty: values not read yet; the table frame stays -->
+        <div data-in="empty" class="tscroll" style="display:flex;flex-direction:column;flex:1">
+          <table><colgroup><col style="width:44px"><col style="width:var(--c-belge)"><col class="c-p" style="width:var(--c-p)"><col><col style="width:var(--c-sicil)"><col style="width:var(--c-tarih)"><col style="width:var(--c-kap)"><col style="width:var(--c-guven)"></colgroup>
+            <thead><tr><th aria-label="İncelendi" title="İncelendi"><i class="ic" data-i="circle-check"></i></th><th class="n">Belge</th><th class="c-p">Sayfa</th><th>Firma</th><th>Sicil no</th><th>Rapor tarihi</th><th class="n">Kapasite</th><th>Güven</th></tr></thead></table>
+          <div class="empty tbody-empty">
+            <i class="ic lg" data-i="scan-text"></i>
+            <h2>Değerler henüz okunmadı</h2>
+            <p>Okuyunca firma, sicil no ve tarih burada listelenir.</p>
+            <div class="row">
+              <button class="btn primary lg"><i class="ic" data-i="scan-text"></i>38 belgeyi oku</button>
+              <button class="btn lg"><i class="ic" data-i="stamp"></i>Şablonlar'a git</button>
+            </div>
+            <p class="cap">Elle yazdıklarınız yeniden okumada korunur.</p>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side inspector" aria-label="Kaynak">
+        <!-- source of the current value -->
+        <div class="scroll" data-in="main">
+          <header>
+            <h1 class="ins-title">Sicil no</h1>
+            <div class="ins-sub">Belge 16, sayfa 72</div>
+          </header>
+          <section>
+            <h2 class="group-label">Sayfadaki yeri</h2>
+            <div class="card src">
+              <div class="src-head">
+                <span class="t num">Kesit %200</span>
+                <button class="iconbtn sm" aria-label="Uzaklaştır (Ctrl+-)" title="Uzaklaştır (Ctrl+-)"><i class="ic" data-i="zoom-out"></i></button>
+                <button class="iconbtn sm" aria-label="Yakınlaştır (Ctrl+Num+)" title="Yakınlaştır (Ctrl+Num+)"><i class="ic" data-i="zoom-in"></i></button>
+                <button class="iconbtn sm" aria-label="Tüm sayfayı göster (Boşluk)" title="Tüm sayfayı göster (Boşluk)"><i class="ic" data-i="maximize-2"></i></button>
+              </div>
+              <div class="well" data-clip-ok>
+                <div class="crop">
+                  <div class="bar"></div>
+                  <div class="fr"><span>Firma</span><span>Ege Kalıp San. Ltd.</span></div>
+                  <div class="fr"><span>Sicil No</span><span class="box">34-0<span class="x">I</span>72-K/<span class="x">B</span></span></div>
+                  <div class="fr"><span>Tarih</span><span>05.11.2026</span></div>
+                  <div class="tail"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section>
+            <h2 class="group-label">Değer</h2>
+            <div class="card val">
+              <div class="lbl">Okunan</div>
+              <div class="read">34-0<span class="u">I</span>72-K/<span class="u">B</span></div>
+              <div class="lbl">Öneri</div>
+              <div class="sugg">34-0<ins>1</ins>72-K/<ins>8</ins></div>
+              <div class="meta"><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol <span class="pct">%55</span></span><span class="t2">2 karakter belirsiz</span></div>
+              <div class="why">Varyant 2 ile okundu: I yerine 1, B yerine 8.</div>
+            </div>
+          </section>
+        </div>
+
+        <div class="scroll" data-in="ornek">
+          <header>
+            <h1 class="ins-title">Firma</h1>
+            <div class="ins-sub">Belge 58, sayfa 266, örnek 13 / 20</div>
+          </header>
+          <section>
+            <h2 class="group-label">Sayfadaki yeri</h2>
+            <div class="card src">
+              <div class="src-head">
+                <span class="t num">Kesit %200</span>
+                <button class="iconbtn sm" aria-label="Uzaklaştır (Ctrl+-)" title="Uzaklaştır (Ctrl+-)"><i class="ic" data-i="zoom-out"></i></button>
+                <button class="iconbtn sm" aria-label="Yakınlaştır (Ctrl+Num+)" title="Yakınlaştır (Ctrl+Num+)"><i class="ic" data-i="zoom-in"></i></button>
+                <button class="iconbtn sm" aria-label="Tüm sayfayı göster (Boşluk)" title="Tüm sayfayı göster (Boşluk)"><i class="ic" data-i="maximize-2"></i></button>
+              </div>
+              <div class="well" data-clip-ok>
+                <div class="crop">
+                  <div class="bar"></div>
+                  <div class="fr"><span>Firma</span><span class="box">Kocaeli Kauçuk San. Ltd.</span></div>
+                  <div class="fr"><span>Sicil No</span><span>41-0930-K/5</span></div>
+                  <div class="fr"><span>Tarih</span><span>07.11.2026</span></div>
+                  <div class="tail"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section>
+            <h2 class="group-label">Değer</h2>
+            <div class="card val">
+              <div class="lbl">Okunan</div>
+              <div class="read">Kocaeli Kauçuk San. Ltd.</div>
+              <div class="meta"><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%97</span></span></div>
+              <div class="why">Sayfadakiyle aynıysa onaylayın, değilse elle yazın. Örnekte bulunan bir hata, aynı değişkenin bütün değerlerini Kontrol'e alır.</div>
+            </div>
+          </section>
+        </div>
+
+        <div class="scroll" data-in="empty">
+          <header>
+            <h1 class="ins-title">Değer seçilmedi</h1>
+            <div class="ins-sub">Okunan değerler burada kaynağıyla görünür.</div>
+          </header>
+          <section>
+            <h2 class="group-label">Sayfadaki yeri</h2>
+            <div class="card placeholder">
+              <i class="ic md" data-i="scan-text"></i>
+              <span>Tablodan bir değer seçince sayfadaki yeri, okunan değer ve öneri burada görünür.</span>
+            </div>
+          </section>
+        </div>
+
+        <div class="ins-foot">
+          <button class="btn primary" data-out="empty" title="Öneriyi kabul et, incelendi işaretle ve geç (Enter)"><i class="ic" data-i="check"></i>Onayla ve sonrakine geç</button>
+          <button class="btn primary dis" data-in="empty"><i class="ic" data-i="check"></i>Onayla ve sonrakine geç</button>
+          <div class="pair" data-out="empty">
+            <button class="btn subtle" title="Elle yaz (F2)"><i class="ic" data-i="pencil"></i>Elle yaz</button>
+            <button class="btn subtle" title="Yeni varyant çiz (V)"><i class="ic" data-i="square-dashed"></i>Yeni varyant çiz</button>
+          </div>
+          <div class="pair" data-in="empty">
+            <button class="btn subtle dis" aria-disabled="true"><i class="ic" data-i="pencil"></i>Elle yaz</button>
+            <button class="btn subtle dis" aria-disabled="true"><i class="ic" data-i="square-dashed"></i>Yeni varyant çiz</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="toast" data-in="main" role="status">
+      <i class="ic md" data-i="circle-check"></i><span>8 değer onaylandı</span><span class="link">Geri al</span>
+      <button class="iconbtn sm" aria-label="Kapat"><i class="ic" data-i="x"></i></button>
+    </div>
+  </main>
+
+  <footer class="statusbar">
+    <span data-job></span>
+    <span class="item" data-p="2" data-in="main">Belge <b>16</b> / 96</span>
+    <span class="item" data-p="2" data-in="ornek">Belge <b>58</b> / 96</span>
+    <span class="item warn" data-out="ornek,empty"><i class="ic" data-i="triangle-alert"></i><span><b>12</b> değer kontrol bekliyor</span></span>
+    <span class="item badc" data-out="ornek,empty"><i class="ic" data-i="circle-x"></i><span><b>2</b> okunamadı</span></span>
+    <span class="item okc" data-out="ornek,empty"><i class="ic" data-i="circle-check"></i><span><b>47</b> / 152 incelendi</span></span>
+    <span class="item" data-in="ornek"><i class="ic" data-i="shuffle"></i><span>Örnek kontrol: <b>12</b> / 20 incelendi</span></span>
+    <span class="item okc" data-in="ornek"><i class="ic" data-i="circle-check"></i><span><b>0</b> hata</span></span>
+    <span class="item" data-in="empty"><b>38</b> belgede şablon var, değer okunmadı</span>
+    <span class="grow"></span>
+    <span class="zoom" title="Kaynak kesiti yakınlığı (Ctrl+tekerlek)"><i class="ic" data-i="zoom-out"></i><span class="slider"><i style="width:62%"></i><b style="left:62%"></b></span><i class="ic" data-i="zoom-in"></i><span class="num">%200</span></span>
+  </footer>
+</div>
+<script src="icons.js"></script>
+<script src="shell.js"></script>
+<script>
+/* Enter moves on and the table keeps the current row clear of the bottom edge (Qt: scrollTo, PositionAtCenter) */
+document.fonts.ready.then(() => {
+  for (const sc of document.querySelectorAll(".tscroll")) {
+    const cur = sc.querySelector("tr.cur");
+    if (!cur || sc.closest("[hidden]")) continue;
+    /* centre the row, then snap so the first visible row is whole under the sticky header */
+    const head = sc.querySelector("thead").offsetHeight, want = cur.offsetTop - (sc.clientHeight + head - cur.offsetHeight) / 2;
+    const rows = [...sc.querySelectorAll("tbody tr")].filter(r => r.offsetTop - head <= want);
+    sc.scrollTop = rows.length ? rows[rows.length - 1].offsetTop - head : 0;
+  }
+  if (window.drawScrollCues) requestAnimationFrame(window.drawScrollCues);
+});
+</script>
+</body>
+</html>

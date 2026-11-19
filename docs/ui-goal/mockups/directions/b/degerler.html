@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="tr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Değerler · Direction B</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+.panel { --inspector-w: 360px; }
+.title-pick { display: flex; align-items: center; gap: 2px; margin-right: var(--s2); }
+.phead .field { width: 232px; }
+
+/* ---------- the table: L1 = the panel; header rule + row hairlines ---------- */
+.main { padding: 0 var(--s4) 0 var(--s6); }
+.tbl { display: grid; grid-template-columns: 56px minmax(0, 1fr) 136px 112px 92px 128px; font: var(--t-body); }
+.tbl > .tr { display: contents; }
+.th { height: 36px; display: flex; align-items: center; gap: 4px; padding: 0 var(--s3); font: var(--t-2-strong); color: var(--text-2);
+  border-bottom: 1px solid var(--stroke-panel); white-space: nowrap; }
+.th .i { color: var(--icon-2); }
+.td { height: var(--row-h); display: flex; align-items: center; padding: 0 var(--s3); border-bottom: 1px solid var(--stroke);
+  white-space: nowrap; min-width: 0; position: relative; }
+.num { justify-content: flex-end; font-feature-settings: var(--features); }
+.val { font-feature-settings: var(--features-value); }
+.tr.cur > .td { background: var(--selected); border-bottom-color: transparent; }
+.tr.cur > .td:first-child::before { content: ""; position: absolute; left: 0; top: 10px; width: 3px; height: 20px; border-radius: 2px; background: var(--accent); }
+.tr.cur > .td:first-child { border-radius: var(--r-control) 0 0 var(--r-control); }
+.tr.cur > .td:last-child { border-radius: 0 var(--r-control) var(--r-control) 0; }
+.belge { color: var(--text-2); }
+.tr.cur .belge { color: var(--text); font-weight: 600; }
+/* uncertain characters: tinted inside the value, nothing else on the cell */
+.u { background: var(--check-wash); color: var(--check-text); border-radius: 2px; box-shadow: inset 0 -2px 0 var(--rider-edge); padding: 0 1px; margin: 0 -1px; }
+/* in-place edit: same box, no layout shift (surfaces) */
+.edit { position: absolute; left: 4px; right: 4px; top: 4px; bottom: 4px; display: flex; align-items: center; padding: 0 8px;
+  background: var(--popover); border: 1px solid var(--stroke-panel); border-bottom: 2px solid var(--accent); border-radius: var(--r-control);
+  font-feature-settings: var(--features-value); }
+[data-theme="dark"] .edit { background: var(--well); }
+.caret { display: inline-block; width: 1px; height: 18px; background: var(--text); margin-left: 1px; }
+.foot-note { margin-top: var(--s3); font: var(--t-2); color: var(--text-2); padding-left: var(--s3); }
+
+/* ---------- inspector: linked crop + value ---------- */
+.inspector { padding-top: var(--s4); }
+.ins-head { display: flex; align-items: center; height: 40px; gap: var(--s1); }
+.ins-head h2 { font: var(--t-pane); margin-right: auto; }
+.ins-sub { font: var(--t-2); color: var(--text-2); margin-top: -4px; }
+.crop { margin-top: var(--s4); height: 220px; border-radius: var(--r-layer); background: var(--well); padding: 14px; position: relative; overflow: hidden; }
+.scan { position: absolute; left: 14px; right: -40px; top: 14px; bottom: -20px; background: var(--paper); border-radius: var(--r-sheet);
+  box-shadow: 0 0 0 1px var(--paper-edge), var(--shadow-paper); padding: 16px 20px; color: var(--paper-text);
+  display: grid; grid-template-columns: 92px 1fr; row-gap: 20px; align-content: start; font: 400 16px/22px var(--font); }
+.scan .rule { grid-column: 1 / -1; height: 4px; background: var(--paper-ink); width: 52%; border-radius: 1px; margin-bottom: 2px; }
+.scan .lab { color: var(--paper-text); opacity: .75; }
+.scan .box { justify-self: start; margin: -6px 0 -6px -8px; padding: 5px 8px; font: 500 20px/24px var(--font); letter-spacing: .02em;
+  font-feature-settings: var(--features-value); box-shadow: 0 0 0 2px var(--accent); border-radius: var(--r-control); }
+.scan .box em { font-style: normal; outline: 1px solid var(--rider-edge); outline-offset: 0; border-radius: 1px; background: var(--check-wash); }
+[data-theme="dark"] .scan .box { box-shadow: 0 0 0 2px #3f5a4c; }
+[data-theme="dark"] .scan .box em { background: #fde7d3; outline-color: #9c4a0b; }
+.crop .zoomchip { position: absolute; right: 8px; bottom: 8px; z-index: 2; display: flex; gap: 2px; padding: 2px; border-radius: var(--r-layer); }
+.reads { margin-top: var(--s6); display: grid; grid-template-columns: 64px 1fr; align-items: baseline; row-gap: var(--s2); column-gap: var(--s3); }
+.reads dt { font: var(--t-2); color: var(--text-2); }
+.reads dd { font: var(--t-panel); font-feature-settings: var(--features-value); letter-spacing: .01em; }
+.reads dd .a { color: var(--text-accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.reads .why { grid-column: 2; font: var(--t-2); color: var(--text-2); margin-top: -2px; }
+.conf { margin-top: var(--s4); display: flex; align-items: center; gap: var(--s3); font: var(--t-2); color: var(--text-2); }
+.ins-foot { margin-top: auto; display: grid; gap: var(--s2); }
+.ins-foot .hint { font: var(--t-2); color: var(--text-2); text-align: center; margin-bottom: var(--s2); }
+.ins-foot .pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin: 0 calc(-1 * var(--s2)); }
+.ins-foot .pair .btn { justify-content: flex-start; padding: 0 var(--s2); }
+
+.tooltip { position: absolute; z-index: 30; padding: 6px var(--s3); display: flex; gap: var(--s3); align-items: center; font: var(--t-2); white-space: nowrap; }
+.tooltip .k { color: var(--text-2); }
+.toast .btn { color: var(--text-accent); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="sheet">
+<div class="window" data-state="main">
+  <header class="titlebar"></header>
+  <div class="body">
+    <aside class="sidebar" data-current="degerler"></aside>
+
+    <section class="panel">
+      <div class="phead">
+        <div class="title-pick">
+          <h1>Ekspertiz Raporu</h1>
+          <button class="ibtn quiet" aria-label="Şablon seç"><svg class="i sm"><use href="#chevron-down"/></svg></button>
+        </div>
+        <div class="tools">
+          <div class="field" role="search"><svg class="i sm"><use href="#search"/></svg>Firma veya sicil no<span class="hint">Ctrl+F</span></div>
+          <span class="vsep"></span>
+          <button class="ibtn is-hover" aria-label="Önceki kontrol (Shift+N)"><svg class="i"><use href="#chevron-up"/></svg></button>
+          <button class="ibtn" aria-label="Tümünü incele"><svg class="i"><use href="#list-checks"/></svg></button>
+          <button class="ibtn" aria-label="Örnek kontrol"><svg class="i"><use href="#shuffle"/></svg></button>
+          <button class="ibtn" aria-label="Değerleri oku"><svg class="i"><use href="#play"/></svg></button>
+          <button class="ibtn" aria-label="Diğer komutlar"><svg class="i"><use href="#ellipsis"/></svg></button>
+          <span class="vsep"></span>
+          <button class="btn secondary" aria-label="Sonraki kontrol (N)"><svg class="i"><use href="#triangle-alert"/></svg>Sonraki kontrol</button>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="tbl" role="grid" aria-label="Değerler tablosu. Tab sonraki değer; F6 sonraki bölge" id="tbl">
+          <div class="tr">
+            <div class="th">Belge<svg class="i xs"><use href="#arrow-down"/></svg></div>
+            <div class="th">Firma</div><div class="th">Sicil no</div><div class="th">Rapor tarihi</div>
+            <div class="th num">Kapasite</div><div class="th">Güven</div>
+          </div>
+        </div>
+        <div class="foot-note">14 belgede 105 değer incelenmemiş.</div>
+      </div>
+
+      <aside class="inspector" aria-label="Sayfa kesiti ve değer">
+        <div class="ins-head">
+          <h2>Sicil no</h2>
+          <button class="ibtn quiet" aria-label="Tüm sayfayı göster (Boşluk)"><svg class="i sm"><use href="#maximize-2"/></svg></button>
+        </div>
+        <div class="ins-sub">Belge 16, sayfa 72</div>
+
+        <div class="crop" aria-label="Sayfa kesiti" data-clip-ok>
+          <div class="scan">
+            <span class="rule"></span>
+            <span class="lab">Firma</span><span>Ege Kalıp San. Ltd.</span>
+            <span class="lab">Sicil No</span><span class="box">34-0<em>I</em>72-K/<em>B</em></span>
+            <span class="lab">Tarih</span><span>05.11.2026</span>
+          </div>
+          <div class="zoomchip pop" style="position:absolute" aria-label="Sayfa kesiti yakınlığı">
+            <button class="ibtn quiet" aria-label="Kesiti uzaklaştır (Ctrl+eksi)"><svg class="i sm"><use href="#minus"/></svg></button>
+            <button class="ibtn quiet" aria-label="Kesiti yakınlaştır (Ctrl+artı)"><svg class="i sm"><use href="#plus"/></svg></button>
+          </div>
+        </div>
+
+        <dl class="reads">
+          <dt>Okunan</dt><dd>34-0<span class="u">I</span>72-K/<span class="u">B</span></dd>
+          <dt>Öneri</dt><dd>34-0<span class="a">1</span>72-K/<span class="a">8</span></dd>
+          <dd class="why">Varyant 2'den: I yerine 1, B yerine 8.</dd>
+        </dl>
+        <div class="conf"><span class="st kontrol"><svg class="i sm"><use href="#triangle-alert"/></svg>Kontrol</span><span>%55, 2 karakter belirsiz</span></div>
+
+        <div class="ins-foot">
+          <button class="btn primary big wide" aria-label="Onayla ve sonrakine geç (Enter)"><svg class="i"><use href="#check"/></svg>Onayla ve sonrakine geç</button>
+          <div class="hint">Enter onaylar, Esc vazgeçer, F2 elle yazar</div>
+          <div class="pair">
+            <button class="btn subtle" aria-label="Elle yaz (F2)"><svg class="i sm"><use href="#pencil"/></svg>Elle yaz</button>
+            <button class="btn subtle" aria-label="Yeni varyant çiz (V)"><svg class="i sm"><use href="#square-dashed"/></svg>Yeni varyant çiz</button>
+          </div>
+        </div>
+      </aside>
+
+      <div class="pop tooltip" style="left: 0; top: 0;" id="tip" role="tooltip">Önceki kontrol<span class="k">Shift+N</span></div>
+      <div class="pop toast" id="toast" style="right: calc(360px + 16px); bottom: 16px;" role="status">
+        <svg class="i lead"><use href="#circle-check"/></svg>8 değer onaylandı
+        <button class="btn subtle" aria-label="Geri al (Ctrl+Z)">Geri al</button>
+        <button class="ibtn quiet" aria-label="Kapat"><svg class="i sm"><use href="#x"/></svg></button>
+      </div>
+    </section>
+  </div>
+</div>
+</div>
+
+<script src="icons.js"></script>
+<script src="chrome.js"></script>
+<script>
+const ic = (n, c = 'sm') => `<svg class="i ${c}"><use href="#${n}"/></svg>`;
+const ST = {
+  emin: ['signal-high', 'Emin'], orta: ['signal-medium', 'Orta'],
+  kontrol: ['triangle-alert', 'Kontrol'], okunamadi: ['circle-x', 'Okunamadı'],
+};
+const st = (k, pct) => `<span class="st ${k}">${ic(ST[k][0])}${ST[k][1]}${pct ? `<span class="pct">%${pct}</span>` : ''}</span>`;
+const none = `<span class="st okunamadi">${ic('circle-x')}Okunamadı</span>`;
+// [belge, firma, sicil, tarih, kapasite, güven, pct]; [x] marks an uncertain character
+const ROWS = [
+  [4, 'Gediz Tekstil San. A.Ş.', '35-0211-G/1', '22.09.2026', '1.25[0]', 'kontrol', 58],
+  [7, 'Marmara D[o]k[u]m A.Ş.', '34-1127-D/4', '03.10.2026', '840', 'kontrol', 64],
+  [10, 'Anadolu Pres Makina', null, '08.10.2026', '1.640', 'okunamadi'],
+  [12, 'Bursa Kalıp Sanayi', '16-0412-B/3', '12.10.2026', '2.300', 'emin', 97],
+  [13, 'Karadeniz Metal Ltd.', '[O]6-2210-K/1', '19.10.2026', '960', 'kontrol', 61],
+  [15, 'Trakya Boru A.Ş.', '22-0918-T/2', '26.10.2026', '2.100', 'orta', 84],
+  [16, 'Ege Kalıp San. Ltd.', 'EDIT', '05.11.2026', '1.250', 'kontrol', 55],
+  [19, 'Akdeniz Soğutma Ltd.', '07-0555-S/3', '28.10.2026', '2.1[B]0', 'kontrol', 60],
+  [21, 'Çukurova Ambalaj A.Ş.', '01-3301-Ç/2', '26.10.2026', '780', 'emin', 95],
+  [23, 'Konya Döküm Ltd.', '42-0671-O/5', '02.11.2026', '1.080', 'orta', 81],
+  [27, 'Bursa Yan Sanayi A.Ş.', '16-0840-B/2', '[O]4.11.2026', '1.500', 'kontrol', 62],
+  [31, 'İzmir Vana ve Pompa', '35-0932-İ/6', '30.10.2026', '1.320', 'emin', 98],
+  [35, 'Kayseri Mobilya A.Ş.', '38-0127-M/1', '01.11.2026', '640', 'orta', 79],
+  [38, 'Denizli Havlu Ltd.', '20-0458-D/4', '04.11.2026', '1.900', 'emin', 96],
+];
+const u = s => s.replace(/\[(.)\]/g, '<span class="u">$1</span>');
+tbl.insertAdjacentHTML('beforeend', ROWS.map(([b, f, s, t, k, g, p]) => `
+  <div class="tr ${s === 'EDIT' ? 'cur' : ''}">
+    <div class="td num belge">${b}</div>
+    <div class="td">${u(f)}</div>
+    <div class="td val">${s === 'EDIT' ? '<span class="edit" aria-label="Sicil no, düzenleniyor">34-0172-K/8<span class="caret"></span></span>' : s ? u(s) : none}</div>
+    <div class="td">${u(t)}</div>
+    <div class="td num">${u(k)}</div>
+    <div class="td">${st(g, p)}</div>
+  </div>`).join(''));
+// tooltip under the hovered "Önceki kontrol" button
+requestAnimationFrame(() => {
+  const b = document.querySelector('.ibtn.is-hover'), panel = document.querySelector('.panel');
+  const r = b.getBoundingClientRect(), pr = panel.getBoundingClientRect();
+  tip.style.left = (r.left - pr.left + r.width / 2 - tip.offsetWidth / 2) + 'px';
+  tip.style.top = (r.bottom - pr.top + 6) + 'px';
+});
+</script>
+</body>
+</html>

@@ -21,7 +21,9 @@ def test_tokens_match_design_record():
 def test_text_pairs_meet_wcag_aa():
     t = theme.TOKENS
     for fg, bg in [("ink", "card"), ("ink_2", "card"), ("on_shell", "shell"),
-                   ("on_shell_2", "shell"), ("check_ink", "check_wash"), ("manila_ink", "manila")]:
+                   ("on_shell_2", "shell"), ("check_ink", "check_wash"), ("manila_ink", "manila"),
+                   ("ink_2", "key_cap"), ("ink", "hover"), ("ink", "row_cur"),
+                   ("on_shell", "shell_3"), ("paper", "ink")]:
         assert _contrast(t[fg], t[bg]) >= 4.5, (fg, bg)
 
 

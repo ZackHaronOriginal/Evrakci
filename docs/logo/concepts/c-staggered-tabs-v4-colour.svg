@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Evrakçı app icon: manila files on the cabinet-green tile; the middle tab is the orange rider</title>
+  <rect width="256" height="256" rx="56" fill="#3f5a4c"/>
+  <g transform="translate(128 128) scale(.8) translate(-128 -128)">
+  <path d="M44 51l14-25h36l14 25z" fill="#e9d9a6"/>
+  <rect x="32" y="50" width="192" height="40" rx="9" fill="#e9d9a6"/>
+  <path d="M96 121l14-25h36l14 25z" fill="#e8731a"/>
+  <rect x="32" y="120" width="192" height="40" rx="9" fill="#e9d9a6"/>
+  <path d="M148 191l14-25h36l14 25z" fill="#e9d9a6"/>
+  <rect x="32" y="190" width="192" height="40" rx="9" fill="#e9d9a6"/>
+  </g>
+</svg>

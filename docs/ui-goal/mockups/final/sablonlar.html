@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-states="main,empty">
+<head>
+<meta charset="utf-8">
+<title>Şablonlar</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---------- Şablonlar: templates + variables pane | canvas (paper in a well) | box inspector ---------- */
+:root { --nav-w: 264px; --mm: 3px; --ruler: 24px; }
+[data-large] { --ruler: 32px; }
+.body { grid-template-columns: var(--nav-w) minmax(0, 1fr) var(--inspector-w); padding-top: var(--s1); }
+[data-state="empty"] .body { grid-template-columns: var(--nav-w) minmax(0, 1fr); }
+
+/* left pane */
+.nav { display: flex; flex-direction: column; gap: var(--s2); min-height: 0; min-width: 0; overflow-y: auto; }
+.pane-title { font-weight: var(--w-semibold); display: flex; align-items: center; gap: var(--s2); padding-left: var(--s1); min-height: var(--control-h); }
+.pane-title .n { font-weight: var(--w-regular); color: var(--text-2); font-size: var(--fs-caption); font-feature-settings: var(--ff-num); }
+.pane-title .iconbtn { margin-left: auto; }
+.items { display: flex; flex-direction: column; gap: 2px; }
+.it { display: flex; align-items: center; gap: var(--s2); min-height: calc(var(--row-h) - 4px); padding: 0 var(--s3); border-radius: var(--r-control); position: relative; white-space: nowrap; }
+.it .end { margin-left: auto; font-size: var(--fs-caption); color: var(--text-2); font-feature-settings: var(--ff-num); }
+.it.on { background: var(--selected); }
+.it.on::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--accent); }
+.it.sub { padding-left: calc(var(--s6) + var(--s4)); }
+.it .grip { color: var(--text-2); }
+.badge { min-width: 20px; height: 20px; padding: 0 5px; border-radius: var(--r-control); background: var(--accent-fill); color: var(--text-on-accent); font-size: var(--fs-caption); font-weight: var(--w-semibold);
+  display: inline-flex; align-items: center; justify-content: center; font-feature-settings: var(--ff-num); line-height: 1; }
+.req { color: var(--text-2); }
+.nav .foot { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); padding: var(--s2) var(--s1) 0; margin-top: auto; }
+.nav hr { border: 0; height: 1px; background: var(--stroke); margin: var(--s2) 0; }
+
+/* canvas column */
+.canvas-col { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; min-height: 0; }
+.canvas-bar { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.canvas-bar .lbl { color: var(--text-2); font-size: var(--fs-caption); }
+.canvas { position: relative; flex: 1; min-height: 0; background: var(--well); border: 1px solid var(--stroke); border-radius: var(--r-layer); overflow: hidden;
+  display: grid; grid-template-columns: var(--ruler) 1fr; grid-template-rows: var(--ruler) 1fr; }
+.ruler { background: var(--layer); color: var(--text-2); font-size: var(--fs-caption); overflow: hidden; position: relative; }
+.ruler.corner { border-right: 1px solid var(--stroke); border-bottom: 1px solid var(--stroke); }
+.ruler.h { border-bottom: 1px solid var(--stroke); }
+.ruler.v { border-right: 1px solid var(--stroke); }
+.ruler svg { position: absolute; left: 0; top: 0; }
+.ruler line { stroke: var(--text-2); stroke-width: 1; }
+.ruler .band { fill: var(--selected); }
+.ruler .cur { stroke: var(--accent); stroke-width: 2; }
+.ruler text { fill: var(--text-2); font-size: var(--fs-caption); font-family: var(--font); font-feature-settings: "tnum" 1; }
+.stage { position: relative; overflow: hidden; }
+.sheet { position: absolute; left: calc(14 * var(--mm)); top: calc(6 * var(--mm)); width: calc(210 * var(--mm)); height: calc(297 * var(--mm));
+  background: var(--paper); color: var(--paper-ink); box-shadow: 0 0 0 1px var(--page-edge), var(--shadow-paper); border-radius: var(--r-paper); font-size: 13px; line-height: 1.35; }
+.sheet .t { position: absolute; left: 0; right: 0; text-align: center; color: var(--paper-head); }
+.sheet .t1 { top: calc(14 * var(--mm)); font-size: 12px; letter-spacing: .06em; font-weight: 600; }
+.sheet .t2x { top: calc(19 * var(--mm)); font-size: 16px; letter-spacing: .06em; font-weight: 600; color: var(--paper-ink); }
+.sheet .lab { position: absolute; left: calc(14 * var(--mm)); color: var(--paper-head); }
+.sheet .val { position: absolute; font-size: 14px; }
+.sheet .stamp { position: absolute; left: calc(130 * var(--mm)); top: calc(118 * var(--mm)); width: 96px; height: 96px; border-radius: 50%; border: 2px solid var(--paper-line);
+  display: flex; align-items: center; justify-content: center; text-align: center; color: var(--paper-line); font-size: 11px; font-weight: 600; line-height: 1.3; }
+.sheet .body-txt { position: absolute; left: calc(14 * var(--mm)); right: calc(14 * var(--mm)); top: calc(152 * var(--mm)); color: var(--paper-ink); line-height: 1.5; }
+/* field boxes: 2px accent outline + number badge; the selected box has handles */
+.box { position: absolute; box-shadow: 0 0 0 2px var(--paper-box); border-radius: 2px; background: color-mix(in srgb, var(--paper-box) 6%, transparent); }
+.box .no { position: absolute; left: -2px; top: -2px; transform: translateX(-100%); min-width: 20px; height: 20px; padding: 0 4px; border-radius: var(--r-paper) 0 0 var(--r-paper);
+  background: var(--paper-box); color: var(--on-paper-box); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.box.var2 { box-shadow: 0 0 0 2px var(--paper-box); outline: 2px dashed var(--paper-box); outline-offset: 2px; box-shadow: none; }
+.box.sel::after { content: ""; position: absolute; inset: -5px; border: 1px solid var(--paper-box); border-radius: var(--r-control); }
+.box .hd { position: absolute; width: 8px; height: 8px; background: var(--paper); border: 1.5px solid var(--paper-box); border-radius: 1px; z-index: 1; }
+.readout { position: absolute; z-index: 5; display: flex; align-items: center; gap: var(--s3); height: calc(32px * var(--ts)); padding: 0 var(--s3);
+  background: var(--popover); color: var(--text); border: 1px solid var(--stroke); border-radius: var(--r-control); box-shadow: var(--shadow-float); white-space: nowrap; font-size: var(--fs-caption); }
+
+/* inspector */
+.form { padding: var(--s3) var(--s4) var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
+.form .lbl { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); margin-bottom: var(--s1); }
+.form .row2 { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.form .chkl { display: inline-flex; align-items: center; gap: var(--s2); }
+.form .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); }
+.form .grid4 .field { justify-content: flex-end; font-feature-settings: var(--ff-num); padding: 0 var(--s2); }
+.form .hint { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
+[data-large] .form .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.live { padding: var(--s3) var(--s4) var(--s1); display: flex; flex-direction: column; gap: var(--s2); }
+.live .r1 { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.live .nm { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
+.live .vv { font-size: var(--fs-body); line-height: var(--lh-body); }
+.live .act { margin: var(--s1) calc(var(--s3) * -1) 0; }
+.live .act .r .ic:first-child { color: var(--check-text); }
+.st { font-size: var(--fs-caption); }
+
+/* 150 % text: the templates pane collapses to its toggle, like Yükle's jobs pane */
+[data-large] .nav { display: none; }
+[data-large] .body { grid-template-columns: minmax(0, 1fr) var(--inspector-w); }
+[data-large][data-state="empty"] .body { grid-template-columns: minmax(0, 1fr); }
+[data-large] .paneltog { background: transparent; }
+[data-state="empty"] .commandbar .iconbtn:not(.paneltog), [data-state="empty"] .commandbar .cmd { color: var(--dis-ink); opacity: var(--dis-alpha); }
+[data-state="empty"] .commandbar .iconbtn:not(.paneltog) .ic, [data-state="empty"] .commandbar .cmd .ic { color: var(--dis-ink); }
+.canvas .empty { position: absolute; inset: 0; }
+[data-state="empty"] .commandbar .iconbtn.on:not(.paneltog) { background: transparent; outline: none; }
+</style>
+</head>
+<body>
+<div class="window">
+  <header class="titlebar" data-tab="sablonlar"></header>
+
+  <main class="layer">
+    <div class="commandbar" role="toolbar" aria-label="Şablonlar komutları">
+      <button class="iconbtn on paneltog" title="Şablon bölmesini gizle" aria-label="Şablon bölmesini gizle" aria-pressed="true"><i class="ic md" data-i="panel-left"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" title="Geri al: Kutuyu taşı (Ctrl+Z)" aria-label="Geri al: Kutuyu taşı (Ctrl+Z)"><i class="ic md" data-i="undo-2"></i></button>
+      <button class="iconbtn dis" aria-label="Yinele (Ctrl+Y)"><i class="ic md" data-i="redo-2"></i></button>
+      <span class="sep"></span>
+      <button class="cmd" title="Kutu çiz (B)"><i class="ic md" data-i="square-dashed"></i>Kutu çiz</button>
+      <button class="iconbtn on" title="Izgaraya oturt (G), açık" aria-label="Izgaraya oturt (G), açık" aria-pressed="true"><i class="ic md" data-i="magnet"></i></button>
+      <button class="iconbtn" title="Kutuyu çoğalt (Ctrl+D)" aria-label="Kutuyu çoğalt (Ctrl+D)"><i class="ic md" data-i="copy"></i></button>
+      <button class="iconbtn" title="Kutuyu sil (Del)" aria-label="Kutuyu sil (Del)"><i class="ic md" data-i="trash-2"></i></button>
+      <div class="grow"></div>
+      <button class="cmd" title="Bütün örneklerde dene (Ctrl+T)"><i class="ic md" data-i="play"></i>Bütün örneklerde dene</button>
+      <button class="iconbtn on" title="Okumaları sayfada göster, açık" aria-label="Okumaları sayfada göster, açık" aria-pressed="true"><i class="ic md" data-i="eye"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" title="Ayrıntı panelini gizle" aria-label="Ayrıntı panelini gizle"><i class="ic md" data-i="panel-right"></i></button>
+      <button class="iconbtn" title="Diğer komutlar" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
+    </div>
+
+    <div class="body">
+      <nav class="nav" aria-label="Şablonlar ve değişkenler">
+        <div class="pane-title">Şablonlar <span class="n" data-out="empty">3</span><span class="n" data-in="empty">0</span>
+          <button class="iconbtn sm" title="Yeni şablon" aria-label="Yeni şablon"><i class="ic" data-i="plus"></i></button></div>
+        <div class="items" data-out="empty">
+          <div class="it on">Faaliyet belgesi<span class="end">kaydedilmedi</span></div>
+          <div class="it">Ekspertiz raporu<span class="end">8 değişken</span></div>
+          <div class="it">İmza sirküleri<span class="end">4 değişken</span></div>
+        </div>
+        <div class="foot" data-in="empty" style="margin-top:0">Kayıtlı şablon yok. Şablonlar bu bilgisayarda saklanır ve her işte kullanılabilir.</div>
+        <hr>
+        <div class="pane-title">Değişkenler
+          <button class="iconbtn sm" title="Değişken ekle (Ctrl+Shift+N)" aria-label="Değişken ekle (Ctrl+Shift+N)"><i class="ic" data-i="plus"></i></button></div>
+        <div class="items" data-out="empty">
+          <div class="it"><span class="badge">1</span>Firma unvanı <span class="req">*</span><span class="end">2 bölüm</span></div>
+          <div class="it sub on"><i class="ic grip" data-i="grip-vertical"></i>Bölüm 1<span class="end">Sayfa 1</span></div>
+          <div class="it sub"><i class="ic grip" data-i="grip-vertical"></i>Bölüm 2<span class="end">Sayfa 1</span></div>
+          <div class="it"><span class="badge">2</span>Oda sicil no <span class="req">*</span></div>
+          <div class="it"><span class="badge">3</span>Vergi no</div>
+          <div class="it"><span class="badge">4</span>Faaliyet konusu</div>
+          <div class="it"><span class="badge">5</span>Düzenleme tarihi <span class="req">*</span></div>
+        </div>
+        <div class="foot" data-out="empty">* zorunlu. Bölümler yukarıdan aşağı denenir; ilk emin okuma kazanır.</div>
+        <div class="foot" data-in="empty" style="margin-top:0">Bir şablon seçince değişkenleri (firma unvanı, sicil no gibi) burada sıralanır.</div>
+      </nav>
+
+      <section class="canvas-col">
+        <div class="canvas-bar" data-out="empty">
+          <span class="lbl">Örnek</span><div class="field select">Örnek 1, Ege Kalıp San. Ltd.<i class="ic" data-i="chevron-down"></i></div>
+          <span class="lbl" style="margin-left: var(--s3)">Önizleme sayfası</span><div class="field select num">1 / 2<i class="ic" data-i="chevron-down"></i></div>
+        </div>
+        <div class="canvas" aria-label="Şablon tuvali">
+          <div class="ruler corner"></div>
+          <div class="ruler h" data-clip-ok data-axis="h" data-sel="70,174" data-cur="84.5"></div>
+          <div class="ruler v" data-clip-ok data-axis="v" data-sel="34,42" data-cur="41"></div>
+          <div class="stage" data-clip-ok data-out="empty">
+            <div class="sheet paper" data-paper>
+              <div class="t t1">ÖRNEK İLİ TİCARET VE SANAYİ ODASI</div>
+              <div class="t t2x">FAALİYET BELGESİ</div>
+              <div class="lab" style="top: calc(35 * var(--mm))">Firma unvanı</div>
+              <div class="lab" style="top: calc(55 * var(--mm))">Oda sicil no</div>
+              <div class="lab" style="top: calc(75 * var(--mm))">Vergi no</div>
+              <div class="lab" style="top: calc(95 * var(--mm))">Faaliyet konusu</div>
+              <div class="lab" style="top: calc(115 * var(--mm))">Düzenleme tarihi</div>
+              <div class="val" style="left: calc(71 * var(--mm)); top: calc(35 * var(--mm))">Ege Kalıp San. Ltd. Şti.</div>
+              <div class="val" style="left: calc(71 * var(--mm)); top: calc(55 * var(--mm))">48213</div>
+              <div class="val" style="left: calc(71 * var(--mm)); top: calc(75 * var(--mm))">7340915268</div>
+              <div class="val" style="left: calc(71 * var(--mm)); top: calc(95 * var(--mm))">Plastik enjeksiyon kalıbı imalatı</div>
+              <div class="val" style="left: calc(71 * var(--mm)); top: calc(115 * var(--mm))">04.11.2026</div>
+              <div class="stamp">ÖRNEK İLİ<br>T.S.O.</div>
+              <div class="body-txt">Yukarıda unvanı yazılı firmanın odamıza kayıtlı olduğu ve faaliyetine devam ettiği onaylanır.</div>
+              <div class="lab" style="top: calc(172 * var(--mm))">Oda sicil memuru</div>
+              <div class="val" style="left: calc(71 * var(--mm)); top: calc(172 * var(--mm)); letter-spacing: .04em">EGE KALIP SAN. LTD. ŞTİ.</div>
+
+              <div class="box sel" style="left: calc(70 * var(--mm)); top: calc(34 * var(--mm)); width: calc(104 * var(--mm)); height: calc(8 * var(--mm))"><span class="no">1</span>
+                <span class="hd" style="left:-4px;top:-4px"></span><span class="hd" style="right:-4px;top:-4px"></span><span class="hd" style="left:-4px;bottom:-4px"></span><span class="hd" style="right:-4px;bottom:-4px"></span>
+                <span class="hd" style="left:50%;margin-left:-4px;top:-4px"></span><span class="hd" style="left:50%;margin-left:-4px;bottom:-4px"></span></div>
+              <div class="box" style="left: calc(70 * var(--mm)); top: calc(54 * var(--mm)); width: calc(40 * var(--mm)); height: calc(8 * var(--mm))"><span class="no">2</span></div>
+              <div class="box" style="left: calc(70 * var(--mm)); top: calc(74 * var(--mm)); width: calc(56 * var(--mm)); height: calc(8 * var(--mm))"><span class="no">3</span></div>
+              <div class="box" style="left: calc(70 * var(--mm)); top: calc(94 * var(--mm)); width: calc(110 * var(--mm)); height: calc(8 * var(--mm))"><span class="no">4</span></div>
+              <div class="box" style="left: calc(70 * var(--mm)); top: calc(114 * var(--mm)); width: calc(44 * var(--mm)); height: calc(8 * var(--mm))"><span class="no">5</span></div>
+              <div class="box var2" style="left: calc(70 * var(--mm)); top: calc(171 * var(--mm)); width: calc(80 * var(--mm)); height: calc(8 * var(--mm))"><span class="no">1.2</span></div>
+            </div>
+            <div class="readout" style="left: calc(132 * var(--mm)); top: calc(51 * var(--mm))" role="status">Ege Kalıp San. Ltd. Şti.<span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%98</span></span></div>
+          </div>
+          <div class="empty" data-in="empty" style="grid-column: 1 / -1; grid-row: 1 / -1; background: var(--well)">
+            <span class="brandmark" aria-hidden="true"></span>
+            <h2>Henüz şablon yok</h2>
+            <p>Örnek bir sayfada her bilginin çevresine kutu çizin.</p>
+            <div class="row">
+              <button class="btn primary lg"><i class="ic" data-i="plus"></i>Yeni şablon oluştur</button>
+              <button class="btn lg"><i class="ic" data-i="book-open"></i>Rehber'i aç</button>
+            </div>
+            <p class="cap">Örnek sayfalar açık işten gelir: Kasım 2026 kapasite raporları.</p>
+          </div>
+        </div>
+      </section>
+
+      <aside class="inspector" data-out="empty" aria-label="Kutu ayrıntısı">
+        <div class="scroll">
+          <header>
+            <h1 class="ins-title">Firma unvanı</h1>
+            <div class="ins-sub">Bölüm 1, sayfa 1, kutu 1 / 2</div>
+          </header>
+          <section>
+            <h2 class="group-label">Kutu</h2>
+            <div class="card form">
+              <div><div class="lbl">Ad</div><div class="field">Firma unvanı</div></div>
+              <div class="row2"><span class="chkl"><span class="chk on"><i class="ic" data-i="check"></i></span>Zorunlu</span><span class="grow"></span><span class="lbl" style="margin:0">Kutunun sayfası</span><div class="field select num">1<i class="ic" data-i="chevron-down"></i></div></div>
+              <div>
+                <div class="lbl">Konum ve boyut (mm)</div>
+                <div class="grid4">
+                  <div><div class="lbl">X</div><div class="field">70,0</div></div>
+                  <div><div class="lbl">Y</div><div class="field">34,0</div></div>
+                  <div><div class="lbl">Genişlik</div><div class="field">104,0</div></div>
+                  <div><div class="lbl">Yükseklik</div><div class="field">8,0</div></div>
+                </div>
+              </div>
+              <div class="hint">Ok tuşları (← ↑ → ↓) kutuyu 0,25 mm, Shift ile 1 mm kaydırır.</div>
+            </div>
+          </section>
+          <section>
+            <h2 class="group-label">Okunan, örnek 1</h2>
+            <div class="card live" role="status">
+              <div class="r1"><span class="nm">Firma unvanı</span><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%98</span></span></div>
+              <div class="vv">Ege Kalıp San. Ltd. Şti.</div>
+              <div class="bar" aria-hidden="true"><i style="width:98%"></i></div>
+              <div class="act"><div class="r"><i class="ic" data-i="triangle-alert"></i>Diğer 4 kutu<span class="val">1 Kontrol, 1 Orta<i class="ic" data-i="chevron-right"></i></span></div></div>
+            </div>
+          </section>
+        </div>
+        <div class="ins-foot">
+          <button class="btn primary" title="Şablonu kaydet (Ctrl+S)"><i class="ic" data-i="save"></i>Şablonu kaydet</button>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="statusbar">
+    <span data-job data-job-what="İş"></span>
+    <span class="item" data-out="empty" title="Şablonu kaydet (Ctrl+S)"><i class="ic" data-i="circle-dashed"></i>Şablon kaydedilmedi</span>
+    <span class="item" data-out="empty">Örnek <b>1</b> / 4</span>
+    <span class="item num" data-out="empty" data-p="2">İmleç x 84,5 y 41,0 mm</span>
+    <span class="item warn" data-out="empty"><i class="ic" data-i="triangle-alert"></i><span><b>1</b> okuma kontrol bekliyor</span></span>
+    <span class="item" data-in="empty">Şablon seçilmedi</span>
+    <span class="grow"></span>
+    <span class="zoom" data-out="empty" title="Tuval yakınlığı (Ctrl+tekerlek, Ctrl+0 sığdır)"><i class="ic" data-i="zoom-out"></i><span class="slider"><i style="width:48%"></i><b style="left:48%"></b></span><i class="ic" data-i="zoom-in"></i><span class="num">%135</span></span>
+  </footer>
+</div>
+<script src="icons.js"></script>
+<script src="shell.js"></script>
+<script>
+/* mm rulers: 0 mm sits on the page edge (page offset 14 mm / 6 mm); ticks every mm, labels every 20 mm */
+(function () {
+  const NS = "http://www.w3.org/2000/svg", MM = 3, OFF = { h: 14, v: 6 };
+  const R = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ruler"));
+  const fs = parseFloat(getComputedStyle(document.querySelector(".ruler")).fontSize);
+  const step = 20;
+  const el = (n, a, t) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; };
+  document.querySelectorAll(".ruler[data-axis]").forEach(r => {
+    const h = r.dataset.axis === "h", len = h ? r.clientWidth : r.clientHeight, o = OFF[r.dataset.axis] * MM;
+    const svg = el("svg", { width: h ? len : R, height: h ? R : len });
+    const [a, b] = r.dataset.sel.split(",").map(Number);
+    svg.appendChild(h ? el("rect", { x: o + a * MM, y: 0, width: (b - a) * MM, height: R, class: "band" }) : el("rect", { x: 0, y: o + a * MM, width: R, height: (b - a) * MM, class: "band" }));
+    for (let m = 0; o + m * MM < len; m++) {
+      const p = o + m * MM + .5, big = m % 10 === 0, L = big ? 9 : m % 5 === 0 ? 6 : 3;
+      svg.appendChild(h ? el("line", { x1: p, x2: p, y1: R - L, y2: R }) : el("line", { y1: p, y2: p, x1: R - L, x2: R }));
+      if (m % step === 0) svg.appendChild(h ? el("text", { x: p + 3, y: fs * .85 }, m) : el("text", { transform: `translate(${fs * .85} ${p - 3}) rotate(-90)` }, m));
+    }
+    const c = o + Number(r.dataset.cur) * MM + .5;
+    svg.appendChild(h ? el("line", { x1: c, x2: c, y1: 0, y2: R, class: "cur" }) : el("line", { y1: c, y2: c, x1: 0, x2: R, class: "cur" }));
+    r.appendChild(svg);
+  });
+})();
+</script>
+</body>
+</html>

@@ -82,3 +82,25 @@ def test_job_renderer_draws_a_real_page_at_the_requested_height(tmp_path):
     assert render("b1/0", 100).height == 100
     rotated = render("b1/1", 100)
     assert rotated.height == 100 and rotated.width > 100  # landscape after rotation
+
+
+def test_zoomed_in_thumbnails_are_rendered_sharp_enough():
+    from evrakci.ui.thumbnails import render_dpi
+
+    assert render_dpi(100) == 30  # small thumbnails: the cheap minimum
+    assert render_dpi(418) >= 418 / 11.7  # Kontrol at %200: no upscaled blur
+    assert render_dpi(1754) >= 150  # the loupe's %100 (A4 at 150 dpi)
+
+
+def test_a_render_for_the_old_height_is_not_current_after_set_height(qtbot):
+    renderer = CountingRenderer()
+    service = ThumbnailService(renderer, height=50)
+    got = []
+    service.ready.connect(lambda pid, image: got.append(image.height()))
+    service.request("b1/0")
+    qtbot.waitUntil(lambda: got == [50], timeout=5000)
+    service.set_height(80)
+    assert not service.is_current("b1/0") and "b1/0" in service.cache
+    service.request("b1/0")
+    qtbot.waitUntil(lambda: got == [50, 80], timeout=5000)
+    assert service.is_current("b1/0")

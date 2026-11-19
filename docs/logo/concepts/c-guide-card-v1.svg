@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill-rule="evenodd">
+  <!-- C (evolution): one guide card cut out of the cabinet tile, with one rider -->
+  <path d="M60 4h136a56 56 0 0 1 56 56v136a56 56 0 0 1-56 56H60a56 56 0 0 1-56-56V60A56 56 0 0 1 60 4z
+           M58 92a12 12 0 0 0-12 12v94a12 12 0 0 0 12 12h140a12 12 0 0 0 12-12v-94a12 12 0 0 0-12-12h-56l-12-28H86a10 10 0 0 0-9 6l-9 22z"/>
+  <path d="M168 40h28v62l-14-10-14 10z" fill="#fff"/>
+  <path d="M174 46h16v44l-8-6-8 6z"/>
+</svg>

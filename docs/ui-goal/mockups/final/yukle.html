@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-states="main,running,drop,empty">
+<head>
+<meta charset="utf-8">
+<title>Yükle</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---------- Yükle: jobs pane | batches card | job summary inspector ---------- */
+:root { --jobs-w: 288px; }
+[data-large] { --jobs-w: 320px; }
+.body { grid-template-columns: var(--jobs-w) minmax(0, 1fr) var(--inspector-w); padding-top: var(--s1); }
+[data-state="empty"] .body { grid-template-columns: var(--jobs-w) minmax(0, 1fr); }
+
+/* jobs: a navigation pane on the layer (Explorer style), no card */
+.jobs { display: flex; flex-direction: column; gap: var(--s2); min-height: 0; min-width: 0; }
+.pane-title { font-weight: var(--w-semibold); padding: var(--s1) var(--s1) 0; display: flex; align-items: baseline; gap: var(--s2); }
+.pane-title .t2 { font-weight: var(--w-regular); font-size: var(--fs-caption); }
+.jobs .list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+.job { display: grid; grid-template-columns: auto 1fr; column-gap: var(--s3); padding: var(--s2) var(--s3); border-radius: var(--r-control); position: relative; }
+.job .ic { color: var(--icon); grid-row: span 2; margin-top: 2px; }
+.job .meta { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); font-feature-settings: var(--ff-num); margin-top: 2px; }
+.job.on { background: var(--selected); }
+.job.on::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--accent); }
+.job .st.ok .ic, .job .rider .ic { grid-row: auto; margin: 0; }
+.job .st.ok .ic { color: var(--ok); }
+.jobs .foot { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); padding: 0 var(--s1); }
+
+/* batches */
+.mid { display: flex; flex-direction: column; gap: var(--s3); min-height: 0; min-width: 0; }
+/* the batches card fills the column: rows, a totals row, then the drop hint as the card's last
+   line, so free space reads as room in the list, not as an unfinished screen */
+.batches { overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.batches .tscroll { overflow-y: auto; min-height: 0; flex: 0 1 auto; }
+tfoot td { border-top: 1px solid var(--stroke); border-bottom: 0; font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); }
+tfoot td.lbl { color: var(--text-2); font-weight: var(--w-medium); }
+.card-head { display: flex; align-items: baseline; gap: var(--s3); padding: var(--s3) var(--s4) var(--s2); }
+.card-head b { font-weight: var(--w-semibold); }
+.card-head .t2 { font-size: var(--fs-caption); }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+th { height: calc(36px * var(--ts)); text-align: left; font-size: var(--fs-caption); font-weight: var(--w-semibold); color: var(--text-2); padding: 0 var(--s3); border-bottom: 1px solid var(--stroke); white-space: nowrap; }
+td { height: var(--row-h); padding: 0 var(--s3); border-bottom: 1px solid var(--stroke-soft); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-feature-settings: var(--ff-num); }
+td.grip { color: var(--text-2); padding-right: 0; }
+tr.cur td { background: var(--selected); }
+tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.dropline { display: flex; align-items: center; justify-content: center; gap: var(--s2); color: var(--text-2); font-size: var(--fs-caption);
+  margin: auto var(--s3) var(--s3); padding: var(--s4); border-top: 1px solid var(--stroke-soft); text-align: center; flex-wrap: wrap; }
+.dropline .ic { color: var(--icon); }
+/* reading progress (running state) */
+.progress { padding: var(--s4); display: flex; flex-direction: column; gap: var(--s2); }
+.progress .top { display: flex; align-items: center; gap: var(--s3); }
+.progress .top b { font-weight: var(--w-semibold); }
+.progress .bar { height: 6px; border-radius: var(--r-paper); }
+.progress .bar i { border-radius: var(--r-paper); }
+.progress .sub { display: flex; gap: var(--s4); font-size: var(--fs-caption); color: var(--text-2); font-feature-settings: var(--ff-num); flex-wrap: wrap; }
+
+/* inspector */
+.kv .r .v b { font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); }
+.lines { padding: var(--s1) var(--s4) var(--s3); display: flex; flex-direction: column; gap: var(--s3); }
+.line { display: grid; grid-template-columns: auto 1fr; gap: var(--s3); align-items: start; font-size: var(--fs-caption); line-height: var(--lh-caption); }
+.line .st, .line .rider { margin-top: 1px; }
+.profile { padding: var(--s3) var(--s4) var(--s1); display: grid; grid-template-columns: auto 1fr; column-gap: var(--s3); }
+.profile .ic { color: var(--icon); margin-top: 2px; }
+.profile .t2 { font-size: var(--fs-caption); line-height: var(--lh-caption); margin-top: 2px; }
+
+/* drop overlay: the dashed edge exists only during a drag (gate 8) */
+/* drawn on the layer's edge (4 px in), so every pane, the inspector included, sits inside it */
+.dropzone { position: absolute; inset: var(--commandbar-h) var(--s1) var(--s1); z-index: 15; border: 2px dashed var(--accent); border-radius: var(--r-layer);
+  background: color-mix(in srgb, var(--layer) 82%, transparent); display: flex; align-items: center; justify-content: center; }
+[data-theme="hc"] .dropzone { background: var(--layer); }
+.dropcard { width: 520px; padding: var(--s6); display: flex; flex-direction: column; gap: var(--s3); box-shadow: var(--shadow-float), var(--edge-light); }
+.dropcard .hd { display: flex; align-items: center; gap: var(--s3); }
+.dropcard .hd .ic { color: var(--accent); width: 28px; height: 28px; }
+.dropcard h2 { font-size: var(--fs-panel); line-height: var(--lh-panel); font-weight: var(--w-semibold); }
+.dropcard .file { display: flex; align-items: center; gap: var(--s2); height: calc(32px * var(--ts)); }
+.dropcard .file .ic { color: var(--icon); }
+.dropcard .file .t2 { margin-left: auto; font-size: var(--fs-caption); font-feature-settings: var(--ff-num); }
+.dropcard .note { display: flex; gap: var(--s2); font-size: var(--fs-caption); color: var(--text-2); align-items: center; }
+
+/* empty */
+.mid .empty { flex: 1; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3); margin-top: var(--s6); max-width: 720px; text-align: left; }
+.steps .card { padding: var(--s4); display: flex; flex-direction: column; gap: var(--s1); }
+.steps .no { width: calc(24px * var(--ts)); height: calc(24px * var(--ts)); border-radius: 50%; color: var(--text); box-shadow: inset 0 0 0 1px var(--edge);
+  display: inline-flex; align-items: center; justify-content: center; font-size: var(--fs-caption); font-weight: var(--w-semibold); margin-bottom: var(--s1); }
+.steps b { font-weight: var(--w-semibold); }
+.steps p { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); }
+/* empty: only "new job" and "add batch" work without a job */
+[data-state="empty"] .commandbar .iconbtn:not(.keep):not(.paneltog) { color: var(--dis-ink); opacity: var(--dis-alpha); }
+[data-state="empty"] .commandbar .iconbtn:not(.keep):not(.paneltog) .ic { color: var(--dis-ink); }
+/* 150 % text: the jobs pane collapses to its toggle (Outlook folder pane); the job stays in the status bar */
+[data-large] .jobs { display: none; }
+[data-large] .body { grid-template-columns: minmax(0, 1fr) var(--inspector-w); }
+[data-large][data-state="empty"] .body { grid-template-columns: minmax(0, 1fr); }
+[data-large] .paneltog { background: transparent; }
+</style>
+</head>
+<body>
+<div class="window">
+  <header class="titlebar" data-tab="yukle"></header>
+
+  <main class="layer">
+    <div class="commandbar" role="toolbar" aria-label="Yükle komutları">
+      <button class="iconbtn on paneltog" title="İşler bölmesini gizle" aria-label="İşler bölmesini gizle" aria-pressed="true"><i class="ic md" data-i="panel-left"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" title="Geri al: Parti taşı (Ctrl+Z)" aria-label="Geri al: Parti taşı (Ctrl+Z)"><i class="ic md" data-i="undo-2"></i></button>
+      <button class="iconbtn dis" aria-label="Yinele (Ctrl+Y)"><i class="ic md" data-i="redo-2"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn keep" title="Yeni iş oluştur… (Ctrl+N)" aria-label="Yeni iş oluştur… (Ctrl+N)"><i class="ic md" data-i="file-plus"></i></button>
+      <button class="cmd keep" title="Dosya ekle (Ctrl+O)"><i class="ic md" data-i="file-up"></i>Dosya ekle…</button>
+      <button class="iconbtn keep" title="Klasör seç…" aria-label="Klasör seç…"><i class="ic md" data-i="folder-plus"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" title="Partiyi yukarı taşı (Alt+↑)" aria-label="Partiyi yukarı taşı (Alt+↑)"><i class="ic md" data-i="arrow-up"></i></button>
+      <button class="iconbtn" title="Partiyi aşağı taşı (Alt+↓)" aria-label="Partiyi aşağı taşı (Alt+↓)"><i class="ic md" data-i="arrow-down"></i></button>
+      <button class="iconbtn" title="Partiyi çıkar, geri alınabilir (Del)" aria-label="Partiyi çıkar, geri alınabilir (Del)"><i class="ic md" data-i="trash-2"></i></button>
+      <button class="iconbtn" title="Dosya Gezgini'nde göster (Ctrl+Shift+O)" aria-label="Dosya Gezgini'nde göster (Ctrl+Shift+O)"><i class="ic md" data-i="external-link"></i></button>
+      <div class="grow"></div>
+      <button class="cmd" data-in="running" title="Okumayı iptal et (Ctrl+.)"><i class="ic md" data-i="circle-x"></i>İptal et</button>
+      <button class="iconbtn" title="Diğer komutlar" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
+    </div>
+
+    <div class="body">
+      <nav class="jobs" aria-label="İşler">
+        <div class="pane-title">İşler<span class="t2" data-out="empty">son açılan başta, 5 iş</span></div>
+        <div class="field ph"><i class="ic" data-i="search"></i>İşlerde ara<span class="end cap">Ctrl+F</span></div>
+        <div class="list scroll" data-out="empty">
+          <div class="job on"><i class="ic" data-i="folder-open"></i><span>Kasım 2026 kapasite raporları</span><span class="meta">640 sayfa, dün<span class="rider"><i class="ic" data-i="triangle-alert"></i>7 Kontrol</span></span></div>
+          <div class="job"><i class="ic" data-i="folder"></i><span>Ekim 2026 faaliyet belgeleri</span><span class="meta">212 sayfa, 3 gün önce<span class="st ok"><i class="ic" data-i="circle-check"></i>Dışa aktarıldı</span></span></div>
+          <div class="job"><i class="ic" data-i="folder"></i><span>Ege Kalıp San. Ltd. sicil dosyaları</span><span class="meta">304 sayfa, 1 hafta önce<span class="rider"><i class="ic" data-i="triangle-alert"></i>3 Kontrol</span></span></div>
+          <div class="job"><i class="ic" data-i="folder"></i><span>Ekspertiz dosyaları, 2. parti</span><span class="meta">88 sayfa, 2 hafta önce<span class="st ok"><i class="ic" data-i="circle-check"></i>Dışa aktarıldı</span></span></div>
+          <div class="job"><i class="ic" data-i="folder"></i><span>Eylül 2026 ihracat evrakları</span><span class="meta">540 sayfa, 5 hafta önce<span class="st ok"><i class="ic" data-i="circle-check"></i>Dışa aktarıldı</span></span></div>
+        </div>
+        <div class="foot" data-out="empty">Seçip Enter ile açın. İşler bu bilgisayarda kalır.</div>
+        <div class="foot" data-in="empty">Kayıtlı iş yok. Oluşturduğunuz işler burada, son açılan başta listelenir.</div>
+      </nav>
+
+      <section class="mid">
+        <div class="card batches" data-out="empty">
+          <div class="card-head"><b>Partiler</b><span class="t2">Sürükleyin ya da Alt+↑ / Alt+↓ ile sıralayın.</span></div>
+          <div class="tscroll scroll">
+          <table>
+            <colgroup><col style="width:calc(36px * var(--ts))"><col style="width:calc(44px * var(--ts))"><col><col style="width:calc(72px * var(--ts))"><col style="width:calc(100px * var(--ts))"><col style="width:calc(132px * var(--ts))"></colgroup>
+            <thead><tr><th></th><th class="n">No</th><th>Dosya</th><th class="n">Sayfa</th><th class="n">QR ayıraç</th><th>Durum</th></tr></thead>
+            <tbody>
+              <tr><td class="grip"><i class="ic" data-i="grip-vertical"></i></td><td class="n">1</td><td>tarama-2026-11-03-0912.pdf</td><td class="n">180</td><td class="n">27</td><td><span class="st ok"><i class="ic" data-i="circle-check"></i>Hazır</span></td></tr>
+              <tr class="cur"><td class="grip"><i class="ic" data-i="grip-vertical"></i></td><td class="n">2</td><td>tarama-2026-11-03-1044.pdf</td><td class="n">176</td><td class="n">26</td><td><span class="st ok"><i class="ic" data-i="circle-check"></i>Hazır</span></td></tr>
+              <tr><td class="grip"><i class="ic" data-i="grip-vertical"></i></td><td class="n">3</td><td>tarama-2026-11-04-0856.pdf</td><td class="n">160</td><td class="n">24</td><td><span class="st ok"><i class="ic" data-i="circle-check"></i>Hazır</span></td></tr>
+              <tr data-out="running"><td class="grip"><i class="ic" data-i="grip-vertical"></i></td><td class="n">4</td><td>tarama-2026-11-04-1130.pdf</td><td class="n">124</td><td class="n">0</td><td><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span></td></tr>
+              <tr data-in="running"><td class="grip"><i class="ic" data-i="grip-vertical"></i></td><td class="n">4</td><td>tarama-2026-11-04-1130.pdf</td><td class="n">124</td><td class="n t2">…</td><td><span class="st info"><i class="ic" data-i="loader-circle"></i>Okunuyor</span></td></tr>
+            </tbody>
+            <tfoot><tr><td></td><td class="lbl" colspan="2">Toplam</td><td class="n">640</td><td class="n" data-out="running">77</td><td class="n t2" data-in="running">…</td><td class="lbl">4 parti</td></tr></tfoot>
+          </table>
+          </div>
+          <div class="dropline"><i class="ic" data-i="upload"></i>PDF'leri pencerenin herhangi bir yerine bırakın ya da Dosya ekle… (Ctrl+O). Klasörler de olur.</div>
+        </div>
+
+        <div class="card progress" data-in="running" role="status">
+          <div class="top"><i class="ic md" data-i="scan-text"></i><b class="num">Sayfalar okunuyor: 77 / 124</b><span class="t2">tarama-2026-11-04-1130.pdf</span></div>
+          <div class="bar" role="progressbar" aria-valuenow="62"><i style="width:62%"></i></div>
+          <div class="sub"><span>%62</span><span>Yaklaşık 40 sn kaldı</span><span>3,2 sayfa/sn</span><span>İptal ederseniz hiçbir şey değişmez.</span></div>
+        </div>
+
+        <div class="empty" data-in="empty">
+          <span class="brandmark" aria-hidden="true"></span>
+          <h2>Henüz iş yok</h2>
+          <p>Taradığınız PDF'leri bırakın ya da yeni bir iş oluşturun.</p>
+          <div class="row">
+            <button class="btn primary lg"><i class="ic" data-i="file-plus"></i>Yeni iş oluştur<span class="k">Ctrl+N</span></button>
+            <button class="btn lg" title="Dosya ekle (Ctrl+O)"><i class="ic" data-i="file-up"></i>Dosya ekle…</button>
+          </div>
+          <div class="steps">
+            <div class="card"><span class="no">1</span><b>Tarayın</b><p>Ayrılması gereken belgelerin önüne bir QR ayıraç koyun ve yığın hâlinde tarayın.</p></div>
+            <div class="card"><span class="no">2</span><b>Bırakın</b><p>Tek bir PDF de olur; dosyaları pencerenin herhangi bir yerine bırakın.</p></div>
+            <div class="card"><span class="no">3</span><b>Kontrol edin</b><p>Kontrol sekmesinde kesimleri gözden geçirin; gerisini Evrakçı yapar.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="inspector" data-out="empty" aria-label="İş özeti">
+        <div class="scroll">
+          <header>
+            <h1 class="ins-title">Kasım 2026 kapasite raporları</h1>
+            <div class="ins-sub">4 parti, 640 sayfa</div>
+          </header>
+          <section>
+            <h2 class="group-label">Ön kontrol</h2>
+            <div class="card">
+              <div class="kv">
+                <div class="r"><span class="k">QR ayıraç</span><span class="v"><b>77</b><span class="t2" data-in="running">şimdilik</span></span></div>
+                <div class="r"><span class="k">Belge</span><span class="v"><b data-out="running">96</b><b data-in="running">…</b></span></div>
+              </div>
+              <div class="lines" data-out="running">
+                <div class="line"><span class="st ok"><i class="ic" data-i="circle-check"></i>Tamam</span><span>3 parti QR ayıraçlı; 77 belge başlangıcı bulundu.</span></div>
+                <div class="line"><span class="st kontrol"><i class="ic" data-i="triangle-alert"></i>Kontrol</span><span>4. partide QR ayıraç yok. 124 sayfa filtreyle bölünecek.</span></div>
+              </div>
+              <div class="lines" data-in="running">
+                <div class="line"><span class="st info"><i class="ic" data-i="loader-circle"></i>Okunuyor</span><span>4. parti bitince belge sayısı ve uyarılar burada görünür.</span></div>
+              </div>
+            </div>
+          </section>
+          <section>
+            <h2 class="group-label">Tarama profili</h2>
+            <div class="card">
+              <div class="profile"><i class="ic" data-i="scan-line"></i><div><div>300 dpi, siyah-beyaz, iki yüzlü</div><div class="t2">Dosyalardan okundu. Eşit uzunluktaki belgeler için filtre yeter.</div></div></div>
+              <div class="act"><div class="r">Rehber'de tarama ayarları<span class="val"><i class="ic" data-i="chevron-right"></i></span></div></div>
+            </div>
+          </section>
+        </div>
+        <div class="ins-foot">
+          <button class="btn primary" data-out="running" title="Kontrol'e geç (Ctrl+2)"><i class="ic" data-i="arrow-right-to-line"></i>Kontrol'e geç</button>
+          <button class="btn primary dis" data-in="running"><i class="ic" data-i="arrow-right-to-line"></i>Kontrol'e geç</button>
+          <span class="note" data-in="running"><i class="ic" data-i="info"></i>Okuma bitince açılır.</span>
+          <button class="btn subtle" data-out="running" title="İşi kapat (Ctrl+W)"><i class="ic" data-i="x"></i>İşi kapat</button>
+        </div>
+      </aside>
+    </div>
+
+    <div class="dropzone" data-in="drop" aria-live="polite">
+      <div class="card dropcard">
+        <div class="hd"><i class="ic" data-i="upload"></i><h2>PDF'leri bırakın</h2></div>
+        <div>3 parti, <b>Kasım 2026 kapasite raporları</b> işinin sonuna eklenir.</div>
+        <div>
+          <div class="file"><i class="ic" data-i="file-text"></i>tarama-2026-11-05-0910.pdf<span class="t2">18,4 MB</span></div>
+          <div class="file"><i class="ic" data-i="file-text"></i>tarama-2026-11-05-1032.pdf<span class="t2">22,1 MB</span></div>
+          <div class="file"><i class="ic" data-i="file-text"></i>tarama-2026-11-05-1415.pdf<span class="t2">9,7 MB</span></div>
+        </div>
+        <div class="note"><i class="ic" data-i="info"></i>Klasörlerdeki PDF'ler de eklenir, diğer dosyalar atlanır. Vazgeçmek için Esc.</div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="statusbar">
+    <span data-job data-out="empty"></span>
+    <span data-job="none" data-in="empty"></span>
+    <span class="item" data-out="empty"><b>4</b> parti</span>
+    <span class="item" data-out="empty" data-p="2"><b>640</b> sayfa</span>
+    <span class="item warn" data-out="running,empty"><i class="ic" data-i="triangle-alert"></i><span><b>7</b> belge kontrol bekliyor</span></span>
+    <span class="item" data-in="running"><i class="ic" data-i="loader-circle"></i><span>Okunuyor: <b>77</b> / 124</span></span>
+    <span class="item" data-in="empty">Ctrl+N ile yeni iş oluşturabilirsiniz</span>
+  </footer>
+</div>
+<script src="icons.js"></script>
+<script src="shell.js"></script>
+</body>
+</html>

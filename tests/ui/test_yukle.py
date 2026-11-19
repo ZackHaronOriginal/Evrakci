@@ -29,8 +29,8 @@ def test_creating_a_job_through_the_screen_matches_the_cli(qtbot, tmp_path, pdfs
         screen.create_job(pdfs, "Kasım")
     expected = cli_store.create_job("Kasım", pdfs)
     assert _comparable(opened.args[0]) == _comparable(expected)
-    assert screen.jobs.count() == 1
-    assert "Kasım" in screen.jobs.item(0).text()
+    # the job list is the empty page's "Son işler" (a QListWidget before the A rebuild)
+    assert [e.name for e in screen.empty.entries] == ["Kasım"]
 
 
 def test_cancelling_analysis_leaves_no_job(qtbot, tmp_path, pdfs, monkeypatch):
@@ -49,10 +49,10 @@ def test_cancelling_analysis_leaves_no_job(qtbot, tmp_path, pdfs, monkeypatch):
     qtbot.addWidget(screen)
     with qtbot.waitSignal(screen.task_finished, timeout=20000):
         screen.create_job(pdfs, "İptal")
-        screen.cancel_button.click()
+        screen.cancel()  # İptal et (Ctrl+.); the old in-page button moved to the command bar
         gate.set()
     assert store.list_jobs() == []
-    assert screen.progress_label.text().startswith("İptal edildi")
+    assert screen.last_message.startswith("İptal edildi")
 
 
 def test_batches_are_listed_and_moving_one_is_undoable(qtbot, tmp_path, pdfs):
@@ -61,10 +61,12 @@ def test_batches_are_listed_and_moving_one_is_undoable(qtbot, tmp_path, pdfs):
     qtbot.addWidget(screen)
     with qtbot.waitSignal(screen.job_opened, timeout=20000):
         screen.create_job(pdfs, "Sıra")
-    assert screen.batches.count() == 2
-    assert "tarama-1.pdf" in screen.batches.item(0).text()
-    screen.batches.setCurrentRow(1)
-    screen.up_button.click()
-    assert "tarama-2.pdf" in screen.batches.item(0).text()
+    assert [i.name for i in screen.model.items if i.kind == "batch"] == [
+        "tarama-1.pdf", "tarama-2.pdf"]
+    screen.table.select_batch(screen.controller.job.batches[1].id)
+    screen.move_batch(-1)
+    assert [i.name for i in screen.model.items if i.kind == "batch"] == [
+        "tarama-2.pdf", "tarama-1.pdf"]
     screen.controller.undo()
-    assert "tarama-1.pdf" in screen.batches.item(0).text()
+    assert [i.name for i in screen.model.items if i.kind == "batch"] == [
+        "tarama-1.pdf", "tarama-2.pdf"]

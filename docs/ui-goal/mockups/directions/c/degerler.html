@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-density="normal">
+<head>
+<meta charset="utf-8">
+<title>Evrakçı C · Değerler</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---------- Değerler body: table sheet | linked crop sheet ---------- */
+.body { grid-template-columns: 1fr 472px; }
+.work { min-width: 0; display: grid; grid-template-rows: var(--cmd-h) 1fr; }
+.tablesheet { margin: 0 var(--sp-2) var(--sp-2) var(--sp-4); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.tablesheet .top { height: 56px; flex: none; display: flex; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-3) 0 var(--sp-3); }
+.tablesheet .top .grow { flex: 1; }
+.tablesheet .top .input { width: 212px; }
+
+table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+th, td { height: var(--row-h); padding: 0 var(--sp-2); text-align: left; white-space: nowrap; overflow: hidden; }
+th:first-child, td:first-child { padding-left: var(--sp-4); }
+thead th { height: 36px; font: var(--w-semibold) var(--fs-2)/1 var(--font); color: var(--text-2);
+           border-top: 1px solid var(--stroke); border-bottom: 1px solid var(--stroke-strong); background: var(--bg-layer); }
+thead th .i { display: inline-block; vertical-align: -3px; margin-left: 2px; color: var(--text); }
+thead th.sorted { color: var(--text); }
+tbody td { border-bottom: 1px solid var(--stroke); }
+tbody tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; }
+td.n { color: var(--text-2); }
+td .value, td.value { font-feature-settings: var(--features-value); }
+tbody tr.cur td { background: var(--bg-selected); }
+tbody tr.cur td:first-child { box-shadow: inset 3px 0 0 var(--select-ring); }
+td.miss { color: var(--danger); }
+td.miss .st { font-size: var(--fs-body); }
+
+/* the one cell being edited: same box, zero layout shift (surfaces) */
+td.editing { padding: 0 4px; overflow: visible; position: relative; }
+td.editing .input { height: 32px; padding: 0 var(--sp-2) 0 var(--sp-1); font-feature-settings: var(--features-decide);
+   box-shadow: inset 0 0 0 1px var(--stroke-strong), inset 0 -2px 0 var(--accent); }
+.caret { display: inline-block; width: 1.5px; height: 18px; background: var(--text); margin-left: 1px; vertical-align: -3px; }
+.hint { left: 4px; top: 38px; }
+
+/* ---------- linked crop sheet ---------- */
+.cropsheet { margin: var(--sp-2) var(--sp-2) var(--sp-2) 0; padding: var(--sp-4) var(--sp-6) var(--sp-6); display: flex; flex-direction: column; }
+.cropsheet .hdr { display: flex; align-items: center; gap: var(--sp-1); }
+.cropsheet .hdr .t { flex: 1; }
+.cropsheet .hdr .zl { font-size: var(--fs-2); color: var(--text-2); margin-right: var(--sp-1); }
+.matte { margin-top: var(--sp-3); background: var(--bg-base); border-radius: var(--r-control); padding: var(--sp-4);
+         box-shadow: inset 0 0 0 1px var(--stroke); }
+.scan { background: var(--paper); color: var(--text-on-paper); border-radius: var(--r-sheet); box-shadow: var(--shadow-paper);
+        padding: var(--sp-4) var(--sp-4) var(--sp-3); position: relative; }
+.scan .rule { height: 4px; width: 62%; background: var(--scan-2); margin-bottom: var(--sp-3); }
+.scan .r { display: grid; grid-template-columns: 92px 1fr; align-items: center; height: 36px; font-size: var(--fs-body); }
+.scan .r .l { color: var(--scan-1); font-size: var(--fs-2); }
+.scan .r .v { font-feature-settings: var(--features-decide); letter-spacing: .02em; color: var(--text-on-paper); }
+.scan .r.hit .v { justify-self: start; padding: 2px var(--sp-2); margin-left: -10px; border-radius: var(--r-control);
+                  box-shadow: 0 0 0 2px var(--select-ring); font-size: 18px; }
+.scan .rule.b { margin: var(--sp-3) 0 0; width: 100%; height: 2px; background: var(--scan-3); }
+
+.compare { margin-top: var(--sp-6); display: grid; grid-template-columns: 64px 1fr; row-gap: var(--sp-2); align-items: baseline; }
+.compare .lab { font-size: var(--fs-2); color: var(--text-2); }
+.compare .big { font: var(--w-medium) var(--fs-page)/var(--lh-page) var(--font); font-feature-settings: var(--features-decide);
+                letter-spacing: .01em; }
+.compare .big .fix { color: var(--accent-text); font-weight: var(--w-semibold); box-shadow: inset 0 -2px 0 var(--accent-text); }
+.why { margin-top: var(--sp-3); font-size: var(--fs-2); line-height: var(--lh-2); color: var(--text-2); }
+.metaline { display: flex; align-items: center; gap: var(--sp-4); margin-top: var(--sp-4); }
+.cropsheet .actions { margin-top: auto; display: flex; flex-direction: column; gap: var(--sp-2); }
+.cropsheet .actions .pair { display: flex; gap: var(--sp-2); }
+.cropsheet .actions .pair .btn { flex: 1; justify-content: center; }
+.toast { right: 32px; bottom: 112px; }
+.toast .btn { color: var(--accent-text); font-weight: var(--w-semibold); }
+</style>
+</head>
+<body>
+<div class="sheet">
+<div class="window" data-state="main">
+
+  <header class="band">
+    <div class="logo" aria-label="Evrakçı">
+      <svg viewBox="28 22 200 212" aria-hidden="true">
+        <path d="M44 51l14-25h36l14 25z" fill="#e9d9a6"/><path d="M41 50h174a9 9 0 0 1 9 9v22a9 9 0 0 1 -9 9h-174a9 9 0 0 1 -9 -9v-22a9 9 0 0 1 9 -9z" fill="#e9d9a6"/>
+        <path d="M96 121l14-25h36l14 25z" fill="#e8731a"/><path d="M41 120h174a9 9 0 0 1 9 9v22a9 9 0 0 1 -9 9h-174a9 9 0 0 1 -9 -9v-22a9 9 0 0 1 9 -9z" fill="#e9d9a6"/>
+        <path d="M148 191l14-25h36l14 25z" fill="#e9d9a6"/><path d="M41 190h174a9 9 0 0 1 9 9v22a9 9 0 0 1 -9 9h-174a9 9 0 0 1 -9 -9v-22a9 9 0 0 1 9 -9z" fill="#e9d9a6"/>
+      </svg>
+    </div>
+    <span class="bb" aria-label="Menü (Alt)"><svg class="i"><use href="#menu"/></svg></span>
+    <nav class="tabs" role="tablist">
+      <span class="tab" role="tab">Yükle</span>
+      <span class="tab" role="tab">Kontrol</span>
+      <span class="tab" role="tab">Şablonlar</span>
+      <span class="tab" role="tab" aria-selected="true">Değerler</span>
+      <span class="tab" role="tab">Dışa Aktar</span>
+      <span class="tab" role="tab">Rehber</span>
+    </nav>
+    <span class="grow"></span>
+    <div class="job"><span class="name">Kasım 2026 kapasite raporları</span>
+      <span class="saved"><svg class="i s14"><use href="#check"/></svg>Kaydedildi 14:36</span></div>
+    <div class="palette"><svg class="i s16"><use href="#search"/></svg>Komut ara<span class="sc">Ctrl+K</span></div>
+    <div class="caption" aria-hidden="true"><span><svg class="i"><use href="#minus"/></svg></span><span><svg class="i"><use href="#square"/></svg></span><span><svg class="i"><use href="#x"/></svg></span></div>
+  </header>
+
+  <main class="body">
+    <section class="work">
+      <div class="cmd" role="toolbar" aria-label="Değerler komutları">
+        <span class="ib" aria-label="Geri al: 8 değeri onayla (Ctrl+Z)"><svg class="i"><use href="#undo-2"/></svg></span>
+        <span class="ib" aria-label="Yinele (Ctrl+Y)" disabled><svg class="i"><use href="#redo-2"/></svg></span>
+        <span class="vsep"></span>
+        <span class="btn subtle" aria-label="Değerleri oku"><svg class="i"><use href="#play"/></svg>Değerleri oku</span>
+        <span class="ib" aria-label="Yalnızca eksikleri oku"><svg class="i"><use href="#scan-text"/></svg></span>
+        <span class="vsep"></span>
+        <span class="ib" aria-label="Tümünü incele: emin olanlar dahil her değeri sırayla göster"><svg class="i"><use href="#list-checks"/></svg></span>
+        <span class="ib" aria-label="Örnek kontrol: emin okunan değerlerden rastgele 20 değer"><svg class="i"><use href="#shuffle"/></svg></span>
+        <span class="grow"></span>
+        <span class="input sel" style="width: 212px" aria-label="Şablon"><span class="t-2">Şablon</span>Ekspertiz Raporu<svg class="i chev"><use href="#chevron-down"/></svg></span>
+        <span class="vsep"></span>
+        <span class="ib" aria-label="Önceki kontrol (Shift+N)"><svg class="i"><use href="#chevron-up"/></svg></span>
+        <span class="btn subtle" aria-label="Sonraki kontrol (N)"><svg class="i"><use href="#triangle-alert"/></svg>Sonraki kontrol</span>
+        <span class="ib" aria-label="Seçilen değerleri onayla (Ctrl+Enter)" disabled><svg class="i"><use href="#check-check"/></svg></span>
+      </div>
+
+      <div class="tablesheet layer">
+        <div class="top">
+          <div class="seg" role="tablist" aria-label="Süz">
+            <span role="tab">Kontrol gerekenler <b>14</b></span>
+            <span role="tab" aria-selected="true">İncelenmemiş <b>105</b></span>
+            <span role="tab">Tümü <b>152</b></span>
+          </div>
+          <span class="grow"></span>
+          <span class="input" aria-label="Değerlerde ara (Ctrl+F)"><svg class="i"><use href="#search"/></svg><span class="ph">Firma, sicil no…</span></span>
+        </div>
+        <table aria-label="Değerler tablosu">
+          <colgroup><col style="width:76px"><col style="width:84px"><col style="width:196px"><col style="width:140px"><col style="width:112px"><col style="width:120px"><col></colgroup>
+          <thead><tr>
+            <th class="sorted">Belge<svg class="i s14"><use href="#chevron-up"/></svg></th><th>Sayfalar</th><th>Firma</th><th>Sicil no</th><th>Rapor tarihi</th><th class="num">Kapasite (t/yıl)</th><th>Güven</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>4</td><td class="n">13–14</td><td>Gediz Tekstil San. A.Ş.</td><td class="value">35-0211-G/1</td><td class="value">22.09.2026</td><td class="num value">1.250</td><td><span class="st emin"><svg class="i s16"><use href="#signal-high"/></svg>Emin <span class="pct">%97</span></span></td></tr>
+            <tr><td>7</td><td class="n">29–30</td><td>Marmara Döküm A.Ş.</td><td class="value">34-1127-D/4</td><td class="value">03.10.2026</td><td class="num value">840</td><td><span class="st orta"><svg class="i s16"><use href="#signal-medium"/></svg>Orta <span class="pct">%84</span></span></td></tr>
+            <tr><td>10</td><td class="n">45–46</td><td>Anadolu Pres Makina</td><td class="miss" aria-label="Sicil no okunamadı"><span class="st okunamadi"><svg class="i s16"><use href="#circle-x"/></svg><span class="t-2" style="font-weight: var(--w-regular)">değer yok</span></span></td><td class="value">08.10.2026</td><td class="num value">1.640</td><td><span class="st okunamadi"><svg class="i s16"><use href="#circle-x"/></svg>Okunamadı</span></td></tr>
+            <tr><td>13</td><td class="n">61–64</td><td>Karadeniz Metal Ltd.</td><td class="value"><span class="u">O</span>6-2210-K/1</td><td class="value">19.10.2026</td><td class="num value">960</td><td><span class="st kontrol"><svg class="i s16"><use href="#triangle-alert"/></svg>Kontrol <span class="pct">%61</span></span></td></tr>
+            <tr class="cur"><td>16</td><td class="n">72–73</td><td>Ege Kalıp San. Ltd.</td>
+              <td class="editing"><span class="input focusin" aria-label="Sicil no, düzenleniyor">34-0172-K/8<span class="caret"></span></span>
+                <div class="tooltip hint" role="status"><span>Onayla, sonraki kontrol <span class="sc">Enter</span></span><span>Vazgeç <span class="sc">Esc</span></span></div></td>
+              <td class="value">05.11.2026</td><td class="num value">1.250</td><td><span class="st kontrol"><svg class="i s16"><use href="#triangle-alert"/></svg>Kontrol <span class="pct">%55</span></span></td></tr>
+            <tr><td>19</td><td class="n">82–83</td><td>Trakya Boru A.Ş.</td><td class="value">22-0418-T/2</td><td class="value">28.10.2026</td><td class="num value">2.100</td><td><span class="st emin"><svg class="i s16"><use href="#signal-high"/></svg>Emin <span class="pct">%95</span></span></td></tr>
+            <tr><td>23</td><td class="n">99–100</td><td>Akdeniz Soğutma Ltd.</td><td class="value">07-0555-S/3</td><td class="value">28.10.2026</td><td class="num value">2.1<span class="u">B</span>0</td><td><span class="st kontrol"><svg class="i s16"><use href="#triangle-alert"/></svg>Kontrol <span class="pct">%60</span></span></td></tr>
+            <tr><td>27</td><td class="n">118–120</td><td>Çukurova Ambalaj A.Ş.</td><td class="value">01-2290-Ç/5</td><td class="value">26.10.2026</td><td class="num value">780</td><td><span class="st orta"><svg class="i s16"><use href="#signal-medium"/></svg>Orta <span class="pct">%79</span></span></td></tr>
+            <tr><td>31</td><td class="n">139–140</td><td>Bursa Yan Sanayi A.Ş.</td><td class="value">16-0840-B/2</td><td class="value"><span class="u">O</span>4.11.2026</td><td class="num value">1.500</td><td><span class="st kontrol"><svg class="i s16"><use href="#triangle-alert"/></svg>Kontrol <span class="pct">%62</span></span></td></tr>
+            <tr><td>35</td><td class="n">158–159</td><td>İzmir Vana ve Pompa</td><td class="value">35-0932-İ/6</td><td class="value">30.10.2026</td><td class="num value">1.320</td><td><span class="st emin"><svg class="i s16"><use href="#signal-high"/></svg>Emin <span class="pct">%98</span></span></td></tr>
+            <tr><td>38</td><td class="n">174–175</td><td>Konya Dişli Sanayi</td><td class="value">42-0671-<span class="u">O</span>/5</td><td class="value">02.11.2026</td><td class="num value">1.080</td><td><span class="st kontrol"><svg class="i s16"><use href="#triangle-alert"/></svg>Kontrol <span class="pct">%59</span></span></td></tr>
+            <tr><td>41</td><td class="n">190–191</td><td>Kayseri Mobilya A.Ş.</td><td class="value">38-1203-M/1</td><td class="value">04.11.2026</td><td class="num value">640</td><td><span class="st emin"><svg class="i s16"><use href="#signal-high"/></svg>Emin <span class="pct">%96</span></span></td></tr>
+            <tr><td>44</td><td class="n">203–204</td><td>Denizli Tekstil Ltd.</td><td class="value">20-0388-D/3</td><td class="value">06.11.2026</td><td class="num value">1.900</td><td><span class="st orta"><svg class="i s16"><use href="#signal-medium"/></svg>Orta <span class="pct">%82</span></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="cropsheet layer" aria-label="Sayfa kesiti ve değer">
+      <div class="hdr">
+        <div class="t"><h2 class="t-group">Sicil no</h2><div class="t-2 t-small">Belge 16, sayfa 72</div></div>
+        <span class="zl">%200</span>
+        <span class="ib" aria-label="Kesiti uzaklaştır (Ctrl+-)"><svg class="i s16"><use href="#zoom-out"/></svg></span>
+        <span class="ib" aria-label="Kesiti yakınlaştır (Ctrl+Num+)"><svg class="i s16"><use href="#zoom-in"/></svg></span>
+        <span class="ib" aria-label="Tüm sayfayı göster (Boşluk)"><svg class="i s16"><use href="#maximize-2"/></svg></span>
+      </div>
+      <div class="matte" aria-label="Sayfa kesiti">
+        <div class="scan">
+          <div class="rule"></div>
+          <div class="r"><span class="l">Firma</span><span class="v">Ege Kalıp San. Ltd.</span></div>
+          <div class="r hit"><span class="l">Sicil No</span><span class="v">34-0<span class="u">I</span>72-K/<span class="u">B</span></span></div>
+          <div class="r"><span class="l">Tarih</span><span class="v">05.11.2026</span></div>
+          <div class="rule b"></div>
+        </div>
+      </div>
+
+      <div class="compare">
+        <span class="lab">Okunan</span><span class="big">34-0<span class="u">I</span>72-K/<span class="u">B</span></span>
+        <span class="lab">Öneri</span><span class="big">34-0<span class="fix">1</span>72-K/<span class="fix">8</span></span>
+      </div>
+      <div class="metaline">
+        <span class="st kontrol"><svg class="i s16"><use href="#triangle-alert"/></svg>Kontrol <span class="pct">%55</span></span>
+        <span class="t-2 t-small">2 karakter belirsiz</span>
+      </div>
+      <p class="why">Öneri, Varyant 2’nin okumasından geliyor: I yerine 1, B yerine 8.</p>
+
+      <div class="actions">
+        <span class="btn primary block" aria-label="Onayla ve sonrakine geç (Enter)"><svg class="i"><use href="#check"/></svg>Onayla ve sonrakine geç<span class="sc">Enter</span></span>
+        <div class="pair">
+          <span class="btn std" aria-label="Elle yaz (F2)"><svg class="i s16"><use href="#pencil"/></svg>Elle yaz</span>
+          <span class="btn std" aria-label="Yeni varyant çiz (V)"><svg class="i s16"><use href="#square-dashed"/></svg>Yeni varyant çiz</span>
+        </div>
+      </div>
+    </aside>
+
+    <div class="toast" role="status">
+      <svg class="i ok"><use href="#circle-check"/></svg>8 değer onaylandı
+      <span class="btn subtle">Geri al</span>
+      <span class="ib" aria-label="Kapat"><svg class="i s16"><use href="#x"/></svg></span>
+    </div>
+  </main>
+
+  <footer class="status">
+    <span>Belge <b>16</b> / 96</span>
+    <span>Sayfa <b>72</b> / 640</span>
+    <span class="k"><svg class="i s14"><use href="#triangle-alert"/></svg>12 değer kontrol bekliyor</span>
+    <span class="r" style="color: var(--danger)"><svg class="i s14" style="color: var(--danger)"><use href="#circle-x"/></svg>2 okunamadı</span>
+    <span class="r"><svg class="i s14"><use href="#circle-check"/></svg>47 / 152 incelendi</span>
+    <span class="grow"></span>
+  </footer>
+</div>
+</div>
+<script src="icons.js"></script>
+</body>
+</html>

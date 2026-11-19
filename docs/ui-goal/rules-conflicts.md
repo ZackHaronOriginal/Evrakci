@@ -23,7 +23,7 @@ D1-D13 win over HIG, owner rule 2026-11-19). The tool reports against ours. Rule
 | HIG-WIN-13 menu bar shows the same items always | No resting menu row; menus open on Alt (A deviation 1); items disabled, not hidden | Ours | Keep menus on Alt only? yes / no |
 | HIG-WIN-15 alert buttons, default on the trailing side | Fluent button order for the default button; at most three buttons, no bare "OK" kept | Fluent order | Keep Fluent order, max 3 buttons? yes / no |
 
-## Owner (7): the decision is open
+## Owner (8): the decision is open
 
 | Rule | Ours | Applies now | Question for the owner |
 |---|---|---|---|
@@ -34,6 +34,7 @@ D1-D13 win over HIG, owner rule 2026-11-19). The tool reports against ours. Rule
 | HIG-ICO-06 app icon sizes 16/32/128/256/512 | Windows .ico 16-256 | As built | Ship 16/24/32/48/256 in the .ico? (The macOS list does not apply.) |
 | HIG-WIN-03 active and inactive windows look different | Not specified in A | Unchanged | Dim the title band when the window is inactive (as Fluent does), or leave it? |
 | HIG-WIN-14 standard menu order and shortcuts | Our own menus: Alt+D/E/G/T/A/Y (Turkish) | Ours | Keep our order, or map to Dosya/Düzen/Görünüm/Pencere/Yardım? |
+| GOAL D7 "no motion on frequent actions (arrow keys, accept-next)"; phase-plan Phase 4 method "any motion on a frequent action is removed" | Loupe fades 120 ms in and 80 ms out on Space, and a Space in the fade-out is lost (F-kontrol-12); each delete and merge toast fades 240 ms (F-kontrol-13, related F-yukle-28) | As built; the audit marked them "yes (D7)" | Remove the fades on Space and on repeated actions (Del, merge), or keep them as D7 approved? yes / no |
 
 ## A vs D6 (4): approved direction A applies, please confirm
 

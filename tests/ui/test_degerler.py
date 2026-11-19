@@ -550,6 +550,28 @@ def test_bulk_accept_shows_a_toast_with_undo(qtbot, window):
         sicil.key].flagged
 
 
+def test_old_toast_never_undoes_a_newer_step_after_ctrl_z(qtbot, window):
+    """B-023 on Değerler: the toast's Geri al is bound to its own step (index and command), so
+    after Ctrl+Z and a new edit at the same index it must not undo the new edit."""
+    win, sicil = window
+    screen, ctl = win.degerler, win.controller()
+    screen.select_all()
+    win.registry.action("degerler.secilenleri_onayla").trigger()
+    toast = win.toaster._current
+    buttons = [b for b in toast.findChildren(QAbstractButton) if b.text() == "Geri al"]
+    assert buttons
+    ctl.undo_stack.undo()  # Ctrl+Z
+    index = ctl.undo_stack.index()
+    from evrakci.pipeline.review import set_value
+
+    document = ctl.documents()[0]
+    ctl.run("başka bir adım", lambda job: set_value(job, document, sicil.key, "999"))
+    assert ctl.undo_stack.index() == index + 1
+    for button in buttons:
+        button.click()
+    assert ctl.undo_stack.index() == index + 1  # the new step is not undone
+
+
 def test_zoom_header_and_splitter_are_remembered(qtbot, window):
     win, _ = window
     screen = win.degerler

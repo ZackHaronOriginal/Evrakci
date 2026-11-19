@@ -68,6 +68,7 @@ from evrakci.ui.degerler_table import (
     ValuesTable,
     main_columns,
 )
+from evrakci.ui.feedback import undo_last
 from evrakci.ui.thumbnails import to_qimage
 from evrakci.ui.widgets import add_clear_button
 from evrakci.ui.workers import Task, start
@@ -1163,14 +1164,20 @@ class DegerlerScreen(QWidget):
         self._sample_progress()
 
     def _toast(self, text: str, controller: JobController, index: int, kind: str) -> None:
-        """A completed event with Geri al (only while that step is still the last one)."""
-        def undo() -> None:
-            if controller.undo_stack.index() == index:
-                controller.undo_stack.undo()
+        """A completed event with Geri al (only while that step is still the last one: same
+        index and same command, so Ctrl+Z and a new edit cannot reuse it, B-023)."""
+        stack = controller.undo_stack
+        undo, available = undo_last(stack)
+        if stack.index() != index:  # the step did not land: no Geri al
+            undo, available = None, (lambda: False)
 
         toaster = self._toaster()
         if toaster is not None:
-            toaster.show(text, "Geri al", undo, kind=kind, timeout_ms=10000)
+            if undo is None:
+                toaster.show(text, kind=kind, timeout_ms=10000)
+            else:
+                toaster.show(text, "Geri al", undo, kind=kind, timeout_ms=10000,
+                             available=available)
         else:
             self._say(text)
 

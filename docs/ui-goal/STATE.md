@@ -28,16 +28,15 @@ Updated after every accepted step. A new session or a compacted one reads this f
   Görev B = fix step; step 7 lenses = Sonnet agent loading design-skills:design-critique,
   design-skills:accessibility-audit, audit-suite:audit-as-ux-eng, design-skills:interaction-design
   (or ux-writing), appending rows to <screen>-findings.md).
-  Kontrol: DONE (audit+lenses, fix 2663135, ledger e2a04e0, owner Q-10).
-  Yükle: audit+lenses done; fix step in round 1 (reviewer DÜZELT: tests for F-yukle-05/08,
-  zero-width space out of the accessible description; .claude/gorevler/p4y.denetci.md). F-yukle-42
-  is NOT data loss (undo restores all). Then commit, ledger, owner question for proposals.
-  Değerler: audit + lenses done (54 findings). Fix step next (F-01 N key, F-02 overflow, F-03
-  double click, check F-046 Enter stores Öneri while cell shows Okunan: maybe S1).
-  Şablonlar: audit + lenses done (45 findings). Fix step after Değerler.
-  Dışa Aktar: audit done (be1da0a, 33 findings, B-055 S1 Ctrl+Z undoes a template silently,
-  export writes wrong names). Lenses + fix step to do.
-  Rehber: audit running.
+  All six screens audited + lenses committed.
+  Kontrol DONE (2663135; owner Q-10). Yükle DONE (4e5d62e; Q-11). Değerler DONE (9a31c1c;
+  B-056 S1 waits on Q-12; other proposals Q-13).
+  Şablonlar fix step in round 1 (zero-width spaces must not reach clipboard/accessible text).
+  Dışa Aktar + Rehber fix step RUNNING (B-055 S1 app-level undo + stale export names, B-008,
+  pattern error, long path).
+  After both: full tests/ui on HEAD (check test_thumbnails b044 [quit] flake seen during a
+  concurrent edit), commit, ledger merge, owner questions (Şablonlar, Dışa Aktar, Rehber
+  proposals, B-057 separator glyphs core change).
   Then Şablonlar, Dışa Aktar, Rehber (Görev A, lenses, Görev B). After each fix step: Kapı 1
   (tests), Kapı G (matrix + ui_measure for the screen, open 2-3 shots), lenses (Haiku a+c, b+d),
   Sonnet reviewer, accept, commit, merge findings into bugs.md (ledger rows for S1/S2 and open S3).

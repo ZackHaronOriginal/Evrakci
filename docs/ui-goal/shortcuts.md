@@ -4,8 +4,9 @@ Source of truth: `src/evrakci/ui/actions.py` (`SPECS`, `MENU_LAYOUT`). This page
 hand from it. If they disagree, the code wins and this page needs fixing. `tests/ui/test_actions.py`
 checks the rules below.
 
-Status: Phase 2 groundwork. The registry is built and tested but not yet wired into
-`main_window.py` or the screens. Until Phase 2b/3 does that, the old per-screen `QShortcut`s still run.
+Status: wired. `MainWindow` builds the `Registry`, menus, command bars, palette and sheet from it.
+`.claude/skills/shortcut-audit/audit_shortcuts.py --check` audits it (tests matched by
+`@pytest.mark.action("<id>")` or a `# action: <id>` comment).
 
 ## Rules (checked by `validate()`)
 
@@ -33,6 +34,30 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 - **Local keys** (marked *yerel*) are handled inside one widget (timeline, canvas, table). They
   are shown in tooltips and the sheet but are not bound to the QAction. If such a widget needs a
   key that an action also uses, it accepts `QEvent.ShortcutOverride` for that key.
+
+## Page-specific keys
+
+`audit_shortcuts.py --check` fails when one key has different labels on different tabs and is not
+listed here. Format, one line per key: `` `Key`: page-specific: <why> `` or
+`` `Key`: MISMATCH: <why> `` (looks like a bug, fails the check until fixed). The script reads only
+the part between the two comments.
+
+<!-- page-specific:start -->
+- `Alt+Up`: page-specific: move the selected item up (Partiyi on Yükle, Değişkeni on Şablonlar)
+- `Alt+Down`: page-specific: move the selected item down (Partiyi on Yükle, Değişkeni on Şablonlar)
+- `Ctrl+.`: page-specific: stop what is running; the label names the job (reading, export)
+- `Ctrl+P`: page-specific: print the tab's own object (index on Dışa Aktar, separator sheet on Rehber)
+- `Del`: page-specific: delete the selected thing, undoable (Parti, Sayfa, Kutu)
+- `Enter`: page-specific: confirm and move on (Belgeyi onayla on Kontrol, Onayla ve sonrakine geç on Değerler)
+- `Return`: page-specific: same as Enter (main keyboard row)
+- `Esc`: page-specific: dismiss without losing work (clear selection, Vazgeç, clear search)
+- `F2`: page-specific: edit the selected item's name or value by hand (Yeniden adlandır, Elle yaz)
+- `Left`: page-specific: local key of the focused view (previous page on Kontrol, nudge box on Şablonlar)
+- `Right`: page-specific: local key of the focused view (next page on Kontrol, nudge box on Şablonlar)
+- `Shift+Left`: page-specific: local key of the focused view (extend selection, 1 mm nudge)
+- `Shift+Right`: page-specific: local key of the focused view (extend selection, 1 mm nudge)
+- `Space`: page-specific: tap shows the page larger (Önizle, Tüm sayfayı göster); held on Şablonlar it pans the sheet, a local canvas key
+<!-- page-specific:end -->
 
 ## Map
 

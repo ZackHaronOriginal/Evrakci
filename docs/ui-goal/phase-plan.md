@@ -296,39 +296,55 @@ wrong, and any visual change (anything that alters how the approved design looks
 
 ---
 
-## Phase 5: Features and quality-of-life
+## Phase 5: Research, then features and quality-of-life
 
-**Goal.** Add the useful things, each specified first, built to the rules, tested.
+**Goal.** Decide what to add from evidence (what the sector and comparable apps really do), not
+from guesses; then build only what is specified and approved.
 
-**Inputs.** `feature-ideas.md` (15 ideas, none decided), your priorities, Phase 4 findings that
-suggest missing functions.
+**Sub-phase 5a: Inventory of what we have.**
+1. One table per tab (plus app-wide) listing every feature with an ID (K-01, V-01, ...), what it
+   does, how to reach it, code evidence, whether a test covers it, and a category tag.
+2. Each file ends with "Observations" (things that look missing or awkward, marked as not decided).
+3. Output: `docs/ui-goal/research/inventory-*.md`. Check: every row has code evidence; a fresh agent
+   spot-checks 20 random rows against the code.
 
-**Steps.**
-1. **Triage with the owner.** Rank every idea: must, should, later, drop. Add your own ideas. Nothing
-   starts before this ranking exists.
-2. **Spec first, one page each** (feature-planning skill): problem, who, keyboard flow, screen
-   sketch, data and core changes, the shortcut contract rows it adds, the rules it must meet,
-   tests, risks, and what it costs in performance (every filter must be checked on a 1000-page job).
-3. **Kontrol filters** as the first batch: QR content or pattern, blank pages (already partly
-   exists), page size, orientation, OCR text found, low confidence, saved filters, and combining
-   filters. Each filter needs: how it is chosen, how it is shown, how it shows the match count, how
-   it is cleared, how it interacts with selection and undo, and its keyboard path.
-4. **Build in small steps**, each with unit tests for the core part, UI tests for the screen part,
-   contract rows for any new key, and a `ui_measure.py` run on the new elements.
-5. After each feature: quick performance gate, shortcut audit, keywalk.
+**Sub-phase 5b: Find the comparable software.**
+1. List open-source, commercial and review-UI references (Paperless-ngx, NAPS2, PDFsam, ABBYY
+   FlexiCapture, Kofax, Ephesoft, Acrobat and others), each with licence, link, which of our tabs it
+   informs, and whether it can be inspected. Output: `research/competitors.md` with a shortlist.
+2. Research ideas only. No code or text is copied (licences and the CLA).
 
-**Checks.** A feature is done only if: spec approved, tests pass, new contract rows pass, zero
-failing enforced rules on the new elements, quick performance gate within targets, copy reviewed.
+**Sub-phase 5c: Research each feature area against the field.**
+1. For every inventory category (splitting, filtering, page operations, review and QC, selection,
+   undo, search, template design, region reading, value editing, naming and export formats,
+   printing, accessibility, performance), study how the shortlist apps and published research
+   (capture-industry practice, data-entry verification studies, large-list UX) handle it.
+2. For each: what they do, what we do, the gap, evidence links, and the cost to us. Open-source
+   apps on the shortlist get a source read for how they implement the feature.
+3. Output: `research/findings-<area>.md`, with every claim linked to a page that was opened.
+   Anything unverified is marked. A fresh agent re-checks 10 random claims against their sources.
 
-**Outputs.** Approved specs in `docs/ui-goal/specs/`, the code, tests, updated shortcut and
-contract tables, an updated `feature-ideas.md` showing what shipped.
+**Sub-phase 5d: Idea list and ranking (you).**
+1. I merge findings, `feature-ideas.md` and your own ideas into one list with: the problem, who gains,
+   evidence, effort (S/M/L), risk, performance cost and which tab it touches.
+2. You rank each: must, should, later, drop. Already deferred (first-run tour, completion sound,
+   invert selection) start as "later".
 
-**Exit rule.** Every "must" and "should" feature is shipped or has a written reason it was moved.
+**Sub-phase 5e: Spec and build.**
+1. One-page spec per accepted idea (problem, who, keyboard flow, sketch, data and core changes, the
+   shortcut contract rows it adds, the rules it must meet, tests, risks, performance cost). You
+   approve each spec before building.
+2. Kontrol filters first: QR content or pattern, blank pages, page size, orientation, OCR text found,
+   low confidence, saved filters, combining filters. Each defines how it is chosen, shown, counted,
+   cleared, how it interacts with selection and undo, and its keyboard path.
+3. Build in small steps with core tests, UI tests, new contract rows and a `ui_measure.py` run.
+4. After each feature: quick performance gate, shortcut audit, keyboard walk, fresh review against
+   the spec, then you try it.
 
-**Review.** A fresh agent reviews each feature diff against its spec (does it do what the spec
-says and nothing else?).
+**Exit rule.** Inventory and research files exist and were spot-checked, the ranked list is
+approved, and every "must" and "should" is shipped or has a written reason it moved.
 
-**Owner decides.** The ranking, each spec before building starts, and each feature after you try it.
+**Owner decides.** The ranking, each spec, and each feature after you try it.
 
 ---
 
@@ -372,7 +388,7 @@ evidence files.
 | 2 | `perf-profile`, `audit-as-perf-eng`, `code-review`, `simplify` |
 | 3 | `shortcut-audit`, `interaction-design`, `audit-as-dx-eng` (shortcuts), `ux-writing` for feedback text |
 | 4 | `ui-bug-hunt`, `design-critique`, `accessibility-audit`, `accessibility-review`, `audit-as-ux-eng`, `audit-as-a11y-eng`, `make-interfaces-feel-better`, `ux-copy`, `impeccable` |
-| 5 | `feature-planning`, `ux-strategy`, `interaction-design`, `code-review` |
+| 5 | `deep-research`, web research agents, `feature-planning`, `ux-strategy`, `ux-research`, `interaction-design`, `code-review` |
 | 6 | `audit-as-prod-readiness`, `full-audit`, `security-review`, `perf-profile` |
 
 Note: the audit-suite and design-skills plugins are written for web projects. Their principles

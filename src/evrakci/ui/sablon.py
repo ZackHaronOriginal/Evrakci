@@ -48,6 +48,7 @@ from evrakci.ui import sablon_read as reading
 from evrakci.ui import theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.controller import JobController
+from evrakci.ui.feedback import undo_last
 from evrakci.ui.sablon_canvas import CANVAS_DPI, BoxSpec, PageCanvas, pixels_to_mm
 from evrakci.ui.sablon_empty import EmptyState
 from evrakci.ui.sablon_inspector import InspectorPanel
@@ -301,10 +302,11 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         return getattr(self.window_, "toaster", None)
 
     def _toast(self, text: str, action: str | None = None, slot=None, kind: str = "info",
-               timeout_ms: int = 6000) -> None:
+               timeout_ms: int = 6000, available=None) -> None:
         toaster = self._toaster()
         if toaster is not None:
-            toaster.show(text, action, slot, kind=kind, timeout_ms=timeout_ms)
+            toaster.show(text, action, slot, kind=kind, timeout_ms=timeout_ms,
+                         available=available)
 
     def _registry(self):
         return getattr(self.window_, "registry", None)
@@ -809,8 +811,9 @@ class SablonScreen(LiveReads, Syncing, QWidget):
                     self.select_section(name, min(index, left - 1))
                 else:
                     self.select_variable(name)
+                undo, available = undo_last(self.undo_stack)
                 self._toast(f"“{name}” değişkeninin {index + 1}. bölümü silindi.", "Geri al",
-                            self.undo_stack.undo, timeout_ms=10000)
+                            undo, timeout_ms=10000, available=available)
                 self.read_example()
             return
         count = len(self.template.variable(name).sections)
@@ -819,8 +822,9 @@ class SablonScreen(LiveReads, Syncing, QWidget):
             self._show_variables()
             self._apply_selection()
             detail = f" ({count} kutu)" if count else ""
-            self._toast(f"“{name}” değişkeni silindi{detail}.", "Geri al", self.undo_stack.undo,
-                        timeout_ms=10000)
+            undo, available = undo_last(self.undo_stack)
+            self._toast(f"“{name}” değişkeni silindi{detail}.", "Geri al", undo,
+                        timeout_ms=10000, available=available)
             self.read_example()
 
     # -- drawing, snapping, reads on the page ----------------------------------

@@ -54,6 +54,7 @@ class _Snapshot(QUndoCommand):
 class JobController(QObject):
     job_changed = Signal()
     status = Signal(str)
+    save_failed = Signal(str)  # the automatic save raised OSError; the edit stays in memory
 
     def __init__(self, store: JobStore, job: Job, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -145,5 +146,12 @@ class JobController(QObject):
     def _changed(self) -> None:
         self._documents = None
         self._kinds = None
-        self.store.save(self.job)
-        self.job_changed.emit()
+        failure = None
+        try:
+            self.store.save(self.job)
+        except OSError as error:
+            failure = error
+        self.job_changed.emit()  # views refresh; listeners that mark "saved" run before ...
+        if failure is not None:  # ... so the failure is reported last and stays shown
+            self.status.emit(f"Kaydedilemedi: {failure}")
+            self.save_failed.emit(str(failure))

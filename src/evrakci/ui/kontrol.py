@@ -31,6 +31,7 @@ from evrakci.pipeline.export import plan_export
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
 from evrakci.ui.controller import JobController
+from evrakci.ui.feedback import undo_last
 from evrakci.ui.kontrol_actions import (
     KontrolBinder,
     KontrolStatus,
@@ -224,8 +225,9 @@ class KontrolScreen(QWidget):
     def _toast(self, text: str, undo: bool = True) -> None:
         toaster = getattr(self._window, "toaster", None)
         if toaster is not None:
-            toaster.show(text, "Geri al" if undo else None,
-                         self.controller.undo if undo else None)
+            callback, available = undo_last(self.controller.undo_stack)
+            toaster.show(text, "Geri al" if undo else None, callback if undo else None,
+                         available=available if undo else None)
         else:
             self.controller.status.emit(text)
 
@@ -381,6 +383,7 @@ class KontrolScreen(QWidget):
         first = document.page_ids[0]
         kind = self.controller.cut_kinds().get(first)
         done = False
+        count = len(self.controller.documents())
         if kind == "manual":
             done = self.controller.remove_cut(first)
         elif kind == "qr":
@@ -388,12 +391,16 @@ class KontrolScreen(QWidget):
             before = ordered[: ordered.index(first)]
             separator = next(pid for pid in reversed(before)
                              if self.controller.job.pages[pid].is_separator)
-            done = self.controller.remove_cut(separator)
+            if first in self.controller.job.manual_cuts:  # a manual cut hides under the QR cut
+                done = self.controller.run("Kesimi kaldır", lambda j: (j.remove_cut(first),
+                                                                      j.remove_cut(separator)))
+            else:
+                done = self.controller.remove_cut(separator)
         elif kind == "filter":
             self.controller.status.emit("Bu kesimi filtre yaptı; filtreyi değiştirin (F).")
         else:
             self.controller.status.emit("İlk belgenin öncesi yok.")
-        if done:
+        if done and len(self.controller.documents()) < count:
             self._remember("merge", f"Belge {number}, Belge {number - 1} ile birleşti")
             self._toast(f"Belge {number}, Belge {number - 1} ile birleştirildi.")
 

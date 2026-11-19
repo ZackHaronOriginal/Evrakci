@@ -1473,6 +1473,7 @@ class DegerlerScreen(QWidget):
         self._finish(f"{count_} belge okundu.", "circle-check", "ok", toast=True)
 
     def _read_failed(self, message: str) -> None:
+        self._store(self._results)  # keep what was finished, as cancel does
         self._finish(f"Okunamadı: {message}", "triangle-alert", "check-text")
 
     def _read_cancelled(self) -> None:

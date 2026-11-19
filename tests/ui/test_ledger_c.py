@@ -120,8 +120,6 @@ class BreakingEngine:
         return Reading("55555", 0.99)
 
 
-@pytest.mark.xfail(strict=True, reason="B-011: an unexpected reader error drops the values "
-                   "already read (_read_failed never stores them; cancel does)")
 def test_b011_values_read_before_an_unexpected_error_are_kept(qtbot, tmp_path):
     store, job = _job(tmp_path)
     ctl = JobController(store, job)

@@ -44,7 +44,7 @@ from evrakci.pipeline.store import JobFileError, JobStore
 from evrakci.ui import theme
 from evrakci.ui.chrome import ActionButton
 from evrakci.ui.controller import JobController
-from evrakci.ui.feedback import InfoBar
+from evrakci.ui.feedback import InfoBar, undo_last
 from evrakci.ui.widgets import StatusPart
 from evrakci.ui.workers import Task, start
 from evrakci.ui.yukle_info import JobSummary, ScanProfile, scan_profile, summarize
@@ -515,9 +515,10 @@ class YukleScreen(QWidget):
 
         if controller.run(text, attach):
             self.table.select_batch(prepared[0].batch.id)
+            undo, available = undo_last(controller.undo_stack)
             self._tell(f"{count} parti eklendi." if count > 1
                        else f"{prepared[0].batch.file_name} eklendi.", "success",
-                       "Geri al", controller.undo)
+                       "Geri al", undo, available)
 
     # -- batches: move and remove --------------------------------------------------------
     def move_batch(self, step: int) -> None:
@@ -551,7 +552,8 @@ class YukleScreen(QWidget):
         if count:
             self.table.selectRow(min(row, count - 1))
             self.table.setCurrentIndex(self.model.index(min(row, count - 1), 2))
-        self._tell(f"{batch.file_name} işten çıkarıldı.", "info", "Geri al", controller.undo)
+        undo, available = undo_last(controller.undo_stack)
+        self._tell(f"{batch.file_name} işten çıkarıldı.", "info", "Geri al", undo, available)
 
     def rename_job(self) -> None:
         """F2: the job's name (undoable; the title band follows)."""
@@ -989,12 +991,14 @@ class YukleScreen(QWidget):
 
     # -- messages ------------------------------------------------------------------------
     def _tell(self, text: str, kind: str = "info", action: str | None = None,
-              on_action: Callable[[], None] | None = None) -> None:
+              on_action: Callable[[], None] | None = None,
+              available: Callable[[], bool] | None = None) -> None:
         """A short note: a toast in the window (with Geri al where it can be undone)."""
         self.last_message = text
         toaster = getattr(self.window_, "toaster", None)
         if toaster is not None:
-            toaster.show(text, action, on_action, kind=kind, timeout_ms=10000 if action else 6000)
+            toaster.show(text, action, on_action, kind=kind, timeout_ms=10000 if action else 6000,
+                         available=available)
         else:
             self.refused.emit(text)
 

@@ -2,11 +2,12 @@ from datetime import datetime
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QUndoCommand, QUndoStack
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton
 
 from evrakci.ui import motion
-from evrakci.ui.feedback import InfoBar, SaveState, Toaster
+from evrakci.ui.feedback import InfoBar, SaveState, Toaster, undo_last
 
 
 @pytest.fixture(scope="module")
@@ -120,3 +121,57 @@ def test_saved_text_shows_the_date_when_not_today():
     assert saved_text(datetime(2026, 11, 12, 14, 32), now) == "12 Kas 14:32"
     assert saved_text(datetime(2026, 2, 3, 8, 1), now) == "3 Şub 08:01"
     assert saved_text(datetime(2025, 11, 12, 14, 32), now) == "12 Kas 2025 14:32"
+
+
+class _Step(QUndoCommand):
+    def __init__(self, log, name):
+        super().__init__(name)
+        self.log, self.name = log, name
+
+    def redo(self):
+        self.log.append("+" + self.name)
+
+    def undo(self):
+        self.log.append("-" + self.name)
+
+
+def _geri_al(toast):
+    return next((b for b in toast.findChildren(QPushButton) if b.text() == "Geri al"), None)
+
+
+def test_undo_last_does_not_undo_a_new_step_that_reuses_the_index(window):
+    log, stack = [], QUndoStack()
+    stack.push(_Step(log, "A"))
+    stack.push(_Step(log, "B"))
+    undo, available = undo_last(stack)  # toast for B
+    toaster = Toaster(window)
+    toaster.show("B", "Geri al", undo, available=available)
+    button = _geri_al(toaster._current)
+    stack.undo()  # Ctrl+Z
+    stack.push(_Step(log, "C"))  # same index as B had
+    assert not available()
+    assert not button.isVisibleTo(toaster._current)  # the stack changed while shown
+    undo()
+    assert log[-1] == "+C"
+    assert stack.index() == 2
+
+
+def test_undo_last_does_not_undo_after_the_stack_was_cleared(window):
+    log, stack = [], QUndoStack()
+    stack.push(_Step(log, "A"))
+    undo, available = undo_last(stack)
+    stack.clear()  # a new template: the index goes back to 0
+    stack.push(_Step(log, "X"))
+    assert not available()
+    undo()
+    assert log == ["+A", "+X"]
+    assert stack.index() == 1
+
+
+def test_undo_last_undoes_its_own_newest_step(window):
+    log, stack = [], QUndoStack()
+    stack.push(_Step(log, "A"))
+    undo, available = undo_last(stack)
+    assert available()
+    undo()
+    assert log[-1] == "-A"

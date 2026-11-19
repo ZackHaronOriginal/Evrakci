@@ -1170,6 +1170,7 @@ class MainWindow(QMainWindow):
         controller.status.connect(self.message.setText, unique)
         controller.job_changed.connect(self._update_counts, unique)
         controller.job_changed.connect(self._saved_now, unique)
+        controller.save_failed.connect(self._save_failed, unique)
         controller.undo_stack.indexChanged.connect(self._sync_undo, unique)
 
     def _unwire_controller(self) -> None:
@@ -1179,6 +1180,7 @@ class MainWindow(QMainWindow):
         for signal, slot in ((old.status, self.message.setText),
                              (old.job_changed, self._update_counts),
                              (old.job_changed, self._saved_now),
+                             (old.save_failed, self._save_failed),
                              (old.undo_stack.indexChanged, self._sync_undo)):
             try:
                 signal.disconnect(slot)
@@ -1231,6 +1233,9 @@ class MainWindow(QMainWindow):
 
     def _saved(self, when: datetime | None = None) -> None:
         self.job_switch.save_state.set_saved(when or datetime.now())
+
+    def _save_failed(self, error: str) -> None:
+        self.job_switch.save_state.set_failed(f"Kaydedilemedi: {error}", self.save_job)
 
     def _saved_now(self, *_args) -> None:
         self._saved()

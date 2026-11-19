@@ -69,8 +69,6 @@ def test_b020_k_on_the_first_page_changes_nothing_visible(qtbot, tmp_path):
     assert ctl.cut_kinds()[first] == "start"
 
 
-@pytest.mark.xfail(strict=True, reason="B-021: M on a QR document that also has a manual cut "
-                                       "removes only the QR cut; the toast says merged")
 def test_b021_merge_joins_a_qr_document_that_also_has_a_manual_cut(qtbot, tmp_path):
     ctl = _controller(tmp_path, {"a": "pppqppp"})
     ctl.add_cut("a/4")  # first page after the QR page: the manual cut is hidden under the QR cut
@@ -79,6 +77,8 @@ def test_b021_merge_joins_a_qr_document_that_also_has_a_manual_cut(qtbot, tmp_pa
     _go(screen, 4)
     screen.merge_current()
     assert len(ctl.documents()) == 1
+    ctl.undo()  # both cuts were removed as ONE step
+    assert len(ctl.documents()) == 2
 
 
 @pytest.mark.xfail(strict=True, reason="B-022: status line messages are never announced")
@@ -89,9 +89,15 @@ def test_b022_status_line_message_is_announced(qtbot, tmp_path):
     assert window.message.accessibleName() == "Bu ilk belge."
 
 
-@pytest.mark.xfail(strict=True, reason="B-023: Geri al on a queued toast undoes the newest step, "
-                                       "not the toast's own")
-def test_b023_geri_al_on_the_older_toast_undoes_that_toasts_step(qtbot, tmp_path):
+def test_b023_geri_al_on_the_older_toast_never_undoes_another_step(qtbot, tmp_path):
+    """B-023: the older toast's Geri al must never undo a step other than the one it names.
+
+    Bound changed on purpose (Phase 0 run lead): the triage version expected a selective undo
+    of the older step (a/0 restored, a/1 still deleted). The undo stack is linear, so that is
+    a new feature, not a fix; the S1 harm was undoing the NEWER step while the toast named the
+    older one. Decided behaviour: once a newer step exists the older toast's Geri al does
+    nothing. Selective undo is a Phase 5 idea.
+    """
     window = _window(qtbot, tmp_path, {"a": "pppp"})
     screen, ctl = window.kontrol, window.controller()
     _go(screen, 0)
@@ -99,11 +105,34 @@ def test_b023_geri_al_on_the_older_toast_undoes_that_toasts_step(qtbot, tmp_path
     _go(screen, 1)
     screen.toggle_delete()  # toast 2 waits in the queue: page a/1
     assert window.toaster.pending() == 1
+    for button in window.toaster._current.findChildren(QPushButton):
+        if button.text() == "Geri al":
+            button.click()
+    assert {"a/0", "a/1"} <= ctl.job.deleted  # neither the newer nor any other step undone
+
+
+def test_b023_geri_al_on_a_queued_toast_never_undoes_a_newer_step(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path, {"a": "pppp"})
+    screen, ctl = window.kontrol, window.controller()
+    _go(screen, 0)
+    screen.toggle_delete()  # step 1, toast 1
+    _go(screen, 1)
+    screen.toggle_delete()  # step 2, toast 2 waits in the queue
+    index = ctl.undo_stack.index()
+    older = window.toaster._current
+    buttons = [b for b in older.findChildren(QPushButton) if b.text() == "Geri al"]
+    assert buttons  # toast 1 is shown first, while its step is no longer the newest
+    window.toaster.dismiss()  # toast 2 is shown now: it is the newest step
     button = next(b for b in window.toaster._current.findChildren(QPushButton)
                   if b.text() == "Geri al")
+    assert ctl.undo_stack.index() == index
+    for b in buttons:  # pressing the stale button does nothing
+        b.click()
+    assert ctl.undo_stack.index() == index
+    assert {"a/0", "a/1"} <= ctl.job.deleted
     button.click()
-    assert "a/0" not in ctl.job.deleted
-    assert "a/1" in ctl.job.deleted
+    assert "a/1" not in ctl.job.deleted
+    assert "a/0" in ctl.job.deleted
 
 
 @pytest.mark.xfail(strict=True, reason="B-024: a page whose render fails stays on the "
@@ -149,8 +178,6 @@ def test_b028_f5_is_disabled_where_it_does_nothing(qtbot, tmp_path, tab):
     assert not window.registry.is_enabled("app.yenile")
 
 
-@pytest.mark.xfail(strict=True, reason="B-029: an autosave that fails raises out of the edit "
-                                       "and shows no message")
 def test_b029_failed_autosave_is_reported_not_raised(qtbot, tmp_path, monkeypatch):
     ctl = _controller(tmp_path, {"a": "pppp"})
     messages = []
@@ -162,6 +189,25 @@ def test_b029_failed_autosave_is_reported_not_raised(qtbot, tmp_path, monkeypatc
     monkeypatch.setattr(ctl.store, "save", fail)
     ctl.add_cut("a/2")  # must not raise
     assert messages
+
+
+def test_b029_failed_autosave_shows_the_failed_state_until_a_save_works(qtbot, tmp_path,
+                                                                        monkeypatch):
+    window = _window(qtbot, tmp_path, {"a": "pppp"})
+    ctl = window.controller()
+    band = window.job_switch.save_state
+    real_save = ctl.store.save
+
+    def fail(job):
+        raise OSError("disk dolu")
+
+    monkeypatch.setattr(ctl.store, "save", fail)
+    assert ctl.add_cut("a/2")  # the edit stays applied
+    assert band.state() == "failed"
+    assert "a/2" in ctl.job.manual_cuts
+    monkeypatch.setattr(ctl.store, "save", real_save)
+    ctl.add_cut("a/3")
+    assert band.state() == "saved"
 
 
 @pytest.mark.xfail(strict=True, reason="B-030: an error toast shows the info icon")

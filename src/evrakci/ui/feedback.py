@@ -247,9 +247,12 @@ class Toaster(QObject):
         if isinstance(win, QMainWindow) and win.statusBar() is not None:
             bottom -= win.statusBar().height()
         size = toast.sizeHint()
-        width = min(size.width(), win.width() - 2 * TOAST_MARGIN + 2 * SHADOW_ROOM)
+        width = min(size.width(), toast.maximumWidth(),
+                    win.width() - 2 * TOAST_MARGIN + 2 * SHADOW_ROOM)
+        layout = toast.layout()
+        height = max(size.height(), layout.totalHeightForWidth(width) if layout else 0)
         toast.setGeometry(win.width() - TOAST_MARGIN + SHADOW_ROOM - width,
-                          bottom - size.height() + SHADOW_ROOM, width, size.height())
+                          bottom - height + SHADOW_ROOM, width, height)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802
         if obj is getattr(self, "_window", None) and event.type() == QEvent.Type.Resize:

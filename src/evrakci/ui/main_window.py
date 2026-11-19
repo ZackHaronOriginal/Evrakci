@@ -1168,8 +1168,11 @@ class MainWindow(QMainWindow):
 
     def template_map(self) -> dict:
         found = {}
-        for template in self.template_store.list():
+        damaged: list[str] = []
+        for template in self.template_store.list(damaged.append):
             found[template.id] = template
+        if damaged:  # a file that cannot be read is named, not skipped in silence (B-017)
+            self.message.setText("Şablon dosyası okunamadı: " + ", ".join(sorted(damaged)))
         return found
 
     def _open_last_job(self) -> None:
@@ -1507,6 +1510,7 @@ class MainWindow(QMainWindow):
             return
         refusal = self._unsaved_refusal()
         if refusal:
+            self._closing = False  # the close is refused: later edits and tasks go on as usual
             self.message.setText(refusal)
             event.ignore()
             return

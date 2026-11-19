@@ -248,6 +248,15 @@ class KontrolScreen(QWidget):
     def selected_ids(self) -> list[str]:
         return [self.model.page_id(r) for r in self.selected_rows()]
 
+    def _acting_ids(self) -> list[str]:
+        """R / Shift+R / Del: the page shown in the loupe while it is open, else the selection
+        (B-033)."""
+        if self._loupe is not None and self._loupe.is_open():
+            row = self.current_row()
+            if 0 <= row < self.model.rowCount():
+                return [self.model.page_id(row)]
+        return self.selected_ids()
+
     def current_row(self) -> int:
         index = self.timeline.currentIndex()
         return index.row() if index.isValid() else -1
@@ -340,9 +349,9 @@ class KontrolScreen(QWidget):
 
     def rotate_selected(self, degrees: int = 90) -> None:
         """R / Shift+R: rotate the selected pages; one undo step for the whole selection."""
-        ids = self._pages(self.selected_ids())
+        ids = self._pages(self._acting_ids())
         if not ids:
-            if not self.selected_ids():
+            if not self._acting_ids():
                 self.controller.status.emit("Önce sayfaları seçin.")
             return
         if self.controller.run("Döndür", lambda job: [job.rotate(pid, degrees) for pid in ids]):
@@ -357,9 +366,9 @@ class KontrolScreen(QWidget):
 
         Undoable instead of confirmed; a toast offers "Geri al" and says so when a document
         loses all its pages, so nothing disappears silently."""
-        ids = self._pages(self.selected_ids())
+        ids = self._pages(self._acting_ids())
         if not ids:
-            if self.selected_ids():
+            if self._acting_ids():
                 self.controller.status.emit("Ayraç sayfaları zaten dışa aktarılmaz. "
                                             "Kesimi kaldırmak için M.")
             else:

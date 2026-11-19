@@ -1,0 +1,248 @@
+# Feature inventory: app-wide features
+
+Scope: the window shell, title band, tabs, command bars, menus, command palette, shortcut sheet, settings
+dialog, undo/redo history, themes, text size and density, zoom, toasts and other feedback, status bar,
+find/search routing, taskbar progress, persistence of window and view state, focus and keyboard rules, startup
+and closing. The Kontrol tab itself is in `inventory-kontrol.md`.
+
+How this was made: every row was read from the code. Tests were read, not run. Where code and test could not
+settle a point, the row says "unclear" and why. Observations at the end are not decisions.
+
+Conventions
+- Paths are under `src/evrakci/` unless they start with `tests/`. `ui/main_window.py:undo (L957)` means function
+  and line in the file as read.
+- "Tested?" names a file in `tests/ui/` and the test. "none" means no test was found by reading the test files and
+  grepping for the symbol or text.
+- Category tags: splitting, filtering, page-ops, review/QC, navigation, selection, undo, search, display/zoom,
+  settings, feedback, accessibility, performance.
+
+## Facts and limits at a glance
+
+| Item | Value | Evidence |
+|---|---|---|
+| Window size | opens 1366 x 768; minimum 1024 x 600; title "Evrakçı <version>" and "Evrakçı <version> – <job name>" while a job is open | `ui/main_window.py:MainWindow.__init__ (L366-L369), _job_opened (L1157)` |
+| Tabs | six, fixed order: Yükle, Kontrol, Şablonlar, Değerler, Dışa Aktar, Rehber (Ctrl+1 to Ctrl+6) | `ui/actions.py:TABS (L41)` |
+| Text sizes | 100, 115, 130, 150 percent | `ui/tokens/generated.py:TEXT_SCALES (L323)`, `ui/prefs.py:TEXT_SIZES (L20)` |
+| Densities | Sıkı (compact), Normal, Geniş (comfortable); one step wider at 130 percent text and up | `ui/prefs.py:DENSITIES (L19)`, `ui/theme.py:effective_density (L219)` |
+| Themes | system, light, dark, hc (high contrast); system follows the OS colour scheme and OS high contrast live | `ui/theme.py:MODES (L25), theme (L203), _watch_system (L481)` |
+| Zoom range | each view sets its own (Kontrol 50 to 200, loupe 10 to 200); stored values allowed 10 to 800 | `ui/prefs.py:ZOOM_RANGE (L23)`, `ui/zoomview.py:ZoomController (L36)` |
+| Toast | one at a time, others queue; 6 s default (10 s where the caller says so); fade 240 ms (instant under reduced motion) | `ui/feedback.py:Toaster.show (L157)`, `ui/motion.py:Duration (L30)` |
+| Undo | one unbounded stack per job (shared by Yükle, Kontrol, Değerler, Dışa Aktar and the rest) and a separate stack on Şablonlar; history submenu lists the last 30 steps | `ui/main_window.py:_undo_stack (L951), _history_menu (L601)` |
+| Recent jobs | prefs keep 10; the job switcher lists up to 5 that still exist; the empty Kontrol page shows 3 | `ui/prefs.py:MRU_MAX (L22)`, `ui/main_window.py:recent_jobs (L1121)`, `ui/kontrol_empty.py:refresh (L372)` |
+| Prefs file | INI at `EVRAKCI_UI_AYARLAR`, else `%APPDATA%\Evrakçı\Evrakçı.ini`, else `$XDG_CONFIG_HOME` or `~/.config` | `ui/prefs.py:default_settings_file (L29)` |
+| Command palette recents | 5, kept in memory for the process only | `ui/palette.py:RECENT_MAX (L34), _recent (L35)` |
+
+## 1. Window shell, title band and tabs
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-01 | Main window frame | Title band on top, a command bar per tab, the tab's work area, a status bar; the tab widget's own tab bar is hidden | Always | `ui/main_window.py:_build_screens (L413), _build_body (L472)` | `test_shell.py::test_title_band_has_a_s_parts` | navigation |
+| A-02 | Window title | "Evrakçı <version>", plus " – <job name>" with a job open | Visible in the OS title | `ui/main_window.py:__init__ (L366), _job_opened (L1157), close_job (L1222)` | `test_shell.py::test_opening_a_job_shows_its_name_and_saved_state` (job name in the switch); `test_main_window.py::test_opening_a_job_fills_the_other_tabs_and_status_bar` ("Kasım" in the title) | feedback |
+| A-03 | Title band | 44 px band: logo, six tabs with icon and name, job switch, "Ara" search, ≡ menu, and with the custom frame the three caption buttons | Always | `ui/titlebar.py:TitleBand (L88)`, `ui/theme.py:title_band_rule (L105)` | `test_shell.py::test_title_band_has_a_s_parts`, `test_title_band_fits_1366_with_caption_buttons_and_a_long_name`; `test_phase4.py::test_title_band_at_150_percent_keeps_selected_tab_and_full_job_name` | navigation |
+| A-04 | Switch tab | Six tabs; the selected tab is filled with feet; each tab has a tooltip with its key | Click; Ctrl+1 to Ctrl+6; menu Git | `ui/chrome.py:TitleTabs (L91)`, `ui/actions.py:SPECS "app.sekme.*" (L152)` | `test_shell.py::test_ctrl_digits_switch_tabs` | navigation |
+| A-05 | Next / previous tab | Cycle through the six tabs and focus the new tab's main view | Ctrl+Tab / Ctrl+Shift+Tab (Ctrl+Shift+Backtab too); menu Git | `ui/main_window.py:cycle_tab (L802)` | `test_phase4.py::test_ctrl_digit_moves_focus_into_the_tabs_main_view` (Ctrl+digit); Ctrl+Tab itself: none | navigation |
+| A-06 | Tab overflow "»" | When the band is too narrow, tabs that do not fit move into a "»" menu ("Diğer sekmeler") with their Ctrl+number; the selected tab always stays visible; the job name and the save-state words give way afterwards | Narrow window or 150 percent text | `ui/titlebar.py:TitleBand.fit (L189), _fill_overflow (L228)` | `test_shell.py::test_title_band_fits_1366_with_caption_buttons_and_a_long_name` | display/zoom |
+| A-07 | Tab remembered | The last tab is saved on every change and restored at start | Automatic | `ui/main_window.py:_tab_changed (L1299), _restore_state (L1326)` | `test_shell.py::test_geometry_and_last_tab_persist` | settings |
+| A-08 | Job switch | Shows the job name (elided, full name in the tooltip) and the save state; click opens the job menu | Click on the job name in the band | `ui/chrome.py:JobSwitch (L254)` | `test_shell.py::test_opening_a_job_shows_its_name_and_saved_state` | navigation |
+| A-09 | Job menu | Sections "Açık iş" (name and page count, disabled), "Son işler" (up to 5, with age such as "3 gün önce"), then "Yeni iş oluştur…" and "Tüm işler…" (Yükle job list) | Click the job switch | `ui/main_window.py:open_job_switcher (L1079), recent_jobs (L1106)` | `test_shell.py::test_recent_jobs_fill_the_job_switcher` | navigation |
+| A-10 | Save state in the band | "Kaydedildi 14:32" (or "12 Kas 14:32" for another day, with the year when older), updated after every job change; "Kaydedilemedi" with "Yeniden dene" exists but only Ctrl+S can raise it; "Kaydediliyor…" exists but nothing calls it | Visible next to the job name | `ui/feedback.py:SaveState (L277), saved_text (L268)`, `ui/main_window.py:_saved (L1232), save_job (L775)` | `test_feedback.py::test_save_state_texts`, `test_saved_text_shows_the_date_when_not_today`; `test_shell.py::test_an_old_save_shows_its_date` | feedback |
+| A-11 | Open job, close job | Open from Yükle or the job menu; Ctrl+W closes (not while a read or export runs: "Dışa aktarma ya da okuma sürüyor; bitince başka bir iş açın."); the job stays in the list | Ctrl+W; menu Dosya "İşi kapat" | `ui/main_window.py:close_job (L1206), _switch_refusal (L1392)` | `test_shell.py::test_opening_a_job_shows_its_name_and_saved_state` (close); `test_review_fixes.py::test_another_job_cannot_be_opened_while_work_runs` | navigation |
+| A-12 | Reopen last job at start | The id of the open job is written to `son-is.txt` in the job folder and reopened at the next start; Ctrl+W deletes the file | Start the app | `ui/main_window.py:_open_last_job (L1133), _job_opened (L1145), close_job (L1221)` | `test_main_window.py::test_reopening_shows_the_last_job` | settings |
+| A-13 | System or Evrakçı title bar | On Windows the band replaces the system title bar (caption buttons "Simge durumuna küçült", "Ekranı kapla" / "Önceki boyutuna getir", "Kapat", resize hit-testing); a setting or `EVRAKCI_YEREL_BASLIK=1` keeps the system bar; offscreen and non-Windows always use the system bar | Settings Görünüm; environment variable | `ui/titlebar.py:use_custom_frame (L57), WindowsFrame (L277)`, `ui/main_window.py:_build_title_band (L443)` | `test_shell.py::test_native_title_bar_pref`, `test_hit_test_answers_like_windows`; the real Windows frame: none (cannot run offscreen) | settings |
+| A-14 | Full screen | F11 toggles full screen and returns to maximised or normal | F11; menu Görünüm "Tam ekran" | `ui/main_window.py:set_full_screen (L934)` | none | display/zoom |
+| A-15 | Side panel toggle | Hides or shows the tab's side panel; tooltip names the panel ("Ayrıntı panelini", "Kaynak panelini", "Ayarlar panelini", "Yan paneli") and the verb; disabled while the tab has none | F9; last button on every command bar; menu Görünüm | `ui/main_window.py:toggle_inspector (L735), PANEL_NAMES (L135)` | `test_shell.py::test_f9_hides_and_shows_the_side_panel` | display/zoom |
+| A-16 | Splitter sizes remembered | Every named splitter in every screen restores its sizes and saves them when moved | Drag a splitter | `ui/main_window.py:_track_splitters (L1331)` | `test_kontrol_a.py::test_splitter_is_named_and_restored` | settings |
+
+## 2. Command bars and menus
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-17 | Command bar per tab | An icon-first bar (44 px, 36 px buttons, at most three labelled) built from registry actions; the button follows the action's tooltip, enabled and checked state; some buttons hide while disabled ("İptal et") | Top of each tab | `ui/chrome.py:CommandBar (L531), ActionButton (L441)`, `ui/main_window.py:COMMANDS (L93-L133)` | `test_shell.py::test_every_tab_has_a_filled_command_bar_and_a_status_slot`, `test_command_bars_follow_a` | navigation |
+| A-18 | "Diğer komutlar" (⋯) | Last button of every bar; lists the tab's menu commands that are not on the bar, or "Başka komut yok" | Click ⋯ | `ui/main_window.py:_fill_more (L633)`, `ui/chrome.py:add_more (L566)` | `test_shell.py::test_command_bars_follow_a` (button exists) | navigation |
+| A-19 | Menu bar on Alt | Alt alone shows a floating row of six menus; Alt+D, E, G, T, A, Y (Dosya, Düzen, Görünüm, Git, Araçlar, Yardım) open one; the letter alone works while the row shows; Left, Right or Down opens the first menu; Esc hides the row | Alt | `ui/main_window.py:AltMenus (L271), show_menu_row (L1048)`, `ui/chrome.py:MenuRow (L609)` | `test_shell.py::test_alt_alone_shows_the_menu_row_and_alt_letter_opens_a_menu` (Alt, Alt+E); Esc and arrow behaviour: none | accessibility |
+| A-20 | ≡ menu | The same six menus as submenus with "Alt+X" hints; hidden commands of other tabs do not show | Click ≡ in the band | `ui/main_window.py:_build_menus (L551), _fill_menu (L568)` | `test_shell.py::test_the_menu_button_holds_the_six_menus` | navigation |
+| A-21 | Menu contents follow the tab | A menu shows only "app" commands and the current tab's commands; disabled ones stay visible and grey | Open any menu | `ui/actions.py:menu_structure (L431), MENU_LAYOUT (L342)` | `test_actions.py::test_menu_structure_has_six_menus_with_unique_access_keys`, `test_context_switch_enables_only_app_and_current_tab` | navigation |
+| A-22 | Menu entries (app level) | Dosya: Yeni iş oluştur… (Ctrl+N), Dosya ekle… (Ctrl+O), Kaydet (Ctrl+S), Dışa aktar… (Ctrl+E), İşi kapat (Ctrl+W), Çıkış (Ctrl+Q) and tab-specific file commands. Düzen: Geri al, Yinele, Geri alma geçmişi, Bul…, Sonraki / Önceki sonuç. Görünüm: Yakınlaştır, Uzaklaştır, Sığdır, Yan paneli gizle, Yazı boyutunu büyüt / küçült, Tam ekran. Git: six tabs, Sonraki / Önceki sekme, Belgeye veya sayfaya git…. Araçlar: Ayarlar… (Ctrl+,). Yardım: Yardım konuları (F1), Klavye kısayolları, Komut ara…, Evrakçı hakkında | Menus | `ui/actions.py:SPECS (L150-L215), MENU_LAYOUT (L342)` | `test_shell.py::test_every_action_has_text_and_a_tooltip_with_its_shortcut`; `test_actions.py::test_required_keys_are_present` | navigation |
+| A-23 | Menu access keys | Each menu and menu item has one ASCII access key (never I), unique per menu per tab | Alt+letter, letter in an open menu | `ui/actions.py:_validate_menus (L509)` | `test_actions.py::test_validate_catches_menu_access_key_clash`, `test_menu_text_keeps_access_key_and_buttons_do_not` | accessibility |
+| A-24 | Save (Ctrl+S) | On job tabs writes the job now and shows a success toast "İş kaydedildi 14:32. Değişiklikler zaten kendiliğinden kaydedilir."; on Şablonlar saves the template; off on Rehber; failure shows the band's "Kaydedilemedi" and an error toast | Ctrl+S; menu Dosya | `ui/main_window.py:save_job (L775), _wire_actions (L677-L679)` | `test_phase4.py::test_kaydet_belongs_to_the_tab_and_a_template_sync_elsewhere_does_not_enable_it` (success path); failure path: none | feedback |
+| A-25 | File commands | Ctrl+N shows Yükle and opens the new-job chooser; Ctrl+O shows Yükle and the add-files chooser; Ctrl+E exports (goes to Dışa Aktar first when elsewhere); Ctrl+Q quits through the close check | Keys; menu Dosya | `ui/main_window.py:_new_job (L875), _add_files (L879), _export (L883)` | `test_phase4.py::test_export_action_has_one_owner` (Ctrl+E); Ctrl+N, Ctrl+O, Ctrl+Q: none | navigation |
+| A-26 | Refresh (F5) | Reloads the job list (Yükle), the template list (Şablonlar), Değerler or Dışa Aktar; on Kontrol and Rehber it does nothing (see O-05) | F5; palette | `ui/main_window.py:refresh_current (L889)` | `test_disa_aktar.py` (enabled state only) | navigation |
+| A-27 | Help topics | F1 "Yardım konuları" shows the Rehber tab (scanning guide); there is no other help page | F1; menu Yardım | `ui/main_window.py:_wire_actions (L693)` | `test_shell.py::test_ctrl_comma_opens_settings_and_f1_goes_to_rehber` | navigation |
+| A-28 | About dialog | Logo, "Sürüm <version>", "Lisans: AGPL-3.0-or-later", a list of bundled components and licences, "Lisans klasörünü aç", "Kapat" | Menu Yardım "Evrakçı hakkında" (no key) | `ui/chrome.py:AboutDialog (L684)`, `ui/main_window.py:open_about (L923)` | `test_shell.py::test_about_shows_version_and_licences` | settings |
+
+## 3. Command palette, shortcut sheet and search
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-29 | Command palette | A popup under the title band: search field, then "Son kullanılan" (up to 5) and "Komutlar" (every palette command of "app" plus the current tab); Enter runs, Up / Down move (wrapping), Esc closes; keys shown right-aligned | Ctrl+K or Ctrl+Shift+P; click the "Ara" box in the band | `ui/palette.py:CommandPalette (L125)`, `ui/main_window.py:open_palette (L900)` | `test_palette.py` (eight tests); `test_shell.py::test_ctrl_k_opens_the_palette_and_the_search_does_too` | search |
+| A-30 | Palette search | Turkish-aware folding (İ/i, I/ı, accents) and every typed word must occur in the command name, tooltip, group or keywords | Type in the palette | `ui/actions.py:fold (L395), palette_search (L461)` | `test_actions.py::test_palette_search_folds_turkish_case`; `test_palette.py::test_turkish_folding_finds_sil` | search |
+| A-31 | Disabled commands in the palette | Greyed, selectable but never run; the palette stays open. The "reason" shown beside them depends on `Registry.disabled_reason`, which does not exist (O-06) | Choose a disabled entry | `ui/palette.py:_reason (L202), _run_current (L284)` | `test_palette.py::test_disabled_entry_does_not_run` | search |
+| A-32 | Palette empty and hints | "Eşleşen komut yok"; footer "↑ ↓ seç, Enter çalıştır, Esc kapat"; placeholder "Komut veya belge ara" | Type a nonsense word | `ui/palette.py:__init__ (L146, L167), _paint_hints (L259)` | `test_palette.py::test_accessible_names` (names only) | feedback |
+| A-33 | Recent commands first | A command run from the palette goes to the front of the list; the list is not saved between runs | Run a command | `ui/palette.py:remember (L38)` | `test_palette.py::test_recent_first` | search |
+| A-34 | Shortcut sheet | A dialog "Klavye kısayolları · <tab>" listing every key that works on the current tab, grouped (menu name or tab name), with a search field "Kısayol ara" ("Komut veya tuş yazın"), "Eşleşen kısayol yok", Kapat; focus returns to where it was | Shift+F1, Ctrl+/ or ? (? only outside text fields); menu Yardım; Settings "Tüm kısayolları göster" | `ui/shortcut_sheet.py:ShortcutSheet (L25)`, `ui/actions.py:shortcut_sheet (L451)` | `test_shortcut_sheet.py` (four tests); `test_phase4.py::test_settings_and_sheet_give_focus_back` | search |
+| A-35 | Find (Ctrl+F) by tab | One command, answered per tab: Yükle shows the job list, Kontrol opens "Belgeye veya sayfaya git", Şablonlar finds a variable by typing, Değerler and Rehber focus their search field, Dışa Aktar finds a file by name | Ctrl+F; menu Düzen "Bul…" | `ui/main_window.py:_wire_actions (L663-L671)`, `ui/degerler.py:L309`, `ui/rehber.py:L299` | `test_phase4.py::test_ctrl_f_answers_on_every_tab` (enabled only); `test_rehber.py` (Rehber find) | search |
+| A-36 | Next / previous result | F3 / Shift+F3 step through search hits; only Rehber answers them; on other tabs the commands are disabled | F3, Shift+F3; Rehber command bar | `ui/rehber.py:L300-L301`, `ui/actions.py:connect_tab (L596)` | `test_rehber.py` (Rehber only) | search |
+| A-37 | Go to (Ctrl+G) | Answered only by Kontrol (document or page) and Değerler; disabled on the other four tabs | Ctrl+G; menu Git | `ui/kontrol_actions.py:APP_SHARED (L47)`, `ui/degerler.py:L310` | none for the dialog (see Kontrol inventory K-70) | navigation |
+| A-38 | Per-tab list searches | Yükle job list search, Değerler and Rehber search fields exist inside their tabs | Inside the tab | `ui/yukle.py:show_job_list`, `ui/degerler.py:focus_search`, `ui/rehber.py:focus_search` | `test_yukle_a.py::test_job_search_filters_and_a_miss_offers_to_clear`; `test_degerler.py::test_search_filters_and_its_empty_state_clears_it`; Rehber search: `test_rehber.py` (not read line by line, unclear) | search |
+
+## 4. Settings dialog
+
+The dialog changes things immediately; the only button is "Kapat" ("Değişiklikler hemen uygulanır."). Window
+modal, minimum 640 x 460, section list on the left.
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-39 | Open Ayarlar | Opens the dialog and returns focus to where it was on close | Ctrl+, ; menu Araçlar | `ui/main_window.py:open_settings (L906), _settings_closed (L916)` | `test_shell.py::test_ctrl_comma_opens_settings_and_f1_goes_to_rehber`; `test_phase4.py::test_settings_and_sheet_give_focus_back` | settings |
+| A-40 | Görünüm: Tema | Radio "Sistem", "Açık", "Koyu", "Yüksek karşıtlık"; applied and saved at once | Settings > Görünüm | `ui/settings_dialog.py:_look_page (L155), set_theme (L188)` | `test_settings_dialog.py::test_look_changes_apply_and_persist` | settings |
+| A-41 | Görünüm: Yazı boyutu | Radio %100, %115, %130, %150; applied and saved at once | Settings; Ctrl+Shift+Num+ / Ctrl+Shift+Num- steps (stops silently at the ends) | `ui/settings_dialog.py:set_text_size (L192)`, `ui/main_window.py:step_text_size (L928)` | `test_settings_dialog.py::test_look_changes_apply_and_persist`; the keys: none | settings |
+| A-42 | Görünüm: Yoğunluk | Radio "Sıkı", "Normal", "Geniş" | Settings > Görünüm | `ui/settings_dialog.py:set_density (L196)` | `test_settings_dialog.py::test_look_changes_apply_and_persist` | settings |
+| A-43 | Görünüm: Hareketi azalt | Radio "Sistem", "Açık", "Kapalı" (reduced motion on / off; system follows the OS) | Settings > Görünüm | `ui/settings_dialog.py:set_reduced_motion (L200)`, `ui/motion.py:reduced_motion (L98)` | `test_settings_dialog.py::test_look_changes_apply_and_persist`; `test_motion.py` | accessibility |
+| A-44 | Görünüm: system title bar | Check box "Sistem başlık çubuğunu kullan"; note says it applies when Evrakçı is reopened | Settings > Görünüm | `ui/settings_dialog.py:_look_page (L168-L177)` | `test_settings_dialog.py::test_native_title_bar_toggle_is_saved` | settings |
+| A-45 | Görünüm: reset | "Varsayılanlara dön": Sistem, %100, Normal, motion from system, Evrakçı title band | Settings > Görünüm | `ui/settings_dialog.py:reset_look (L204)` | `test_settings_dialog.py::test_reset_look` | settings |
+| A-46 | Kısayollar: single-key switch | Check box "Tek tuşlu kısayollar" (default on); off unbinds one-character shortcuts (K, M, R, N, U, F, T, B, G, V, ?) so keys cannot fire by accident; Enter, Space, Del, arrows and all Ctrl/F-key shortcuts stay (WCAG 2.1.4) | Settings > Kısayollar | `ui/settings_dialog.py:_keys_page (L212), set_character_keys (L244)`, `ui/actions.py:set_character_keys (L658)` | `test_phase4.py::test_character_keys_can_be_switched_off` | accessibility |
+| A-47 | Kısayollar: list and link | A list of the app-level shortcuts and the link "Tüm kısayolları göster" that opens the sheet for the current tab. No rebinding: keys are fixed in `SPECS` | Settings > Kısayollar | `ui/settings_dialog.py:_keys_page (L229-L241)` | `test_settings_dialog.py::test_shortcut_list_and_sheet` | settings |
+| A-48 | Saklama (retention) | Combo "İşi sakla": "Süresiz", "Tam dışa aktarınca sil", "30 gün", "90 gün" (any other stored day count is added as "N gün"); saved to the pipeline settings file; a bad file shows its error and "Süresiz saklama gösteriliyor." | Settings > Saklama | `ui/settings_dialog.py:_retention_page (L254-L296)`, `pipeline/settings.py` | `test_settings_dialog.py::test_retention_round_trip`, `test_retention_loads_existing`, `test_bad_retention_file_shows_message` | settings |
+| A-49 | Saklama: reset | "Varsayılanlara dön" sets Süresiz and saves | Settings > Saklama | `ui/settings_dialog.py:reset_retention (L294)` | `test_settings_dialog.py::test_retention_round_trip` | settings |
+| A-50 | Dışa aktarma: default folder | Read-only field "Varsayılan dışa aktarma klasörü" ("Seçilmedi" placeholder) and "Klasör seç…"; reset clears it | Settings > Dışa aktarma | `ui/settings_dialog.py:_export_page (L299), choose_folder (L317)` | `test_settings_dialog.py::test_export_folder` | settings |
+| A-51 | Settings sections | Görünüm, Kısayollar, Saklama, Dışa aktarma; "Kısayollar" has no reset button | Settings | `ui/settings_dialog.py:SECTIONS (L43)` | `test_settings_dialog.py` | settings |
+
+## 5. Undo, redo and history
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-52 | Undo / redo follows the tab | Ctrl+Z / Ctrl+Y (also Ctrl+Shift+Z) act on the job's stack on every tab except Şablonlar, which has its own stack; disabled when nothing to undo | Keys; first two buttons of every bar; menu Düzen | `ui/main_window.py:_undo_stack (L951), undo (L957), redo (L962)` | `test_main_window.py::test_undo_follows_the_current_tab`; `test_integration.py::test_one_undo_history_names_the_step_on_every_tab` | undo |
+| A-53 | Named steps | The command text, tooltip and palette entry read "Geri al: Kesim ekle (Ctrl+Z)" and "Yinele: …" | Hover or open Düzen | `ui/main_window.py:_sync_undo (L967)` | `test_integration.py::test_one_undo_history_names_the_step_on_every_tab`, `test_the_duzen_menu_shows_the_named_step` | undo |
+| A-54 | Geri alma geçmişi | Submenu under Yinele: "Başlangıç (hiçbir değişiklik yok)" then the newest 30 steps by name, the current one checked, undone ones greyed with "(geri alındı)"; choosing one moves the stack there | Menu Düzen > Geri alma geçmişi | `ui/main_window.py:_history_menu (L590), _undo_to (L615), undo_history (L579)` | `test_phase4.py::test_undo_history_is_listed_by_name_and_steps_back` | undo |
+| A-55 | Edits are saved as they happen | Every controller edit saves the job; undo restores a whole-job snapshot and saves again | Any edit | `ui/controller.py:_edit (L124), _restore (L139), _changed (L145)` | `ui/test_controller.py::test_each_edit_undoes_and_redoes_exactly_and_saves` | undo |
+| A-56 | Undo is in memory only | The stack is not saved with the job; closing the job or the app drops it; no limit is set | n/a | `ui/controller.py:JobController.__init__ (L62)`; grep for `setUndoLimit` found nothing | none | undo |
+| A-57 | Per-screen history cards | Kontrol keeps its own "Son değişiklikler" card (see the Kontrol inventory); Değerler and Şablonlar toasts offer "Geri al" | n/a | `ui/degerler.py:_toast (L1165)`, `ui/sablon.py:_toast (L303)` | unclear: `test_degerler.py` not read line by line for the toast action | undo |
+
+## 6. Look: themes, text size, density, motion
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-58 | Four themes | Light, dark and high contrast built from one token file; "Sistem" resolves to dark when the OS is dark and to high contrast when the OS asks for it (Windows SPI or Qt's contrast hint), and follows changes while running | Settings > Tema | `ui/theme.py:ThemeManager (L177), system_high_contrast (L144), _watch_system (L481)` | `test_tokens.py::test_switching_theme_changes_palette_and_emits`, `test_hc_uses_system_colours`, `test_stylesheet_renders_for_every_setting`; `test_shell.py::test_theme_and_text_size_switches_restyle` | display/zoom |
+| A-59 | Contrast rules | Every text pair meets the project's contrast rule (WCAG AA); only Kontrol is orange; no hex colour outside the token source | Build-time | `ui/tokens/tokens.json`, `ui/tokens/generated.py` | `test_theme.py::test_text_pairs_meet_wcag_aa`; `test_tokens.py::test_every_token_pair_meets_d10`, `test_only_kontrol_is_orange`, `test_no_hex_colour_outside_the_token_source` | accessibility |
+| A-60 | Text size 100 to 150 percent | Type, row heights, icons and title band follow the scale; at 150 percent the band gets taller; density steps one wider from 130 percent | Settings; Ctrl+Shift+Num+ / - | `ui/theme.py:set_text_scale (L227), size (L306), inline_icon (L325)` | `test_tokens.py::test_density_and_text_scale_change_sizes`, `test_title_band_rule_keeps_tab_names_at_150`; `test_phase4.py::test_inline_icons_grow_with_the_text_size`, `test_no_tab_clips_at_1366x768_100_percent`; `test_card_scroll.py::test_every_side_panel_at_1366_wide` | accessibility |
+| A-61 | Density | Three densities change control and row sizes | Settings | `ui/theme.py:set_density (L214)` | `test_tokens.py::test_density_and_text_scale_change_sizes` | display/zoom |
+| A-62 | Look saved and bound to prefs | Theme, density, text size and motion are saved on every change and loaded at start | Settings | `ui/theme.py:bind_prefs (L242), _update (L251)`, `ui/app.py:configure_application (L43)` | `test_tokens.py::test_prefs_round_trip`; `test_settings_dialog.py::test_look_changes_apply_and_persist` | settings |
+| A-63 | Fonts and focus ring | Bundled Inter font with Turkish glyphs, tabular figures for numbers; a Fusion-based style draws one focus ring (two outer, one inner) on every control | Always | `ui/fonts.py:register_fonts (L27)`, `ui/style.py` | `test_assets.py::test_inter_registers_and_has_turkish_glyphs`; `test_tokens.py::test_focus_ring_is_painted_around_the_control` | accessibility |
+| A-64 | Reduced motion | Fades and animations drop to instant when the setting or the OS asks; animations are capped at 240 ms; no animation is built outside the motion module | Settings; OS | `ui/motion.py:Duration (L30), reduced_motion (L98), fade_in (L147)` | `test_motion.py` (13 tests) | accessibility |
+| A-65 | Busy cursor | `MainWindow.busy()` gives a wait cursor for blocks over 100 ms; no code calls it | n/a | `ui/main_window.py:busy (L946)`, `ui/motion.py:busy_cursor (L175)`; grep for callers found none | `test_motion.py::test_busy_cursor_shown_after_delay_and_restored` | feedback |
+
+## 7. Zoom
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-66 | Zoom slider in the status bar | Zoom out, slider, zoom in and "%112" label for whichever view is registered on the current tab (name in the tooltip, for example "Küçük resim boyutu"); hidden when the tab has nothing to zoom | Status bar, right side | `ui/zoomview.py:ZoomSlider (L141)`, `ui/main_window.py:register_zoom (L987), _sync_zoom (L1036)` | `test_zoomview.py::test_slider_binds_and_rebinds`; `test_shell.py::test_zoom_keys_reach_the_registered_controller` | display/zoom |
+| A-67 | Zoom keys | Ctrl+Num+ (also Ctrl++, Ctrl+=) zoom in, Ctrl+- zoom out, Ctrl+0 fit (each view decides what "fit" is); disabled where no zoom is registered | Keys; menu Görünüm | `ui/main_window.py:_zoom_call (L1031)`, `ui/actions.py:SPECS (L193-L198)` | `test_shell.py::test_zoom_keys_reach_the_registered_controller`; `test_integration.py::test_every_zoomable_view_takes_the_zoom_keys` | display/zoom |
+| A-68 | Ctrl+wheel | Zooms the view under the pointer, keeping the point under the cursor fixed in scroll areas | Ctrl+wheel | `ui/zoomview.py:eventFilter (L106), _on_wheel (L118)` | `test_zoomview.py::test_ctrl_wheel_zooms`, `test_plain_wheel_ignored` | display/zoom |
+| A-69 | Zoom remembered per view | Each view key saves its level in prefs (`zoom/<key>`) and restores it | Zoom once | `ui/zoomview.py:set_zoom (L86)`, `ui/prefs.py:zoom (L141)` | `test_zoomview.py::test_persistence_round_trip` | settings |
+| A-70 | Zoomable views | Kontrol (thumbnail size and loupe), Değerler ("Kaynak kesiti"), Rehber ("Rehber yazısı") and Şablonlar ("Sayfa", hidden in its empty states) register a zoom; Yükle and Dışa Aktar have none | Tabs | `ui/kontrol.py:L179`, `ui/degerler.py:L332`, `ui/rehber.py:L311`, `ui/sablon.py:L297`, `ui/sablon_sync.py:L47` | `test_integration.py::test_every_zoomable_view_takes_the_zoom_keys` | display/zoom |
+
+## 8. Feedback: toasts, info bar, status bar, messages
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-71 | Toast | Bottom-right popover with an icon, one line of text, an optional link action (for example "Geri al") and "Kapat"; never takes focus; one at a time, the rest wait; fades in; announced as an alert to screen readers; Esc closes it only when it has focus | Triggered by edits and saves | `ui/feedback.py:_Toast (L73), Toaster (L144), announce (L36)` | `test_feedback.py::test_toast_shows_one_and_queues`, `test_toast_placed_bottom_right_inside_window`, `test_toast_action_runs_and_closes`, `test_toast_never_steals_focus`, `test_toast_escape_on_toast`, `test_toast_times_out` | feedback |
+| A-72 | Toast kinds | info, success and "kontrol" have icons; "error" is accepted but has no icon of its own (it shows the info icon) | Calls with `kind=` | `ui/feedback.py:KIND_ICON (L32)`, `ui/main_window.py:save_job (L785)` | none | feedback |
+| A-73 | Info bar | A persistent bar with icon, bold title, text, one action and a dismiss button; used only by Yükle's reading errors | Yükle | `ui/feedback.py:InfoBar (L212)`, `ui/yukle.py:L1005` | `test_feedback.py::test_infobar_action_and_dismiss` | feedback |
+| A-74 | Status bar | Left: the window counts ("N belge", "N sayfa", warning count) shown only on tabs that ask (default Dışa Aktar), the current tab's own slot, and a message label; right: the zoom slider | Bottom of the window | `ui/main_window.py:_build_status_bar (L494), STATUS_COUNTS (L141), _update_counts (L1258)` | `test_main_window.py::test_opening_a_job_fills_the_other_tabs_and_status_bar`; `test_shell.py::test_every_tab_has_a_filled_command_bar_and_a_status_slot` | feedback |
+| A-75 | Status message line | `controller.status` and `refused` signals set one label; it is never cleared by a timer, has no screen-reader announcement, and shows the newest message only. The previous job's controller is disconnected when another opens | Edits that fail or refuse | `ui/main_window.py:_wire_controller (L1164), _unwire_controller (L1175)` | `test_shell.py::test_each_job_is_wired_once_and_the_old_one_let_go` | feedback |
+| A-76 | Startup notes | At start the status line can say "Saklama süresi dolan N iş silindi.", "Silinemedi: …", or "<error>. Varsayılan kullanılıyor: sakla." | Start the app | `ui/app.py:build_window (L16-L40)` | `test_main_window.py::test_app_applies_the_day_limit_at_start` | feedback |
+| A-77 | Taskbar progress | Windows taskbar button shows progress for reading, export, template trial and value reading: determinate, indeterminate, error (red, cleared after 4 to 5 s) and none; elsewhere (and on any failure) it silently does nothing; an optional "%62 – " title prefix exists but is switched off | Long work in Yükle, Değerler, Şablonlar, Dışa Aktar | `ui/taskbar.py:TaskbarProgress (L97)`, `ui/yukle.py:L905-L1012`, `ui/degerler.py:L1448`, `ui/disa_aktar.py:L955-L1050`, `ui/sablon_live.py:L150` | `test_taskbar.py::test_state_machine`, `test_noop_without_backend_never_raises`, `test_backend_errors_are_swallowed`, `test_title_prefix`; the real Windows call: none (cannot run offscreen) | feedback |
+| A-78 | Accessible names and alerts | Every button, dialog and view has an accessible name; toasts and a few results are announced | Screen reader | `ui/feedback.py:announce (L36)`, `ui/disa_aktar.py:L912, L1056`, `ui/rehber.py:L501` | `test_kontrol_a.py::test_every_control_has_an_accessible_name`; `test_shell.py::test_every_action_has_text_and_a_tooltip_with_its_shortcut` | accessibility |
+
+## 9. Focus, keyboard rules and shortcuts
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-79 | One action table | Menus, buttons, tooltips, palette, shortcut sheet and keys all come from `SPECS`; a command with no handler is disabled; commands of other tabs are hidden so a key can mean different things on different tabs | Always | `ui/actions.py:SPECS (L150), Registry (L542)` | `test_actions.py::test_table_is_valid`, `test_unconnected_actions_are_disabled`, `test_same_key_fires_the_current_tabs_action`; `test_integration.py::test_every_live_action_is_named_keyed_and_unique_on_its_tab` | navigation |
+| A-80 | Turkish keyboard rules | No shortcut uses Ç Ş Ğ İ Ö Ü ç ş ğ ı ö ü or the letter I, and none uses Ctrl+Alt (AltGr); the table is validated | Build-time | `ui/actions.py:validate (L468)` | `test_actions.py::test_validate_catches_mistakes` | accessibility |
+| A-81 | Typing guard | While a text field, spin box or editable combo has focus, one-key shortcuts are unbound so typing never fires a command; their buttons still work | Focus a text field | `ui/actions.py:TextFocusGuard (L720), is_text_input (L707)` | `test_actions.py::test_text_focus_guard_drops_typing_keys`; `test_integration.py::test_typing_never_fires_a_single_key_command` | accessibility |
+| A-82 | Button guard | While a button or check box has focus, Space and Enter belong to it and do not fire window commands | Tab to a button | `ui/actions.py:set_on_button (L651)` | `test_phase4.py::test_space_and_enter_on_a_focused_button_press_that_button_only` (Kontrol and Değerler) | accessibility |
+| A-83 | Regions (F6) | F6 / Shift+F6 move focus between title band, command bar, work area and status bar | F6, Shift+F6 | `ui/main_window.py:focus_region (L861), regions (L807)` | `test_shell.py::test_f6_moves_between_regions` (forward once) | accessibility |
+| A-84 | Tab order = reading order | Tab and Shift+Tab walk title band, command bar, main pane, side panel, status bar; composite widgets count as one stop; focus never sticks in a region | Tab | `ui/main_window.py:tab_order (L812), focusNextPrevChild (L823), reading_order (L235)` | `test_phase4.py::test_tab_walks_every_region_in_reading_order_and_comes_back`, `test_focus_ring_never_becomes_a_splitter_pane`, `test_tables_and_the_guide_do_not_trap_tab` | accessibility |
+| A-85 | Focus into the work area | Ctrl+1 to 6 and Ctrl+Tab put focus in the biggest scroll view of the tab so arrows work at once; a plain click on a tab leaves focus alone | Ctrl+digit | `ui/main_window.py:focus_work_area (L845)` | `test_phase4.py::test_ctrl_digit_moves_focus_into_the_tabs_main_view` | accessibility |
+| A-86 | Focus restored | Settings, the shortcut sheet and the loupe return focus to the widget that opened them | Close a dialog | `ui/main_window.py:_settings_closed (L916)`, `ui/shortcut_sheet.py:_restore_focus (L90)`, `ui/loupe.py:close_loupe (L527)` | `test_phase4.py::test_settings_and_sheet_give_focus_back`; `test_loupe.py::test_close_restores_focus` | accessibility |
+| A-87 | Click targets | Controls keep at least 24 px targets (WCAG 2.5.8) | Visible | `ui/zoomview.py:ZoomSlider (L155)` and others | `test_phase4.py::test_targets_are_at_least_24_px` | accessibility |
+| A-88 | Key hints everywhere | A command's key appears in its tooltip ("Label (Key)"), menu, palette and sheet; Space, Enter and arrows are named in Turkish ("Boşluk", "Enter", "Sol", "Sağ") | Hover | `ui/actions.py:key_text (L73), tooltip_for (L389)` | `test_shell.py::test_every_action_has_text_and_a_tooltip_with_its_shortcut`; `test_actions.py::test_every_action_has_text_icon_and_tooltip_with_its_key` | accessibility |
+| A-89 | Keys that are not rebindable | Shortcuts cannot be changed by the user; the only key setting is the single-key switch (A-46) | Settings | `ui/settings_dialog.py:_keys_page (L212)` | none | settings |
+
+## 10. Persistence of window and view state
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-90 | Window geometry | Position, size, state and maximised flag are saved when the window closes (not while it is open) and restored at start | Close and reopen | `ui/prefs.py:save_window (L91), restore_window (L99)`, `ui/main_window.py:closeEvent (L1417)` | `test_shell.py::test_geometry_and_last_tab_persist`; `test_prefs.py::test_window_geometry_round_trip` | settings |
+| A-91 | What prefs hold | window/*, ui/last_tab, splitters/*, headers/*, zoom/*, flags/* (single-key switch, snap, note), views/* (Değerler view and template), look/*, native_title_bar, recent/jobs, recent/folders, paths/export_folder, paths/last_export_folder, view/thumbnail_size (unused) | Automatic | `ui/prefs.py (L55-L263)` | `test_prefs.py::test_round_trip_every_key`, `test_invalid_values_rejected`, `test_corrupt_file_values_fall_back`, `test_mru_dedupe_order_and_cap`, `test_changed_signal` | settings |
+| A-92 | Bad stored values | Every value is checked on read and write; a bad stored value falls back to the default | Corrupt INI | `ui/prefs.py:_int (L72), _to_bool (L46)` | `test_prefs.py::test_corrupt_file_values_fall_back` | settings |
+| A-93 | Recent jobs and folders | Recent jobs feed the job switch, Yükle and the empty Kontrol page; recent folders feed Yükle; "clear recent" exists in prefs with no UI | Open jobs and folders | `ui/prefs.py:add_recent_job (L238), clear_recent (L247)` | `test_prefs.py::test_mru_dedupe_order_and_cap` | settings |
+| A-94 | Job data location | Jobs live in the job store folder (`default_root()`); each job has `job.json` (atomic write) and, for Kontrol approvals, `incelendi.json`; the last-job pointer is `son-is.txt` beside them | Automatic | `pipeline/store.py:save (L129)`, `ui/main_window.py:LAST_JOB (L76)` | `test_kontrol_a.py::test_approval_is_saved_beside_the_job_and_lost_when_pages_change` | settings |
+| A-95 | Retention at start | If a day limit is set, jobs older than it are deleted when the window is built, and the status line reports it | Start the app | `ui/app.py:build_window (L21-L40)` | `test_main_window.py::test_app_applies_the_day_limit_at_start` | settings |
+
+## 11. Startup and closing
+
+| ID | Feature | What it does (one line) | How the user reaches it | Evidence | Tested? | Category |
+|---|---|---|---|---|---|---|
+| A-96 | Startup | Registers fonts, binds the look to prefs, builds the window, restores geometry and tab, reopens the last job; on the Windows build one hidden console is allocated so Tesseract does not flash windows; `EVRAKCI_KAPAT_MS` closes the app after N ms (smoke tests) | Start the app | `ui/app.py:main (L79), configure_application (L43), hide_console_for_children (L58)` | `test_main_window.py::test_reopening_shows_the_last_job`; the console helper: none read | settings |
+| A-97 | Close check | Closing (X, Ctrl+Q) while an export, a read in Yükle or a value reading in Değerler runs asks "Bir iş sürüyor. Durdurup kapatılsın mı? Yazılmış dosyalar klasörde kalır."; Yes cancels the work and closes when it stops ("Durduruluyor… Pencere iş durunca kapanır."); No keeps the window | Close the window | `ui/main_window.py:closeEvent (L1400-L1423), _busy_screens (L1397)` | `test_main_window.py::test_closing_during_export_asks_first`; `test_review_fixes.py::test_closing_during_export_waits_for_it_to_stop`, `test_closing_asks_while_values_are_being_read` | feedback |
+| A-98 | Close does not ask about unsaved work | There is nothing to save: every edit is saved when made | Close | `ui/controller.py:_changed (L145)` | none | settings |
+
+## Observations
+
+Each of these is an observation, not a decision.
+
+- O-01 (observation) The palette's placeholder says "Komut veya belge ara" and the title-band search box is
+  labelled "Ara", but the palette only lists commands. There is no search of documents, pages or OCR text anywhere
+  in the window (Yükle job list, Değerler table and Rehber have their own local search). Evidence:
+  `ui/palette.py:__init__ (L146)`, `_ordered (L206)` (commands only). Ties to `docs/ui-goal/feature-ideas.md` item 5.
+- O-02 (observation) Ctrl+F means five different things (job list, go-to dialog, variable find, search field,
+  file find), and the menu label is always "Bul…". On Kontrol it opens "Belgeye veya sayfaya git", not a search.
+  F3 / Shift+F3 work only on Rehber. Ctrl+G is routed on Kontrol and Değerler only, although
+  `docs/ui-goal/shortcuts.md` says it has "the same meaning on every tab". Evidence: A-35 to A-37.
+- O-03 (observation) Ctrl+Z / Ctrl+Y act on the job stack on every non-Şablonlar tab, including Rehber and Yükle,
+  where the edits being undone are not on screen. The step name in the tooltip names the step. Whether acting on
+  Rehber is intended is unclear. Evidence: `ui/main_window.py:_undo_stack (L951)`; `test_integration.py` shows Yükle and
+  Değerler share the stack.
+- O-04 (observation) The save indicator is partly dead: `SaveState.set_saving` ("Kaydediliyor…") has no callers,
+  and "Kaydedilemedi" appears only after Ctrl+S. An automatic save that fails inside `JobController._changed` has no
+  `try`/`except`, so an `OSError` there would propagate from the edit rather than show in the band (by code reading;
+  not run). Evidence: `ui/feedback.py:set_saving (L309)`, `ui/controller.py:_changed (L145-L149)`,
+  `ui/main_window.py:save_job (L775-L786)`.
+- O-05 (observation) F5 "Yenile" is enabled on Kontrol and Rehber but `refresh_current` does nothing on them
+  and gives no message. Evidence: `ui/main_window.py:refresh_current (L889-L898)`.
+- O-06 (observation) The palette reads `Registry.disabled_reason` through `getattr`, but `Registry` has no such
+  method (grep finds only the call site), so disabled commands never show a reason although the module docstring
+  promises one. Evidence: `ui/palette.py:_reason (L202)`, `ui/actions.py` (no definition).
+- O-07 (observation) `Toaster` accepts `kind="error"` but `KIND_ICON` has no "error" entry, so the failed-save
+  toast shows the neutral info icon. Evidence: `ui/feedback.py:KIND_ICON (L32)`, `ui/main_window.py:save_job (L785)`.
+- O-08 (observation) The window's status message label is the only place many refusals and errors appear. It has
+  no announcement, no timeout and no accessible name set, while toasts are announced. Evidence: A-75,
+  `ui/main_window.py:L531`.
+- O-09 (observation) A queued toast's "Geri al" runs `controller.undo`, which undoes the newest step, not the
+  step named in that toast. Evidence: `ui/feedback.py:Toaster._queue (L150)`, `ui/kontrol.py:_toast (L224)`.
+- O-10 (observation) The dialog on close is `QMessageBox.question` with Qt's default Yes / No buttons. No translator is loaded (grep for `QTranslator`, `qtbase_tr` finds nothing), so on a non-Turkish Windows
+  the buttons may read "Yes" / "No". Not verified in a running window: unclear. Evidence:
+  `ui/main_window.py:closeEvent (L1403)`; `docs/ui-goal/shortcuts.md` says `qtbase_tr.qm` is deliberately not loaded.
+- O-11 (observation) Closing while Şablonlar' "Bütün örneklerde dene" is running is not checked: `_busy_screens`
+  lists Dışa Aktar, Yükle and Değerler only. What happens to the trial is unclear (not read). Evidence:
+  `ui/main_window.py:_busy_screens (L1397)`.
+- O-12 (observation) Window geometry is saved only in `closeEvent` (after the busy check), so a crash or forced end
+  loses it; the last tab, splitters, zoom and look are saved at once. Evidence: A-90.
+- O-13 (observation) Unused or dead pieces: `MainWindow.busy()` (no callers), `SaveState.set_saving`,
+  `Prefs.thumbnail_size`, `Prefs.clear_recent` (no UI), `TaskbarProgress` title prefix (never switched on). Evidence:
+  A-10, A-65, A-91, A-93, A-77.
+- O-14 (observation) Text-size keys (Ctrl+Shift+Num+ and Ctrl+Shift+Num-), F11, Ctrl+N, Ctrl+O, Ctrl+Q and Esc in the
+  Alt menu row have no test. Ctrl+Shift+Num+ needs a numeric keypad; laptops without one have only Settings.
+  Evidence: grep of `tests/ui` for `step_text_size`, `yazi_buyut`, `tam_ekran`, `set_full_screen`.
+- O-15 (observation) Several documentation statements do not match the code: `shortcuts.md` still says the registry
+  is "not yet wired" (it is), and calls Ctrl+G a command of every tab (it is two). The `docs/ui-goal/shortcuts.md`
+  "Notes for wiring" section is also history.
+- O-16 (observation) Settings has no control for the shortcuts beyond the single-key switch, no "recent jobs"
+  clear, no setting for toast time or sound (sound was deferred, `docs/ui-goal/feature-ideas.md` item 13), and no
+  per-tab zoom reset. Shown for completeness; whether they are wanted is not decided here.
+- O-17 (observation) F1 "Yardım konuları" only shows the Rehber tab, which is the scanning guide. There is no
+  help for the window's own features except the shortcut sheet and the palette.
+- O-18 (observation) The title band hides the job's save words first when space is short (compact save state) and
+  then elides the job name; at 150 percent text and 1366 px tabs move to "»". The order of what gives way is a
+  design rule in `TitleBand.fit`; whether staff find the "»" menu is untested with users (no evidence here).

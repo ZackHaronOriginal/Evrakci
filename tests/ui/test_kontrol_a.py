@@ -438,7 +438,10 @@ def test_large_viewport_small_zoom_scrolling_does_not_rerender_the_margin(qtbot,
     screen.set_zoom(50)
     view = screen.timeline
     view.verticalScrollBar().setValue(view.metrics.row_h * 5)
-    qtbot.wait(400)
+    # Wait until the first visible + margin load has finished, not a fixed time: on a busy
+    # machine (full suite) 400 ms was not enough and the setup renders were counted below.
+    qtbot.waitUntil(screen.thumbnails.idle, timeout=20000)
+    qtbot.wait(50)
     visible, margin = view.prefetch_rows()
     assert len(visible) + len(margin) > 400  # more pages wanted than the old 400 count cap
     renderer.calls.clear()

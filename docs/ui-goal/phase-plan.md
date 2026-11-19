@@ -305,14 +305,14 @@ wrong, and any visual change (anything that alters how the approved design looks
 **Goal.** Decide what to add from evidence (what the sector and comparable apps really do), not
 from guesses; then build only what is specified and approved.
 
-**Sub-phase 5a: Inventory of what we have.** *Status 2026-11-19: three Sonnet agents are writing it; not yet reviewed.*
+**Sub-phase 5a: Inventory of what we have.** (A first draft was made while preparing this plan, in `research/`; the goal run re-verifies it against the code and extends it.)
 1. One table per tab (plus app-wide) listing every feature with an ID (K-01, V-01, ...), what it
    does, how to reach it, code evidence, whether a test covers it, and a category tag.
 2. Each file ends with "Observations" (things that look missing or awkward, marked as not decided).
 3. Output: `docs/ui-goal/research/inventory-*.md`. Check: every row has code evidence; a fresh agent
    spot-checks 20 random rows against the code.
 
-**Sub-phase 5b: Find the comparable software.** *Status 2026-11-19: done, `research/competitors.md` committed; Opus spot-check of its claims still to do.*
+**Sub-phase 5b: Find the comparable software.** (A first draft is in `research/competitors.md`; the goal run spot-checks it with Opus and extends it.)
 1. List open-source, commercial and review-UI references (Paperless-ngx, NAPS2, PDFsam, ABBYY
    FlexiCapture, Kofax, Ephesoft, Acrobat and others), each with licence, link, which of our tabs it
    informs, and whether it can be inspected. Output: `research/competitors.md` with a shortlist.

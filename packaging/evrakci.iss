@@ -2,7 +2,7 @@
 ; The folder build keeps every library (including Qt) as a separate, replaceable file (LGPL).
 
 #ifndef AppVersion
-  #define AppVersion "0.0.1"
+  #define AppVersion "0.0.2"
 #endif
 
 [Setup]

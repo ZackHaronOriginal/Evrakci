@@ -93,11 +93,11 @@ sudo apt install tesseract-ocr libxcb-cursor0 libxcb-icccm4 libxcb-util1 libxcb-
 ```
 
 ```bash
-tar -xzf evrakci-0.0.1-linux-x86_64.tar.gz
+tar -xzf evrakci-0.0.2-linux-x86_64.tar.gz
 ```
 
 ```bash
-./evrakci-0.0.1/kur.sh
+./evrakci-0.0.2/kur.sh
 ```
 
 `kur.sh` installs for the current user only (never with sudo), adds Evrakçı to the applications

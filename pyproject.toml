@@ -1,6 +1,6 @@
 [project]
 name = "evrakci"
-version = "0.0.1"
+version = "0.0.2"
 description = "Local-first desktop app for scanning, splitting and sorting chamber paperwork"
 readme = "README.md"
 license = "AGPL-3.0-or-later"

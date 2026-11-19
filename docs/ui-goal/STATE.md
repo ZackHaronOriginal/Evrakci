@@ -28,15 +28,15 @@ Updated after every accepted step. A new session or a compacted one reads this f
   Görev B = fix step; step 7 lenses = Sonnet agent loading design-skills:design-critique,
   design-skills:accessibility-audit, audit-suite:audit-as-ux-eng, design-skills:interaction-design
   (or ux-writing), appending rows to <screen>-findings.md).
-  All six screens audited + lenses committed.
-  Kontrol DONE (2663135; owner Q-10). Yükle DONE (4e5d62e; Q-11). Değerler DONE (9a31c1c;
-  B-056 S1 waits on Q-12; other proposals Q-13).
-  Şablonlar fix step in round 1 (zero-width spaces must not reach clipboard/accessible text).
-  Dışa Aktar + Rehber fix step RUNNING (B-055 S1 app-level undo + stale export names, B-008,
-  pattern error, long path).
-  After both: full tests/ui on HEAD (check test_thumbnails b044 [quit] flake seen during a
-  concurrent edit), commit, ledger merge, owner questions (Şablonlar, Dışa Aktar, Rehber
-  proposals, B-057 separator glyphs core change).
+  All six screens audited + lenses + fix steps committed: Kontrol 2663135, Yükle 4e5d62e,
+  Değerler 9a31c1c, Şablonlar b0cbd1e, Dışa Aktar+Rehber a7bbce8 (B-055 S1, B-008 fixed).
+  Owner questions Q-10..Q-15 (proposals per screen). Open S1 waiting for the owner: B-005 (Q-01),
+  B-056 (Q-12). S2 waiting for the owner: B-033 (Q-10).
+  RUNNING: remaining S2 without owner: B-035 (close after failed autosave), B-038 (placeholder
+  contrast) spec .claude/gorevler/2026-11-19-p4-remaining-s2.md.
+  Then Phase 4 end: ui_measure full matrix twice -> baseline/measure-after.tsv + summary (compare
+  with measure-before), quick perf (perf_kontrol.py --pages 1000 --runs 3 --frame-log),
+  full suite, Opus whole-app review, owner check Q-16 (walk each screen), report.
   Then Şablonlar, Dışa Aktar, Rehber (Görev A, lenses, Görev B). After each fix step: Kapı 1
   (tests), Kapı G (matrix + ui_measure for the screen, open 2-3 shots), lenses (Haiku a+c, b+d),
   Sonnet reviewer, accept, commit, merge findings into bugs.md (ledger rows for S1/S2 and open S3).

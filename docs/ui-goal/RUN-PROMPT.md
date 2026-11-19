@@ -13,8 +13,9 @@ needed).
 **Before the first step, and again after any compaction or new session:**
 1. Load the `model-akisi` skill (Skill tool) and follow it for every step. If it is not
    installed, stop and tell the owner; do not continue without it.
-2. Read `docs/ui-goal/STATE.md`, `docs/ui-goal/phase-plan.md` (whole file), `OWNER-QUEUE.md`,
-   `bugs.md`, `decisions.md`, `PRODUCT.md` and `DESIGN.md`. Trust these files, not memory.
+2. Read `docs/ui-goal/STATE.md`, `docs/ui-goal/phase-plan.md` (whole file),
+   `docs/ui-goal/OWNER-QUEUE.md`, `docs/ui-goal/bugs.md`, `docs/ui-goal/decisions.md`, `PRODUCT.md`
+   and `DESIGN.md`. Trust these files, not memory.
 3. Check the environment: `QT_QPA_PLATFORM=offscreen python -c "from PySide6.QtWidgets import
    QApplication; QApplication([])"` must work, and `pip install -e ".[dev]"` must be done. If Qt
    does not start, install the system packages listed in README (apt) and say so.

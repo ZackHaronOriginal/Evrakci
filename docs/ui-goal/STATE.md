@@ -24,13 +24,23 @@ Updated after every accepted step. A new session or a compacted one reads this f
   be26e31 (3F). Full suite on 3F: 2121 passed / 6 skipped / 205 xfailed, 1 flaky (margin test,
   fixed in be26e31, passes 3/3 under load). Review .claude/gorevler/p3-phase-review.md; leftovers
   ledgered B-048..B-050. Report sent.
-- Phase 4 IN PROGRESS: Kontrol audit + lenses committed (22a3ef5, 3f91213: 32 findings);
-  Yükle audit + lenses (1457706, c51c251: 49 findings); Değerler audit running. Next: Kontrol fix
-  step (S2 01/02/03/08 + cheap S3 without owner), Yükle fix step (check F-yukle-42 undo first,
-  F-yukle-39 load Qt's Turkish translation), then Şablonlar, Dışa Aktar, Rehber.
-  Plan: spec .claude/gorevler/2026-11-19-p4-audit.md, one screen at a time (Kontrol,
-  Yükle, Değerler, Şablonlar, Dışa Aktar, Rehber); skill ui-bug-hunt + design/a11y lenses;
-  rules are all "reported" until Q-03, look changes need the owner (collect as proposals).
+- Phase 4 IN PROGRESS (spec .claude/gorevler/2026-11-19-p4-audit.md: Görev A = audit files,
+  Görev B = fix step; step 7 lenses = Sonnet agent loading design-skills:design-critique,
+  design-skills:accessibility-audit, audit-suite:audit-as-ux-eng, design-skills:interaction-design
+  (or ux-writing), appending rows to <screen>-findings.md).
+  Kontrol: audit + lenses done (32 findings; S2 01/02/03/08=B-033). Fix step RUNNING.
+  Yükle: audit + lenses done (49 findings; S2 F-yukle-01; check F-yukle-42 undo of batch delete
+  first: S1 if not undoable; F-yukle-39 load Qt's Turkish translation). Fix step next.
+  Değerler: audit done (8529c72; 40 findings; S2 F-01 N key always first kontrol (triggered
+  passes checked flag as step), F-02 long variable name overflow, F-03 double click confirms
+  two). Lenses RUNNING. Fix step after.
+  Then Şablonlar, Dışa Aktar, Rehber (Görev A, lenses, Görev B). After each fix step: Kapı 1
+  (tests), Kapı G (matrix + ui_measure for the screen, open 2-3 shots), lenses (Haiku a+c, b+d),
+  Sonnet reviewer, accept, commit, merge findings into bugs.md (ledger rows for S1/S2 and open S3).
+  Phase 4 end: measure-after.tsv next to measure-before.tsv, quick perf check (perf_kontrol.py
+  --runs 3), full suite, Opus whole-app review, owner check row (walk each screen).
+  Lesson: run the FULL tests/ui after any fix step that enables/disables actions (3E broke
+  older tests while its own file list passed).
 - Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
 - Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.
 

@@ -178,8 +178,35 @@ def run_via_menu(win: MainWindow, action_id: str) -> None:
     reactivate(win)
 
 
-def via(win: MainWindow, tab: str, action_id: str) -> None:
-    if actions.spec(action_id).palette:
+def run_via_sheet(win: MainWindow, tab: str, action_id: str, key: str) -> None:
+    """A local key (arrows, Tab, Esc in the guide's search...) has no menu item and no palette
+    entry; the one other route to it is the shortcut sheet that names it. The sheet must list
+    the key under its label for this tab, and the key must still work once the sheet is shut
+    (focus came back to where it was)."""
+    spec = actions.spec(action_id)
+    opener = QApplication.focusWidget()
+    win.registry.action("app.kisayollar").trigger()
+    settle()
+    sheet = win.shortcut_sheet
+    assert sheet.isVisible()
+    label = actions.plain_text(spec.text).rstrip("…")
+    shown = [(cmd, keys) for _g, cmd, keys in sheet.visible_rows() if cmd == label]
+    assert shown, f"the sheet of {tab} does not list {label!r}"
+    assert any(actions.key_text(key) in keys for _cmd, keys in shown), (shown, key)
+    press_in(sheet, "Esc")
+    reactivate(win)
+    assert not sheet.isVisible()
+    if opener is not None:
+        assert QApplication.focusWidget() is opener, "focus did not return to where it was"
+    press(win, key)
+
+
+def via(win: MainWindow, tab: str, action_id: str, key: str | None = None) -> None:
+    spec = actions.spec(action_id)
+    if spec.local:
+        assert key is not None, f"{action_id} is a local key: the route needs the key"
+        run_via_sheet(win, tab, action_id, key)
+    elif spec.palette:
         run_via_palette(win, tab, action_id)
     else:
         run_via_menu(win, action_id)
@@ -258,6 +285,7 @@ class Plan:
     window: str = "job"        # job: the shared demo window; fresh: a new one for this test
     na_window: str = "empty"   # window of the not-applicable test: empty (no job) | job | fresh
     xfail: dict[str, str] = field(default_factory=dict)  # test kind -> "M-xx: reason"
+    marks: tuple = ()          # extra pytest marks of every test of the row (needs_tesseract)
 
 
 def load_rows(prefix: str) -> list[dict[str, str]]:

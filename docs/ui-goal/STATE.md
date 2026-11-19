@@ -24,27 +24,18 @@ Updated after every accepted step. A new session or a compacted one reads this f
   be26e31 (3F). Full suite on 3F: 2121 passed / 6 skipped / 205 xfailed, 1 flaky (margin test,
   fixed in be26e31, passes 3/3 under load). Review .claude/gorevler/p3-phase-review.md; leftovers
   ledgered B-048..B-050. Report sent.
-- Phase 4 IN PROGRESS (spec .claude/gorevler/2026-11-19-p4-audit.md: Görev A = audit files,
-  Görev B = fix step; step 7 lenses = Sonnet agent loading design-skills:design-critique,
-  design-skills:accessibility-audit, audit-suite:audit-as-ux-eng, design-skills:interaction-design
-  (or ux-writing), appending rows to <screen>-findings.md).
-  All six screens audited + lenses + fix steps committed (Kontrol 2663135, Yükle 4e5d62e,
-  Değerler 9a31c1c, Şablonlar b0cbd1e, Dışa Aktar+Rehber a7bbce8, B-035/B-038 876cd37, Qt
-  translation scope f7741f0). Owner Q-10..Q-17. Open S1 waiting: B-005 (Q-01), B-056 (Q-12);
-  S2 waiting: B-033 (Q-10).
-  Phase 4 end evidence: measure-after.tsv (220 fails vs 234, run twice identical, 95caed0);
-  quick perf: loaded 100 %, wrong 0, stale 0, settle 144 ms; full suite at f7741f0: 2200 passed,
-  6 skipped, 203 xfailed, 0 failed; ruff clean.
-  RUNNING: Opus whole-app review (.claude/gorevler/p4-phase-review.md). Then fix/ledger, Phase 4
-  report. Next: Phase 5 (5e waits on Q-06 ranking: nothing to build without it) and Phase 6
-  (perf check 2, CI gates, docs; release needs owner).
-  Then Şablonlar, Dışa Aktar, Rehber (Görev A, lenses, Görev B). After each fix step: Kapı 1
-  (tests), Kapı G (matrix + ui_measure for the screen, open 2-3 shots), lenses (Haiku a+c, b+d),
-  Sonnet reviewer, accept, commit, merge findings into bugs.md (ledger rows for S1/S2 and open S3).
-  Phase 4 end: measure-after.tsv next to measure-before.tsv, quick perf check (perf_kontrol.py
-  --runs 3), full suite, Opus whole-app review, owner check row (walk each screen).
-  Lesson: run the FULL tests/ui after any fix step that enables/disables actions (3E broke
-  older tests while its own file list passed).
+- Phase 4: DONE except what waits on the owner. Six screens audited (inventory, states, click
+  paths, motion, copy, lenses: docs/ui-goal/audit/), fix steps 2663135, 4e5d62e, 9a31c1c,
+  b0cbd1e, a7bbce8, 876cd37, f7741f0, review must-fixes 7f14c61. Evidence: measure-after (220
+  fails vs 234), quick perf all targets, full suite at 7f14c61: 2205 passed / 6 skipped / 203
+  xfailed / 0 failed, keywalk clean, clipping 0. Review .claude/gorevler/p4-phase-review.md.
+  Open S1 waiting on the owner: B-005 (Q-01), B-056 (Q-12). Owner Q-10..Q-17. Report sent.
+- Phase 5: 5a-5d done; 5e (specs and building) waits on Q-06 (ranking). Nothing to build first.
+- Phase 6 NEXT (non-owner parts): step 1 performance check 2 (synthetic 2000 pages, 150 % text,
+  hc theme, slow disk, low memory; real 800-page scans are the owner's), step 2 script +
+  checklist for the owner's real-document run, step 5 CI gates (contract tests, audit --check,
+  ui_measure (reported only until Q-03), short perf regression test), step 6 docs (README,
+  DESIGN.md, shortcuts.md, progress file). Version, tag, release, signing: owner.
 - Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
 - Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.
 

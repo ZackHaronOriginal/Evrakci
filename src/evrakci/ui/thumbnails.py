@@ -13,7 +13,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from PIL import Image
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal
 from PySide6.QtGui import QImage
 
 from evrakci.pipeline.job import Job, parse_page_id
@@ -65,6 +65,21 @@ def job_renderer(
     return render
 
 
+# Retired services stay referenced here until no runnable is left: deleting a service (and its
+# pool and relay) under a worker thread that is inside the renderer crashes natively.
+_RETIRING: list[ThumbnailService] = []
+_RETIRE_POLL_MS = 20
+
+
+def _sweep_retired() -> None:
+    for service in list(_RETIRING):
+        if service._settled():
+            _RETIRING.remove(service)
+            service.deleteLater()
+    if _RETIRING:
+        QTimer.singleShot(_RETIRE_POLL_MS, _sweep_retired)
+
+
 class _Relay(QObject):
     done = Signal(str, QImage, int, int)
 
@@ -106,6 +121,7 @@ class ThumbnailService(QObject):
         self._wanted: set[str] = set()
         self._version: dict[str, int] = {}  # bumped by invalidate; older renders are dropped
         self._busy = 0
+        self._retired = False
         self._lock = threading.Lock()
         self._pool = QThreadPool(self)
         self._pool.setMaxThreadCount(workers)
@@ -166,6 +182,24 @@ class ThumbnailService(QObject):
         """
         self.keep_only(set())
 
+    def retire(self) -> None:
+        """Stop and release the service once its workers are done (never while one is running).
+
+        The service is detached from its parent and kept alive by the module until the pool is
+        idle; only then is it deleted. Workers stop emitting as soon as it is retired.
+        """
+        self._retired = True
+        self.stop()
+        self.invalidate()
+        self.distance = None
+        self.setParent(None)
+        if self not in _RETIRING:
+            _RETIRING.append(self)
+        _sweep_retired()
+
+    def _settled(self) -> bool:
+        return self.idle() and self._pool.activeThreadCount() == 0
+
     def idle(self) -> bool:
         with self._lock:
             return self._busy == 0
@@ -187,7 +221,7 @@ class ThumbnailService(QObject):
                 if self._version.get(pid, 0) == version:
                     self._wanted.discard(pid)
                 self._busy -= 1
-        if image is not None:
+        if image is not None and not self._retired:
             self._relay.done.emit(pid, image, version, height)
 
     def _finished(self, pid: str, image: QImage, version: int, height: int) -> None:

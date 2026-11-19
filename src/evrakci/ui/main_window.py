@@ -1191,10 +1191,7 @@ class MainWindow(QMainWindow):
         if self.kontrol is not None:
             self.kontrol.detach_thumbnails()  # the old screen must not call the retired service
         if old is not None:
-            old.stop()
-            old.invalidate()
-            old.distance = None
-            old.deleteLater()
+            old.retire()  # deleted only once no render is running
 
     def _job_opened(self, job) -> None:
         controller = self.controller()

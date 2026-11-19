@@ -189,3 +189,79 @@ def test_b044_teardown_with_renders_in_flight_does_not_hang(mode, tmp_path):
         env=env, capture_output=True, text=True, timeout=90)
     assert result.returncode == 0, result.stderr
     assert "done" in result.stdout
+
+
+def _wait(predicate, timeout=5.0):
+    import time
+
+    from PySide6.QtWidgets import QApplication
+
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        QApplication.processEvents()
+        if predicate():
+            return True
+        time.sleep(0.005)
+    return predicate()
+
+
+def test_retired_service_is_not_deleted_while_a_render_runs(qtbot):
+    """A worker inside the renderer must never see its service (pool, relay) destroyed: the
+    native crash seen on Windows CI. Deletion waits until the pool is idle."""
+    import shiboken6
+    from PySide6.QtCore import QEvent, QObject
+    from PySide6.QtWidgets import QApplication
+
+    from evrakci.ui import thumbnails
+
+    parent = QObject()
+    inside, gate = threading.Event(), threading.Event()
+
+    def renderer(pid, height):
+        inside.set()
+        gate.wait(10)
+        return Image.new("RGB", (70, height), "white")
+
+    service = ThumbnailService(renderer, height=100, parent=parent)
+    destroyed = []
+    service.destroyed.connect(lambda *_: destroyed.append(True))
+    service.request("b1/0")
+    assert inside.wait(5)
+    service.retire()
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    QApplication.processEvents()
+    del parent  # the old parent going away must not take the service with it
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert not service.idle()
+    assert shiboken6.isValid(service) and not destroyed
+    gate.set()
+    assert _wait(lambda: service not in thumbnails._RETIRING)
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert _wait(lambda: not shiboken6.isValid(service))
+
+
+def test_retiring_services_with_many_slow_renders_stress(qtbot):
+    import time
+
+    import shiboken6
+    from PySide6.QtCore import QEvent
+    from PySide6.QtWidgets import QApplication
+
+    from evrakci.ui import thumbnails
+
+    def slow(pid, height):
+        time.sleep(0.01)  # releases the GIL, like pdfium
+        return Image.new("RGB", (70, height), "white")
+
+    services = []
+    for _ in range(30):
+        service = ThumbnailService(slow, height=100, workers=2)
+        services.append(service)
+        for i in range(20):
+            service.request(f"b1/{i}")
+        service.retire()
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        QApplication.processEvents()
+    assert _wait(lambda: not thumbnails._RETIRING, timeout=20)
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert _wait(lambda: not any(shiboken6.isValid(s) for s in services))

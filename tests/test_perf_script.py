@@ -7,8 +7,9 @@ from pathlib import Path
 SKILL_DIR = Path(__file__).resolve().parents[1] / ".claude" / "skills" / "perf-profile"
 SCRIPT = SKILL_DIR / "perf_kontrol.py"
 NEW_METRICS = [
-    "first_paint_ms", "renders_at_first_paint", "renders_at_first_settle", "frame_p50_ms",
-    "frame_p95_ms", "frame_max_ms", "settle_ms", "settled_loaded_pct", "rss_mb_after_sweep",
+    "first_paint_ms", "renders_at_first_paint", "renders_at_first_settle", "paint_cost_p50_ms",
+    "paint_cost_p95_ms", "paint_cost_max_ms", "settle_ms", "settled_loaded_pct_real",
+    "settled_loaded_pct_forced", "rss_mb_after_sweep",
     "cache_size", "frames_with_wrong", "frames_with_stale", "blank_rows_after_settle",
     "max_blank_rows_in_frame",
 ]

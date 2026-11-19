@@ -43,6 +43,8 @@ import sys
 import tempfile
 import threading
 import time
+from collections import OrderedDict
+from contextlib import contextmanager
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -65,10 +67,12 @@ from evrakci.ui.thumbnails import ThumbnailService, job_renderer  # noqa: E402
 
 # Targets from SKILL.md. Frame = one full viewport repaint after a scroll step.
 THRESHOLDS = {
-    "frame_p95_ms": 16.7,       # one 60 Hz frame
-    "frame_max_ms": 50.0,
-    "settled_loaded_pct": 100.0,  # visible rows with a current thumbnail once idle, no mouse
-    "settle_ms": 1500.0,          # after a jump, until every visible row is loaded
+    "paint_cost_p95_ms": 16.7,  # one forced full viewport paint: fits a 60 Hz frame
+    "paint_cost_max_ms": 50.0,
+    # visible rows with a current thumbnail after a jump, setValue + events only (no repaint),
+    # waiting up to settle_ms
+    "settled_loaded_pct_real": 100.0,
+    "settle_ms": 1500.0,          # after a jump WITH a forced repaint, until all rows loaded
     "first_paint_ms": 1000.0,     # same bound as test_kontrol.py
 }
 
@@ -252,6 +256,23 @@ class FrameLog:
         self.lines = path.open("w")
         self.fit: list[tuple[float, float]] = [(1.0, 0.0)] * 3
         self.records: list[dict] = []
+        self.placeholder: tuple[int, int, int] | None = None
+
+    @contextmanager
+    def quiet(self, empty_cache: bool = False):
+        """Render the viewport without asking the service for anything (the delegate requests a
+        thumbnail from its paint, so a grab would load rows by itself). `empty_cache` makes every
+        tile a placeholder. Nothing is processed inside, so no render result is lost."""
+        service = self.screen.thumbnails
+        cache = service.cache
+        service.request = lambda pid: None  # the delegate looks the method up on the instance
+        if empty_cache:
+            service.cache = OrderedDict()
+        try:
+            yield
+        finally:
+            del service.request
+            service.cache = cache
 
     def samples(self, row: int) -> list[tuple[int, int]]:
         rect = self.view.page_rect(row)
@@ -262,13 +283,28 @@ class FrameLog:
         return [(x, y) for x, y in points if 0 <= x < vp.width() and 0 <= y < vp.height()]
 
     def calibrate(self) -> None:
-        """Fit how the delegate (paper, tint_scan) changes a page colour: seen = a * pid + b."""
-        fresh = self.view.viewport().grab().toImage()
+        """Fit how the delegate (paper, tint_scan) changes a page colour: seen = a * pid + b.
+        Also sample the placeholder paper colour once, from a viewport with an empty cache."""
+        with self.quiet():
+            fresh = self.view.viewport().grab().toImage()
+        with self.quiet(empty_cache=True):
+            empty = self.view.viewport().grab().toImage()
         model = self.view.model()
         pairs = [(page_colour(model.page_id(r)), rgb(fresh, *self.samples(r)[0]))
                  for r in self.view.visible_rows() if self.samples(r)]
         self.fit = [fit_line([p[c] for p, _ in pairs], [s[c] for _, s in pairs])
                     for c in range(3)]
+        for row in self.view.visible_rows():
+            points = self.samples(row)
+            if len(points) > 1:  # a corner point: no "Yükleniyor" text there
+                self.placeholder = rgb(empty, *points[1])
+                break
+
+    def is_placeholder(self, seen: list[tuple[int, int, int]]) -> bool:
+        """True when the tile shows the placeholder paper (checked at the points off the text)."""
+        if self.placeholder is None:
+            return False
+        return all(close(s, self.placeholder) for s in (seen[1:] or seen))
 
     def expected(self, colour) -> tuple[int, ...]:
         return tuple(round(max(0, min(255, a * v + b)))
@@ -290,7 +326,8 @@ class FrameLog:
         vp = view.viewport()
         origin = vp.mapTo(self.screen, QPoint(0, 0))
         backing = window_image(self.screen)  # first: it must show what the last paint left
-        fresh = vp.grab().toImage()
+        with self.quiet():  # the reference must not load anything itself
+            fresh = vp.grab().toImage()
         counts = {"ok": 0, "blank": 0, "wrong": 0, "stale": 0}
         examples: dict[str, list] = {key: [] for key in counts}
         rows = view.visible_rows()
@@ -302,7 +339,7 @@ class FrameLog:
             seen = [rgb(backing, origin.x() + x, origin.y() + y) for x, y in points]
             now = [rgb(fresh, x, y) for x, y in points]
             own = parse_page_id(pid)[1] % 1000
-            shown = self.page_seen(seen[0])
+            shown = None if self.is_placeholder(seen) else self.page_seen(seen[0])
             kinds = []
             if shown == own:
                 kinds.append("ok")
@@ -377,6 +414,29 @@ def run_frame_log(args, app: QApplication, ctl, renderer) -> dict:
     }
 
 
+def real_jumps(args, app: QApplication, ctl, renderer) -> float:
+    """% of visible rows with a current thumbnail after jumps made the way the app scrolls:
+    setValue + event processing only (no repaint(), no grab, no mouse), waiting up to the settle
+    limit. A cold cache and a fresh screen, so nothing was loaded for these rows before."""
+    service = ThumbnailService(renderer, height=110)
+    screen = KontrolScreen(ctl, service, templates=dict)
+    screen.resize(args.width, args.height)
+    screen.show()
+    bar = screen.timeline.verticalScrollBar()
+    pump(app, 10)
+    wait_loaded(app, screen)
+    pump(app, 50)
+    loaded = total = 0
+    for fraction in (0.5, 0.9, 0.1, 0.7):
+        bar.setValue(round(bar.maximum() * fraction))
+        wait_loaded(app, screen, THRESHOLDS["settle_ms"])
+        ok, count = visible_loaded(screen)
+        loaded, total = loaded + ok, total + count
+    service.stop()
+    screen.close()
+    return round(100 * loaded / total, 1) if total else 0.0
+
+
 def measure(args) -> dict:
     app = QApplication.instance() or QApplication(sys.argv)
     configure_application(app)
@@ -429,19 +489,20 @@ def measure(args) -> dict:
             "first_settle_ms": round(settle_first, 1),
             "renders_at_first_settle": renders_at_first_settle,
             "frames": len(frames),
-            "frame_p50_ms": round(statistics.median(frames), 2),
-            "frame_p95_ms": round(percentile(frames, 95), 2),
-            "frame_max_ms": round(max(frames), 2),
+            "paint_cost_p50_ms": round(statistics.median(frames), 2),
+            "paint_cost_p95_ms": round(percentile(frames, 95), 2),
+            "paint_cost_max_ms": round(max(frames), 2),
             "frames_over_16ms": sum(f > 16.7 for f in frames),
             "frames_over_33ms": sum(f > 33.3 for f in frames),
             "settle_ms": round(max(jumps), 1),
-            "settled_loaded_pct": round(100 * ok / total, 1) if total else 0.0,
+            "settled_loaded_pct_forced": round(100 * ok / total, 1) if total else 0.0,
             "prefetched_rows_below_view": ahead,
             "cache_size": len(service.cache),
             "rss_mb_after_sweep": round(rss_after_sweep, 1),
         }
         service.stop()
         screen.close()
+        result["settled_loaded_pct_real"] = real_jumps(args, app, ctl, renderer)
         if args.frame_log:
             result.update(run_frame_log(args, app, ctl, renderer))
     return result
@@ -523,7 +584,7 @@ def main() -> int:
     failed = []
     for key, limit in THRESHOLDS.items():
         value = result[key]
-        bad = value < limit if key == "settled_loaded_pct" else value > limit
+        bad = value < limit if key.startswith("settled_loaded_pct") else value > limit
         mark = "FAIL" if bad else "ok"
         extra = f"  (before {base[key]})" if key in base else ""
         print(f"{mark:5}{key:26} {value} vs {limit}{extra}")

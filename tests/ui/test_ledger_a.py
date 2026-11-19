@@ -246,3 +246,45 @@ def test_b031_palette_placeholder_is_true(qtbot, tmp_path):
     text = window.command_palette.field.placeholderText().lower()
     window.command_palette.hide()
     assert "belge ara" not in text
+
+
+@pytest.mark.xfail(strict=True, reason="B-032: TimelineView inherits QListView.scrollContentsBy "
+                                       "which does not repaint; thumbnails are only requested "
+                                       "from paint")
+def test_b032_scrolling_repaints_and_loads_visible_rows(qtbot, tmp_path):
+    from PySide6.QtCore import QEvent, QObject
+
+    class PaintWatcher(QObject):
+        paints = 0
+
+        def eventFilter(self, obj, event):  # noqa: N802
+            if event.type() == QEvent.Type.Paint:
+                self.paints += 1
+            return False
+
+    ctl = _controller(tmp_path, {"b1": "p" * 200})
+    screen = _screen(qtbot, ctl)
+    screen.show()
+    qtbot.waitExposed(screen)
+    view = screen.timeline
+    model, service = view.model(), screen.thumbnails
+
+    def loaded():
+        rows = list(view.visible_rows())
+        return bool(rows) and all(service.is_current(model.page_id(r)) for r in rows)
+
+    qtbot.waitUntil(loaded, timeout=3000)
+    qtbot.wait(100)
+    watcher = PaintWatcher(view.viewport())
+    view.viewport().installEventFilter(watcher)
+    bar = view.verticalScrollBar()
+    first = view.visible_rows().start
+    bar.setValue(bar.value() + 4 * 120)  # no repaint(), no mouse event
+    assert view.visible_rows().start > first
+    qtbot.wait(100)
+    assert watcher.paints > 0  # the viewport was painted after the scroll
+    for _ in range(40):  # within about 2 s every visible row is current
+        if loaded():
+            break
+        qtbot.wait(50)
+    assert loaded()

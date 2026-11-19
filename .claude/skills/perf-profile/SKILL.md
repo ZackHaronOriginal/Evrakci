@@ -53,13 +53,16 @@ QT_QPA_PLATFORM=offscreen python .claude/skills/perf-profile/perf_kontrol.py --p
 
 What it does: builds a 1000-page job (`tests/fakes.py:job_from_kinds`, or a real PDF with `--real`),
 shows `KontrolScreen` at 1366x640, sweeps the scrollbar down and up in 120 px steps (one
-wheel notch), timing a full `viewport().repaint()` per step, then jumps to 50/90/10/70 % with
-no mouse event and waits until every visible row has a current thumbnail. It prints first
-paint (first paint event after `show()`) with the pids requested by then, first settle with the
-renders it took, frame p50/p95/max, frames over 16.7 and 33 ms, time to settle after a jump, the
-share of visible rows loaded when idle, prefetched rows below the view, cache size and RSS after
-the sweep, and exits 1 on a missed threshold. Offscreen frame times do not include the
-compositor, so compare runs on the same machine and treat absolute numbers as a ceiling check.
+wheel notch), timing a full `viewport().repaint()` per step (`paint_cost_p50/p95/max_ms`: the cost
+of a forced full paint, not a scroll frame time), then jumps to 50/90/10/70 % with a forced repaint
+and waits until every visible row has a current thumbnail (`settle_ms`, `settled_loaded_pct_forced`).
+`settled_loaded_pct_real` is the user-facing number: on a fresh screen, jumps with `setValue` and
+event processing only (no repaint, no grab, no mouse), waiting up to 1500 ms, share of visible rows
+with a current thumbnail. It prints first paint (first paint event after `show()`) with the pids
+requested by then, first settle with the renders it took, frames over 16.7 and 33 ms, prefetched
+rows below the view, cache size and RSS after the sweep, and exits 1 on a missed threshold.
+Offscreen paint costs do not include the compositor, so compare runs on the same machine and
+treat absolute numbers as a ceiling check.
 
 Options:
 
@@ -69,7 +72,8 @@ Options:
   app (`scrollbar.setValue` + `processEvents`, never `repaint()` or a mouse event), reads the
   window backing store with `QScreen.grabWindow` after each step (a self-check first proves it
   keeps blitted pixels) and classifies each visible row as ok / blank / wrong / stale against a
-  fresh paint. One JSON line per frame; summary metrics `frames_with_wrong`, `frames_with_stale`,
+  fresh paint that is rendered without requesting thumbnails (the log never loads rows itself);
+a tile showing the placeholder paper counts as blank, never wrong. One JSON line per frame; summary metrics `frames_with_wrong`, `frames_with_stale`,
   `blank_rows_after_settle`, `max_blank_rows_in_frame`. With `--runs`, run k > 1 logs to `PATH.k`.
 
 When a threshold fails, find the hotspot:
@@ -86,11 +90,11 @@ Look at `TimelineView.paintEvent`, `_rows_between`, `TimelineDelegate._scan` (im
 
 | Metric | Limit | Why |
 |---|---|---|
-| frame p95 (full viewport repaint per scroll step) | <= 16.7 ms | 60 Hz |
-| frame max | <= 50 ms | no visible hitch |
+| paint_cost_p95_ms (full viewport repaint per scroll step) | <= 16.7 ms | 60 Hz |
+| paint_cost_max_ms | <= 50 ms | no visible hitch |
 | first paint of 1000 pages | < 1000 ms | existing test bound |
 | settle after a jump (fake 15 ms renderer) | <= 1500 ms | page content arrives without input |
-| visible rows loaded once idle, no mouse | 100 % | the hover bug must be gone |
+| settled_loaded_pct_real (jump, no repaint, no mouse) | 100 % | the hover bug must be gone |
 | rows prefetched beyond the view | > 0, bounded by capacity | scrolling at normal speed never shows empty paper |
 | memory | cache <= `capacity` (400) images | LRU holds |
 
@@ -101,7 +105,7 @@ drawn in page M's slot (check `pid` identity, `ThumbnailService._version` and `i
 ## After the fix
 
 1. Re-run the same commands with `--baseline /tmp/before.json --out /tmp/after.json` and paste
-   the before/after table (p50, p95, max, settle, loaded %) in the report.
+   the before/after table (paint cost p50/p95/max, settle, loaded % real) in the report.
 2. Add or tighten tests in `tests/ui/test_kontrol.py` / `tests/ui/test_thumbnails.py` using the
    fake renderer (no PDF, no timing flakiness): scroll without mouse events, `qtbot.waitUntil`
    all visible pids are `service.is_current`, assert renders stay within visible + margin, assert

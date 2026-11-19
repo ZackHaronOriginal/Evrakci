@@ -31,7 +31,10 @@ Updated after every accepted step. A new session or a compacted one reads this f
   xfailed / 0 failed, keywalk clean, clipping 0. Review .claude/gorevler/p4-phase-review.md.
   Open S1 waiting on the owner: B-005 (Q-01), B-056 (Q-12). Owner Q-10..Q-17. Report sent.
 - Phase 5: 5a-5d done; 5e (specs and building) waits on Q-06 (ranking). Nothing to build first.
-- Phase 6 NEXT (non-owner parts): step 1 performance check 2 (synthetic 2000 pages, 150 % text,
+- Phase 6 IN PROGRESS (spec .claude/gorevler/2026-11-20-p6.md): three agents running: A perf check 2
+  (-> baseline/perf-final.json, perf-table.md), B CI gates + docs, C tools/real_scan_check.py +
+  owner-checklist-phase6.md. Then gates, full suite, Opus whole-repo review (diff since 0a28b16),
+  PR to main (template, no private content), owner sign-off rows. Original list: step 1 performance check 2 (synthetic 2000 pages, 150 % text,
   hc theme, slow disk, low memory; real 800-page scans are the owner's), step 2 script +
   checklist for the owner's real-document run, step 5 CI gates (contract tests, audit --check,
   ui_measure (reported only until Q-03), short perf regression test), step 6 docs (README,

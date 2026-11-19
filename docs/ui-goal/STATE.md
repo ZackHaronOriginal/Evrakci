@@ -31,14 +31,13 @@ Updated after every accepted step. A new session or a compacted one reads this f
   xfailed / 0 failed, keywalk clean, clipping 0. Review .claude/gorevler/p4-phase-review.md.
   Open S1 waiting on the owner: B-005 (Q-01), B-056 (Q-12). Owner Q-10..Q-17. Report sent.
 - Phase 5: 5a-5d done; 5e (specs and building) waits on Q-06 (ranking). Nothing to build first.
-- Phase 6 IN PROGRESS (spec .claude/gorevler/2026-11-20-p6.md): three agents running: A perf check 2
-  (-> baseline/perf-final.json, perf-table.md), B CI gates + docs, C tools/real_scan_check.py +
-  owner-checklist-phase6.md. Then gates, full suite, Opus whole-repo review (diff since 0a28b16),
-  PR to main (template, no private content), owner sign-off rows. Original list: step 1 performance check 2 (synthetic 2000 pages, 150 % text,
-  hc theme, slow disk, low memory; real 800-page scans are the owner's), step 2 script +
-  checklist for the owner's real-document run, step 5 CI gates (contract tests, audit --check,
-  ui_measure (reported only until Q-03), short perf regression test), step 6 docs (README,
-  DESIGN.md, shortcuts.md, progress file). Version, tag, release, signing: owner.
+- Phase 6: non-owner steps DONE: perf check 2 (936bfc6: perf-final.json, perf-table.md),
+  real-scan tool + owner checklist (efe2ccf), CI gates + docs (61c0878). Running: final full suite
+  (/tmp/claude-0/suite-final.txt) and the last whole-repo Opus review
+  (.claude/gorevler/p6-phase-review.md). Then: fix/ledger its must-fixes, open ONE PR to main
+  (repo PR template, no private content) so CI builds the installer for the owner's checks, final
+  report. Owner: Q-18 real scans, Q-19 Windows clean install, Q-20 signing/version/publish/sign-off,
+  plus Q-01..Q-17 (blocking ones listed in OWNER-QUEUE.md).
 - Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
 - Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.
 

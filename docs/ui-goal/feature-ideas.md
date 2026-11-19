@@ -39,6 +39,13 @@ how many pages matched and never act silently.
 | 14 | Keyboard "jump to document N" with live preview | Ctrl+G exists; showing the target before Enter would avoid wrong jumps | Part of the Ctrl+G dialog in Kontrol | idea |
 | 15 | Template suggestion per document | Applying the right template to each document by hand is repetitive | Suggest from the pages' OCR text or QR kind; human confirms (Positioning: "software suggests, staff confirm") | idea |
 
+## Using the office's own data (owner idea, 2026-11-19)
+
+| # | Idea | Problem it addresses | Notes and open questions | Status |
+|---|---|---|---|---|
+| 16 | Pre-filled forms from imported Excel data (ideas-ranking I-48) | Blank forms are handed out and missing fields are typed in later from data the office already holds | Import several sheets, detect header rows, map columns to user-named variables (nothing hard-coded), merge records of the same company across sheets with a visible match score, preview, print or export one filled form per record; KVKK: data never leaves the PC, imports can be deleted; how forms are designed (reuse templates or a new layout editor) is open | idea |
+| 17 | Look up read values in the imported data (ideas-ranking I-49) | Unsure or missing values are re-typed although the office has them | Suggestion beside the read value, never an automatic overwrite; show which import and date it came from | idea |
+
 ## Not in scope here
 
 First-run tour (deferred in `docs/ui-goal/top25.md` item 25), cloud sync or any network feature

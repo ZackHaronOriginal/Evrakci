@@ -57,8 +57,6 @@ def _window(qtbot, tmp_path, spec):
     return window
 
 
-@pytest.mark.xfail(strict=True, reason="B-020: K on page 1 stores a cut that splits nothing "
-                                       "and relabels İşin başı as Elle kesim")
 def test_b020_k_on_the_first_page_changes_nothing_visible(qtbot, tmp_path):
     ctl = _controller(tmp_path, {"a": "pppp"})
     screen = _screen(qtbot, ctl)
@@ -67,6 +65,19 @@ def test_b020_k_on_the_first_page_changes_nothing_visible(qtbot, tmp_path):
     screen.toggle_cut()
     assert len(ctl.documents()) == 1
     assert ctl.cut_kinds()[first] == "start"
+
+
+def test_b020_k_on_the_first_page_is_refused_and_a_batch_move_keeps_one_document(qtbot, tmp_path):
+    ctl = _controller(tmp_path, {"a": "pp", "b": "pp"})
+    screen = _screen(qtbot, ctl)
+    messages = []
+    ctl.status.connect(messages.append)
+    _go(screen, 0)
+    screen.toggle_cut()
+    assert messages == ["İlk belgenin öncesi yok."]
+    assert not ctl.job.manual_cuts
+    assert ctl.run("Partiyi taşı", lambda job: job.move_batch("a", 1))
+    assert len(ctl.documents()) == 1
 
 
 def test_b021_merge_joins_a_qr_document_that_also_has_a_manual_cut(qtbot, tmp_path):

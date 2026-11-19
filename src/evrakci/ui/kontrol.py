@@ -324,6 +324,9 @@ class KontrolScreen(QWidget):
         if pid in self.controller.job.manual_cuts:
             if self.controller.remove_cut(pid):
                 self._remember("scissors", f"Kesim kaldırıldı, sayfa {position}")
+        elif pid == next((p for p in self.controller.job.ordered_page_ids()
+                          if p not in self.controller.job.deleted), None):
+            self.controller.status.emit("İlk belgenin öncesi yok.")
         elif self.controller.add_cut(pid):
             self._remember("scissors", f"Kesim eklendi, sayfa {position}")
 

@@ -357,3 +357,34 @@ def test_apply_updates_app_and_old_window_sheets(applied, qapp, qtbot):
     assert qapp.palette().color(QPalette.ColorRole.Window).name() == g.COLORS["dark"]["base"]
     assert g.COLORS["dark"]["accent"] in qapp.styleSheet()
     assert window.styleSheet() == qapp.styleSheet()
+
+
+@pytest.mark.parametrize("mode", ["light", "dark", "hc"])
+def test_placeholder_text_meets_d10_on_the_field_background(mode, qapp, qtbot):
+    """B-038: a QLineEdit placeholder is drawn in text-2 (not text at 50 % alpha), >= 4.5:1."""
+    manager = theme.manager()
+    manager.set_mode(mode)
+    manager.apply(qapp)
+    try:
+        field = QLineEdit()
+        field.setPlaceholderText("Ara")
+        qtbot.addWidget(field)
+        field.show()
+        shot = field.grab().toImage()
+        background = manager.hex("card")
+        colour = manager.hex("text-2")
+        # the stylesheet carries the token, the palette role is the same token
+        assert field.palette().color(QPalette.ColorRole.PlaceholderText).name() == colour
+        assert f"placeholder-text-color: {colour}" in qapp.styleSheet()
+        if mode != "hc":
+            assert _ratio(colour, background) >= 4.5
+        else:
+            assert _ratio(colour, background) >= 4.5 or colour == background
+        # painted pixels: the darkest/lightest ink in the field reaches the token colour
+        ink = QColor(colour)
+        seen = [shot.pixelColor(x, y) for x in range(shot.width()) for y in range(shot.height())]
+        assert any(abs(p.red() - ink.red()) + abs(p.green() - ink.green())
+                   + abs(p.blue() - ink.blue()) < 40 for p in seen)
+    finally:
+        manager.set_mode("system")
+        manager.apply(qapp)

@@ -53,3 +53,11 @@ F-yukle-09, 11, 16, 20, 21, 22, 23, 24, 25, 28, 29, 31, 33, 34, 35, 37, 40, 41, 
 or the motion rules (D7), so they wait for the owner. F-yukle-07 (the overlay counts 200 files) needs "200+" text or a count
 off the window thread; not done. F-yukle-26 (search icon is a button), 27 (thousands dot), 30 (busy cursor delay), 32 (layout
 margins), 36 (keys with no job), 38 (tool limits) and 49 (announce after a move) need no text but are S4: left open.
+
+## P-app-01 (B-035): the close confirmation after a failed save
+
+Done without new text: when the last save failed, closing the window (also Ctrl+Q), İşi kapat (Ctrl+W) and opening another job first retry
+the save (`main_window.py:_unsaved_refusal`). If it still fails, the close is blocked and the existing "Kaydedilemedi: ..." status is shown.
+No existing dialog text fits ("Bir iş sürüyor. Durdurup kapatılsın mı?" is about running work). Proposal for the owner: a Yes/No
+question such as "Değişiklikler kaydedilemedi. Yine de kapatılsın mı? Son değişiklikler kaybolur." so the window can still be closed
+when the folder stays unwritable (now the only way out is to fix the folder or use Yeniden dene).

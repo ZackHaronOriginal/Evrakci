@@ -93,3 +93,75 @@ def test_kontrol_without_a_job_offers_the_way_to_yukle(qtbot, tmp_path):
     assert window.kontrol is None
     assert not window.registry.is_enabled("kontrol.kes")
     assert window.tabs.currentWidget() is window._kontrol_placeholder
+
+
+def _failed_save_window(qtbot, tmp_path, monkeypatch):
+    """A window whose job folder became read-only: the automatic save fails (B-035)."""
+    window = _window(qtbot, tmp_path)
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page(), qr_page(), text_page()])
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=20000):
+        window.yukle.create_job([pdf], "Kasım")
+    controller = window.controller()
+    real = controller.store.save
+    state = {"fail": True}
+
+    def save(job):
+        if state["fail"]:
+            raise OSError("salt okunur")
+        return real(job)
+
+    monkeypatch.setattr(controller.store, "save", save)
+    controller._changed()
+    assert window.job_switch.save_state.state() == "failed"
+    return window, state
+
+
+def test_close_after_failed_save_is_blocked_with_the_status(qtbot, tmp_path, monkeypatch):
+    window, _state = _failed_save_window(qtbot, tmp_path, monkeypatch)
+    assert window.close() is False  # first attempt: retried, still failing, blocked
+    assert window.message.text() == "Kaydedilemedi: salt okunur"
+    assert window.controller() is not None
+    assert window.close() is True  # second attempt goes ahead
+
+
+def test_close_retries_the_save_and_closes_when_it_works(qtbot, tmp_path, monkeypatch):
+    window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
+    state["fail"] = False
+    assert window.close() is True
+    assert window.job_switch.save_state.state() == "saved"
+
+
+def test_quit_shortcut_blocks_once_then_goes_ahead(qtbot, tmp_path, monkeypatch):
+    window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
+    window.registry.action("app.cikis").trigger()
+    assert window.isVisible() or window.controller() is not None
+    assert window.message.text().startswith("Kaydedilemedi")
+    assert window._close_warned
+    window.registry.action("app.cikis").trigger()  # second attempt: not blocked
+    assert window.message.text().startswith("Kaydedilemedi")
+    assert window._unsaved_refusal() is None
+
+
+def test_closing_or_switching_the_job_after_failed_save(qtbot, tmp_path, monkeypatch):
+    window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
+    window.close_job()
+    assert window.controller() is not None
+    assert window.message.text() == "Kaydedilemedi: salt okunur"
+    assert window.yukle.can_switch() is None  # second attempt (job switch) goes ahead
+    window.close_job()
+    assert window.controller() is None
+
+
+def test_a_success_or_new_failed_edit_resets_the_warning(qtbot, tmp_path, monkeypatch):
+    window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
+    assert window._unsaved_refusal() is not None
+    assert window._unsaved_refusal() is None
+    window.controller()._changed()  # a new edit that fails again
+    assert window._unsaved_refusal() is not None  # warns again
+    state["fail"] = False
+    window.save_job()
+    assert window.job_switch.save_state.state() == "saved"
+    assert not window._close_warned
+    state["fail"] = True
+    window.controller()._changed()
+    assert window._unsaved_refusal() is not None

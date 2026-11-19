@@ -113,13 +113,15 @@ QPushButton[kind="inspector-row"]:hover { background: {{hover}}; }
 QLineEdit, QAbstractSpinBox, QComboBox, QPlainTextEdit, QTextEdit {
     background: {{card}}; color: {{text}}; border: 1px solid {{stroke}}; border-bottom-color: {{edge}};
     border-radius: {{r-control}}; selection-background-color: {{accent}};
-    selection-color: {{text-on-accent}}; }
+    selection-color: {{text-on-accent}};
+    placeholder-text-color: {{text-2}}; }
 QLineEdit, QAbstractSpinBox, QComboBox { padding: 0 {{s3}}; min-height: {{control-in-h}}; }
 QPlainTextEdit, QTextEdit { padding: {{s1}} {{s2}}; }
 QLineEdit:focus, QAbstractSpinBox:focus, QComboBox:focus, QPlainTextEdit:focus, QTextEdit:focus {
     border-bottom: 2px solid {{accent}}; }
 QLineEdit:disabled, QAbstractSpinBox:disabled, QComboBox:disabled, QPlainTextEdit:disabled,
-QTextEdit:disabled { background: {{layer}}; color: {{text-disabled}}; border-color: {{stroke-soft}}; }
+QTextEdit:disabled { background: {{layer}}; color: {{text-disabled}}; border-color: {{stroke-soft}};
+    placeholder-text-color: {{text-disabled}}; }
 QLineEdit[kind="search"] { background: {{layer}}; }
 QLineEdit[invalid="true"], QLineEdit[invalid="true"]:focus { border-bottom: 2px solid {{danger}}; }
 QAbstractSpinBox { padding-right: {{s6}}; }

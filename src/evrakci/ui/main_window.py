@@ -373,6 +373,7 @@ class MainWindow(QMainWindow):
         self.settings_dialog: SettingsDialog | None = None
         self.about_dialog: AboutDialog | None = None
         self._closing = False
+        self._close_warned = False  # a failed save already blocked one close (B-035)
         self._restoring = True
         self._zoom: dict[str, tuple[ZoomController, str]] = {}
         self._zoom_hidden: set[str] = set()
@@ -1280,6 +1281,7 @@ class MainWindow(QMainWindow):
         self._close_open_job()
 
     def _close_open_job(self) -> None:
+        self._close_warned = False
         self._unwire_controller()
         self.yukle._close_now()  # the screen's own reset (its close_job comes back here)
         self._retire_thumbnails()
@@ -1297,9 +1299,11 @@ class MainWindow(QMainWindow):
         self._close_open_job()
 
     def _saved(self, when: datetime | None = None) -> None:
+        self._close_warned = False
         self.job_switch.save_state.set_saved(when or datetime.now())
 
     def _save_failed(self, error: str) -> None:
+        self._close_warned = False  # a new failed edit: the next close warns again
         self.job_switch.save_state.set_failed(f"Kaydedilemedi: {error}", self.save_job)
 
     def _saved_now(self, *_args) -> None:
@@ -1462,6 +1466,23 @@ class MainWindow(QMainWindow):
     def _switch_refusal(self) -> str | None:
         if self._busy_screens():
             return "Dışa aktarma ya da okuma sürüyor; bitince başka bir iş açın."
+        return self._unsaved_refusal()
+
+    def _unsaved_refusal(self) -> str | None:
+        """After a failed save, closing or leaving the job first retries the save; if it still
+        fails the close is blocked with the existing "Kaydedilemedi: ..." status (B-035)."""
+        controller = self.controller()
+        if controller is None or self.job_switch.save_state.state() != "failed":
+            return None
+        if self._close_warned:  # the second attempt goes ahead, the edits stay unsaved
+            return None
+        try:
+            controller.store.save(controller.job)
+        except OSError as error:
+            self.job_switch.save_state.set_failed(f"Kaydedilemedi: {error}", self.save_job)
+            self._close_warned = True
+            return f"Kaydedilemedi: {error}"
+        self._saved()
         return None
 
     def _busy_screens(self) -> list:
@@ -1482,6 +1503,11 @@ class MainWindow(QMainWindow):
                 screen.cancel()
         if busy:  # close once the work has stopped (see _work_stopped)
             self.message.setText("Durduruluyor… Pencere iş durunca kapanır.")
+            event.ignore()
+            return
+        refusal = self._unsaved_refusal()
+        if refusal:
+            self.message.setText(refusal)
             event.ignore()
             return
         self.prefs.save_window(self)

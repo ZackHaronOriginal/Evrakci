@@ -3,7 +3,7 @@
 Researched 2026-11-19 at commit 89c4844. Ideas only, nothing decided; the approved look is not questioned. "We do" cites [inventory-app-wide.md](inventory-app-wide.md) (A-xx), [inventory-kontrol.md](inventory-kontrol.md) (K-xx) and the code. WCAG is written for web content; where a criterion is applied to a desktop app that is an interpretation and is marked so. Every external claim links to a page that was opened.
 
 ## What we do
-Four looks including "Yüksek karşıtlık" (A-40, A-58); text 100 to 150 percent (A-41, A-60); reduced motion (A-43, A-64); text contrast rule AA (A-59); 24 px click targets (A-87); single-key shortcuts can be turned off (A-46); typing and button guards (A-81, A-82); F6 regions and tab order (A-83, A-84); focus restored after dialogs (A-86); accessible names on every control, toasts announced (A-78); status line not announced (A-75 note, Observation in the app-wide file). The code detects the Windows high-contrast flag (`ui/theme.py` lines 128 to 154). A grep of `src/evrakci/ui` finds `QAccessible` only in `feedback.py` (the alert event); the custom-painted timeline (`timeline.py`, `kontrol_paint.py`) defines no accessible interface of its own.
+Four looks including "Yüksek karşıtlık" (A-40, A-58); text 100 to 150 percent (A-41, A-60); reduced motion (A-43, A-64); text contrast rule D10 (A-59); 24 px click targets (A-87); single-key shortcuts can be turned off (A-46); typing and button guards (A-81, A-82); F6 regions and tab order (A-83, A-84); focus restored after dialogs (A-86); accessible names on every control, toasts announced (A-78); status line not announced (A-75 note, Observation in the app-wide file). The code detects the Windows high-contrast flag (`ui/theme.py` lines 128 to 154). A grep of `src/evrakci/ui` finds `QAccessible` only in `feedback.py` (the alert event); the custom-painted timeline (`timeline.py`, `kontrol_paint.py`) defines no accessible interface of its own.
 
 ## Comparison table
 
@@ -25,6 +25,8 @@ Four looks including "Yüksek karşıtlık" (A-40, A-58); text 100 to 150 percen
 3. **Announce the status line and Kontrol history band changes.** Problem: silent messages. Evidence: [WCAG 4.1.3](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html). Effort S.
 4. **Text size 175 and 200 percent.** Problem: only 150 at most. Evidence: [WCAG 1.4.4](https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html). Effort M; visual change, owner decides.
 5. **Follow Windows contrast theme colors.** Evidence: [Microsoft](https://learn.microsoft.com/en-us/windows/apps/design/accessibility/high-contrast-themes). Effort M.
+
+Review notes (Opus, 2026-11-19): idea 4 (175 and 200 percent text) would reopen D5 (text sizes fixed at 100 to 150 percent; tab rule approved 2026-11-13). Idea 5 is already D9 (high contrast follows the OS palette), so it reduces to checking D9 against edited Windows contrast themes.
 
 ## Unverified
 - Whether any screen reader reads our screens: no reader was run. The `QAccessible` gap comes from a grep only.

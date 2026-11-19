@@ -33,6 +33,8 @@ What we do today (inventories): QR separator page (K-09, Y-26), "every N pages" 
 4. Option "keep the separator page as the first page of the next document". Problem: content-bearing sheets. Evidence: Paperless retain option and PdfQRSplit `--keep-page-next` (links above). Effort M.
 5. Later (not gaps): none of the deferred items (first-run tour, completion sound, invert selection) belong to this area.
 
+Review notes (Opus, 2026-11-19): ideas that need core changes are limited by D13 to a minimal, tested hook; that limit is part of their cost.
+
 ## Unverified
 
 - Whether Paperless or Kodak show a preview of the split before it is applied (not in the pages read). DocuWare page says nothing on preview (https://knowledgecenter.docuware.com/docs/processing-documents).

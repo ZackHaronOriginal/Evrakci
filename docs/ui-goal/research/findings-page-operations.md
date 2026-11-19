@@ -30,6 +30,8 @@ What we do today: rotate right/left per page, one undo step per selection (K-42)
 2. A "come back later" mark on a document (postpone) separate from İncelendi. Problem: reviewers unsure about a document cannot park it. Evidence: ABBYY postpone (https://docs.abbyy.com/flexi-capture/operator-work/field-verification-operator-work). Effort S to M.
 3. Restore-empty-page and remove-template commands already in core/CLI but not in the window (K-20, K-52). Problem: internal gap. Evidence: inventory, no external source. Effort S.
 
+Review notes (Opus, 2026-11-19): a postpone mark must fit the approved İncelendi / İncelenmedi vocabulary; the postpone versions in this file and in findings-review-qc.md conflict and are merged in 5d.
+
 ## Unverified
 
 - Bodies of PDF Arranger delete, rotate and reorder handlers (not in the excerpt read).

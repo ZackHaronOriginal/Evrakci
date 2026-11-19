@@ -36,6 +36,8 @@ Already deferred, so not listed as gaps: first-run tour, completion sound, inver
 5. **Same variable across documents: crop strip.** Problem: systematic box shift is hard to see one document at a time. Evidence: [ABBYY docs](https://docs.abbyy.com/flexi-capture/operator-work/field-verification-operator-work). Effort: M.
 6. **Carry the document from Değerler to Kontrol (fix O-09).** Effort: S.
 
+Review notes (Opus, 2026-11-19): a postpone mark must fit the approved İncelendi / İncelenmedi vocabulary; the postpone versions in this file and in findings-page-operations.md conflict and are merged in 5d.
+
 ## Unverified
 
 - Whether Değerler or Dışa Aktar stops an unreviewed or Kontrol document from being exported: not read in code for this file; Kontrol checks show in the plan (K-55) but blocking was not checked.

@@ -2,7 +2,7 @@
 
 Research for ideas only. Nothing here is a decision. No code or text copied. Every claim links to a page opened with WebFetch on 2026-11-19 (summaries, paraphrased).
 
-What we do today: one unbounded undo stack per job shared by Yükle, Kontrol, Değerler and Dışa Aktar, separate stack on Şablonlar (A-52); each step stores the whole job before and after as dicts (inventory-app-wide "Undo depth"; `ui/controller.py:_Snapshot`, `_edit`); named steps in the Düzen menu (A-53, K-119); history submenu of the last 30 (A-54); in memory only, lost on close (A-56, K-121); toasts with Geri al that undo the newest step, not necessarily their own (Kontrol O-06); approval is an undo step (K-59).
+What we do today: one unbounded undo stack per job shared by Yükle, Kontrol, Değerler and Dışa Aktar, separate stack on Şablonlar (A-52); each step stores the whole job before and after as dicts (inventory-app-wide "Undo depth"; `ui/controller.py:_Snapshot`, `_edit`); named steps in the Düzen menu (A-53, K-119); history submenu of the last 30 (A-54); in memory only, lost on close (A-56, K-121); toasts with Geri al that act on their own step only while it is the newest, otherwise hidden (Kontrol O-06; fixed, B-023, cefd148 and faf32a5); approval is an undo step (K-59).
 
 ## Source read
 
@@ -19,12 +19,12 @@ What we do today: one unbounded undo stack per job shared by Yükle, Kontrol, De
 | Menu text names the next undo and redo | Qt `undoText()`, `redoText()`, `createUndoAction` (https://doc.qt.io/qt-6/qundostack.html); PDF Arranger lists this as a TODO (link above) | Done: "Geri al: Kesim ekle" (A-53) | none (we are ahead of PDF Arranger) | none | none | none |
 | Clean state marker for "saved" | Qt `setClean()`, `cleanChanged` (https://doc.qt.io/qt-6/qundostack.html) | Every edit autosaves (A-55, Y-55) | Not needed | n/a | n/a | n/a |
 | Undo of an item moved to a holding place | FastRawViewer: Ctrl+Z restores the last rejected file, history length in preferences (https://www.fastrawviewer.com/howtos/sorting-photos) | Soft delete plus undo (K-43); history length not user-set | Low | none | none | none |
-| Explicit "emergency exit" and redo as a heuristic | NN/g User Control and Freedom (https://www.nngroup.com/articles/ten-usability-heuristics/) | Undo, redo, toasts (K-116, A-52) | Toast "Geri al" can undo the wrong step (O-06) | S (bind the toast to its own step id) | none | Medium: a wrong undo is data loss in the eyes of staff |
+| Explicit "emergency exit" and redo as a heuristic | NN/g User Control and Freedom (https://www.nngroup.com/articles/ten-usability-heuristics/) | Undo, redo, toasts (K-116, A-52) | Done (B-023, cefd148, faf32a5): toast "Geri al" acts on its own step and is hidden once a newer step exists (O-06) | done | none | Medium: a wrong undo is data loss in the eyes of staff |
 | Undo list persisted with the job | Not found in any source read | Lost on close (A-56) | Not a gap supported by evidence | n/a | n/a | n/a |
 
 ## Ideas for the owner's ranking
 
-1. Make a toast's "Geri al" act on its own step, or disable it once newer edits exist. Problem: Kontrol O-06, stale toast undoes the wrong edit. Gains: everyone in a long session. Evidence: NN/g heuristic 3 (link above) plus inventory. Effort S.
+1. Selective undo: undo an older step while keeping newer ones. Problem: an older edit cannot be reverted without dropping newer ones. Gains: everyone in a long session. Evidence: NN/g heuristic 3 (link above) plus inventory. Effort M. Already done and not an idea: a toast's "Geri al" acts on its own step (B-023, cefd148 and faf32a5).
 2. Measure memory of the whole-job snapshot stack on a 800-page job over hundreds of steps and decide on `undoLimit` or diffs. Problem: A-56 no limit. Evidence: Qt `undoLimit` (https://doc.qt.io/qt-6/qundostack.html); PDF Arranger leaves it unbounded (https://github.com/pdfarranger/pdfarranger/blob/main/pdfarranger/undo.py), so no evidence of harm in other apps. Effort S to measure, M to change.
 3. Merge repeated rotate presses of the same pages into one step (Qt `mergeWith`). Problem: R pressed three times to turn 270 degrees. Effort S.
 

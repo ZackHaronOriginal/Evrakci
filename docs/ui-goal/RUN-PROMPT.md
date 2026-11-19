@@ -31,8 +31,9 @@ needed).
   `ui-bug-hunt`, `feature-planning`, and the design and audit skills listed in the plan's table
   (as lenses; their web/React specifics do not apply to Qt).
 - After every accepted step: commit, push, update `STATE.md`. At the end of each phase: run the
-  full suite and `ruff`, do the Opus phase review, fix or ledger its findings, then open or update
-  one pull request for that phase (repo PR template; no private content).
+  full suite and `ruff`, do the Opus phase review, fix or ledger its findings. Do not open a pull
+  request per phase; all work stays on the branch. Open one pull request to `main` only at the end
+  of Phase 6 (repo PR template; no private content).
 - From Phase 1 on, run Phase 5a to 5c (research, no code changes) in background Sonnet agents,
   reviewed by Opus, so the owner's ranking is ready before Phase 5.
 
@@ -56,4 +57,4 @@ needed).
 
 **Report to the owner** at each phase end, in plain language, at most 15 lines: what changed,
 the numbers (tests, performance, measured rules, ledger counts by severity), what is waiting in
-`OWNER-QUEUE.md`, the PR link.
+`OWNER-QUEUE.md`, the last commit.

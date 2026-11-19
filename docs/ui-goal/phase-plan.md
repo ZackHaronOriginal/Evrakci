@@ -53,9 +53,9 @@ bindings, 65 UI modules, about 26 000 lines.
   the model-akisi skill, reads `STATE.md` and continues from there. Task specs live in
   `.claude/gorevler/` (git-ignored, because this repo is public and specs quote the owner); nothing
   private goes into committed files.
-- **Commits and PRs.** Commit after every accepted step on `claude/focused-heisenberg-prspvt`,
-  push, and at the end of each phase open (or update) one pull request for that phase. When the
-  owner merges it, the branch restarts from the new `main`.
+- **Commits and the PR (owner rule, 2026-11-19).** All work stays on `claude/focused-heisenberg-prspvt`.
+  Commit and push after every accepted step. No pull request per phase: one pull request to `main`
+  is opened at the end of Phase 6, and the owner merges it.
 - **Private material never enters the repo:** the model-akisi skill, the Apple HIG pack text,
   real documents.
 

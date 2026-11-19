@@ -117,6 +117,8 @@ jobs:
           export PATH="$(cygpath "$RUNNER_TEMP")/tesseract-test:$PATH"
           ruff check .
           pytest -q
+          python .claude/skills/shortcut-audit/audit_shortcuts.py --check
+          python .claude/skills/shortcut-audit/audit_shortcuts.py --contract docs/ui-goal/shortcut-contract.tsv
 
       - name: Freeze (folder build; Tesseract added after cx_Freeze, licences from lib\)
         timeout-minutes: 30

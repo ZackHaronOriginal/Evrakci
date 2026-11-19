@@ -63,7 +63,8 @@ only (light theme, 1366x768).
 src/evrakci/pipeline/   Core processing (no Qt): jobs, page analysis, cuts, writing PDFs
 src/evrakci/cli/        The `evrakci` command line
 src/evrakci/ui/         PySide6 (Qt) window (`evrakci-arayuz`)
-tests/                  Automated tests
+tests/                  Automated tests (tests/ui for the window)
+tools/                  Checks and helpers for the window (screenshots, measuring)
 docs/                   Architecture, licensing, Turkish scanning guide
 samples/synthetic/      SYNTHETIC test documents only (see below)
 ```
@@ -119,6 +120,25 @@ ruff check . && pytest
 ```
 
 `evrakci` runs the command line. `evrakci-arayuz` opens the window.
+
+### Quality checks
+
+The window is checked by tools that run offscreen (no screen needed) with invented data only.
+Set `QT_QPA_PLATFORM=offscreen` (on Windows: `$env:QT_QPA_PLATFORM = "offscreen"`).
+CI runs the first four; see [docs/ui-goal/ci-gates.md](docs/ui-goal/ci-gates.md) for what it cannot run.
+
+```bash
+pytest -q                                                       # the whole suite
+python .claude/skills/shortcut-audit/audit_shortcuts.py --check  # keys: conflicts, a test per key
+python .claude/skills/shortcut-audit/audit_shortcuts.py --contract docs/ui-goal/shortcut-contract.tsv
+python tools/ui_measure.py --out ui-measure.tsv --enforce        # sizes, contrast, focus ring vs rules.json
+python .claude/skills/perf-profile/perf_kontrol.py --pages 1000  # Kontrol tab scroll and thumbnails
+python tools/screenshots.py matrix shots                         # 6 tabs x 3 themes x 2 sizes x 2 text sizes
+```
+
+`ui_measure.py` reports every rule in `docs/ui-goal/rules.json` and fails only for rules marked
+enforced. `perf_kontrol.py` has its own options and thresholds (`.claude/skills/perf-profile/SKILL.md`).
+`screenshots.py matrix` also prints a clipping report. Shortcut map: `docs/ui-goal/shortcuts.md`.
 
 ### Command line (komut satırı)
 

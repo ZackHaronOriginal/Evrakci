@@ -109,3 +109,54 @@ Scanning guide with search and the separator sheets to print.
 ## Builds
 
 On this branch's last commit both CI builds are green: the Windows installer (tests pass on Windows, `Evrakci-Kurulum` built) and the Linux build. The installer has not yet been installed and tried by hand on a Windows PC.
+
+
+## Quality run 2026-11
+
+Written 2026-11-19, in Phase 6. Where the part above describes the look, this part describes how
+the window was checked and fixed afterwards. Paths are relative to `docs/ui-goal/`. Nothing here
+was run on real documents; the owner's real-scan, Windows installer and sign-off steps are listed
+at the end.
+
+### Phases 0 to 6
+
+- **Phase 0, ground truth.** Full suite 1093 passed / 6 skipped, ruff clean (`baseline/suite.txt`).
+  Screenshot matrix of 72 shots with 0 clipping, keyboard walk of all six tabs, shortcut table
+  (`baseline/screenshots-matrix.txt`, `baseline/keywalk.txt`, `baseline/shortcuts.tsv`,
+  `baseline/shortcuts-check.txt`). Performance before: `baseline/perf-before.json` (real scroll
+  path, v2; the first version `baseline/perf-before-v1.json` hid B-032). Every bug in the ledger
+  `bugs.md`, rated S1 to S4; the S1 rows were fixed except B-005, which waits for the owner.
+- **Phase 1, rulebook and measuring tool.** 103 rules in `rules.json` (`rules-conflicts.md` lists
+  the 25 where sources disagree) and `tools/ui_measure.py`. Before: 234 failed checks
+  (`baseline/measure-before.tsv`, `baseline/measure-before-summary.txt`).
+- **Phase 2, Kontrol scrolling.** B-032 fixed (the timeline did not blit or repaint on scroll and
+  asked for thumbnails only from paint). All targets met in `baseline/perf-after-phase2.json`;
+  cause and changes in `baseline/perf-after-phase2-note.md`.
+- **Phase 3, shortcut contract.** One row per binding per tab in `shortcut-contract.tsv`, tested by
+  `tests/ui/test_shortcut_contract.py`; the map is `shortcuts.md`, the audit report
+  `shortcut-mismatches.md`. 110 of 319 rows keep a strict expected-failure until the owner decides
+  (Q-08, Q-09 in `OWNER-QUEUE.md`).
+- **Phase 4, element-by-element audit.** Six screens audited (inventory, states, click paths,
+  motion, copy, expert lenses) in `audit/`, fixed screen by screen. Measured fails 234 to 220
+  (`baseline/measure-after.tsv`, `baseline/measure-after-summary.txt`); full suite 2205 passed,
+  6 skipped, 203 expected failures, 0 failed. Reviews found must-fixes that were fixed; what
+  remains is in `bugs.md` (B-042 to B-070) and `OWNER-QUEUE.md` (Q-10 to Q-17).
+- **Phase 5, research and features.** Research notes in `research/`, ideas in `feature-ideas.md`,
+  ranking in `ideas-ranking.md`. Nothing is built; it waits for the owner's ranking (Q-06).
+- **Phase 6, hardening.**
+  - Performance check 2 on synthetic data (2000 pages, 150 % text, high-contrast theme, slow disk,
+    low memory): `baseline/perf-final.json` and `baseline/perf-table.md`; options in
+    `.claude/skills/perf-profile/SKILL.md`.
+  - CI gates: shortcut audit and contract on Linux and Windows, `ui_measure.py --enforce` and a
+    300-page correctness run of the Kontrol scroll on Linux; what CI cannot run is in
+    `ci-gates.md`.
+  - Docs: README "Quality checks", DESIGN.md "Implementation notes", `shortcuts.md` checked
+    against the registry (97 actions, 0 problems).
+  - For the owner: `tools/real_scan_check.py` and `owner-checklist-phase6.md`.
+
+### Still the owner's
+
+Real 800-page scans with OCR on and off, the Windows installer on a clean account (install,
+upgrade, uninstall), the Linux tarball on a real desktop, a screen reader pass, which rules fail
+the build (Q-03), the open S1 rows B-005 and B-056 (Q-01, Q-12), version, tag, release and code
+signing. The list with the answers needed is `OWNER-QUEUE.md`.

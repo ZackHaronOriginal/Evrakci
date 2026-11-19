@@ -7,6 +7,10 @@ checks the rules below.
 Status: wired. `MainWindow` builds the `Registry`, menus, command bars, palette and sheet from it.
 `.claude/skills/shortcut-audit/audit_shortcuts.py --check` audits it (tests matched by
 `@pytest.mark.action("<id>")` or a `# action: <id>` comment).
+What each key does and what the user sees is in `docs/ui-goal/shortcut-contract.tsv`; the audit's
+`--contract` option checks that file against the registry, and `tests/ui/test_shortcut_contract.py`
+tests every row. CI runs both audit checks (`docs/ui-goal/ci-gates.md`). Checked 2026-11-19: all 97
+registry actions appear on this page, and `--check` and `--contract` report 0 problems.
 
 ## Rules (checked by `validate()`)
 
@@ -234,7 +238,7 @@ meaning on purpose:
 - **Esc** dismisses. It no longer cancels: cancel is Ctrl+. on Yükle, Değerler and Dışa Aktar.
 - **Ctrl+E, Ctrl+N and Ctrl+O** now work on every tab. Before, each worked only on its own screen.
 
-## Notes for wiring (Phase 2b / 3)
+## Notes for wiring (kept from Phase 2b; the window is wired now)
 
 - Create one `Registry(main_window)`, call `install_text_guard()`, and call `set_context(tab)` from
   `QTabWidget.currentChanged`. Build the menu bar from `menu_structure()`. Hidden actions vanish
@@ -245,7 +249,9 @@ meaning on purpose:
   property through `icons.icon()`.
 - Remove the per-screen `QShortcut`s when their screen is wired. Otherwise Qt sees two bindings for
   one key and fires neither.
-- **Do not load `qtbase_tr.qm` for key names.** Its Turkish NativeText reads "Kontrol+Üst
-  Karakter+Sekme", "Seçenek+Yukarı" and "Dönüş". "Kontrol" would clash with the tab name, and
-  Turkish Windows keyboards print Ctrl, Shift, Alt and Del on the keys anyway. If "Boşluk" is
-  wanted for Space, add a small override map in `actions.key_text`.
+- **Qt's Turkish translation (`qtbase_tr.qm`) must not reach key names.** Its Turkish NativeText
+  reads "Kontrol+Üst Karakter+Sekme", "Seçenek+Yukarı" and "Dönüş". "Kontrol" would clash with the
+  tab name, and Turkish Windows keyboards print Ctrl, Shift, Alt and Del on the keys anyway. Since
+  f7741f0 the app installs only the `QPlatformTheme` context (standard dialog buttons) and tests
+  check that every tooltip and key text is unchanged. If "Boşluk" is wanted for Space, add a small
+  override map in `actions.key_text`.

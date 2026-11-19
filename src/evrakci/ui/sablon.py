@@ -351,7 +351,8 @@ class SablonScreen(LiveReads, Syncing, QWidget):
     # -- templates -------------------------------------------------------------
     def refresh_templates(self) -> None:
         self.flush_save()
-        found = sorted(self.store.list(), key=lambda t: t.name)
+        damaged: list[str] = []
+        found = sorted(self.store.list(damaged.append), key=lambda t: t.name)
         self.templates.blockSignals(True)
         self.templates.clear()
         for template in found:
@@ -368,6 +369,8 @@ class SablonScreen(LiveReads, Syncing, QWidget):
             self._show_boxes()
         elif self.template is None:
             self.templates.setCurrentRow(0)  # opens the first template
+        if damaged:  # a file that cannot be read is named, not skipped in silence (B-017)
+            self.message.setText("Şablon dosyası okunamadı: " + ", ".join(sorted(damaged)))
         self._sync_all()
 
     def _ask_text(self, title: str, label: str, ok: str) -> str | None:
@@ -390,7 +393,15 @@ class SablonScreen(LiveReads, Syncing, QWidget):
 
     def open_template(self, template_id: str) -> None:
         self.flush_save()
-        self.template = self.store.load(template_id)
+        try:
+            loaded = self.store.load(template_id)
+        except (TemplateError, KeyError) as error:
+            # the file was damaged or deleted after the list was drawn (F-sablonlar-08)
+            self.message.setText(str(error) if isinstance(error, TemplateError)
+                                 else f"Şablon dosyası okunamadı: {template_id}")
+            self._restore_template_row()
+            return
+        self.template = loaded
         self.undo_stack.clear()
         self._dirty, self._save_error = False, ""
         self.variable_name = self.template.variables[0].name if self.template.variables else None
@@ -402,6 +413,19 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         self._show_boxes()
         self._sync_all()
         self.read_example()
+
+    def _restore_template_row(self) -> None:
+        """The highlight goes back to the template that is really open."""
+        self.templates.blockSignals(True)
+        try:
+            for row in range(self.templates.count()):
+                item = self.templates.item(row)
+                if self.template is not None and item.data(USER) == self.template.id:
+                    self.templates.setCurrentRow(row)
+                    return
+            self.templates.setCurrentRow(-1)
+        finally:
+            self.templates.blockSignals(False)
 
     def _refresh_template_row(self) -> None:
         if self.template is None:
@@ -760,8 +784,33 @@ class SablonScreen(LiveReads, Syncing, QWidget):
     def _box_edited(self, box: tuple) -> None:
         """The inspector's X, Y, width or height changed."""
         if self.variable_name and self.section_index is not None:
+            box = self._fit_to_sheet(box)
             self.canvas.update_box(self.variable_name, self.section_index, box)
             self._set_box(self.variable_name, self.section_index, box)
+
+    def _fit_to_sheet(self, box: tuple) -> tuple:
+        """X, Y, width and height are typed one by one: keep X + width and Y + height on the
+        sheet (B-016). An edited position keeps the size; an edited size is cut at the edge."""
+        sheet = self.canvas.page_mm()
+        try:
+            old = self.template.variable(self.variable_name).sections[self.section_index].box_mm
+        except (TemplateError, IndexError):
+            old = box
+        lows, highs = [], []
+        for axis in (0, 1):
+            lo, hi, limit = box[axis], box[axis + 2], sheet[axis]
+            size = min(hi - lo, limit)
+            if abs(lo - old[axis]) > 1e-6:  # the position was edited: keep the size
+                lo = min(max(lo, 0.0), max(limit - size, 0.0))
+                hi = lo + size
+            else:
+                hi = min(hi, limit)
+            lows.append(lo)
+            highs.append(hi)
+        fitted = tuple(round(float(v), 2) for v in (*lows, *highs))
+        if fitted != tuple(round(float(v), 2) for v in box):
+            self.side.set_box(fitted)
+        return fitted
 
     def _set_box(self, name: str, index: int, box: tuple) -> None:
         box = tuple(round(float(v), 2) for v in box)

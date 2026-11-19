@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from PySide6.QtCore import QLocale, QSize, Qt, Signal
 from PySide6.QtGui import QValidator
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QDoubleSpinBox,
     QFrame,
@@ -207,6 +208,42 @@ def _card() -> QFrame:
     return card
 
 
+class BreakableLabel(QLabel):
+    """A word-wrapped label whose shown text carries zero-width break marks; they are display
+    only: what is copied from it and what a screen reader gets never contains them."""
+
+    ZWSP = "\u200b"
+
+    def __init__(self) -> None:
+        super().__init__()
+        QApplication.clipboard().dataChanged.connect(self._clean_clipboard)
+
+    def _clean_clipboard(self) -> None:
+        board = QApplication.clipboard()
+        text = board.text()
+        if self.ZWSP in text and self.hasSelectedText():
+            board.setText(text.replace(self.ZWSP, ""))
+
+    def setText(self, text: str) -> None:  # noqa: N802
+        super().setText(text)
+        self.setAccessibleName(text.replace(self.ZWSP, ""))
+
+    def set_exact(self, text: str) -> None:
+        self.setText(_breakable(text))
+        self.setToolTip(text if text != "—" else "")
+
+
+def _breakable(text: str, run: int = 12) -> str:
+    """Text with a zero-width space after every `run` characters of an unbroken run, so a
+    word-wrapped label can break it."""
+    out = []
+    for word in text.split(" "):
+        if len(word) > run:
+            word = "\u200b".join(word[i:i + run] for i in range(0, len(word), run))
+        out.append(word)
+    return " ".join(out)
+
+
 class InspectorPanel(QWidget):
     name_edited = Signal(str)
     required_toggled = Signal(bool)
@@ -289,6 +326,7 @@ class InspectorPanel(QWidget):
         self.title = ElidedLabel("", 8)
         self.title.setProperty("textRole", "page")
         self.sub = QLabel()
+        self.sub.setWordWrap(True)  # a long sentence takes a second line (F-sablonlar-03)
         self.sub.setProperty("textRole", "secondary")
         col.addSpacing(m.size("s1"))
         col.addWidget(self.title)
@@ -362,7 +400,7 @@ class InspectorPanel(QWidget):
         card = QVBoxLayout(self.read_card)
         card.setContentsMargins(0, m.size("s1"), 0, m.size("s1"))
         card.setSpacing(0)
-        self.read_value = QLabel()
+        self.read_value = BreakableLabel()
         self.read_value.setProperty("kind", "inspector-value")
         self.read_value.setWordWrap(True)
         self.read_value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -493,7 +531,11 @@ class InspectorPanel(QWidget):
             self.level.set("okunmadi", None)
             self.note_row.setVisible(False)
             return
-        self.read_value.setText(shown.text or "—")
+        # a long unbroken run (bar code, garbage) may break anywhere (zero-width spaces) so it
+        # wraps in the column instead of widening the inspector; the tooltip holds the exact
+        # text (F-sablonlar-01)
+        text = shown.text or "—"
+        self.read_value.set_exact(text)
         self.level.set(shown.level, shown.percent)
         self.read_note.setText(shown.note)
         self.note_row.setVisible(bool(shown.note))

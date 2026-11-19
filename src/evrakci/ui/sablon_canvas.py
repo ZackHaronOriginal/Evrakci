@@ -462,20 +462,32 @@ class PageCanvas(QGraphicsView):
     def _snapped(self, mm: float) -> float:
         return round(mm / SNAP_MM) * SNAP_MM if self.snap else mm
 
-    def _clamp(self, box: Box) -> Box:
-        """Keep the box on the sheet at least MIN_BOX_MM in size (rounded to 0,01 mm)."""
+    def _clamp(self, box: Box, old: Box | None = None) -> Box:
+        """Keep the box on the sheet at least MIN_BOX_MM in size (rounded to 0,01 mm). With `old`
+        (a box that already lies off the sheet), an edge the edit did not touch is left alone
+        instead of being pulled to the sheet in one jump (F-sablonlar-11)."""
         width, height = self.page_mm()
         x0, y0, x1, y1 = box
-        x1, y1 = min(max(x1, MIN_BOX_MM), width), min(max(y1, MIN_BOX_MM), height)
-        x0, y0 = max(0.0, min(x0, x1 - MIN_BOX_MM)), max(0.0, min(y0, y1 - MIN_BOX_MM))
+        if old is None:
+            old = (None, None, None, None)
+        if old[2] != x1:
+            x1 = min(max(x1, MIN_BOX_MM), width)
+        if old[3] != y1:
+            y1 = min(max(y1, MIN_BOX_MM), height)
+        if old[0] != x0:
+            x0 = max(0.0, min(x0, x1 - MIN_BOX_MM))
+        if old[1] != y0:
+            y0 = max(0.0, min(y0, y1 - MIN_BOX_MM))
         return (round(x0, 2), round(y0, 2), round(x1, 2), round(y1, 2))
 
     def _moved(self, box: Box, dx: float, dy: float) -> Box:
         """The box shifted without changing its size, kept on the sheet."""
         width, height = self.page_mm()
         x0, y0, x1, y1 = box
-        dx = min(max(dx, -x0), width - x1)
-        dy = min(max(dy, -y0), height - y1)
+        # only the direction that would leave the sheet is limited: a box that already lies off
+        # it is not pulled back by an unrelated key press (F-sablonlar-11)
+        dx = max(dx, -max(x0, 0.0)) if dx < 0 else min(dx, max(width - x1, 0.0))
+        dy = max(dy, -max(y0, 0.0)) if dy < 0 else min(dy, max(height - y1, 0.0))
         return (round(x0 + dx, 2), round(y0 + dy, 2), round(x1 + dx, 2), round(y1 + dy, 2))
 
     def box_at(self, scene_pos: QPointF) -> BoxItem | None:
@@ -586,7 +598,7 @@ class PageCanvas(QGraphicsView):
                 ny0 = self._snapped(y0 + dy)
             else:
                 ny1 = self._snapped(y1 + dy)
-            new = self._clamp((nx0, ny0, nx1, ny1))
+            new = self._clamp((nx0, ny0, nx1, ny1), box)
         item.set_box(new)
         self.view_changed.emit()
 
@@ -747,8 +759,13 @@ class PageCanvas(QGraphicsView):
         if item is None:
             return False
         x0, y0, x1, y1 = item.spec.box
-        new = self._clamp((x0, y0, max(x0 + MIN_BOX_MM, x1 + dx * step),
-                           max(y0 + MIN_BOX_MM, y1 + dy * step)))
+        nx1, ny1 = x1 + dx * step, y1 + dy * step
+        width, height = self.page_mm()
+        if dx > 0:  # growing never goes past the sheet, nor pulls an off-sheet edge back
+            nx1 = min(nx1, max(width, x1))
+        if dy > 0:
+            ny1 = min(ny1, max(height, y1))
+        new = (x0, y0, round(max(x0 + MIN_BOX_MM, nx1), 2), round(max(y0 + MIN_BOX_MM, ny1), 2))
         if new == item.spec.box:
             return False
         item.set_box(new)

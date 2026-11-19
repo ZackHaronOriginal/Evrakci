@@ -245,8 +245,6 @@ def test_b015_the_delete_command_names_what_it_deletes(qtbot, tmp_path):
 
 
 # -- B-016 ------------------------------------------------------------------------------------
-@pytest.mark.xfail(strict=True, reason="B-016: the inspector clamps X and width one by one, so "
-                   "X + width can exceed the sheet and the box leaves it")
 def test_b016_inspector_cannot_move_a_box_off_the_sheet(qtbot, tmp_path):
     screen, _templates, _template_ = _sablon(qtbot, tmp_path)
     screen.set_example(1)
@@ -260,8 +258,6 @@ def test_b016_inspector_cannot_move_a_box_off_the_sheet(qtbot, tmp_path):
 
 
 # -- B-017 ------------------------------------------------------------------------------------
-@pytest.mark.xfail(strict=True, reason="B-017: SablonScreen.refresh_templates calls store.list() "
-                   "without on_error, so a damaged template file is skipped silently")
 def test_b017_a_damaged_template_file_is_reported(qtbot, tmp_path):
     screen, templates, _template_ = _sablon(qtbot, tmp_path)
     (templates.root / "abcdef1234.json").write_text("{ not json", encoding="utf-8")

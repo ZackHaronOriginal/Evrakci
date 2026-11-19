@@ -1,0 +1,191 @@
+"""Ledger repro tests, group A (B-020 to B-031, Kontrol and App).
+
+Each test asserts the EXPECTED behaviour and is xfail(strict=True) while the bug exists.
+When a bug is fixed the test XPASSes and fails the suite: remove the marker then.
+"""
+
+import pytest
+from fakes import job_from_kinds
+from PIL import Image
+from PySide6.QtWidgets import QPushButton
+
+from evrakci.pipeline.store import JobStore
+from evrakci.pipeline.templates.store import TemplateStore
+from evrakci.ui import feedback
+from evrakci.ui.controller import JobController
+from evrakci.ui.kontrol import KontrolScreen
+from evrakci.ui.main_window import MainWindow
+from evrakci.ui.prefs import Prefs
+from evrakci.ui.thumbnails import ThumbnailService
+
+
+class Renderer:
+    def __call__(self, pid, height):
+        return Image.new("RGB", (int(height * 0.7), height), "white")
+
+
+def _controller(tmp_path, spec):
+    job = job_from_kinds(spec)
+    store = JobStore(tmp_path / "jobs")
+    store.save(job)
+    return JobController(store, job)
+
+
+def _screen(qtbot, ctl, renderer=None):
+    screen = KontrolScreen(ctl, ThumbnailService(renderer or Renderer(), height=100),
+                           templates=dict)
+    qtbot.addWidget(screen)
+    screen.resize(1366, 640)
+    return screen
+
+
+def _go(screen, row):
+    screen.timeline.setCurrentIndex(screen.timeline.model().index(row))
+
+
+def _window(qtbot, tmp_path, spec):
+    store = JobStore(tmp_path / "jobs")
+    job = job_from_kinds(spec)
+    store.save(job)
+    window = MainWindow(store, TemplateStore(tmp_path / "tpl"),
+                        settings_path=tmp_path / "ayar.json", prefs=Prefs(tmp_path / "p.ini"))
+    qtbot.addWidget(window)
+    window.resize(1366, 768)
+    window.yukle.open_job(store.load(job.id))
+    window.show_tab("kontrol")
+    qtbot.wait(1)
+    return window
+
+
+@pytest.mark.xfail(strict=True, reason="B-020: K on page 1 stores a cut that splits nothing "
+                                       "and relabels İşin başı as Elle kesim")
+def test_b020_k_on_the_first_page_changes_nothing_visible(qtbot, tmp_path):
+    ctl = _controller(tmp_path, {"a": "pppp"})
+    screen = _screen(qtbot, ctl)
+    first = ctl.job.ordered_page_ids()[0]
+    _go(screen, 0)
+    screen.toggle_cut()
+    assert len(ctl.documents()) == 1
+    assert ctl.cut_kinds()[first] == "start"
+
+
+@pytest.mark.xfail(strict=True, reason="B-021: M on a QR document that also has a manual cut "
+                                       "removes only the QR cut; the toast says merged")
+def test_b021_merge_joins_a_qr_document_that_also_has_a_manual_cut(qtbot, tmp_path):
+    ctl = _controller(tmp_path, {"a": "pppqppp"})
+    ctl.add_cut("a/4")  # first page after the QR page: the manual cut is hidden under the QR cut
+    screen = _screen(qtbot, ctl)
+    assert len(ctl.documents()) == 2
+    _go(screen, 4)
+    screen.merge_current()
+    assert len(ctl.documents()) == 1
+
+
+@pytest.mark.xfail(strict=True, reason="B-022: status line messages are never announced")
+def test_b022_status_line_message_is_announced(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path, {"a": "pppp"})
+    window.controller().status.emit("Bu ilk belge.")
+    assert window.message.text() == "Bu ilk belge."
+    assert window.message.accessibleName() == "Bu ilk belge."
+
+
+@pytest.mark.xfail(strict=True, reason="B-023: Geri al on a queued toast undoes the newest step, "
+                                       "not the toast's own")
+def test_b023_geri_al_on_the_older_toast_undoes_that_toasts_step(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path, {"a": "pppp"})
+    screen, ctl = window.kontrol, window.controller()
+    _go(screen, 0)
+    screen.toggle_delete()  # toast 1: page a/0
+    _go(screen, 1)
+    screen.toggle_delete()  # toast 2 waits in the queue: page a/1
+    assert window.toaster.pending() == 1
+    button = next(b for b in window.toaster._current.findChildren(QPushButton)
+                  if b.text() == "Geri al")
+    button.click()
+    assert "a/0" not in ctl.job.deleted
+    assert "a/1" in ctl.job.deleted
+
+
+@pytest.mark.xfail(strict=True, reason="B-024: a page whose render fails stays on the "
+                                       "Yükleniyor placeholder, with no error state")
+def test_b024_failed_render_is_not_shown_as_loading(qtbot, tmp_path, monkeypatch):
+    from evrakci.ui import kontrol_paint
+
+    def broken(pid, height):
+        raise RuntimeError("bozuk sayfa")
+
+    ctl = _controller(tmp_path, {"a": "ppp"})
+    screen = _screen(qtbot, ctl, broken)
+    screen.show()
+    screen.timeline.viewport().repaint()
+    service = screen.thumbnails
+    qtbot.waitUntil(service.idle, timeout=5000)
+    qtbot.wait(50)
+    painted = []
+    original = kontrol_paint.paint_placeholder
+    monkeypatch.setattr(kontrol_paint, "paint_placeholder",
+                        lambda *a, **k: painted.append(a[2]) or original(*a, **k))
+    screen.timeline.viewport().grab()
+    service.stop()
+    service._pool.waitForDone(5000)
+    assert painted == []  # a failed page needs its own error state, not "Yükleniyor"
+
+
+@pytest.mark.xfail(strict=True, reason="B-027: Ctrl+G is routed on Kontrol and Değerler only; "
+                                       "disabled on the other four tabs")
+@pytest.mark.parametrize("tab", ["yukle", "sablonlar", "disa_aktar", "rehber"])
+def test_b027_ctrl_g_answers_on_every_tab(qtbot, tmp_path, tab):
+    window = _window(qtbot, tmp_path, {"a": "pppp"})
+    window.show_tab(tab)
+    assert window.registry.is_enabled("app.git")
+
+
+@pytest.mark.xfail(strict=True, reason="B-028: F5 is enabled on Kontrol and Rehber but does "
+                                       "nothing there")
+@pytest.mark.parametrize("tab", ["kontrol", "rehber"])
+def test_b028_f5_is_disabled_where_it_does_nothing(qtbot, tmp_path, tab):
+    window = _window(qtbot, tmp_path, {"a": "pppp"})
+    window.show_tab(tab)
+    assert not window.registry.is_enabled("app.yenile")
+
+
+@pytest.mark.xfail(strict=True, reason="B-029: an autosave that fails raises out of the edit "
+                                       "and shows no message")
+def test_b029_failed_autosave_is_reported_not_raised(qtbot, tmp_path, monkeypatch):
+    ctl = _controller(tmp_path, {"a": "pppp"})
+    messages = []
+    ctl.status.connect(messages.append)
+
+    def fail(job):
+        raise OSError("disk dolu")
+
+    monkeypatch.setattr(ctl.store, "save", fail)
+    ctl.add_cut("a/2")  # must not raise
+    assert messages
+
+
+@pytest.mark.xfail(strict=True, reason="B-030: an error toast shows the info icon")
+def test_b030_error_toast_has_its_own_icon(qtbot, tmp_path):
+    from PySide6.QtWidgets import QLabel, QWidget
+
+    host = QWidget()
+    qtbot.addWidget(host)
+
+    def icon_of(kind):
+        toast = feedback._Toast(host, "Metin", None, None, kind)
+        qtbot.addWidget(toast)
+        label = next(w for w in toast.findChildren(QLabel) if w.pixmap() is not None
+                     and not w.pixmap().isNull())
+        return label.pixmap().toImage()
+
+    assert icon_of("error") != icon_of("info")
+
+
+@pytest.mark.xfail(strict=True, reason="B-031: palette placeholder says documents are "
+                                       "searched; it lists commands only")
+def test_b031_palette_placeholder_is_true(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path, {"a": "pppp"})
+    window.open_palette()
+    text = window.command_palette.field.placeholderText().lower()
+    window.command_palette.hide()
+    assert "belge ara" not in text

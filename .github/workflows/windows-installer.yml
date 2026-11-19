@@ -105,7 +105,7 @@ jobs:
           Copy-Item tur_best.traineddata "$env:RUNNER_TEMP\tessdata_best\tur.traineddata"
 
       - name: Tests (nothing skipped for want of tur_best)
-        timeout-minutes: 30
+        timeout-minutes: 75  # the suite grew to ~2400 tests in the 2026-11 quality run; ~40 min on windows-latest
         shell: bash
         env:
           PYTHONUTF8: "1"
@@ -116,7 +116,7 @@ jobs:
         run: |
           export PATH="$(cygpath "$RUNNER_TEMP")/tesseract-test:$PATH"
           ruff check .
-          pytest -q
+          pytest -q -rfE
           python .claude/skills/shortcut-audit/audit_shortcuts.py --check
           python .claude/skills/shortcut-audit/audit_shortcuts.py --contract docs/ui-goal/shortcut-contract.tsv
 

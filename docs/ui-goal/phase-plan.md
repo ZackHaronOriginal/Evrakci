@@ -1,6 +1,8 @@
 # Evrakçı: quality phase plan (draft for owner review)
 
-Status: DRAFT, nothing here is decided until the owner signs off each section. Written 2026-11-19.
+Status: DRAFT for review. Written 2026-11-19. Owner answers so far (2026-11-19): Fluent wins over Apple
+where they differ; hit-target minimums 24 px / 32 px in rows / 28 px button height accepted;
+performance check 1 is at the start. Everything else still needs the owner's review.
 Starting point: `main` with the UI overhaul merged plus 0.0.2 (PR #5). 97 registered actions
 (35 app-wide, 21 Kontrol, 15 Değerler, 12 Şablonlar, 7 Yükle, 4 Dışa Aktar, 3 Rehber), 109 key
 bindings, 65 UI modules, about 26 000 lines.
@@ -32,7 +34,7 @@ Proposal: Apple HIG is the rulebook for **principles that do not depend on the o
 undo, error prevention, accessibility). Where a measured number differs from an approved decision
 D1 to D13, **the approved decision wins unless the owner changes it**, and the difference is listed
 in `docs/ui-goal/rules-conflicts.md` for a yes/no. Apple's iOS/touch sizes (for example 44 pt tap
-target) are not applied to a mouse app. Owner: confirm or change this.
+target) are not applied to a mouse app. **Owner confirmed 2026-11-19.**
 
 ---
 
@@ -97,8 +99,8 @@ and DESIGN.md.
    (touch, iOS, visionOS), or needs an owner decision. Differences go into `rules-conflicts.md`.
 4. **Add the audience rules** that Apple does not cover: 150% text, weaker eyesight (contrast at
    least 7:1 for body text per D10), 1366×768 without window scroll, hit target minimums for a mouse
-   (proposal: 24 px minimum, 32 px for controls in rows, 28 px minimum height for buttons; to be
-   confirmed), keyboard-only use of every function.
+   (**owner confirmed 2026-11-19**: 24 px minimum, 32 px for controls in rows, 28 px minimum height
+   for buttons), keyboard-only use of every function.
 5. **Write `docs/ui-goal/rules.json`**: one entry per rule with id, category, what is measured,
    the allowed value or range, the source (HIG URL, decision id or audience), severity, and whether
    it is enforced or only reported.

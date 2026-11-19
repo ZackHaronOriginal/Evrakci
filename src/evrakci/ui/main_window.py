@@ -985,8 +985,11 @@ class MainWindow(QMainWindow):
 
     # Undo / redo: the job's stack, or the template editor's on Şablonlar
     def _undo_stack(self) -> QUndoStack | None:
-        if self.current_tab() == "sablonlar":
+        tab = self.current_tab()
+        if tab == "sablonlar":
             return self.sablon.undo_stack
+        if tab == "rehber":  # shows nothing of the job: Ctrl+Z must not act unseen (B-055)
+            return None
         controller = self.controller()
         return controller.undo_stack if controller is not None else None
 
@@ -1220,6 +1223,17 @@ class MainWindow(QMainWindow):
         controller.job_changed.connect(self._saved_now, unique)
         controller.save_failed.connect(self._save_failed, unique)
         controller.undo_stack.indexChanged.connect(self._sync_undo, unique)
+        controller.undo_stack.indexChanged.connect(self._job_stack_changed, unique)
+
+    def _job_stack_changed(self, *_args) -> None:
+        """An edit, undo or redo changed the job: Dışa Aktar plans again at once, so the
+        names it shows (and writes) are current (F-disa-aktar-01)."""
+        if self._closing or self.current_tab() != "disa_aktar":
+            return
+        try:
+            self.disa_aktar.refresh()
+        except RuntimeError:  # the window is being torn down
+            pass
 
     def _unwire_controller(self) -> None:
         old, self._wired = self._wired, None
@@ -1229,7 +1243,8 @@ class MainWindow(QMainWindow):
                              (old.job_changed, self._update_counts),
                              (old.job_changed, self._saved_now),
                              (old.save_failed, self._save_failed),
-                             (old.undo_stack.indexChanged, self._sync_undo)):
+                             (old.undo_stack.indexChanged, self._sync_undo),
+                             (old.undo_stack.indexChanged, self._job_stack_changed)):
             try:
                 signal.disconnect(slot)
             except (RuntimeError, TypeError):
@@ -1262,6 +1277,9 @@ class MainWindow(QMainWindow):
         if reason:
             self.message.setText(reason)
             return
+        self._close_open_job()
+
+    def _close_open_job(self) -> None:
         self._unwire_controller()
         self.yukle._close_now()  # the screen's own reset (its close_job comes back here)
         self._retire_thumbnails()
@@ -1274,8 +1292,9 @@ class MainWindow(QMainWindow):
         self.refresh_current()
 
     def _job_deleted(self) -> None:
-        (self.store.root / LAST_JOB).unlink(missing_ok=True)
-        self.yukle.refresh_jobs()
+        """The job's files are gone (delete after export): close it, so nothing writes its
+        job.json back (F-disa-aktar-03, B-008)."""
+        self._close_open_job()
 
     def _saved(self, when: datetime | None = None) -> None:
         self.job_switch.save_state.set_saved(when or datetime.now())

@@ -162,8 +162,6 @@ def test_b007_the_count_unit_matches_what_is_printed(qtbot, tmp_path):
     assert "sayfa" not in unit or pages == screen.count.value()
 
 
-@pytest.mark.xfail(strict=True, reason="B-008: after 'delete after export' deletes the job from "
-                   "disk, the job stays open in the window (main_window._job_deleted)")
 def test_b008_the_open_job_closes_when_the_export_deleted_it(qtbot, tmp_path, pdfs, monkeypatch):
     window = _window(qtbot, tmp_path)
     job = window.store.create_job("İş", pdfs[:1])

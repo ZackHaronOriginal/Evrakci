@@ -126,6 +126,7 @@ class DisaAktarScreen(QWidget):
         self._exporting: tuple[JobController, object] | None = None
         self._written = False  # the table shows what was written, not the preview
         self._written_for: JobController | None = None
+        self._job_gone = False  # the export deleted its job: the window closed it, keep the card
         self._written_rows: list[FileRow] = []
         self._outcome: dict | None = None  # the outcome card's content (done / stopped / failed)
         self._index_written = False
@@ -420,22 +421,27 @@ class DisaAktarScreen(QWidget):
         known = {v.name for i in used for v in templates[i].variables}
         self._variables = sorted(known, key=str.casefold)
         override = self._overrides.get(job.id, "")
-        effective = self._effective(job, templates, used)
+        problem = pattern_problem(override, known) if override else ("", [])
+        # an unmatched brace would make plan_export raise: plan with the templates' own
+        # patterns and let the Engel row (findings) say what is wrong
+        effective = (dict(templates) if problem[0] == "brace"
+                     else self._effective(job, templates, used))
         self._items = plan_export(job, effective)
         per_item = {n + 1: (effective[i].filename_pattern if i in used else "")
                     for n, i in enumerate(ids)}
         self._patterns = per_item
         self._rows = file_rows(job, self._items, per_item)
         self._summary = summarize(self._items, self._rows)
-        if override:
-            self._problem = pattern_problem(override, known)
+        self._problem = problem
 
     def refresh(self) -> None:
         controller = self.controller()
         if self.task is not None:
             self._sync()
             return
-        if self._written and controller is not self._written_for:
+        if self._written and controller is not self._written_for \
+                and not (self._job_gone and controller is None):
+            self._job_gone = False
             self._written = False  # another job is open: show its names again
             self._written_rows, self._outcome = [], None
         if not self._written:
@@ -562,12 +568,26 @@ class DisaAktarScreen(QWidget):
             if count == 0 and self.filter_button.isChecked():
                 self.filter_button.setChecked(False)
 
+    def _path_room(self) -> int:
+        """Width the path may take in the head: what the left column really has, less the
+        title and the card's padding (a fixed 520 x scale overflowed it at 150 %)."""
+        wide = round(520 * scale())
+        have = self.left_scroll.viewport().width()
+        if have <= 0:
+            return wide
+        return max(round(120 * scale()), min(wide, have - round(300 * scale())))
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        if self._compute_state() in ("running", "done") and self.out_dir is not None:
+            self._sync()
+
     def _short_path(self, text: str) -> str:
         from PySide6.QtGui import QFontMetrics
 
         font = theme.manager().font("caption")
         return QFontMetrics(font).elidedText(text, Qt.TextElideMode.ElideMiddle,
-                                             round(520 * scale()))
+                                             self._path_room())
 
     def _sync_side(self, state: str) -> None:
         side = self.side
@@ -740,6 +760,7 @@ class DisaAktarScreen(QWidget):
 
     def _folder_changed(self, text: str) -> None:
         self._folder = folder_state(text)
+        self.folder.setToolTip(text.strip())  # the field shows the end of a long path
         if text.strip():
             self._folder_error = False
         self._sync()
@@ -941,6 +962,7 @@ class DisaAktarScreen(QWidget):
 
         self.out_dir = out_dir
         self._written, self._index_written = False, False
+        self._job_gone = False
         self._stage, self._stage_seen = "write", None
         self._done_count, self._total = 0, len(self._items)
         self.task = Task(work)
@@ -1008,6 +1030,7 @@ class DisaAktarScreen(QWidget):
         if retention == DELETE_AFTER_EXPORT and may_delete_after_export(result):
             controller.store.delete(job.id)
             kept = "İş silindi (saklama ayarı)."
+            self._job_gone = True
             self.job_deleted.emit()
         elif retention == DELETE_AFTER_EXPORT and result.paths and not result.with_layer:
             kept = "İş saklandı: metin katmanı eklenmedi."

@@ -14,6 +14,7 @@ from PySide6.QtCore import QEvent, QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QKeyEvent
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
+    QAbstractButton,
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -277,6 +278,9 @@ class RehberScreen(QWidget):
         self.text.anchorClicked.connect(self._link)
         self.text.verticalScrollBar().valueChanged.connect(self._scrolled)
         self.text.installEventFilter(self)
+        self._empty_buttons = self.empty.findChildren(QAbstractButton)
+        for button in self._empty_buttons:
+            button.installEventFilter(self)
         self.toc.installEventFilter(self)
         self._announce = QTimer(self)
         self._announce.setSingleShot(True)
@@ -363,11 +367,21 @@ class RehberScreen(QWidget):
         font.setPixelSize(look.body)
         widest = round(TEXT_WIDTH * k * m.size("fs-body") / 15)
         keep = self.text.current()
+        bar = self.text.verticalScrollBar()
+        place = bar.value() / bar.maximum() if bar.maximum() > 0 else 0.0
         self.text.show_guide(self.guide, look, (look.gap[4], round(m.size("s8") * k), widest),
                              font, self._show_note)
+        if place > 0:  # the reading place survives a theme, text size or tip change (F-rehber-09)
+            bar.setValue(round(place * bar.maximum()))
         if self._query:
             self._hits = self.text.search(self._query)
             self.text.set_hits(self._hits, keep if keep >= 0 else 0 if self._hits else -1)
+            if self._hits:
+                if self.stack.currentWidget() is self.empty:
+                    self.stack.setCurrentWidget(self.text)
+            else:  # F-rehber-19: nothing left to show
+                self.empty.set_query(self._query)
+                self.stack.setCurrentWidget(self.empty)
         self._counts()
         self._sync_status()
 
@@ -542,7 +556,7 @@ class RehberScreen(QWidget):
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if (event.type() == QEvent.Type.KeyPress and isinstance(event, QKeyEvent)
                 and event.key() == Qt.Key.Key_Escape and self._query
-                and obj in (self.text, self.toc)):
+                and (obj in (self.text, self.toc) or obj in self._empty_buttons)):
             self.clear_search()
             return True
         return False

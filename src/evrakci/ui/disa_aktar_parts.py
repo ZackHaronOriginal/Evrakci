@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.ui import icons, theme
-from evrakci.ui.chrome import make_icon
+from evrakci.ui.chrome import make_icon, press_on_enter
 from evrakci.ui.disa_aktar_model import Finding
 
 # word, icon, colour role, strong (A .st)
@@ -68,6 +68,10 @@ class PartsButton(QPushButton):
         self._height = "lg-h" if large else "control-h"
         self._sync_name()
         theme.follow(self, self._restyle, "parts")
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if not press_on_enter(self, event):  # Enter presses it like Space (F-rehber-07)
+            super().keyPressEvent(event)
 
     def _sync_name(self) -> None:
         self.setAccessibleName(self._accessible or (

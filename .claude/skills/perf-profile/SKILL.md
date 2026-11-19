@@ -55,10 +55,22 @@ What it does: builds a 1000-page job (`tests/fakes.py:job_from_kinds`, or a real
 shows `KontrolScreen` at 1366x640, sweeps the scrollbar down and up in 120 px steps (one
 wheel notch), timing a full `viewport().repaint()` per step, then jumps to 50/90/10/70 % with
 no mouse event and waits until every visible row has a current thumbnail. It prints first
-paint, frame p50/p95/max, frames over 16.7 and 33 ms, time to settle after a jump, the share of
-visible rows loaded when idle, and prefetched rows below the view, and exits 1 on a missed
-threshold. Offscreen frame times do not include the compositor, so compare runs on the same
-machine and treat absolute numbers as a ceiling check.
+paint (first paint event after `show()`) with the pids requested by then, first settle with the
+renders it took, frame p50/p95/max, frames over 16.7 and 33 ms, time to settle after a jump, the
+share of visible rows loaded when idle, prefetched rows below the view, cache size and RSS after
+the sweep, and exits 1 on a missed threshold. Offscreen frame times do not include the
+compositor, so compare runs on the same machine and treat absolute numbers as a ceiling check.
+
+Options:
+
+- `--runs N`: N separate subprocess runs; `--out` gets `{runs, median, min, max, spread_pct}` and
+  thresholds are checked on the median. `--baseline` accepts either shape.
+- `--frame-log PATH` (fake renderer only): a second pass on a cold cache that scrolls like the
+  app (`scrollbar.setValue` + `processEvents`, never `repaint()` or a mouse event), reads the
+  window backing store with `QScreen.grabWindow` after each step (a self-check first proves it
+  keeps blitted pixels) and classifies each visible row as ok / blank / wrong / stale against a
+  fresh paint. One JSON line per frame; summary metrics `frames_with_wrong`, `frames_with_stale`,
+  `blank_rows_after_settle`, `max_blank_rows_in_frame`. With `--runs`, run k > 1 logs to `PATH.k`.
 
 When a threshold fails, find the hotspot:
 

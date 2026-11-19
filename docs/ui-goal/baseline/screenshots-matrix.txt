@@ -1,0 +1,85 @@
+# Screenshot matrix baseline
+date: 2026-11-19
+git commit: 0a28b16
+command: QT_QPA_PLATFORM=offscreen python tools/screenshots.py matrix --allow /tmp/claude-0/shots-runN > /tmp/claude-0/matrix-runN.txt 2>&1
+
+## run 1 PNG file list (sorted)
+degerler-dark-1366x768-100.png
+degerler-dark-1366x768-150.png
+degerler-dark-1920x1080-100.png
+degerler-dark-1920x1080-150.png
+degerler-hc-1366x768-100.png
+degerler-hc-1366x768-150.png
+degerler-hc-1920x1080-100.png
+degerler-hc-1920x1080-150.png
+degerler-light-1366x768-100.png
+degerler-light-1366x768-150.png
+degerler-light-1920x1080-100.png
+degerler-light-1920x1080-150.png
+disa-aktar-dark-1366x768-100.png
+disa-aktar-dark-1366x768-150.png
+disa-aktar-dark-1920x1080-100.png
+disa-aktar-dark-1920x1080-150.png
+disa-aktar-hc-1366x768-100.png
+disa-aktar-hc-1366x768-150.png
+disa-aktar-hc-1920x1080-100.png
+disa-aktar-hc-1920x1080-150.png
+disa-aktar-light-1366x768-100.png
+disa-aktar-light-1366x768-150.png
+disa-aktar-light-1920x1080-100.png
+disa-aktar-light-1920x1080-150.png
+kontrol-dark-1366x768-100.png
+kontrol-dark-1366x768-150.png
+kontrol-dark-1920x1080-100.png
+kontrol-dark-1920x1080-150.png
+kontrol-hc-1366x768-100.png
+kontrol-hc-1366x768-150.png
+kontrol-hc-1920x1080-100.png
+kontrol-hc-1920x1080-150.png
+kontrol-light-1366x768-100.png
+kontrol-light-1366x768-150.png
+kontrol-light-1920x1080-100.png
+kontrol-light-1920x1080-150.png
+rehber-dark-1366x768-100.png
+rehber-dark-1366x768-150.png
+rehber-dark-1920x1080-100.png
+rehber-dark-1920x1080-150.png
+rehber-hc-1366x768-100.png
+rehber-hc-1366x768-150.png
+rehber-hc-1920x1080-100.png
+rehber-hc-1920x1080-150.png
+rehber-light-1366x768-100.png
+rehber-light-1366x768-150.png
+rehber-light-1920x1080-100.png
+rehber-light-1920x1080-150.png
+sablonlar-dark-1366x768-100.png
+sablonlar-dark-1366x768-150.png
+sablonlar-dark-1920x1080-100.png
+sablonlar-dark-1920x1080-150.png
+sablonlar-hc-1366x768-100.png
+sablonlar-hc-1366x768-150.png
+sablonlar-hc-1920x1080-100.png
+sablonlar-hc-1920x1080-150.png
+sablonlar-light-1366x768-100.png
+sablonlar-light-1366x768-150.png
+sablonlar-light-1920x1080-100.png
+sablonlar-light-1920x1080-150.png
+yukle-dark-1366x768-100.png
+yukle-dark-1366x768-150.png
+yukle-dark-1920x1080-100.png
+yukle-dark-1920x1080-150.png
+yukle-hc-1366x768-100.png
+yukle-hc-1366x768-150.png
+yukle-hc-1920x1080-100.png
+yukle-hc-1920x1080-150.png
+yukle-light-1366x768-100.png
+yukle-light-1366x768-150.png
+yukle-light-1920x1080-100.png
+yukle-light-1920x1080-150.png
+
+count: 72 files
+
+## run 1 clipping report
+ÖZET: 72 görüntü, 0 kırpılma/taşma
+
+run 2: identical file list: yes; identical clipping report: yes

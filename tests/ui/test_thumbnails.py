@@ -1,5 +1,10 @@
+import os
+import subprocess
+import sys
 import threading
+from pathlib import Path
 
+import pytest
 from PIL import Image
 
 from evrakci.ui.thumbnails import ThumbnailService
@@ -121,3 +126,66 @@ def test_over_the_byte_ceiling_the_page_farthest_from_the_viewport_goes_first(qt
     assert set(service.cache) == {"b1/2", "b1/3"}
     service.invalidate("b1/2")
     assert service.cache_bytes == one
+
+
+_TEARDOWN_SCRIPT = r"""
+import pathlib, sys, tempfile, time
+sys.path.insert(0, sys.argv[2])
+from fakes import make_pdf, text_page
+from PIL import Image
+from PySide6.QtWidgets import QApplication
+import evrakci.ui.main_window as mw
+from evrakci.pipeline.store import JobStore
+from evrakci.pipeline.templates.store import TemplateStore
+
+app = QApplication([])
+
+def slow(pid, height):  # Python work plus waits, like a real render in a worker thread
+    start = time.time()
+    while time.time() - start < 0.4:
+        sum(range(1000))
+        time.sleep(0.001)
+    return Image.new("RGB", (70, height), "white")
+
+mw.job_renderer = lambda job, files, dpi=30: slow
+tmp = pathlib.Path(tempfile.mkdtemp())
+window = mw.MainWindow(JobStore(tmp / "jobs"), TemplateStore(tmp / "tpl"),
+                       settings_path=tmp / "ayar.json")
+pdf = make_pdf(tmp / "t.pdf", [text_page() for _ in range(12)])
+window.yukle.create_job([pdf], "x")
+deadline = time.time() + 30
+while window.kontrol is None or window.kontrol.model.rowCount() < 12:
+    app.processEvents()
+    time.sleep(0.01)
+    assert time.time() < deadline
+window.show()
+service = window.thumbnails
+for pid in window.yukle.controller.job.ordered_page_ids():
+    service.request(pid)
+time.sleep(0.1)
+assert service._busy > 0  # renders are in flight
+mode = sys.argv[1]
+if mode == "switch":
+    window.yukle.create_job([pdf], "y")
+elif mode == "close_job":
+    window.close_job()
+else:  # "close" (the window) and "quit" (Ctrl+Q ends in the same close)
+    window.close()
+    window.deleteLater()
+for _ in range(100):
+    app.processEvents()
+    time.sleep(0.01)
+print("done")
+"""
+
+
+@pytest.mark.parametrize("mode", ["close", "switch", "close_job", "quit"])
+def test_b044_teardown_with_renders_in_flight_does_not_hang(mode, tmp_path):
+    """B-044: closing the window, switching or closing a job while worker threads render must
+    end cleanly; a hang fails here (the subprocess is killed) instead of freezing the suite."""
+    env = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}
+    result = subprocess.run(
+        [sys.executable, "-c", _TEARDOWN_SCRIPT, mode, str(Path(__file__).parent.parent)],
+        env=env, capture_output=True, text=True, timeout=90)
+    assert result.returncode == 0, result.stderr
+    assert "done" in result.stdout

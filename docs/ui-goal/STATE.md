@@ -2,27 +2,26 @@
 
 Updated after every accepted step. A new session or a compacted one reads this first.
 
-## Where we are (2026-11-19, late)
+## Where we are (2026-11-19, evening)
 
-- Phase 0: all steps and review must-fixes done except: perf-before.json v2 is being re-run
-  (script at 5b4d613 measures the real path; run script /tmp/claude-0/perf2/run.sh, outputs in
-  /tmp/claude-0/perf2/: fake x2, slow, real x2, 5 runs each; v1 kept as perf-before-v1.json).
-  When done: combine into baseline/perf-before.json like v1 (medians, spread, notes: real-path
-  loaded % is 0 because of B-032; first-paint spread). Phase 0 exit then waits only on owner Q-01
-  (B-005). B-020 fixed (29b5e01). B-032 S1 is fixed in Phase 2 step 2.
-- Phase 1: exit rule met (review .claude/gorevler/p1-phase-review.md). Must-fixes M1-M4 and
-  L-1..L-8 being fixed by an agent (spec .claude/gorevler/2026-11-19-p1-review-fixes.md). After it:
-  Kapı 1, commit, then re-run the full ui_measure matrix twice and replace
-  baseline/measure-before.tsv + summary (only after the perf run finished). L-6 is ledger B-038.
-- Phase 5a-5c: done, reviewed (.claude/gorevler/p5-research-review.md), corrections f754a5e.
-  5d: agent writing docs/ui-goal/ideas-ranking.md; then Opus check and owner question Q-06
-  (rank must/should/later/drop).
-- Next after these: Phase 2 (Kontrol performance). Inputs: B-032 cause proven by the Phase 0
-  review (TimelineView inherits QListView.scrollContentsBy which does not repaint this view;
-  candidate fix in p0-phase-review.md section 1.4: override scrollContentsBy with
-  viewport().scroll(dx, dy), and request thumbnails for visible_rows() from the scroll handler,
-  not only from paint), perf-before.json v2, findings-performance.md (cap cache by bytes), real-PDF
-  RSS ~1.2 GB.
+- Phase 0: done except the exit's owner part: Q-01 (B-005, last open S1 besides B-032 which is
+  Phase 2's fix by plan order). Evidence complete: suite.txt (2 runs), perf-before.json v2
+  (real path, abe8da4; v1 kept), shortcuts/keywalk/screenshots twice, ledger triaged. Review:
+  .claude/gorevler/p0-phase-review.md; all its must-fixes done (B-020 29b5e01, perf script
+  5b4d613, bookkeeping 302bb99).
+- Phase 1: done. Review must-fixes done (be87491); measure-before re-baselined (d8c0538: 234
+  fails, run twice identical). Phase-end full suite running in worktree /tmp/claude-0/wt-p1
+  (output /tmp/claude-0/suite-p1.txt); remove the worktree after. Owner: Q-02 (25 conflict
+  rows), Q-03 (enforcement). Then write the Phase 0+1 report (max 15 lines) to the owner.
+- Phase 2: IN PROGRESS. Sonnet agent implementing spec .claude/gorevler/2026-11-19-p2-kontrol-perf.md
+  (hypotheses -> .claude/gorevler/p2-hypotheses.md; note -> docs/ui-goal/baseline/perf-after-phase2-note.md).
+  After it: Kapı 1 (tests in spec), Kapı G (screenshots matrix for kontrol + ui_measure kontrol;
+  open 2-3 shots), 4 Haiku lenses, Sonnet reviewer, Opus acceptance; then official
+  perf-after-phase2.json (same runs as perf2/run.sh: fake x2 with frame log, slow, real x2),
+  full suite, Opus phase review (tries to break it: huge job, zoom during scroll, theme switch
+  during load, cancel and re-add), owner check row (non-blocking) for jitter on their PC.
+- Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
+- Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.
 
 ## Phase 0 evidence (docs/ui-goal/baseline/)
 

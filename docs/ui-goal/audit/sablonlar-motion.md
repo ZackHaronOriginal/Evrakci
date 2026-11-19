@@ -1,0 +1,19 @@
+# Şablonlar audit: motion
+
+Phase 4, Görev A, screen Şablonlar. Every animation on the screen: duration, curve, trigger, reduced motion, whether it blocks input. Measured by sampling widget state every 10 ms offscreen (`motion.py` and `motion2.py` in the session scratchpad, output in `/tmp/claude-0/p4/sablonlar/motion.log`) and by counting `QPropertyAnimation` children of the window. `sablon.py`, `sablon_canvas.py`, `sablon_nav.py`, `sablon_inspector.py`, `sablon_live.py`, `sablon_sync.py`, `sablon_rulers.py` and `sablon_empty.py` contain no animation at all; the only motion on the screen is the shared toast. Any motion on a frequent action would be a finding: there is none.
+
+| ID | Element | Trigger | Duration and curve | Reduced motion | Blocks input? | Frequent action? | Finding |
+|---|---|---|---|---|---|---|---|
+| M-01 | Toast (E-103 to E-106), fade in | every toast: Şablon kaydedildi, a deletion with Geri al, the end of a try-all | 240 ms (SLOWER), enter curve (0, 0, 0, 1); opacity 0.00 at 10 ms, 0.74 at 110 ms, 0.93 at 176 ms, 1.00 at 242 ms (`motion.py` here) | opacity 1.00 at 23 ms (override on) | no | a deletion toast follows each Del; not repeated at key rate (each Del deletes a box) | none (same widget as F-degerler-27) |
+| M-02 | Toast, dismiss | 6 s timer (10 s with Geri al), x button, a newer toast | none: hidden at once | same | no | no | none |
+| M-03 | Canvas: zoom (slider, Ctrl+wheel, Ctrl+Plus/Minus/0), pan, scroll | every zoom step | none: `setTransform` at once; 10 to 15 ms for 25 -> 400 % (`L:` t12) | same | no | yes (wheel steps) | none (no motion on a frequent action) |
+| M-04 | Canvas: box select, move, resize, nudge, rubber band, Kutu çiz tool | every box action | none: painted in the next frame; 0 new animation objects after 5 nudges, a zoom, a selection and the tool toggle (`motion.py`) | same | no | yes | none |
+| M-05 | Left lists and inspector content | every selection | none: rows and cards change at once | same | no | yes | none |
+| M-06 | Page and example switch | Örnek and Sayfa pickers, a section on another page | none; the page is rendered in the window thread: 61 ms (page), 68 ms (example), 29 ms (open template) on the demo job (`L:` t12) | same | yes: the window does not repaint during the render (short on a demo page, scan size and dpi dependent) | moderate | none (render time on real scans not measured) |
+| M-07 | Save and read delays (not animations) | a nudge or a drag release | saved after 321 ms (SAVE_DELAY_MS 300); the read starts after 381 ms (READ_DELAY_MS 400, measured from the key press); "Okunuyor…" only for a read longer than 150 ms (BUSY_DELAY_MS) | same | no | yes (an arrow nudge restarts both timers) | none |
+| M-08 | Busy cursor | a live read or the try-all | none: no override cursor; the status text and "Okunuyor…" are the signals | same | no | no | none |
+| M-09 | Focus ring (D11, canvas and rows) | keyboard focus | no animation of this screen's code; one `QPropertyAnimation` child exists in the window at rest (shared, not from `sablon*.py`: `grep Animation sablon*.py` finds none) | same | no | yes | none |
+| M-10 | Taskbar progress during try-all | a try-all run | OS surface; driven by `_all_progress` (not drivable offscreen) | n/a | no | no | GAP: not observable offscreen |
+| M-11 | Cursor shape changes | hover over a box, a corner, the sheet, Space held | instant (arrow, cross, size-all, two diagonal sizes, open and closed hand) | n/a | no | yes | none |
+
+After every run no animation object of this screen is left alive. The one thing that could matter for a user with weak eyesight: the page and the inspector change instantly when a template, an example or a box is chosen, so there is no motion to lose; the reading ("Okunuyor…") appears only when a read takes more than 150 ms, so a fast read does not flash. Rows: 11, findings: 0.

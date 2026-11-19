@@ -23,12 +23,12 @@ Updated after every accepted step. A new session or a compacted one reads this f
   3A done: shortcut-contract.tsv (319 rows), shortcut-mismatches.md (45; 31 PROPOSED texts),
   shortcut-checklist.md (1625c5f); owner Q-08 queued. 3B done: audit_shortcuts.py --check /
   --contract with action markers (8c98d02).
-  3C done (f618cc1): harness + 252 app-wide rows, 606 passed / 154 strict xfail (M-ids).
-  3D running: 67 tab-specific rows + typing-guard tests (tests/ui/test_shortcut_typing.py).
-  B-044 (possible hang closing during renders) investigated in parallel (spec
-  .claude/gorevler/2026-11-19-b044.md). Next: 3E fix mismatches needing no new text (flip their
-  xfails), gates, Phase 3 end (full suite, Opus review: 20 random rows driven by QTest), Q-09
-  owner checklist (non-blocking).
+  3C done (f618cc1), 3D done (f57eaa5): every one of 319 rows has effect, not-applicable and
+  menu/palette tests; typing guard 180 tests; audit --contract 0, --check exit 0; 965 passed /
+  211 strict xfail. B-044 not reproducible (1e0f694). B-047 S1 (Ctrl+P Dışa Aktar prints nothing).
+  3E running: fix mismatches needing no new text + B-047 (flip their xfails). Then gates
+  (lenses + Sonnet reviewer), Phase 3 end: full suite, Opus review (20 random rows by QTest),
+  Q-09 owner checklist (non-blocking), report. Rows waiting for Q-08 stay strict xfail.
 - Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
 - Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.
 

@@ -96,10 +96,13 @@ def watchdog(ms: int = 4000):
     timer.setSingleShot(True)
     timer.timeout.connect(close_modal)
     timer.start(ms)
+    app = QApplication.instance()
+    app.setProperty("evrakci_test_modal_answered", True)  # tests/conftest.py: this one is answered
     try:
         yield
     finally:
         timer.stop()
+        app.setProperty("evrakci_test_modal_answered", False)
 
 
 def on_modal(c: Ctx, handler: Callable[[QWidget], None]) -> None:
@@ -116,7 +119,9 @@ def on_modal(c: Ctx, handler: Callable[[QWidget], None]) -> None:
     timer = QTimer()
     timer.timeout.connect(tick)
     timer.start(20)
+    QApplication.instance().setProperty("evrakci_test_modal_answered", True)
     c.undo.append(timer.stop)
+    c.undo.append(lambda: QApplication.instance().setProperty("evrakci_test_modal_answered", False))
     c.data["_modal_timer"] = timer
 
 

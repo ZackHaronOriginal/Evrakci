@@ -68,16 +68,23 @@ def test_b001_choosing_files_while_a_read_runs_queues_them_or_says_why(qtbot, tm
     monkeypatch.setattr(QFileDialog, "getOpenFileNames",
                         staticmethod(lambda *a, **k: ([str(pdfs[2])], "")))
     seen = {}
-    with qtbot.waitSignal(screen.task_finished, timeout=20000):
-        screen.add_paths([pdfs[1]])  # a read is now running
-        assert screen.busy()
-        before = screen.last_message
-        screen.choose_batch()  # Ctrl+O: the dialog returns a file
-        seen["queued"] = list(screen._queued)
-        seen["message"] = screen.last_message != before
+    try:
+        with qtbot.waitSignal(screen.task_finished, timeout=20000):
+            screen.add_paths([pdfs[1]])  # a read is now running
+            assert screen.busy()
+            before = screen.last_message
+            screen.choose_batch()  # Ctrl+O: the dialog returns a file
+            seen["queued"] = list(screen._queued)
+            seen["message"] = screen.last_message != before
+            gate.set()
+        assert seen["queued"] or seen["message"]
+        qtbot.waitUntil(lambda: not screen.busy(), timeout=60000)  # the queued file is read next
+    finally:  # never leave a read running: the window's close question would block the teardown
         gate.set()
-    assert seen["queued"] or seen["message"]
-    qtbot.waitUntil(lambda: not screen.busy(), timeout=20000)  # the queued file is read next
+        screen._queued.clear()
+        if screen.busy():
+            screen.cancel()
+        qtbot.waitUntil(lambda: not screen.busy(), timeout=60000)
 
 
 @pytest.mark.xfail(strict=True, reason="B-002: a batch split by a filter is still 'Kontrol' "

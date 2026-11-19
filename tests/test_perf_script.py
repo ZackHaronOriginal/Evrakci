@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SKILL_DIR = Path(__file__).resolve().parents[1] / ".claude" / "skills" / "perf-profile"
 SCRIPT = SKILL_DIR / "perf_kontrol.py"
 NEW_METRICS = [
@@ -35,6 +37,10 @@ def test_perf_script_writes_runs_statistics_and_a_frame_log(tmp_path):
     assert set(lines[0]["counts"]) == {"ok", "blank", "wrong", "stale"}
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="--memory-ceiling-mb uses RLIMIT_AS and /proc VmSize: Linux only, by design",
+)
 def test_perf_script_new_options_theme_text_scale_disk_delay_and_memory_ceiling(tmp_path):
     env = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}
     out = tmp_path / "opts.json"
@@ -50,6 +56,7 @@ def test_perf_script_new_options_theme_text_scale_disk_delay_and_memory_ceiling(
     assert data["settled_loaded_pct_real"] == 100.0
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="--memory-ceiling-mb is Linux only")
 def test_perf_script_tiny_memory_ceiling_reports_incomplete_run(tmp_path):
     env = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}
     out = tmp_path / "tiny.json"

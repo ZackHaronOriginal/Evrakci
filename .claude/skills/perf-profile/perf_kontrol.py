@@ -192,6 +192,32 @@ def build(args, tmp: Path):
     return JobController(store, job), CountingRenderer(renderer)
 
 
+def _windows_working_set_mb() -> float:
+    import ctypes
+    from ctypes import wintypes
+
+    class Counters(ctypes.Structure):
+        _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                    ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+                    ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                    ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
+
+    counters = Counters()
+    counters.cb = ctypes.sizeof(Counters)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.GetCurrentProcess.restype = wintypes.HANDLE
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    psapi.GetProcessMemoryInfo.argtypes = [
+        wintypes.HANDLE, ctypes.POINTER(Counters), wintypes.DWORD]
+    if not psapi.GetProcessMemoryInfo(kernel.GetCurrentProcess(), ctypes.byref(counters),
+                                      counters.cb):
+        return 0.0
+    return counters.WorkingSetSize / (1024 * 1024)
+
+
 def rss_mb() -> float:
     try:
         for line in Path("/proc/self/status").read_text().splitlines():
@@ -199,6 +225,8 @@ def rss_mb() -> float:
                 return int(line.split()[1]) / 1024
     except OSError:
         pass
+    if sys.platform == "win32":  # no /proc and no resource module: ask the OS for the working set
+        return _windows_working_set_mb()
     import resource
 
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss  # peak, KB (bytes on macOS)
@@ -479,6 +507,9 @@ def measure(args) -> dict:
     configure_application(app)
     apply_theme(args)
     if args.memory_ceiling_mb:
+        if sys.platform == "win32":
+            raise SystemExit("--memory-ceiling-mb needs RLIMIT_AS (Linux only); "
+                             "Windows has no such limit for a plain process")
         import resource
 
         pump(app, 50)

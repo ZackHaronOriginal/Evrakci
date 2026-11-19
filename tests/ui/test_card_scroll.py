@@ -271,3 +271,17 @@ def test_a_card_scrolls_in_with_its_group_label(panel):
     box = label.rect().translated(label.mapTo(port, QPoint(0, 0)))
     assert 0 <= box.top() <= 12  # the stop is the label's top, not its card's
     assert _shown(area).contains(box)
+
+
+def test_a_step_uses_the_cards_as_they_are_now(panel):
+    """A card can change height (a wrapped label, other font metrics) after the last scheduled
+    measure and before the next one runs; the step must still stop on whole cards."""
+    _host, area, scroller, _fields = panel
+    scroller._timer.stop()
+    for card in _cards(area)[:2]:
+        card.setFixedHeight(card.height() + 23)  # the layout has not run yet
+    for _ in range(len(scroller.stops()) + 2):
+        scroller.step(1)  # no event loop between the change and the step
+        assert _partial_cards(area) == []
+        assert area.verticalScrollBar().value() in scroller.stops()
+        scroller._timer.stop()

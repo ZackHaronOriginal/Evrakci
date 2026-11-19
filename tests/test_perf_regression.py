@@ -12,16 +12,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 SKILL_DIR = Path(__file__).resolve().parents[1] / ".claude" / "skills" / "perf-profile"
 SCRIPT = SKILL_DIR / "perf_kontrol.py"
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="perf_kontrol.py reads RSS from /proc or the resource module, neither exists on Windows",
-)
 def test_kontrol_scroll_shows_the_right_pictures_at_300_pages(tmp_path):
     out, log = tmp_path / "out.json", tmp_path / "frames.jsonl"
     env = {**os.environ, "QT_QPA_PLATFORM": "offscreen"}

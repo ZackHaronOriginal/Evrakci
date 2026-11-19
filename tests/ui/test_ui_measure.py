@@ -33,7 +33,15 @@ def light_100(qapp):
     before = (manager.mode(), manager.text_scale())
     manager.set_text_scale(100)
     manager.set_mode("light")
+    # The probe widgets test the tool, not the app's theme: an app-wide stylesheet left by an
+    # earlier test overrides their font and palette (they then pass or fail for the wrong
+    # reason in the full suite), so they run without it and it is restored afterwards.
+    sheet, font, palette = qapp.styleSheet(), qapp.font(), qapp.palette()
+    qapp.setStyleSheet("")
     yield qapp
+    qapp.setStyleSheet(sheet)
+    qapp.setFont(font)
+    qapp.setPalette(palette)
     manager.set_text_scale(before[1])
     manager.set_mode(before[0])
 

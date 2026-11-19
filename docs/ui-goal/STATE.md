@@ -2,22 +2,27 @@
 
 Updated after every accepted step. A new session or a compacted one reads this first.
 
-## Where we are (2026-11-19)
+## Where we are (2026-11-19, late)
 
-- Phase 0: steps done; the Opus review found must-fix items now being handled: perf script
-  measured with a forced repaint (fixing; perf-before.json will be re-run twice and the current
-  file kept as v1), B-032 repro test, B-020 raised to S1 (fixing), suite.txt (done), second
-  shortcut runs (done). Exit then waits on owner Q-01 (B-005). B-032 (S1) is fixed in Phase 2
-  step 2 by the plan's order. Correction: Phase 1 work was started and committed (4cd57d)
-  before Phase 0 exited, because Phase 0's exit is blocked on the owner; the run rules allow
-  work that does not depend on the answer.
-- Phase 1: all steps done (rules.json, rules-conflicts.md, tools/ui_measure.py + test,
-  baseline/measure-before.*). Phase 1 Opus review running (`.claude/gorevler/p1-phase-review.md`).
-  Owner questions Q-02 (conflicts) and Q-03 (enforcement) queued; until answered every rule is
-  "reported" and nothing in the look changes.
-- Phase 5a-5c research: done and committed (inventories verified, competitors re-checked,
-  14 findings files). Opus research review running (`.claude/gorevler/p5-research-review.md`).
-- Next: act on the three reviews (fix or ledger), then Phase 2 (Kontrol performance fix).
+- Phase 0: all steps and review must-fixes done except: perf-before.json v2 is being re-run
+  (script at 5b4d613 measures the real path; run script /tmp/claude-0/perf2/run.sh, outputs in
+  /tmp/claude-0/perf2/: fake x2, slow, real x2, 5 runs each; v1 kept as perf-before-v1.json).
+  When done: combine into baseline/perf-before.json like v1 (medians, spread, notes: real-path
+  loaded % is 0 because of B-032; first-paint spread). Phase 0 exit then waits only on owner Q-01
+  (B-005). B-020 fixed (29b5e01). B-032 S1 is fixed in Phase 2 step 2.
+- Phase 1: exit rule met (review .claude/gorevler/p1-phase-review.md). Must-fixes M1-M4 and
+  L-1..L-8 being fixed by an agent (spec .claude/gorevler/2026-11-19-p1-review-fixes.md). After it:
+  Kapı 1, commit, then re-run the full ui_measure matrix twice and replace
+  baseline/measure-before.tsv + summary (only after the perf run finished). L-6 is ledger B-038.
+- Phase 5a-5c: done, reviewed (.claude/gorevler/p5-research-review.md), corrections f754a5e.
+  5d: agent writing docs/ui-goal/ideas-ranking.md; then Opus check and owner question Q-06
+  (rank must/should/later/drop).
+- Next after these: Phase 2 (Kontrol performance). Inputs: B-032 cause proven by the Phase 0
+  review (TimelineView inherits QListView.scrollContentsBy which does not repaint this view;
+  candidate fix in p0-phase-review.md section 1.4: override scrollContentsBy with
+  viewport().scroll(dx, dy), and request thumbnails for visible_rows() from the scroll handler,
+  not only from paint), perf-before.json v2, findings-performance.md (cap cache by bytes), real-PDF
+  RSS ~1.2 GB.
 
 ## Phase 0 evidence (docs/ui-goal/baseline/)
 
@@ -35,8 +40,8 @@ Updated after every accepted step. A new session or a compacted one reads this f
   Frame log (real scroll path, backing store): ~304/309 frames show a wrong page and 305
   stale while the service is 100 % loaded: B-032. The Phase 0 review checks whether this is
   the real bug or an offscreen artifact; Phase 2 must not use it before that verdict.
-- Ledger: S1 5 (B-011, B-021, B-023, B-029 fixed in cefd148 + faf32a5; B-005 waits for Q-01),
-  S2 2 (B-008, B-032), S3 21, S4 4, 1 not a bug; B-033, B-034 needs-repro (from 5a).
+- Ledger (see bugs.md): S1 B-011, B-020, B-021, B-023, B-029 fixed; B-005 waits for Q-01;
+  B-032 S1 for Phase 2. New: B-033, B-034 needs-repro; B-035 S2, B-036 S3, B-037 S4, B-038 S2.
 
 ## Notes for later phases
 

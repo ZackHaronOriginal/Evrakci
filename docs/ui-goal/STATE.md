@@ -15,17 +15,12 @@ Updated after every accepted step. A new session or a compacted one reads this f
   fixed in a075e9c and checked with tests/ui (664 passed, 27 xfailed; old file: 2 failed).
   ruff clean. Phase 0+1 report sent. Owner: Q-02 (25 conflict
   rows), Q-03 (enforcement). Then write the Phase 0+1 report (max 15 lines) to the owner.
-- Phase 2: IMPLEMENTED, in gates (uncommitted src/evrakci/ui/{timeline,thumbnails,kontrol}.py,
-  tests, docs/ui-goal/baseline/perf-after-phase2-note.md; diff in .claude/gorevler/p2.diff).
-  Kapı 1 passed (54 passed, 10 xfailed). Running: Kapı G (Haiku; shots /tmp/claude-0/p2shots),
-  lenses -> .claude/gorevler/p2.mercek-{ac,b,d}.md. Then: Sonnet reviewer, Opus acceptance,
-  commit, official perf-after-phase2.json (perf2/run.sh pattern into /tmp/claude-0/perf3),
-  full suite, Opus phase review (break it: huge job, zoom during scroll, theme switch during
-  load, cancel and re-add), owner check row Q-07 (jitter on their PC), SKILL.md says
-  cache <= 400 but capacity is now 1000 + CACHE_MAX_BYTES 150 MB: update it.
-  Result so far (fake 1000, medians): loaded after jump 0 -> 100 %, wrong frames 269 -> 0,
-  stale 307 -> 0. RSS: cache is not the cause (job/pipeline holds it): ledger B-040, out of
-  Phase 2 scope (D13).
+- Phase 2: fix committed bfb92bc (gates passed: Kapı 1, Kapı G (no clipping, no new measured
+  fail; shots checked), 4 lenses, Sonnet reviewer round 1 fixed). Running: official
+  perf-after-phase2.json (/tmp/claude-0/perf3/run.sh -> /tmp/claude-0/perf3, then combine like
+  perf-before.json v2). Then: full suite, Opus phase review (break it: huge job, zoom during
+  scroll, theme switch during load, cancel and re-add), Phase 2 report. Owner check Q-07 queued.
+- Phase 3 next (spec .claude/gorevler/2026-11-19-p3-shortcuts.md, load skill shortcut-audit).
 - Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
 - Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.
 

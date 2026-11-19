@@ -111,6 +111,10 @@ def test_1000_pages_first_paint_is_fast_and_renders_only_visible_pages(qtbot, tm
     rendered = set(renderer.calls)
     assert set(visible) and rendered <= allowed
     assert {view.model().page_id(r) for r in visible} <= rendered
+    # The bound above comes from the view's own prefetch_rows(), so a regression that widened
+    # PREFETCH_AHEAD would widen it too. Absolute cap for 1366x640: 24 renders were measured
+    # (perf-after-phase2.json), so 60 leaves room and still catches a wide margin.
+    assert len(rendered) <= 60
 
 
 def test_side_panel_shows_selected_document_and_merge_removes_manual_cut(qtbot, tmp_path):

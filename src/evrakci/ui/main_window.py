@@ -1143,6 +1143,8 @@ class MainWindow(QMainWindow):
     def _retire_thumbnails(self) -> None:
         """Stop and release the old job's thumbnail service (no callback into a dead view)."""
         old, self.thumbnails = self.thumbnails, None
+        if self.kontrol is not None:
+            self.kontrol.detach_thumbnails()  # the old screen must not call the retired service
         if old is not None:
             old.stop()
             old.invalidate()

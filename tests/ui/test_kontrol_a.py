@@ -431,6 +431,49 @@ def test_1000_pages_wrap_and_paint_only_what_is_in_view(qtbot, tmp_path):
     assert screen.strip.visible[1] == 100
 
 
+def test_large_viewport_small_zoom_scrolling_does_not_rerender_the_margin(qtbot, tmp_path):
+    ctl = _controller(tmp_path, {"b1": ("p" * 9 + "q") * 300})
+    renderer = Renderer()
+    screen = _screen(qtbot, ctl, renderer, size=(3440, 1440))
+    screen.set_zoom(50)
+    view = screen.timeline
+    view.verticalScrollBar().setValue(view.metrics.row_h * 5)
+    qtbot.wait(400)
+    visible, margin = view.prefetch_rows()
+    assert len(visible) + len(margin) > 400  # more pages wanted than the old 400 count cap
+    renderer.calls.clear()
+    bar = view.verticalScrollBar()
+    for i in range(20):  # one notch down, one notch up, as a wheel does
+        bar.setValue(bar.value() + (view.metrics.row_h if i % 2 == 0 else -view.metrics.row_h))
+        qtbot.wait(30)
+    qtbot.wait(300)
+    # a notch brings in about one new row; rows already requested must not render again
+    rows = len(view._rows_between(bar.value(), bar.value() + view.viewport().height()))
+    per_row = max(1, len(visible) // max(1, rows))
+    assert len(renderer.calls) <= len(visible) + 20 * per_row
+
+
+def test_job_switch_detaches_the_old_screen_from_the_retired_service(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    old_screen, old_service = window.kontrol, window.thumbnails
+    requests = []
+    original = old_service.request
+    old_service.request = lambda pid: (requests.append(pid), original(pid))[1]
+    second = job_from_kinds(SPEC)
+    second.id = "second"
+    window.store.save(second)
+    window.yukle.open_job(window.store.load("second"))
+    assert window.thumbnails is not old_service and window.kontrol is not old_screen
+    requests.clear()
+    # what the old screen would still do on the event loop: a layout, a scroll, a zoom pause
+    old_screen.timeline.load_thumbnails()
+    old_screen.timeline.verticalScrollBar().setValue(old_screen.timeline.verticalScrollBar().value())
+    old_screen.set_zoom(60)
+    old_screen._thumb_timer.timeout.emit()
+    qtbot.wait(250)
+    assert requests == []
+
+
 # -- empty state and accessible names ----------------------------------------------------------
 def test_empty_state_says_what_goes_here_and_offers_the_way(qtbot):
     went, made = [], []

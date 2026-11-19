@@ -822,9 +822,23 @@ class TimelineView(QListView):
         # separator tiles are drawn without a scan, so they are never rendered
         pids = [model.page_id(r) for r in visible + margin if model.state(r) != "separator"]
         service.keep_only(set(pids))
+        # never evict a page that is wanted right now: the cap covers the whole request
+        service.capacity = max(service.min_capacity, int(1.5 * len(pids)))
         for pid in pids:
             if not service.is_current(pid):
                 service.request(pid)
+
+    def detach_thumbnails(self) -> None:
+        """Stop using the thumbnail service (it was retired): no more requests reach it."""
+        service, self.thumbnails = self.thumbnails, None
+        self.itemDelegate().thumbnails = None
+        if service is not None:
+            for signal, slot in ((service.ready, self._thumbnail_ready),
+                                 (self.verticalScrollBar().valueChanged, self.load_thumbnails)):
+                try:
+                    signal.disconnect(slot)
+                except (RuntimeError, TypeError):
+                    pass
 
     def _distance(self, pid: str) -> float:
         """Pixels between page `pid` and the viewport (0 inside it), for cache eviction."""

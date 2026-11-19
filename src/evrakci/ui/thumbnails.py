@@ -23,9 +23,10 @@ Renderer = Callable[[str, int], Image.Image]
 
 # The cache holds at most this many bytes of QImage pixels, whatever the zoom: a count cap lets
 # memory grow with the thumbnail size (a 200 % tile is four times a 100 % tile). Pages farthest
-# from the viewport go first. A 100 % tile is about 92 KB, so 150 MB would hold 1600 of them: at
-# normal zoom the count cap (`capacity`, 400) binds first; the byte cap binds at high zoom
-# (the largest tile is about 366 KB).
+# from the viewport go first. A 100 % tile is about 92 KB at device pixel ratio 1; the bytes of a
+# tile scale with zoom squared times the device pixel ratio squared (about 1.47 MB at zoom 200 and
+# ratio 2). At normal zoom and ratio 1 the count cap (`capacity`, 400 or more) binds first; the
+# byte cap binds at high zoom or a high device pixel ratio.
 CACHE_MAX_BYTES = 150 * 1024 * 1024
 
 
@@ -94,6 +95,7 @@ class ThumbnailService(QObject):
         self.renderer = renderer
         self.height = height
         self.capacity = capacity
+        self.min_capacity = capacity  # the view may raise `capacity` above this, never below
         self.max_bytes = max_bytes
         self.cache_bytes = 0
         # How far a page is from the viewport (smaller is nearer); set by the view. Without it

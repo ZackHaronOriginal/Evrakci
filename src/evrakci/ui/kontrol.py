@@ -217,6 +217,12 @@ class KontrolScreen(QWidget):
         self._thumb_timer.start()
         self._scrolled()
 
+    def detach_thumbnails(self) -> None:
+        """Let go of a retired thumbnail service: no timer or scroll reaches it any more."""
+        self._thumb_timer.stop()
+        self.thumbnails = None
+        self.timeline.detach_thumbnails()
+
     def _rerender(self) -> None:
         if self.thumbnails is not None:
             self.thumbnails.set_height(self.timeline.thumbnail_height())

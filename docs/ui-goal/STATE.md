@@ -19,16 +19,17 @@ Updated after every accepted step. A new session or a compacted one reads this f
   full suite 1118 passed / 6 skipped / 26 xfailed (before f35f56b, which was checked with the
   Kontrol test files); Opus review found no S1/S2 (.claude/gorevler/p2-phase-review.md); F6/F7
   ledgered (B-042, B-043). Owner check Q-07. Report sent.
-- Phase 3: IN PROGRESS (spec .claude/gorevler/2026-11-19-p3-shortcuts.md).
-  3A done: shortcut-contract.tsv (319 rows), shortcut-mismatches.md (45; 31 PROPOSED texts),
-  shortcut-checklist.md (1625c5f); owner Q-08 queued. 3B done: audit_shortcuts.py --check /
-  --contract with action markers (8c98d02).
-  3C done (f618cc1), 3D done (f57eaa5): every one of 319 rows has effect, not-applicable and
-  menu/palette tests; typing guard 180 tests; audit --contract 0, --check exit 0; 965 passed /
-  211 strict xfail. B-044 not reproducible (1e0f694). B-047 S1 (Ctrl+P Dışa Aktar prints nothing).
-  3E running: fix mismatches needing no new text + B-047 (flip their xfails). Then gates
-  (lenses + Sonnet reviewer), Phase 3 end: full suite, Opus review (20 random rows by QTest),
-  Q-09 owner checklist (non-blocking), report. Rows waiting for Q-08 stay strict xfail.
+- Phase 3: all steps done. 3A/3B contract + audit (1625c5f, 8c98d02); 3C/3D tests for all 319
+  rows + typing guard (f618cc1, f57eaa5); 3E fixes (76a0678: 32 mismatches, B-047 S1, B-015);
+  gates passed (lenses + Sonnet GEÇTİ). Strict xfail left: 205 (Q-08 owner text/decisions and 5
+  rows conflicting with older tests that pin "disabled", asked in Q-09). Owner checks Q-09.
+  Running: full suite in worktree /tmp/claude-0/wt-p3 (output /tmp/claude-0/suite-p3.txt;
+  remove worktree after; watch test_disa_aktar.py::test_copy_names_and_the_printable_index,
+  clipboard flaky once), Opus phase review (.claude/gorevler/p3-phase-review.md). Then fix/ledger,
+  Phase 3 report.
+- Phase 4 next: spec .claude/gorevler/2026-11-19-p4-audit.md, one screen at a time (Kontrol,
+  Yükle, Değerler, Şablonlar, Dışa Aktar, Rehber); skill ui-bug-hunt + design/a11y lenses;
+  rules are all "reported" until Q-03, look changes need the owner (collect as proposals).
 - Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
 - Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.
 

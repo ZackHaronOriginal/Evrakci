@@ -1,8 +1,9 @@
+import logging
 import os
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QLibraryInfo, QLocale, QTimer, QTranslator
 from PySide6.QtWidgets import QApplication
 
 from evrakci.pipeline.settings import SettingsError, load_settings
@@ -40,6 +41,22 @@ def build_window(
     return window
 
 
+def install_qt_translation(app: QApplication, directory: str | None = None) -> bool:
+    """Qt's own Turkish texts (standard dialog buttons: Evet, Hayır, Tamam, İptal), so the
+    dialogs we do not draw ourselves are not English. Returns False when the file is missing."""
+    directory = directory or QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
+    translator = QTranslator(app)
+    if not translator.load(QLocale("tr_TR"), "qtbase", "_", directory):
+        logging.getLogger(__name__).warning(
+            "Qt Turkish translation (qtbase_tr.qm) not found in %s; dialog buttons stay English",
+            directory)
+        return False
+    if not app.installTranslator(translator):
+        return False
+    app._evrakci_qt_translator = translator  # keep it alive with the application
+    return True
+
+
 def configure_application(app: QApplication, prefs: Prefs | None = None) -> None:
     """Name, fonts, icon and the look: EvrakciStyle (Fusion + D11 focus ring), palette, font and
     stylesheet from the ThemeManager, which follows `prefs` (theme, density, text size, motion)
@@ -47,6 +64,7 @@ def configure_application(app: QApplication, prefs: Prefs | None = None) -> None
     app.setApplicationName("Evrakçı")
     # Matches the Linux menu entry (evrakci-arayuz.desktop), so the dock shows its icon.
     app.setDesktopFileName("evrakci-arayuz")
+    install_qt_translation(app)
     fonts.register_fonts()
     manager = theme.manager()
     if prefs is not None:

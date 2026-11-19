@@ -67,6 +67,14 @@ HEADER_KEY = "yukle/partiler"
 REPORT_EVERY = 0.1  # seconds between redraws of the progress while pages are read
 
 
+def _short_name(name: str, limit: int = 36) -> str:
+    """A long file name inside a one-line toast: the start and the end (the extension), so the
+    verb after it is never cut (F-yukle-08)."""
+    if len(name) <= limit:
+        return name
+    return name[: limit - 13] + "…" + name[-12:]
+
+
 def _heading_row() -> tuple[QWidget, QLabel, QLabel]:
     """A .thead-bar .pane-title: "Partiler" and its hint, baseline-aligned, 52 px high."""
     m = theme.manager()
@@ -432,7 +440,7 @@ class YukleScreen(QWidget):
                                                 "PDF (*.pdf)")
         if paths:
             self._remember_folder(Path(paths[0]))
-            self.add_batches([Path(p) for p in paths])
+            self.add_paths([Path(p) for p in paths])  # queues while a read runs (F-yukle-17)
 
     def choose_folder(self) -> None:
         """Klasör ekle…: every PDF in a folder (and its subfolders)."""
@@ -517,9 +525,11 @@ class YukleScreen(QWidget):
         if controller.run(text, attach):
             self.table.select_batch(prepared[0].batch.id)
             undo, available = undo_last(controller.undo_stack)
+            full = prepared[0].batch.file_name
             self._tell(f"{count} parti eklendi." if count > 1
-                       else f"{prepared[0].batch.file_name} eklendi.", "success",
-                       "Geri al", undo, available)
+                       else f"{_short_name(full)} eklendi.", "success",
+                       "Geri al", undo, available,
+                       spoken=f"{full} eklendi." if count == 1 else None)
 
     # -- batches: move and remove --------------------------------------------------------
     def move_batch(self, step: int) -> None:
@@ -554,7 +564,8 @@ class YukleScreen(QWidget):
             self.table.selectRow(min(row, count - 1))
             self.table.setCurrentIndex(self.model.index(min(row, count - 1), 2))
         undo, available = undo_last(controller.undo_stack)
-        self._tell(f"{batch.file_name} işten çıkarıldı.", "info", "Geri al", undo, available)
+        self._tell(f"{_short_name(batch.file_name)} işten çıkarıldı.", "info", "Geri al", undo,
+                   available, spoken=f"{batch.file_name} işten çıkarıldı.")
 
     def rename_job(self) -> None:
         """F2: the job's name (undoable; the title band follows)."""
@@ -995,13 +1006,14 @@ class YukleScreen(QWidget):
     # -- messages ------------------------------------------------------------------------
     def _tell(self, text: str, kind: str = "info", action: str | None = None,
               on_action: Callable[[], None] | None = None,
-              available: Callable[[], bool] | None = None) -> None:
-        """A short note: a toast in the window (with Geri al where it can be undone)."""
+              available: Callable[[], bool] | None = None, spoken: str | None = None) -> None:
+        """A short note: a toast in the window (with Geri al where it can be undone).
+        `spoken` is the full sentence for a screen reader when `text` has a shortened name."""
         self.last_message = text
         toaster = getattr(self.window_, "toaster", None)
         if toaster is not None:
             toaster.show(text, action, on_action, kind=kind, timeout_ms=10000 if action else 6000,
-                         available=available)
+                         available=available, spoken=spoken)
         else:
             self.refused.emit(text)
 
@@ -1026,7 +1038,7 @@ class YukleScreen(QWidget):
 
     # -- columns, look -------------------------------------------------------------------
     def _default_widths(self) -> None:
-        from evrakci.ui.yukle_table import FILE, WIDTHS
+        from evrakci.ui.yukle_table import FILE, GRIP, WIDTHS
 
         header = self.table.horizontalHeader()
         header.blockSignals(True)
@@ -1034,10 +1046,11 @@ class YukleScreen(QWidget):
             header.setSectionResizeMode(column, header.ResizeMode.Interactive)
             self.table.setColumnWidth(column, width)  # A's colgroup is in px at every text size
         header.setSectionResizeMode(FILE, header.ResizeMode.Stretch)
+        header.setSectionResizeMode(GRIP, header.ResizeMode.Fixed)
         header.blockSignals(False)
 
     def _restore_header(self) -> None:
-        from evrakci.ui.yukle_table import FILE, WIDTHS
+        from evrakci.ui.yukle_table import FILE, GRIP, WIDTHS
 
         prefs = getattr(self.window_, "prefs", None)
         state = prefs.header_state(HEADER_KEY) if prefs is not None else None
@@ -1051,6 +1064,8 @@ class YukleScreen(QWidget):
         for column in WIDTHS:
             header.setSectionResizeMode(column, header.ResizeMode.Interactive)
         header.setSectionResizeMode(FILE, header.ResizeMode.Stretch)
+        header.setSectionResizeMode(GRIP, header.ResizeMode.Fixed)
+        header.keep_all_readable()
         header.blockSignals(False)
 
     def _header_moved(self, *_args) -> None:

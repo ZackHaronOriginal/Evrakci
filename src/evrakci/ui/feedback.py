@@ -92,7 +92,7 @@ class _Toast(QWidget):
         name = KIND_ICON.get(kind, "info")
         row.addWidget(_icon_label(name, KIND_COLOUR.get(kind, "icon"), m.size("icon-md")))
         label = QLabel(text)
-        label.setWordWrap(False)
+        label.setWordWrap(True)  # a long sentence takes a second line, never cut (F-yukle-08)
         row.addWidget(label, 1)
         if action_text:
             def act() -> None:
@@ -152,6 +152,7 @@ class _Pending:
     kind: str
     timeout_ms: int
     available: Callable[[], bool] | None = None
+    spoken: str | None = None  # what a screen reader hears when it differs from the shown text
 
 
 def undo_last(stack) -> tuple[Callable[[], None], Callable[[], bool]]:
@@ -192,10 +193,12 @@ class Toaster(QObject):
 
     def show(self, text: str, action_text: str | None = None,
              on_action: Callable[[], None] | None = None, kind: str = "info",
-             timeout_ms: int = 6000, available: Callable[[], bool] | None = None) -> None:
+             timeout_ms: int = 6000, available: Callable[[], bool] | None = None,
+             spoken: str | None = None) -> None:
         """Queue a toast; it appears at once when none is visible. With `available`, the
         action is left off when it returns False at the moment the toast is shown."""
-        self._queue.append(_Pending(text, action_text, on_action, kind, timeout_ms, available))
+        self._queue.append(_Pending(text, action_text, on_action, kind, timeout_ms, available,
+                                    spoken))
         if self._current is None:
             self._next()
 
@@ -224,6 +227,8 @@ class Toaster(QObject):
         stack = getattr(item.available, "stack", None)
         if action_text and stack is not None:
             toast.watch(item.available, stack)
+        if item.spoken:
+            toast.setAccessibleName(item.spoken)
         toast.closed.connect(self.dismiss)
         self._current = toast
         toast.adjustSize()

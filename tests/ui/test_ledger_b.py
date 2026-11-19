@@ -51,8 +51,7 @@ def _window(qtbot, tmp_path) -> MainWindow:
     return window
 
 
-@pytest.mark.xfail(strict=True, reason="B-001: Ctrl+O during a read picks files and then does "
-                   "nothing, no queue and no message (yukle.py choose_batch -> _begin returns)")
+# B-001 / F-yukle-17 fixed: choose_batch goes through add_paths, which queues during a read
 def test_b001_choosing_files_while_a_read_runs_queues_them_or_says_why(qtbot, tmp_path, pdfs,
                                                                       monkeypatch):
     window = _window(qtbot, tmp_path)
@@ -78,6 +77,7 @@ def test_b001_choosing_files_while_a_read_runs_queues_them_or_says_why(qtbot, tm
         seen["message"] = screen.last_message != before
         gate.set()
     assert seen["queued"] or seen["message"]
+    qtbot.waitUntil(lambda: not screen.busy(), timeout=20000)  # the queued file is read next
 
 
 @pytest.mark.xfail(strict=True, reason="B-002: a batch split by a filter is still 'Kontrol' "

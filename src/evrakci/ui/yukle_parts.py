@@ -182,6 +182,16 @@ class ProgressCard(QFrame):
 
 
 # -- the window-wide drop ---------------------------------------------------------------
+def _breakable(name: str, run: int = 16) -> str:
+    """Zero-width break points in a long unbroken name, so the sentence wraps inside the card
+    instead of cutting the name and the end of the sentence (F-yukle-06)."""
+    def chunks(word: re.Match) -> str:
+        text = word.group()
+        return "\u200b".join(text[i:i + run] for i in range(0, len(text), run))
+
+    return re.sub(rf"\S{{{run + 1},}}", chunks, name)
+
+
 class DropOverlay(QWidget):
     """The `drop` state: the layer below the command bar, a dashed accent edge and a card that
     says what the drop does. Mouse-transparent: the drop itself is handled by the window."""
@@ -256,8 +266,8 @@ class DropOverlay(QWidget):
         if not count:
             self.summary.setText("Burada PDF yok. Yalnızca PDF dosyaları ve klasörleri eklenir.")
         elif job_name:
-            self.summary.setText(f"{count} parti, <b>{html.escape(job_name)}</b> işinin "
-                                 "sonuna eklenir.")
+            name = html.escape(_breakable(job_name))
+            self.summary.setText(f"{count} parti, <b>{name}</b> işinin sonuna eklenir.")
         else:
             self.summary.setText(f"{count} partiyle yeni bir iş oluşturulur.")
         while self.files.count():
@@ -274,7 +284,7 @@ class DropOverlay(QWidget):
             more = QLabel(f"ve {count - SHOWN_FILES} dosya daha")
             more.setProperty("textRole", "secondary")
             self.files.addWidget(more)
-        self.setAccessibleDescription(self.summary.text())
+        self.setAccessibleDescription(self.summary.text().replace("\u200b", ""))  # no break marks
         self.place()
         self.show()
         self.raise_()

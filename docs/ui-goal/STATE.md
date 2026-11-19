@@ -15,11 +15,10 @@ Updated after every accepted step. A new session or a compacted one reads this f
   fixed in a075e9c and checked with tests/ui (664 passed, 27 xfailed; old file: 2 failed).
   ruff clean. Phase 0+1 report sent. Owner: Q-02 (25 conflict
   rows), Q-03 (enforcement). Then write the Phase 0+1 report (max 15 lines) to the owner.
-- Phase 2: fix bfb92bc; perf-after-phase2.json (all targets met, every set). Remaining for
-  the phase end: full suite at f3-ish HEAD in worktree /tmp/claude-0/wt-p2 (output
-  /tmp/claude-0/suite-p2.txt; remove the worktree after), Opus phase review running
-  (.claude/gorevler/p2-phase-review.md: fix must-fixes, ledger the rest), then the Phase 2
-  report (max 15 lines). Owner check Q-07 queued.
+- Phase 2: CLOSED. Fix bfb92bc + review fixes f35f56b; perf-after-phase2.json all targets met;
+  full suite 1118 passed / 6 skipped / 26 xfailed (before f35f56b, which was checked with the
+  Kontrol test files); Opus review found no S1/S2 (.claude/gorevler/p2-phase-review.md); F6/F7
+  ledgered (B-042, B-043). Owner check Q-07. Report sent.
 - Phase 3: IN PROGRESS (spec .claude/gorevler/2026-11-19-p3-shortcuts.md).
   3A done: shortcut-contract.tsv (319 rows), shortcut-mismatches.md (45; 31 PROPOSED texts),
   shortcut-checklist.md (1625c5f); owner Q-08 queued. 3B done: audit_shortcuts.py --check /

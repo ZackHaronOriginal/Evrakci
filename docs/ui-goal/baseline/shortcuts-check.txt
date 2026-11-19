@@ -382,3 +382,4 @@ validate(): 0 problem(s)
   - rehber F11 app.tam_ekran
   - rehber Ctrl+, app.ayarlar
 exit=1
+run 2 (2026-11-19, commit ecb3d73, after the S1 fixes): identical binding list and exit=1

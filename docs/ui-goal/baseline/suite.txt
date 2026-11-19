@@ -1,0 +1,11 @@
+# Full suite baseline (Phase 0 step 1), run twice
+run 1: commit 0a28b16, 'QT_QPA_PLATFORM=offscreen python -m pytest -q', real 5m31.519s
+1093 passed, 6 skipped, 1 warning in 330.21s (0:05:30)
+ruff check .: All checks passed!
+
+run 2: commit 79c2405 (clean worktree, PYTHONPATH=src), same command, real 5m46.291s
+1094 passed, 6 skipped, 31 xfailed, 1 warning in 345.19s (0:05:45)
+ruff check .: All checks passed!
+
+Difference: run 2 adds tests/test_perf_script.py (+1 passed) and the 31 ledger repro tests (strict xfail). The plan's '1081 passed at e1e3276' does not match: e1e3276 and 0a28b16 collect the same 1099 tests (only the version string changed), so 1093 passed + 6 skipped is the complete set in this container; the 1081 record came from an environment where 12 more tests did not run.
+Warning in both runs: tests/ui/test_yukle_a.py:770 DeprecationWarning (QDragEnterEvent constructor).

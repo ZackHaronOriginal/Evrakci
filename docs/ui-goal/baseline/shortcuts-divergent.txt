@@ -19,3 +19,4 @@ Keys with a different label on different tabs (must be documented as page-specif
 
 validate(): 0 problem(s)
 exit=0
+run 2 (2026-11-19, commit ecb3d73): identical (14 keys with different labels), exit=0

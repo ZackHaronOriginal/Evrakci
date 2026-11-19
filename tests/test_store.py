@@ -111,3 +111,16 @@ def test_prepared_batch_is_attached_as_a_separate_step(tmp_path):
     assert job.pages["b2/0"].is_separator
     with pytest.raises(ValueError):
         job.attach_batch(prepared.batch, prepared.pages)
+
+
+def test_prepare_batch_reports_progress_per_page(tmp_path):
+    from fakes import make_pdf, text_page
+
+    from evrakci.pipeline.store import JobStore
+
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("İş", [make_pdf(tmp_path / "a.pdf", [text_page()])])
+    seen = []
+    store.prepare_batch(job, make_pdf(tmp_path / "b.pdf", [text_page(), text_page()]),
+                        lambda done, total: seen.append((done, total)))
+    assert seen == [(1, 2), (2, 2)]

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>A in colour: cabinet-green stack, manila tabs, the middle one the orange rider</title>
+  <rect x="0" y="0" width="256" height="256" rx="56" fill="#3f5a4c"/>
+  <rect x="48" y="40" width="60" height="176" rx="14" fill="#fbfaf6"/>
+  <path d="M118 40h66a22 22 0 0 1 0 44h-66z" fill="#e9d9a6"/>
+  <path d="M118 106h44a22 22 0 0 1 0 44h-44z" fill="#e8731a"/>
+  <path d="M118 172h66a22 22 0 0 1 0 44h-66z" fill="#e9d9a6"/>
+</svg>

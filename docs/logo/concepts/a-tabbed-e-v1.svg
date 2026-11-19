@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- A: three filed cards whose guide tabs form an E; a continuous spine is the card stack -->
+  <path d="M64 40h116l24 24v20H96v22h68l16 16v28H96v22h84l24 24v20H64a12 12 0 0 1-12-12V52a12 12 0 0 1 12-12z"/>
+</svg>

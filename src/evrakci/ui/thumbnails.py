@@ -1,4 +1,9 @@
-"""Page thumbnails: rendered in worker threads, only on request, kept in a small LRU cache."""
+"""Page thumbnails: rendered in worker threads, only on request, kept in a small LRU cache.
+
+The service renders at one height (`set_height`, the Kontrol zoom). After a height change the
+old images stay in the cache and are still drawn, scaled, until the new ones arrive, so zooming
+never flashes empty pages.
+"""
 
 from __future__ import annotations
 
@@ -24,18 +29,28 @@ def to_qimage(image: Image.Image) -> QImage:
     return qimage.copy()  # own the pixels; `data` goes away
 
 
+A4_INCHES = 11.7  # the long side of an A4 page
+
+
+def render_dpi(height: int, minimum: int = 30) -> int:
+    """Enough resolution for an A4 page `height` pixels tall (at least `minimum`)."""
+    return max(minimum, -(-height * 10 // round(A4_INCHES * 10)) + 1)
+
+
 def job_renderer(
     job: Job, batch_files: Callable[[], Mapping[str, Path]], dpi: int = 30
 ) -> Renderer:
     """Render a page of `job` from its batch file, rotated as the user rotated it.
 
-    `batch_files` is asked on every render, so batches added later are found too.
+    `batch_files` is asked on every render, so batches added later are found too. `dpi` is the
+    lowest resolution; taller thumbnails (zoomed in) are rendered with as much as they need.
     """
 
     def render(pid: str, height: int) -> Image.Image:
         batch_id, index = parse_page_id(pid)
         path = batch_files()[batch_id]
-        image = render_page(path, index, job.rotations.get(pid, 0), dpi=dpi)
+        image = render_page(path, index, job.rotations.get(pid, 0),
+                            dpi=render_dpi(height, dpi))
         width = max(1, round(image.width * height / image.height))
         return image.resize((width, height))
 
@@ -43,7 +58,7 @@ def job_renderer(
 
 
 class _Relay(QObject):
-    done = Signal(str, QImage, int)
+    done = Signal(str, QImage, int, int)
 
 
 class _Job(QRunnable):
@@ -72,6 +87,7 @@ class ThumbnailService(QObject):
         self.height = height
         self.capacity = capacity
         self.cache: OrderedDict[str, QImage] = OrderedDict()
+        self._heights: dict[str, int] = {}  # the height each cached image was rendered for
         self._wanted: set[str] = set()
         self._version: dict[str, int] = {}  # bumped by invalidate; older renders are dropped
         self._busy = 0
@@ -81,8 +97,24 @@ class ThumbnailService(QObject):
         self._relay = _Relay()
         self._relay.done.connect(self._finished)
 
+    def set_height(self, height: int) -> None:
+        """Render at `height` from now on; cached images of the old height stay usable (drawn
+        scaled) until each page is asked for again and re-rendered."""
+        height = max(1, int(height))
+        if height == self.height:
+            return
+        with self._lock:
+            self.height = height
+            for key in self._wanted:
+                self._version[key] = self._version.get(key, 0) + 1
+            self._wanted.clear()
+
+    def is_current(self, pid: str) -> bool:
+        """True when the cached image of `pid` has the service's height."""
+        return pid in self.cache and self._heights.get(pid) == self.height
+
     def request(self, pid: str) -> None:
-        if pid in self.cache:
+        if self.is_current(pid):
             self.cache.move_to_end(pid)
             self.ready.emit(pid, self.cache[pid])
             return
@@ -107,8 +139,10 @@ class ThumbnailService(QObject):
                 self._wanted.discard(key)
         if pid is None:
             self.cache.clear()
+            self._heights.clear()
         else:
             self.cache.pop(pid, None)
+            self._heights.pop(pid, None)
 
     def stop(self) -> None:
         """Forget all pending work, for example when another job is opened.
@@ -127,9 +161,10 @@ class ThumbnailService(QObject):
             with self._lock:
                 wanted = pid in self._wanted
                 version = self._version.get(pid, 0)
+                height = self.height
             if wanted:
                 try:
-                    image = to_qimage(self.renderer(pid, self.height))
+                    image = to_qimage(self.renderer(pid, height))
                 except Exception:  # a broken page shows no thumbnail, never stops the window
                     image = None
         finally:
@@ -138,13 +173,15 @@ class ThumbnailService(QObject):
                     self._wanted.discard(pid)
                 self._busy -= 1
         if image is not None:
-            self._relay.done.emit(pid, image, version)
+            self._relay.done.emit(pid, image, version, height)
 
-    def _finished(self, pid: str, image: QImage, version: int) -> None:
+    def _finished(self, pid: str, image: QImage, version: int, height: int) -> None:
         if self._version.get(pid, 0) != version:
             return  # invalidated while rendering: an old picture
         self.cache[pid] = image
+        self._heights[pid] = height
         self.cache.move_to_end(pid)
         while len(self.cache) > self.capacity:
-            self.cache.popitem(last=False)
+            old, _ = self.cache.popitem(last=False)
+            self._heights.pop(old, None)
         self.ready.emit(pid, image)

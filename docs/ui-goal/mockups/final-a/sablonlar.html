@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-states="main,empty,nudge">
+<head>
+<meta charset="utf-8">
+<title>Şablonlar: direction A (final-a addition)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<link rel="stylesheet" href="additions.css">
+<style>
+/* ADDED TAB in direction A's language. Title band, command bar, layer, cards, table, inspector,
+   status bar: A's components. Rules marked "A:" are copied verbatim from A's pages. */
+/* Şablonlar: templates + variables (cards on the layer) | page with boxes in a well | box inspector */
+.body { display: grid; grid-template-columns: 264px 1fr var(--inspector-w); min-height: 0; }
+.window[data-state="empty"] .body { grid-template-columns: 264px 1fr; }
+.window[data-state="empty"][data-text="150"] .body, [data-text="150"] .window[data-state="empty"] .body { grid-template-columns: 360px 1fr; }
+.canvas-empty { flex: 1; background: var(--well); border-radius: var(--r-layer); min-height: 0; display: flex; }
+.canvas-empty .empty-state { flex: 1; }
+.canvas-empty .empty-state .mark .ic { color: var(--icon); }
+[data-text="150"] .body { grid-template-columns: 360px 1fr var(--inspector-w); }
+.navside { padding: var(--s3) var(--s3) var(--s3) var(--s3); display: flex; flex-direction: column; gap: var(--s3); min-height: 0; }
+.navside .gl { display: flex; align-items: center; justify-content: space-between; }
+.navside .gl .group-label { margin-bottom: 0; }
+.navside .gl + .card { margin-top: var(--s2); }
+.act .r.sub { padding-left: var(--s6); color: var(--text); }
+.act .r .num-badge { margin-right: -2px; }
+.act .r .req { color: var(--text-2); margin-left: -6px; }
+.navside .foot { margin-top: auto; font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); padding: 0 var(--s1); }
+.canvas { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 0 0 var(--s3); }
+.canvas-bar { display: flex; align-items: center; gap: var(--s2); height: 52px; padding: 0 var(--s1); white-space: nowrap; }
+.canvas-bar .lbl { font-size: var(--fs-caption); color: var(--text-2); }
+.canvas-bar .fld + .lbl { margin-left: var(--s4); }
+.canvas-bar .fld { gap: var(--s3); }
+.canvas-well { flex: 1; position: relative; background: var(--well); border-radius: var(--r-layer); overflow: hidden; padding: var(--s8) 0 0 var(--s8); min-height: 0; }
+/* ADDED: rulers in mm (GOAL 3.2) inside the well's existing 24 / 32 px margin, so the sheet keeps
+   its place. Caption text, --stroke hairline on the inner edge, ticks in --stroke-soft/--text-2;
+   the selected box's extent is a 2 px --accent bar on each ruler. Origin = the sheet's top-left.
+   Scale: A4 210 mm = 600 px at %135. Qt: two QWidgets painting with QPainter beside the QGraphicsView. */
+.ruler { position: absolute; z-index: 2; background: var(--well); color: var(--text-2); font-size: var(--fs-caption);
+  line-height: var(--lh-caption); font-feature-settings: var(--ff-num); overflow: hidden; white-space: nowrap; }
+.ruler.top { left: 24px; right: 0; top: 0; height: 24px; border-bottom: 1px solid var(--stroke); }
+.ruler.left { top: 24px; bottom: 0; left: 0; width: 24px; border-right: 1px solid var(--stroke); }
+.ruler.corner { left: 0; top: 0; width: 24px; height: 24px; border-right: 1px solid var(--stroke); border-bottom: 1px solid var(--stroke); }
+.ruler i { position: absolute; background: var(--text-2); }
+.ruler.top i { bottom: 0; width: 1px; height: 4px; }
+.ruler.top i.mj { height: 7px; }
+.ruler.left i { right: 0; height: 1px; width: 4px; }
+.ruler.left i.mj { width: 7px; }
+.ruler span { position: absolute; }
+.ruler.top span { top: 0; transform: translateX(3px); }
+/* vertical ruler: numbers turned to read bottom-up, as in Word and Explorer's print preview */
+.ruler.left span { left: 0; writing-mode: vertical-rl; transform: rotate(180deg) translateY(calc(100% + 3px)); }
+.ruler .ext { position: absolute; background: var(--accent); }
+.ruler.top .ext { bottom: 0; height: 2px; }
+.ruler.left .ext { right: 0; width: 2px; }
+.sheet { position: relative; }
+/* ADDED state nudge: the box has keyboard focus (D11 ring) and moves 0,25 mm per arrow key */
+[data-text="150"] .canvas-well { padding: 44px 0 0 44px; }
+[data-text="150"] .ruler.top { left: 36px; height: 36px; }
+[data-text="150"] .ruler.left { top: 36px; width: 36px; }
+[data-text="150"] .ruler.corner { width: 36px; height: 36px; }
+.fbox.sel.kfocus { outline: 2px solid var(--focus-outer); outline-offset: 6px; }
+.sheet { width: 600px; min-height: 760px; background: var(--paper); color: var(--paper-ink); border-radius: var(--r-paper);
+  box-shadow: 0 0 0 1px rgba(20,32,26,.10), var(--shadow-paper); padding: 40px 48px; font-size: 13px; line-height: 18px; }
+[data-theme="dark"] .sheet { box-shadow: 0 0 0 1px rgba(0,0,0,.5), var(--shadow-paper); }
+[data-theme="hc"] .sheet { box-shadow: 0 0 0 1px var(--stroke); }
+.sheet .org { text-align: center; color: var(--paper-head); letter-spacing: .04em; font-size: 12px; }
+.sheet .ttl { text-align: center; font-weight: var(--w-semibold); font-size: 16px; letter-spacing: .04em; margin: 2px 0 28px; }
+.sheet .fr { display: grid; grid-template-columns: 150px 1fr; align-items: center; height: 56px; }
+.sheet .fr > span:first-child { color: var(--paper-head); }
+.fbox { position: relative; justify-self: start; padding: 3px 8px; border-radius: 2px; box-shadow: 0 0 0 2px var(--paper-box); }
+.fbox .no { position: absolute; left: -26px; top: 50%; margin-top: -10px; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 2px;
+  background: var(--paper-box); color: #fff; font-size: 12px; font-weight: var(--w-semibold); display: flex; align-items: center; justify-content: center; }
+[data-theme="hc"] .fbox .no { color: var(--paper); }
+.fbox.sel { box-shadow: 0 0 0 2px var(--paper-box), 0 0 0 4px var(--paper); }
+.fbox.sel i { position: absolute; width: 7px; height: 7px; background: var(--paper); box-shadow: inset 0 0 0 1.5px var(--paper-box); }
+.fbox.sel i:nth-of-type(1) { left: -4px; top: -4px; } .fbox.sel i:nth-of-type(2) { right: -4px; top: -4px; }
+.fbox.sel i:nth-of-type(3) { left: -4px; bottom: -4px; } .fbox.sel i:nth-of-type(4) { right: -4px; bottom: -4px; }
+.sheet .para { margin-top: 20px; max-width: 470px; }
+.sheet .stamp { width: 86px; height: 86px; border-radius: 50%; border: 2px solid var(--paper-line); margin: 18px 0 0 340px; display: flex; align-items: center;
+  justify-content: center; text-align: center; color: var(--paper-line); font-size: 10px; line-height: 12px; font-weight: var(--w-semibold); }
+.box-card { padding: var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
+.box-card .lbl { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); margin-bottom: var(--s1); }
+.box-card .line { display: flex; align-items: center; gap: var(--s2); }
+.box-card .line .t2 { font-size: var(--fs-caption); margin-left: auto; }
+.box-card .fld.small { width: 64px; justify-content: center; }
+.box-card .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s2); }
+.box-card .grid4 .fld { padding: 0 var(--s2); }
+/* A: inspector (kontrol.html) */
+/* inspector: Settings-style cards on the layer, no hairlines */
+.inspector { padding: var(--s3) var(--s4) var(--s3) 0; display: flex; flex-direction: column; gap: var(--s3); min-height: 0; }
+.ins-head { padding: var(--s1) var(--s1) 0; }
+.ins-head .top { display: flex; align-items: center; justify-content: space-between; }
+.ins-head h1 { margin: var(--s1) 0 0; font-size: var(--fs-page); line-height: var(--lh-page); font-weight: var(--w-semibold); letter-spacing: -.01em; }
+.ins-head .sub { color: var(--text-2); margin-top: 2px; }
+.reason { display: flex; gap: var(--s2); align-items: flex-start; margin-top: var(--s3); }
+.kv { padding: var(--s1) 0; }
+.kv .r { display: flex; align-items: center; min-height: 40px; padding: 0 var(--s4); gap: var(--s3); }
+.kv .r .k { width: 76px; color: var(--text-2); font-size: var(--fs-caption); flex: none; }
+.kv .r .v { display: flex; align-items: center; gap: var(--s2); }
+.kv .r .v .ic.f { color: var(--cut-filter-text); }
+.act { padding: var(--s1); }
+.act .r { display: flex; align-items: center; gap: var(--s3); height: 40px; padding: 0 var(--s3); border-radius: var(--r-control); }
+.act .r .ic { color: var(--icon); }
+.act .r .val { margin-left: auto; color: var(--text-2); font-size: var(--fs-caption); display: flex; align-items: center; gap: var(--s1); }
+.act .r.hov { background: var(--hover); }
+.ins-foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--s1); }
+.ins-foot .btn.primary { height: 40px; }
+.hist { padding: var(--s1) 0; }
+.hist .r { display: flex; align-items: center; gap: var(--s3); height: 36px; padding: 0 var(--s4); font-size: var(--fs-caption); }
+.hist .r .ic { color: var(--icon); }
+.hist .r .tm { margin-left: auto; color: var(--text-2); }
+.act .r { white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="window" data-state="main">
+
+  <header class="titlebar">
+    <img class="logo" src="../../../logo/kit/evrakci-app-icon.svg" alt="Evrakçı">
+    <nav class="tabs" aria-label="Sekmeler">
+      <div class="tab"><i class="ic" data-i="upload"></i>Yükle</div>
+      <div class="tab"><i class="ic" data-i="layout-grid"></i>Kontrol</div>
+      <div class="tab on"><i class="ic" data-i="layout-template"></i>Şablonlar</div>
+      <div class="tab"><i class="ic" data-i="table"></i>Değerler</div>
+      <div class="tab"><i class="ic" data-i="file-output"></i>Dışa Aktar</div>
+      <div class="tab"><i class="ic" data-i="book-open"></i>Rehber</div>
+    </nav>
+    <div class="grow"></div>
+    <div class="tb-right">
+      <div class="jobswitch"><b>Kasım 2026 kapasite raporları</b><span class="saved"><i class="ic" data-i="check"></i>Kaydedildi 14:32</span><i class="ic t2" data-i="chevron-down"></i></div>
+      <div class="search"><i class="ic" data-i="search"></i>Ara<span class="k">Ctrl+K</span></div>
+      <button class="iconbtn sm" aria-label="Menü (Alt)"><i class="ic" data-i="menu"></i></button>
+      <div class="caption"><span><i class="ic" data-i="minus"></i></span><span><i class="ic" data-i="square"></i></span><span><i class="ic" data-i="x"></i></span></div>
+    </div>
+  </header>
+
+  <main class="layer">
+    <div class="commandbar" role="toolbar" aria-label="Şablonlar komutları">
+      <button data-cls="empty:dis" class="iconbtn" aria-label="Geri al: Kutuyu taşı (Ctrl+Z)"><i class="ic md" data-i="undo-2"></i></button>
+      <button data-cls="empty:dis" class="iconbtn dis" aria-label="Yinele (Ctrl+Y)"><i class="ic md" data-i="redo-2"></i></button>
+      <span class="sep"></span>
+      <button data-cls="empty:dis" class="cmd"><i class="ic md" data-i="square-dashed"></i>Kutu çiz</button>
+      <button data-cls="empty:dis" class="iconbtn" aria-label="Izgaraya oturt (G)"><i class="ic md" data-i="magnet"></i></button>
+      <button data-cls="empty:dis" class="iconbtn" aria-label="Kutuyu çoğalt (Ctrl+D)"><i class="ic md" data-i="copy"></i></button>
+      <button data-cls="empty:dis" class="iconbtn" aria-label="Kutuyu sil (Del)"><i class="ic md" data-i="trash-2"></i></button>
+      <span class="sep"></span>
+      <button data-cls="empty:dis" class="iconbtn" aria-label="Değişken ekle (Ctrl+Shift+N)"><i class="ic md" data-i="plus"></i></button>
+      <div class="grow"></div>
+      <button data-cls="empty:dis" class="cmd"><i class="ic md" data-i="play"></i>Bütün örneklerde dene</button>
+      <button data-cls="empty:dis" class="iconbtn" aria-label="Okumaları sayfada göster"><i class="ic md" data-i="eye"></i></button>
+      <span class="sep"></span>
+      <button data-cls="empty:dis" class="iconbtn" aria-label="Ayrıntı panelini gizle (F9)"><i class="ic md" data-i="panel-right"></i></button>
+      <button class="iconbtn" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
+    </div>
+
+    <div class="body">
+      <aside class="navside" aria-label="Şablonlar ve değişkenler">
+        <div>
+          <div class="gl"><div class="group-label">Şablonlar</div><button class="iconbtn sm" aria-label="Şablon ekle"><i class="ic" data-i="plus"></i></button></div>
+          <div class="card act" data-out="empty">
+            <div class="r on">Faaliyet belgesi<span class="val">kaydedilmedi</span></div>
+            <div class="r">Ekspertiz raporu<span class="val">8 değişken</span></div>
+            <div class="r">İmza sirküleri<span class="val">4 değişken</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="gl"><div class="group-label">Değişkenler</div><button class="iconbtn sm" aria-label="Değişken ekle (Ctrl+Shift+N)"><i class="ic" data-i="plus"></i></button></div>
+          <div class="card act" data-out="empty">
+            <div class="r"><span class="num-badge">1</span>Firma unvanı<span class="req">*</span><span class="val">2 bölüm</span></div>
+            <div class="r sub on"><i class="ic" data-i="grip-vertical"></i>Bölüm 1<span class="val">Sayfa 1</span></div>
+            <div class="r sub"><i class="ic" data-i="grip-vertical"></i>Bölüm 2<span class="val">Sayfa 1</span></div>
+            <div class="r"><span class="num-badge">2</span>Oda sicil no<span class="req">*</span></div>
+            <div class="r"><span class="num-badge">3</span>Vergi no</div>
+            <div class="r"><span class="num-badge">4</span>Faaliyet konusu</div>
+            <div class="r"><span class="num-badge">5</span>Düzenleme tarihi<span class="req">*</span></div>
+          </div>
+        </div>
+        <div class="foot" data-in="empty" hidden>Şablonlar bu bilgisayarda saklanır ve her işte kullanılabilir. Bir şablon seçince değişkenleri burada sıralanır.</div>
+        <div class="foot" data-out="empty">* zorunlu. Bölümler yukarıdan aşağı denenir; ilk emin okuma kazanır.</div>
+      </aside>
+
+      <section class="canvas" aria-label="Örnek sayfa">
+        <div class="canvas-bar" data-out="empty">
+          <span class="lbl">Örnek</span><div class="fld">Örnek 1, Ege Kalıp San. Ltd.<i class="ic" data-i="chevron-down"></i></div>
+          <span class="lbl">Sayfa</span><div class="fld num">1 / 2<i class="ic" data-i="chevron-down"></i></div>
+        </div>
+        <div class="canvas-empty" data-in="empty" hidden>
+          <div class="empty-state">
+            <div class="mark"><i class="ic" data-i="layout-template"></i></div>
+            <h2>Henüz şablon yok</h2>
+            <p>Örnek bir sayfada her bilginin çevresine kutu çizin.</p>
+            <div class="acts-row">
+              <button class="btn primary"><i class="ic" data-i="plus"></i>Yeni şablon oluştur</button>
+              <button class="btn"><i class="ic" data-i="book-open"></i>Rehber'i aç</button>
+            </div>
+            <div class="note">Örnek sayfalar açık işten gelir: Kasım 2026 kapasite raporları.</div>
+          </div>
+        </div>
+        <div class="canvas-well" data-clip-ok data-out="empty">
+          <div class="ruler corner" aria-hidden="true"></div>
+          <div class="ruler top" id="rx" aria-label="Cetvel, yatay (mm)"></div>
+          <div class="ruler left" id="ry" aria-label="Cetvel, dikey (mm)"></div>
+          <div class="sheet">
+            <div class="org">ÖRNEK İLİ TİCARET VE SANAYİ ODASI</div>
+            <div class="ttl">FAALİYET BELGESİ</div>
+            <div class="fr"><span>Firma unvanı</span><span class="fbox sel" data-cls="nudge:kfocus"><span class="no">1</span>Ege Kalıp San. Ltd. Şti.<i></i><i></i><i></i><i></i></span></div>
+            <div class="fr"><span>Oda sicil no</span><span class="fbox"><span class="no">2</span>48213</span></div>
+            <div class="fr"><span>Vergi no</span><span class="fbox"><span class="no">3</span>7340915268</span></div>
+            <div class="fr"><span>Faaliyet konusu</span><span class="fbox"><span class="no">4</span>Plastik enjeksiyon kalıbı imalatı</span></div>
+            <div class="fr"><span>Düzenleme tarihi</span><span class="fbox"><span class="no">5</span>04.11.2026</span></div>
+            <div class="para">Yukarıda unvanı yazılı firmanın odamıza kayıtlı olduğu ve faaliyetine devam ettiği onaylanır.</div>
+            <div class="stamp">ÖRNEK İLİ<br>T.S.O.</div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="inspector" data-out="empty" aria-label="Kutu ayrıntısı">
+        <div class="ins-head">
+          <div class="top"><span class="t2">Kutu 1 / 2</span>
+            <button class="iconbtn sm" aria-label="Diğer"><i class="ic" data-i="ellipsis"></i></button></div>
+          <h1>Firma unvanı</h1>
+          <div class="sub">Bölüm 1, sayfa 1</div>
+        </div>
+
+        <div>
+          <div class="group-label">Kutu</div>
+          <div class="card box-card">
+            <div><div class="lbl">Ad</div><div class="fld">Firma unvanı</div></div>
+            <div class="line"><span class="cb on"><i class="ic" data-i="check"></i></span>Zorunlu<span class="t2">Kutunun sayfası</span><div class="fld small num">1</div></div>
+            <div><div class="lbl">X, Y, genişlik, yükseklik (mm)</div>
+              <div class="grid4"><div class="fld num" data-out="nudge">70,0</div><div class="fld num" data-in="nudge" hidden>70,25</div><div class="fld num">34,0</div><div class="fld num">104,0</div><div class="fld num">8,0</div></div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="group-label">Okunan, örnek 1</div>
+          <div class="card kv">
+            <div class="r"><span class="k">Değer</span><span class="v">Ege Kalıp San. Ltd. Şti.</span></div>
+            <div class="r"><span class="k">Güven</span><span class="v"><span class="st ok"><i class="ic" data-i="signal-high"></i>Emin <span class="pct">%98</span></span></span></div>
+          </div>
+        </div>
+
+        <div class="ins-foot">
+          <button class="btn primary"><i class="ic" data-i="save"></i>Şablonu kaydet</button>
+        </div>
+      </aside>
+    </div>
+
+  </main>
+
+  <footer class="statusbar">
+    <span data-out="empty,nudge">Örnek <b>1</b> / 4</span>
+    <span data-out="empty,nudge">İmleç <b>x 84,5  y 41,0</b> mm</span>
+    <span data-in="nudge" hidden>Kutu <b>x 70,25  y 34,0</b> mm</span>
+    <span data-in="nudge" hidden>Kaydır: ok tuşları <b>0,25 mm</b>, Shift <b>1 mm</b></span>
+    <span class="ok" data-out="empty,nudge"><i class="ic" data-i="circle-dashed" style="color:var(--icon)"></i><span>Şablon kaydedilmedi</span></span>
+    <span data-out="empty" class="warn"><i class="ic" data-i="triangle-alert"></i><span><b>1</b> okuma kontrol bekliyor</span></span>
+    <span data-in="empty" hidden>Şablon seçilmedi</span>
+    <span class="grow"></span>
+    <span class="zoom" data-out="empty" title="Sayfa yakınlığı"><i class="ic" data-i="zoom-out"></i><span class="slider"><i style="width:54%"></i><b style="left:54%"></b></span><i class="ic" data-i="zoom-in"></i><span class="num">%135</span></span>
+  </footer>
+</div>
+<script src="state.js"></script>
+<script src="anchor.js"></script>
+<script src="icons.js"></script>
+<script>
+/* rulers (mockup only): ticks every 5 mm, numbers every 20 mm, origin at the sheet's top-left;
+   the selected box (x 70 mm, w 104 mm; y 34 mm, h 8 mm) is marked on both rulers. */
+(function () {
+  const well = document.querySelector('.canvas-well'), sheet = well && well.querySelector('.sheet');
+  if (!sheet || !well.offsetParent) return;
+  const pxmm = sheet.offsetWidth / 210, ox = sheet.offsetLeft, oy = sheet.offsetTop;
+  const nudged = document.documentElement.dataset.state === 'nudge' ? 0.25 : 0;
+  const fill = (el, horiz, origin, len) => {
+    const c = document.querySelector('.ruler.corner'), off = horiz ? c.offsetWidth : c.offsetHeight;  /* after the corner square */
+    let html = '';
+    for (let mm = -Math.floor(origin / pxmm / 5) * 5; (origin - off) + mm * pxmm < len + off; mm += 5) {
+      const at = origin - off + mm * pxmm;
+      if (at < 0) continue;
+      const mj = mm % 10 === 0;
+      html += `<i class="${mj ? 'mj' : ''}" style="${horiz ? 'left' : 'top'}:${at.toFixed(1)}px"></i>`;
+      if (mm % 20 === 0) html += `<span style="${horiz ? 'left' : 'top'}:${at.toFixed(1)}px">${mm}</span>`;
+    }
+    const [a, b] = horiz ? [70 + nudged, 104] : [34, 8];
+    html += `<b class="ext" style="${horiz ? 'left' : 'top'}:${(origin - off + a * pxmm).toFixed(1)}px;${horiz ? 'width' : 'height'}:${(b * pxmm).toFixed(1)}px"></b>`;
+    el.innerHTML = html;
+    /* a number that would be cut by the ruler's ends is left out, as rulers do */
+    const box = el.getBoundingClientRect();
+    el.querySelectorAll('span').forEach(s => { const r = s.getBoundingClientRect();
+      if (r.left < box.left || r.right > box.right || r.top < box.top || r.bottom > box.bottom) s.remove(); });
+  };
+  const draw = () => {
+    fill(document.getElementById('rx'), true, ox, well.clientWidth);
+    fill(document.getElementById('ry'), false, oy, well.clientHeight);
+  };
+  draw();
+  if (document.fonts) document.fonts.ready.then(draw);
+})();
+</script>
+</body>
+</html>

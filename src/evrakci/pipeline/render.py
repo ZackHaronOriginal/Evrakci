@@ -7,20 +7,23 @@ from pathlib import Path
 import pypdfium2 as pdfium
 from PIL import Image
 
+from evrakci.pipeline.pdfium_lock import PDFIUM_LOCK
+
 DPI = 300
 
 
 def render_page(batch_file: Path, index: int, rotation: int = 0, dpi: int = DPI) -> Image.Image:
     """The page as displayed (its own /Rotate applied), turned `rotation` degrees clockwise."""
-    pdf = pdfium.PdfDocument(str(batch_file))
-    try:
-        page = pdf[index]
+    with PDFIUM_LOCK:
+        pdf = pdfium.PdfDocument(str(batch_file))
         try:
-            image = page.render(scale=dpi / 72, grayscale=True).to_pil().convert("L")
+            page = pdf[index]
+            try:
+                image = page.render(scale=dpi / 72, grayscale=True).to_pil().convert("L")
+            finally:
+                page.close()
         finally:
-            page.close()
-    finally:
-        pdf.close()
+            pdf.close()
     if rotation % 360:
         image = image.rotate(-(rotation % 360), expand=True, fillcolor=255)
     return image
@@ -34,18 +37,21 @@ class PageRenderer:
         self._pdf = None
 
     def __enter__(self) -> PageRenderer:
-        self._pdf = pdfium.PdfDocument(str(self.path))
+        with PDFIUM_LOCK:
+            self._pdf = pdfium.PdfDocument(str(self.path))
         return self
 
     def __exit__(self, *exc) -> None:
-        self._pdf.close()
+        with PDFIUM_LOCK:
+            self._pdf.close()
 
     def render(self, index: int, rotation: int = 0, dpi: int = DPI) -> Image.Image:
-        page = self._pdf[index]
-        try:
-            image = page.render(scale=dpi / 72, grayscale=True).to_pil().convert("L")
-        finally:
-            page.close()
+        with PDFIUM_LOCK:
+            page = self._pdf[index]
+            try:
+                image = page.render(scale=dpi / 72, grayscale=True).to_pil().convert("L")
+            finally:
+                page.close()
         if rotation % 360:
             image = image.rotate(-(rotation % 360), expand=True, fillcolor=255)
         return image

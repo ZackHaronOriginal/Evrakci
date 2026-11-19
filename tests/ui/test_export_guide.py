@@ -34,10 +34,12 @@ def test_window_export_matches_the_cli(qtbot, tmp_path, capsys):
     names = sorted(p.name for p in (tmp_path / "ui").iterdir())
     assert names == sorted(p.name for p in cli_out.iterdir())
     assert _rows(tmp_path / "ui" / "index.xlsx") == _rows(cli_out / "index.xlsx")
-    assert screen.results.rowCount() == 2
+    assert screen.results.model().rowCount() == 2
 
 
 def test_export_refuses_a_folder_with_an_earlier_export(qtbot, tmp_path):
+    """A folder that holds an earlier export is an engel (Dışa Aktar's pre-flight): the button
+    is off and says why, and nothing is written (UI change: it used to start and then fail)."""
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     store = JobStore(tmp_path / "kok")
     ctl = JobController(store, store.create_job("İş", [pdf]))
@@ -47,16 +49,19 @@ def test_export_refuses_a_folder_with_an_earlier_export(qtbot, tmp_path):
     qtbot.addWidget(screen)
     screen.folder.setText(str(tmp_path / "out"))
     screen.layer.setChecked(False)
-    with qtbot.waitSignal(screen.finished, timeout=30000):
-        screen.export_button.click()
-    assert "boş bir klasör" in screen.message.text()
+    assert screen.state() == "blocked"
+    assert not screen.export_button.isEnabled()
+    assert "boş değil" in screen.folder_hint_text()
+    screen.export()  # a key press (Ctrl+E) does nothing either
+    assert screen.task is None
+    assert sorted(p.name for p in (tmp_path / "out").iterdir()) == ["eski.pdf"]
 
 
-def test_retention_setting_is_saved(qtbot, tmp_path):
+def test_the_retention_choice_moved_to_ayarlar(qtbot, tmp_path):
+    """"İşi sakla" is in Ayarlar (A's Dışa Aktar has no such row); the export still reads it."""
     screen = DisaAktarScreen(lambda: None, dict, settings_path=tmp_path / "ayar.json")
     qtbot.addWidget(screen)
-    screen.retention.setCurrentIndex(screen.retention.findData("disa-aktarinca-sil"))
-    assert "disa-aktarinca-sil" in (tmp_path / "ayar.json").read_text(encoding="utf-8")
+    assert not hasattr(screen, "retention")
 
 
 def test_guide_shows_the_scanning_guide_and_prints_separators(qtbot, tmp_path):

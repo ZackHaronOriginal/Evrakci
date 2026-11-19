@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="tr" data-theme="light" data-states="main,empty,menu,keys">
+<head>
+<meta charset="utf-8">
+<title>Rehber</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shell.css">
+<style>
+/* ---------- Rehber: contents + search | article (a reading card) | separator-sheet printer ---------- */
+:root { --toc-w: 256px; }
+.body { grid-template-columns: var(--toc-w) minmax(0, 1fr) var(--inspector-w); padding-top: var(--s1); }
+.toc { display: flex; flex-direction: column; gap: var(--s2); min-height: 0; min-width: 0; }
+.toc .res { display: flex; align-items: center; gap: var(--s1); font-size: var(--fs-caption); color: var(--text-2); padding-left: var(--s1); font-feature-settings: var(--ff-num); }
+.toc .res b { color: var(--text); font-weight: var(--w-semibold); }
+.toc .res .grow { flex: 1; }
+.toc .nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+.toc .gl { font-size: var(--fs-caption); font-weight: var(--w-semibold); color: var(--text-2); padding: var(--s3) var(--s3) var(--s1); }
+.toc a.it { color: inherit; text-decoration: none; }
+.toc .it { display: flex; align-items: center; gap: var(--s2); min-height: calc(var(--row-h) - 4px); padding: 0 var(--s3); border-radius: var(--r-control); position: relative; white-space: nowrap; }
+.toc .it .n { margin-left: auto; font-size: var(--fs-caption); color: var(--text-2); font-feature-settings: var(--ff-num); }
+.toc .it.on { background: var(--selected); font-weight: var(--w-semibold); }
+.toc .it.on::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--accent); }
+
+.article { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.article .scroll { overflow-y: auto; min-height: 0; padding: var(--s6) var(--s8) var(--s8); }
+.prose { max-width: 68ch; }
+.prose h1 { font-size: var(--fs-page); line-height: var(--lh-page); font-weight: var(--w-semibold); letter-spacing: -.01em; }
+.prose .lead { color: var(--text-2); margin-top: var(--s1); }
+.prose h2 { font-size: var(--fs-section); line-height: var(--lh-section); font-weight: var(--w-semibold); margin: var(--s6) 0 var(--s2); }
+.prose ul { margin: 0; padding-left: 1.2em; }
+.prose li { margin: var(--s1) 0; }
+.prose li::marker { color: var(--text-2); }
+.prose b { font-weight: var(--w-semibold); }
+.prose code { font-family: inherit; font-feature-settings: var(--ff-value); background: var(--well); border-radius: var(--r-paper); padding: 1px 5px; }
+.note { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s3) var(--s4); border-radius: var(--r-control); background: var(--well); margin-top: var(--s4); }
+.note .ic { color: var(--icon); margin-top: 2px; }
+.note .x { margin-left: auto; color: var(--text-accent); font-weight: var(--w-semibold); white-space: nowrap; }
+mark { background: var(--selected); color: inherit; box-shadow: inset 0 -2px 0 var(--accent); border-radius: 2px; }
+mark.cur { background: var(--accent-fill); color: var(--text-on-accent); box-shadow: none; }
+[data-state="menu"] mark, [data-state="keys"] mark { background: none; box-shadow: none; color: inherit; }
+[data-theme="hc"] mark { outline: 1px solid var(--accent); }
+[data-theme="hc"][data-state="menu"] mark, [data-theme="hc"][data-state="keys"] mark { outline: none; }
+[data-theme="hc"] mark.cur { outline: none; }
+
+
+/* numbered steps (a real sequence), tables, key column */
+.prose ol { list-style: none; counter-reset: step; margin: 0; padding: 0; }
+/* the step marker scales with the text and sits centred on the first line */
+.prose ol > li { counter-increment: step; position: relative; padding-left: calc(32px * var(--ts)); margin: var(--s2) 0; }
+.prose ol > li::before { content: counter(step); position: absolute; left: 0; top: calc((var(--lh-body) - 24px * var(--ts)) / 2);
+  width: calc(24px * var(--ts)); height: calc(24px * var(--ts)); border-radius: 50%;
+  display: grid; place-items: center; background: var(--well); box-shadow: inset 0 0 0 1px var(--stroke); color: var(--text);
+  font-size: var(--fs-caption); font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); line-height: 1; }
+.prose h3 { font-size: var(--fs-body); line-height: var(--lh-body); font-weight: var(--w-semibold); margin: var(--s4) 0 var(--s1); }
+.prose h2[id] { scroll-margin-top: var(--s2); }
+.prose table { width: 100%; border-collapse: collapse; margin-top: var(--s2); border: 1px solid var(--stroke); border-radius: var(--r-control); }
+.prose th { text-align: left; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: var(--w-semibold); color: var(--text-2);
+  padding: var(--s2) var(--s3); background: var(--well); }
+.prose td { padding: var(--s2) var(--s3); border-top: 1px solid var(--stroke-soft); vertical-align: top; }
+.prose td.k { width: 36%; font-weight: var(--w-semibold); font-feature-settings: var(--ff-num); white-space: nowrap; }
+.prose td.k span { font-weight: var(--w-regular, 400); color: var(--text-2); }
+[data-large] .prose td.k { white-space: normal; }
+[data-state="keys"] .prose { font-size: calc(var(--fs-body) * 1.15); line-height: calc(var(--lh-body) * 1.15); }
+[data-state="keys"] .prose td, [data-state="keys"] .prose li { font-size: inherit; }
+
+/* separator sheet printer */
+.sheets { padding: var(--s3); }
+.sheets .well { background: var(--well); border-radius: var(--r-control); padding: var(--s4) var(--s3) var(--s2); display: flex; gap: var(--s3); justify-content: center; }
+.sheets figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--s1); }
+.sheets figcaption { font-size: var(--fs-caption); color: var(--text-2); }
+.sheets .says { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-2); padding: var(--s2) var(--s1) 0; }
+.sep-sheet { width: 112px; height: 158px; background: var(--paper); color: var(--paper-ink); border-radius: var(--r-paper); box-shadow: 0 0 0 1px var(--page-edge), var(--shadow-paper);
+  display: flex; flex-direction: column; align-items: center; padding-top: 18px; gap: 6px; font-size: 10px; text-align: center; line-height: 1.25; }
+.sep-sheet b { font-size: 12px; font-weight: 600; }
+.sep-sheet .qr { width: 56px; height: 56px; }
+.sep-sheet .qr rect { fill: var(--paper-ink); }
+.sep-sheet span { color: var(--paper-head); padding: 0 10px; }
+.kv .r .v .field { width: 80px; justify-content: flex-end; font-feature-settings: var(--ff-num); }
+
+/* Alt menu (menu state) */
+.mnu { top: 88px; left: 400px; min-width: 300px; }
+.mnu u, .menurow u { text-decoration-thickness: 1px; }
+
+/* empty search */
+.article .empty { flex: 1; }
+.article .empty .ic.lg { width: 32px; height: 32px; color: var(--icon); }
+.sugg { display: flex; gap: var(--s2); flex-wrap: wrap; justify-content: center; }
+.sugg-l { font-size: var(--fs-caption); color: var(--text-2); margin-top: var(--s4); }
+
+[data-large] .toc { display: none; }
+[data-large] .body { grid-template-columns: minmax(0, 1fr) var(--inspector-w); }
+[data-large] .paneltog { background: transparent; }
+[data-large] .mnu { left: 520px; top: 104px; }
+</style>
+</head>
+<body>
+<div class="window">
+  <header class="titlebar" data-tab="rehber" data-menu-state></header>
+
+  <main class="layer">
+    <div class="commandbar" role="toolbar" aria-label="Rehber komutları">
+      <button class="iconbtn on paneltog" title="İçindekiler bölmesini gizle" aria-label="İçindekiler bölmesini gizle" aria-pressed="true"><i class="ic md" data-i="panel-left"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" title="Rehberde ara (Ctrl+F)" aria-label="Rehberde ara (Ctrl+F)"><i class="ic md" data-i="search"></i></button>
+      <button class="iconbtn" title="Önceki sonuç (Shift+F3)" aria-label="Önceki sonuç (Shift+F3)"><i class="ic md" data-i="chevron-up"></i></button>
+      <button class="iconbtn" title="Sonraki sonuç (F3)" aria-label="Sonraki sonuç (F3)"><i class="ic md" data-i="chevron-down"></i></button>
+      <span class="sep"></span>
+      <button class="iconbtn" title="Ayıraç sayfasını yazdır… (Ctrl+P)" aria-label="Ayıraç sayfasını yazdır… (Ctrl+P)"><i class="ic md" data-i="printer"></i></button>
+      <button class="iconbtn" title="PDF olarak aç" aria-label="PDF olarak aç"><i class="ic md" data-i="external-link"></i></button>
+      <div class="grow"></div>
+      <button class="cmd" title="Klavye kısayolları (Shift+F1)"><i class="ic md" data-i="keyboard"></i>Kısayollar</button>
+      <button class="iconbtn" title="Yardım konuları (F1)" aria-label="Yardım konuları (F1)"><i class="ic md" data-i="circle-help"></i></button>
+      <button class="iconbtn" title="Diğer komutlar" aria-label="Diğer komutlar"><i class="ic md" data-i="ellipsis"></i></button>
+    </div>
+
+    <div class="body">
+      <nav class="toc" aria-label="İçindekiler">
+        <div class="field focus" data-in="main"><i class="ic" data-i="search"></i>ayıraç<span class="end"><i class="ic" data-i="x"></i></span></div>
+        <div class="field focus" data-in="empty"><i class="ic" data-i="search"></i>laminasyon<span class="end"><i class="ic" data-i="x"></i></span></div>
+        <div class="field ph" data-in="menu,keys"><i class="ic" data-i="search"></i>Rehberde ara<span class="end cap">Ctrl+F</span></div>
+        <div class="res" data-in="main"><span><b>8</b> sonuç, 3 / 8</span><span class="grow"></span>
+          <button class="iconbtn sm" aria-label="Önceki sonuç (Shift+F3)"><i class="ic" data-i="chevron-up"></i></button><button class="iconbtn sm" aria-label="Sonraki sonuç (F3)"><i class="ic" data-i="chevron-down"></i></button></div>
+        <div class="res" data-in="empty"><span><b>0</b> sonuç</span></div>
+        <div class="res" data-in="menu,keys"><span>7 bölüm, 4 dakikalık okuma</span></div>
+        <div class="nav">
+          <div class="gl">Tarama rehberi</div>
+          <a class="it" href="#hazirlik">Hazırlık</a>
+          <a class="it on" data-sec="ayirac" href="#ayirac">QR ayıraç sayfaları<span class="n" data-in="main">7</span></a>
+          <a class="it" href="#makbuz">Küçük makbuzlar</a>
+          <a class="it" href="#tarayici">Tarayıcı ayarları</a>
+          <a class="it" href="#yukleme">Yükleme</a>
+          <a class="it" href="#sonrasi">Sonrası</a>
+          <div class="gl">Başvuru</div>
+          <a class="it" data-sec="kisayollar" href="#kisayollar">Kısayollar<span class="n" data-in="main">1</span></a>
+          <div class="it">Ayıraç sayfası yazdır<span class="n">Ctrl+P</span></div>
+        </div>
+      </nav>
+
+      <article class="card article">
+        <div class="scroll" data-out="empty">
+          <div class="prose">
+            <h1>Tarama rehberi</h1>
+            <p class="lead">Zımbalı evrak destelerini hızlı ve sorunsuz taramak için hazırlık, tarayıcı ayarları ve yükleme adımları.</p>
+            <div class="note" data-in="main,menu"><i class="ic" data-i="info"></i><span>Ctrl+F ile rehberde arayın, Ctrl+tekerlek ile yazıyı büyütün.</span><span class="x">Bir daha gösterme</span></div>
+            <h2 id="hazirlik">Hazırlık</h2>
+            <ol>
+              <li>Her desteyi masaya <b>orijinal sırasıyla</b> koyun.</li>
+              <li>Zımba tellerini <b>zımba sökücü</b> ile çıkarın. Tel kalırsa besleyici sıkışır ve tarayıcı camı çizilebilir.</li>
+              <li>Yırtık, buruşuk veya katlanmış sayfaları düzeltin.</li>
+            </ol>
+            <h2 id="ayirac">QR <mark>ayıraç</mark> sayfaları</h2>
+            <ol>
+              <li><mark>Ayıraç</mark> sayfalarını sağdaki panelden yazdırın (Ctrl+P). QR kod yaprağın iki yüzüne de basılır. Komut satırında: <code>evrakci ayirac ayirac.pdf --adet 10</code></li>
+              <li>Ayrılması gereken her belgenin önüne bir <mark class="cur">ayıraç</mark> koyun. Örneğin 5 sayfalık bir kaydı, iki yanındaki 2 sayfalık kayıtlardan <mark>ayıraç</mark>larla ayırın.</li>
+              <li>Taramadan sonra <mark>ayıraç</mark>ları desteden çıkarıp saklayın; tekrar kullanılabilir.</li>
+            </ol>
+            <h3>Bilmeniz gerekenler</h3>
+            <ul>
+              <li><mark>Ayıraç</mark> sayfası yalnızca “burada yeni belge başlıyor” demektir; çıktıya girmez.</li>
+              <li>Hepsi aynı uzunlukta olan belgelerde <mark>ayıraç</mark> gerekmez: taramadan sonra o sayfaları seçip “her N sayfa bir belge” filtresini uygulayın.</li>
+              <li>Boş sayfalar hiçbir zaman belge ayırmaz. Çift taraflı taramadaki boş arka yüzleri iş ayarından atabilirsiniz.</li>
+            </ul>
+            <h2 id="makbuz">Küçük makbuzlar</h2>
+            <ul>
+              <li>Küçük ve ince makbuzlar besleyiciden düzgün geçmeyebilir.</li>
+              <li>Bunları <b>cam üzerinden</b> tarayın ya da birkaçını bir A4 sayfaya bantlayıp öyle tarayın.</li>
+            </ul>
+            <h2 id="tarayici">Tarayıcı ayarları</h2>
+            <table>
+              <thead><tr><th>Ayar</th><th>Önerilen</th></tr></thead>
+              <tbody>
+                <tr><td class="k">Çözünürlük</td><td>300 dpi</td></tr>
+                <tr><td class="k">Renk</td><td>Gri ton (renkli damga varsa renkli)</td></tr>
+                <tr><td class="k">Çift taraflı</td><td>Belgeler iki yüzlüyse açık</td></tr>
+                <tr><td class="k">Dosya türü</td><td>PDF</td></tr>
+              </tbody>
+            </table>
+            <p>Ayarı bir kez seçip tarayıcıda profil olarak kaydedin.</p>
+            <h2 id="yukleme">Yükleme</h2>
+            <ol>
+              <li>Her partiyi ayrı PDF olarak kaydedin ve hepsini aynı işe ekleyin, tarama sırasıyla.</li>
+              <li>Ayrımları Kontrol sekmesinde gözden geçirin; gerekirse kesim ekleyin veya kaldırın.</li>
+              <li>Dışa Aktar ile her belgeyi ayrı PDF olarak alın.</li>
+            </ol>
+            <h2 id="sonrasi">Sonrası</h2>
+            <ul>
+              <li>Kurum kuralına göre orijinal evrakları yeniden zımbalayın ve arşive kaldırın.</li>
+            </ul>
+            <h2 id="kisayollar">Kısayollar</h2>
+            <p>Bu sekmede geçerli tuşlar. Diğer sekmelerin tuşları için Shift+F1 tuşuna basın.</p>
+            <table>
+              <thead><tr><th>Kısayol</th><th>Ne yapar</th></tr></thead>
+              <tbody>
+                <tr><td class="k">F1</td><td>Yardım konularını aç</td></tr>
+                <tr><td class="k">Ctrl+6</td><td>Rehber sekmesine geç</td></tr>
+                <tr><td class="k">Ctrl+F</td><td>Rehberde ara</td></tr>
+                <tr><td class="k">F3 <span>ve</span> Shift+F3</td><td>Sonraki ve önceki sonuç</td></tr>
+                <tr><td class="k">Esc</td><td>Aramayı temizle</td></tr>
+                <tr><td class="k">Ctrl+Num+ <span>ve</span> Ctrl+-</td><td>Yazıyı büyüt ve küçült (Ctrl+tekerlek de çalışır)</td></tr>
+                <tr><td class="k">Ctrl+P</td><td><mark>Ayıraç</mark> sayfasını yazdır</td></tr>
+                <tr><td class="k">Shift+F1</td><td>Klavye kısayollarını göster</td></tr>
+                <tr><td class="k">Ctrl+K</td><td>Komut ara</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="empty" data-in="empty">
+          <i class="ic lg" data-i="search"></i>
+          <h2>“laminasyon” için sonuç yok</h2>
+          <p>Daha kısa bir sözcük deneyin; Türkçe harf fark etmez.</p>
+          <div class="row"><button class="btn lg"><i class="ic" data-i="x"></i>Aramayı temizle</button><button class="btn lg"><i class="ic" data-i="keyboard"></i>Kısayolları göster</button></div>
+          <div class="sugg-l">Sık aranan konular</div>
+          <div class="sugg"><button class="btn">ayıraç</button><button class="btn">çözünürlük</button><button class="btn">zımba</button><button class="btn">makbuz</button></div>
+        </div>
+      </article>
+
+      <aside class="inspector" aria-label="Ayıraç sayfası yazdır">
+        <div class="scroll">
+          <header>
+            <h1 class="ins-title">Ayıraç sayfası yazdır</h1>
+            <div class="ins-sub">Yaprağın iki yüzüne de aynı QR kod basılır.</div>
+          </header>
+          <section>
+            <h2 class="group-label">Önizleme</h2>
+            <div class="card sheets">
+              <div class="well">
+                <figure><div class="sep-sheet" data-paper><b>Ayıraç</b><svg class="qr" viewBox="0 0 21 21"></svg><span>Burada yeni belge başlıyor</span></div><figcaption>Ön yüz</figcaption></figure>
+                <figure><div class="sep-sheet" data-paper><b>Ayıraç</b><svg class="qr" viewBox="0 0 21 21"></svg><span>Burada yeni belge başlıyor</span></div><figcaption>Arka yüz</figcaption></figure>
+              </div>
+              <p class="says">Sayfada “Burada yeni belge başlıyor” yazar. Evrakçı sayfayı QR koddan tanır ve çıktıya koymaz.</p>
+            </div>
+          </section>
+          <section>
+            <h2 class="group-label">Baskı</h2>
+            <div class="card kv">
+              <div class="r"><span class="k">Kaç adet</span><span class="v"><span class="field num">20</span>sayfa</span></div>
+              <div class="r"><span class="k">Kâğıt</span><span class="v">A4</span></div>
+              <div class="r"><span class="k">Dosya</span><span class="v">ayirac-sayfalari.pdf</span></div>
+            </div>
+          </section>
+        </div>
+        <div class="ins-foot">
+          <button class="btn primary" title="Yazdır (Ctrl+P)"><i class="ic" data-i="printer"></i>Yazdır<span class="k">Ctrl+P</span></button>
+          <button class="btn subtle"><i class="ic" data-i="external-link"></i>PDF olarak aç</button>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Alt (or ≡) shows the menu row as a floating strip; access keys underlined only now -->
+  <div class="menurow" data-in="menu" style="left: 40px; top: calc(var(--titlebar-h) - 4px);" role="menubar" aria-label="Menü">
+    <span><u>D</u>osya</span><span>Düz<u>e</u>n</span><span><u>G</u>örünüm</span><span>Gi<u>t</u></span><span><u>A</u>raçlar</span><span class="on"><u>Y</u>ardım</span>
+  </div>
+  <div class="menu mnu" data-in="menu" role="menu" aria-label="Yardım">
+    <div class="mi hov"><i class="ic" data-i="circle-help"></i><span><u>Y</u>ardım konuları</span><span class="key">F1</span></div>
+    <div class="mi"><i class="ic" data-i="keyboard"></i><span>Klavye <u>k</u>ısayolları</span><span class="key">Shift+F1</span></div>
+    <div class="mi"><i class="ic" data-i="search"></i><span>Komut <u>a</u>ra…</span><span class="key">Ctrl+K</span></div>
+    <hr>
+    <div class="mi"><i class="ic" data-i="info"></i><span>Evrakçı <u>h</u>akkında</span></div>
+  </div>
+
+  <footer class="statusbar">
+    <span data-job></span>
+    <span class="item" data-out="keys">Bölüm <b>2</b> / 7</span><span class="item" data-in="keys">Bölüm <b>7</b> / 7</span>
+    <span class="item" data-in="main"><b>8</b> sonuç: ayıraç</span>
+    <span class="item" data-in="empty"><b>0</b> sonuç: laminasyon</span>
+    <span class="grow"></span>
+    <span class="zoom" data-out="keys" title="Yazı boyutu (Ctrl+tekerlek)"><i class="ic" data-i="zoom-out"></i><span class="slider"><i style="width:50%"></i><b style="left:50%"></b></span><i class="ic" data-i="zoom-in"></i><span class="num">%100</span></span>
+    <span class="zoom" data-in="keys" title="Yazı boyutu (Ctrl+tekerlek)"><i class="ic" data-i="zoom-out"></i><span class="slider"><i style="width:62%"></i><b style="left:62%"></b></span><i class="ic" data-i="zoom-in"></i><span class="num">%115</span></span>
+  </footer>
+</div>
+<script src="icons.js"></script>
+<script>
+/* the ≡ button reads as pressed while the menu row is open */
+if ((new URLSearchParams(location.search).get("state")) === "menu") document.querySelector(".titlebar").dataset.menu = "1";
+</script>
+<script src="shell.js"></script>
+<script>
+/* keys state: the reader has scrolled to Kısayollar at %115 text */
+if (document.documentElement.dataset.state === "keys") {
+  document.querySelector(".toc .it.on").classList.remove("on");
+  document.querySelector('.toc [data-sec="kisayollar"]').classList.add("on");
+  const sc = document.querySelector(".article .scroll");
+  sc.scrollTop = document.getElementById("kisayollar").offsetTop - sc.offsetTop - 8;
+}
+</script>
+<script>
+/* invented QR-like pattern (21 x 21 modules with the three finder squares); the real sheet comes from `evrakci ayirac` */
+(function () {
+  const N = 21, on = new Set();
+  const finder = (x, y) => { for (let i = 0; i < 7; i++) for (let j = 0; j < 7; j++)
+    if (i === 0 || j === 0 || i === 6 || j === 6 || (i > 1 && i < 5 && j > 1 && j < 5)) on.add((y + j) * N + x + i); };
+  finder(0, 0); finder(14, 0); finder(0, 14);
+  let seed = 7;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const inF = (x < 8 && y < 8) || (x > 12 && y < 8) || (x < 8 && y > 12);
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    if (!inF && seed % 100 < 46) on.add(y * N + x);
+  }
+  const rects = [...on].map(k => `<rect x="${k % N}" y="${Math.floor(k / N)}" width="1.02" height="1.02"/>`).join("");
+  document.querySelectorAll("svg.qr").forEach(s => { s.innerHTML = rects; });
+})();
+</script>
+</body>
+</html>

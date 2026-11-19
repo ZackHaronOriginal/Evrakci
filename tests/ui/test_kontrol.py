@@ -60,8 +60,7 @@ def test_selecting_pages_5_to_9_and_applying_a_filter(qtbot, tmp_path):
     selection = view.selectionModel()
     for row in range(4, 9):
         selection.select(view.model().index(row), QItemSelectionModel.SelectionFlag.Select)
-    screen.every_n.setValue(3)
-    screen.filter_button.click()
+    screen.apply_filter(3)  # A: "Filtre uygula…" asks in a dialog; the number is passed here
     assert ctl.job.filters[-1].page_ids == {f"a/{i}" for i in range(4, 9)}
     assert ctl.job.filters[-1].every_n == 3
 
@@ -112,5 +111,5 @@ def test_side_panel_shows_selected_document_and_merge_removes_manual_cut(qtbot, 
     screen = _screen(qtbot, ctl)
     screen.timeline.setCurrentIndex(screen.timeline.model().index(2))
     assert "Belge 2" in screen.side.title.text()
-    screen.side.merge_button.click()
+    screen.merge_current()  # A: M, the command bar and the inspector's "Diğer" menu
     assert ctl.job.manual_cuts == set()

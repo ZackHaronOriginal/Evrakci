@@ -10,8 +10,10 @@ Updated after every accepted step. A new session or a compacted one reads this f
   .claude/gorevler/p0-phase-review.md; all its must-fixes done (B-020 29b5e01, perf script
   5b4d613, bookkeeping 302bb99).
 - Phase 1: done. Review must-fixes done (be87491); measure-before re-baselined (d8c0538: 234
-  fails, run twice identical). Phase-end full suite running in worktree /tmp/claude-0/wt-p1
-  (output /tmp/claude-0/suite-p1.txt); remove the worktree after. Owner: Q-02 (25 conflict
+  fails, run twice identical). Phase-end full suite at d8c0538: 1110 passed, 6 skipped,
+  27 xfailed, 2 failed (test_ui_measure probes broken by a stylesheet left by earlier tests);
+  fixed in a075e9c and checked with tests/ui (664 passed, 27 xfailed; old file: 2 failed).
+  ruff clean. Phase 0+1 report sent. Owner: Q-02 (25 conflict
   rows), Q-03 (enforcement). Then write the Phase 0+1 report (max 15 lines) to the owner.
 - Phase 2: IN PROGRESS. Sonnet agent implementing spec .claude/gorevler/2026-11-19-p2-kontrol-perf.md
   (hypotheses -> .claude/gorevler/p2-hypotheses.md; note -> docs/ui-goal/baseline/perf-after-phase2-note.md).

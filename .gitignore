@@ -49,3 +49,6 @@ docs/superpowers/mockups/fonts/
 .claude/skills/model-akisi/
 # Task specs quote the owner; this repo is public
 .claude/gorevler/
+
+# ui_measure CI report
+ui-measure.tsv

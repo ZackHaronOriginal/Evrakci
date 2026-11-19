@@ -1,7 +1,7 @@
 {
   "version": 1,
   "phase": "final (Phase 6 performance check 2)",
-  "commit": "61c0878 + uncommitted",
+  "commit": "936bfc6",
   "date": "2026-11-20",
   "machine": "cloud container, QT_QPA_PLATFORM=offscreen (not a real monitor)",
   "script": ".claude/skills/perf-profile/perf_kontrol.py with --text-scale/--theme/--disk-delay-ms/--memory-ceiling-mb",

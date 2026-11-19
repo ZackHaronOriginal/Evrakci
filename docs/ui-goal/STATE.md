@@ -67,5 +67,5 @@ Updated after every accepted step. A new session or a compacted one reads this f
   passes alone: timing-sensitive; watch it in full-suite runs.
 - Phase 2 inputs: B-032, perf-before.json, findings-performance.md (cap cache by bytes).
 
-- Last commit: see `git log -1` (faf32a5 when written)
+- Last commit: see `git log -1` (see git log)
 - Open owner questions: `OWNER-QUEUE.md` (Q-01, Q-02, Q-03 blocking)

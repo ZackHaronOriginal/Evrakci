@@ -22,6 +22,29 @@ bindings, 65 UI modules, about 26 000 lines.
 - Order matters: measurements (1) before fixes, the layout-changing performance fix (2) before the
   per-element audit (4), and features (5) after the audit so new screens are built to the rules.
 
+## Already decided (do not ask again)
+
+From `docs/ui-goal/decisions.md` (owner answers 2026-11-12 to 2026-11-14). The phases treat these
+as fixed rules, not questions:
+
+- Look: direction A "Fluent 2 Mica" is the visual source of truth; chrome, logo, tabs, command bar,
+  inspector and spacing stay exactly as approved. Any improvement is proposed separately and applied
+  only after the owner says yes.
+- D1 to D13: palette (orange only for "kontrol"), Inter, type scale, 4 px grid, radii, motion
+  tokens, Lucide icons, three themes, contrast levels, focus ring, text sizes 100/115/130/150 %,
+  densities (rows 32/40/48, controls 28/32/40).
+- Wording: "Kontrol" everywhere; status words Emin / Orta / Kontrol / Okunamadı and İncelendi /
+  İncelenmedi; "Şüpheli" is retired. New feedback texts in Phase 3 follow this vocabulary.
+- Kontrol keys: N / Shift+N next/previous kontrol, U next unreviewed, Enter confirm document;
+  deleting is undone with Ctrl+Z instead of asking for confirmation.
+- At 150 % text the tabs that do not fit go into a "»" menu; side panels scroll card by card.
+- Deferred on purpose: first-run tour, completion sound, invert selection (its key I is unreliable
+  on Turkish keyboards). Phase 5 triage lists them as "later", not as open questions.
+- Hit targets (owner, 2026-11-19): 24 px minimum, 32 px in rows, 28 px button height. These agree
+  with D5 (controls 28/32/40, rows 32/40/48); where D5 is larger, D5 applies.
+
+---
+
 ## Open conflict the owner must settle first
 
 The approved overhaul chose **Fluent 2 (Windows 11 / Office proportions)**, Inter, a 4 px grid, a

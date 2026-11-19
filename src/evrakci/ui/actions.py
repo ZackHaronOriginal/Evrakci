@@ -695,9 +695,17 @@ class Registry(QObject):
     def palette_entries(self, tab: str | None = None) -> list[PaletteEntry]:
         """Every palette action of "app" and `tab` (default: the current tab)."""
         tab = tab or self._context
-        return [PaletteEntry(s.id, plain_text(s.text), [key_text(k) for k in s.shortcuts],
-                             self._usable(s.id, tab), search_text(s))
-                for s in self._specs.values() if s.palette and _active(s, tab)]
+        entries = []
+        for s in self._specs.values():
+            if not (s.palette and _active(s, tab)):
+                continue
+            live = plain_text(self._actions[s.id].text() or s.text)  # e.g. "Değişkeni sil"
+            keywords = search_text(s)
+            if live != plain_text(s.text):
+                keywords = f"{keywords} {fold(live)}"
+            entries.append(PaletteEntry(s.id, live, [key_text(k) for k in s.shortcuts],
+                                        self._usable(s.id, tab), keywords))
+        return entries
 
     def install_text_guard(self, app: QApplication | None = None) -> TextFocusGuard:
         """Follow keyboard focus so typing keys never fire while a text field has focus."""

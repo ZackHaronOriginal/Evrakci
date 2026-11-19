@@ -765,9 +765,8 @@ class YukleScreen(QWidget):
         ids = [b.id for b in controller.job.batches] if controller is not None else []
         pos = ids.index(batch_id) if batch_id in ids else -1
         state = {"yukle.yukari": pos > 0, "yukle.asagi": 0 <= pos < len(ids) - 1,
-                 "yukle.cikar": pos >= 0, "yukle.yeniden_adlandir": True,
-                 "yukle.gezginde_goster": True,  # both say "open a job first" with no job
-                 "yukle.iptal": busy,
+                 "yukle.cikar": pos >= 0, "yukle.yeniden_adlandir": controller is not None,
+                 "yukle.gezginde_goster": controller is not None, "yukle.iptal": busy,
                  }
         window = self.window_
         if window is not None:

@@ -13,7 +13,6 @@ from pathlib import Path
 from unittest import mock
 
 import PySide6.QtPrintSupport as qt_print
-import pytest
 from contract_helpers import (
     PLANS,
     Ctx,
@@ -268,7 +267,7 @@ PLANS["disa_aktar.gezginde_goster"] = Plan(
 PLANS["disa_aktar.yazdir"] = Plan(
     pre="pre.export_print", snap="snap.export", effect="effect.export_printed",
     feedback="feedback.export_printed", window="job_disa", na_pre="pre.none",
-    na="na.says.export_no_index", marks=(pytest.mark.qt_no_exception_capture,),
+    na="na.says.export_no_index",
     xfail={"na": _M44.format(why="empty list", text=P_NO_INDEX)})
 PLANS["disa_aktar.durdur"] = Plan(
     pre="pre.export_running", snap="snap.export", effect="effect.export_stopped",

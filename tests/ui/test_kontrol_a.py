@@ -440,6 +440,9 @@ def test_large_viewport_small_zoom_scrolling_does_not_rerender_the_margin(qtbot,
     view.verticalScrollBar().setValue(view.metrics.row_h * 5)
     # Wait until the first visible + margin load has finished, not a fixed time: on a busy
     # machine (full suite) 400 ms was not enough and the setup renders were counted below.
+    # set_zoom starts the THUMB_DELAY_MS re-render timer; under load it can fire after the
+    # service went idle and re-render everything inside the counted window, so wait for it too.
+    qtbot.waitUntil(lambda: not screen._thumb_timer.isActive(), timeout=20000)
     qtbot.waitUntil(screen.thumbnails.idle, timeout=20000)
     qtbot.wait(50)
     visible, margin = view.prefetch_rows()

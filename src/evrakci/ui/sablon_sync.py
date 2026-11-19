@@ -112,7 +112,7 @@ class Syncing:
                 up, down = place > 0, place < variable_count - 1
         states = {
             "sablonlar.kutu_ciz": page, "sablonlar.izgara": page,
-            "sablonlar.dene": not busy,  # without a page it says what is missing
+            "sablonlar.dene": page and not busy,
             "sablonlar.kutu_sil": has_variable, "sablonlar.kutu_cogalt": has_box and page,
             "sablonlar.degisken_ekle": has, "sablonlar.yukari": up, "sablonlar.asagi": down,
             "sablonlar.okumalari_goster": page,
@@ -128,7 +128,8 @@ class Syncing:
         else:
             delete.setText(spec.text)
             delete.setToolTip(actions.tooltip_for(spec))
-        # Ctrl+S stays on with no template: save() says there is nothing to save (M-11).
+        # Only this tab's route: MainWindow and the other tabs own Ctrl+S elsewhere.
+        registry.set_enabled_for("app.kaydet", "sablonlar", has)
         self.side.save.setEnabled(has)
 
     def _sync_status(self) -> None:

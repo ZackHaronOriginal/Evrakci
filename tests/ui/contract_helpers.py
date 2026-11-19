@@ -17,6 +17,7 @@ from __future__ import annotations
 import csv
 import os
 import re
+import struct
 import time
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -754,12 +755,34 @@ def _effect_window_closed(c: Ctx) -> None:
     assert not c.win.isVisible()
 
 
+QUIT_SIZE = (1111, 703)  # a size no earlier window in the module's ini can have saved
+
+
+@helper("pre.quit_known_geometry")
+def _pre_quit_known_geometry(c: Ctx) -> None:
+    """Ctrl+Q: forget any geometry an earlier window saved in the shared ini, and give this
+    window a known size, so only closing THIS window can put the key back."""
+    from PySide6.QtCore import QSettings
+
+    c.win.prefs._s.remove("window/geometry")
+    c.win.prefs._s.sync()
+    ini = QSettings(c.win.prefs._s.fileName(), QSettings.Format.IniFormat)
+    assert not ini.contains("window/geometry"), "could not clear the stored geometry"
+    c.win.showNormal()
+    c.win.resize(*QUIT_SIZE)
+    settle()
+    assert (c.win.width(), c.win.height()) == QUIT_SIZE, (c.win.width(), c.win.height())
+
+
 @helper("feedback.window_closed")
 def _feedback_window_closed(c: Ctx) -> None:
     from PySide6.QtCore import QSettings
-
     saved = QSettings(c.win.prefs._s.fileName(), QSettings.Format.IniFormat)
     assert saved.contains("window/geometry"), "the window settings were not saved"
+    data = bytes(saved.value("window/geometry"))
+    # saveGeometry layout: magic(4) version(4) frame rect(16) normal-geometry rect(16) ...
+    x1, y1, x2, y2 = struct.unpack(">4i", data[24:40])
+    assert (x2 - x1 + 1, y2 - y1 + 1) == QUIT_SIZE, (x2 - x1 + 1, y2 - y1 + 1)
 
 
 # -- undo, redo ------------------------------------------------------------------------------
@@ -1326,21 +1349,19 @@ PLANS["app.onceki_bolge"] = Plan(pre="pre.focus_command_bar", effect="effect.reg
 _GIT_NOJOB = "M-01: Ctrl+G is disabled with no word on this tab; INTENDED status line"
 PLANS["app.git"] = Plan(pre="pre.go_to_first_document", effect="effect.go_to_document_2",
                         feedback="feedback.go_to_document_2", na="na.says_no_job",
-                        na_pre="pre.none",
-                        xfail={"na": "M-01: no job: Ctrl+G is disabled and silent"})
+                        na_pre="pre.none")
 for _tab in ("yukle", "rehber"):
     PLANS["app.git", _tab] = Plan(
         pre="pre.job_tab_no_dialog", effect="effect.go_to_says_no_documents",
         feedback="feedback.go_to_says_no_documents", na="na.says_no_job", na_pre="pre.none",
         xfail={k: "M-01 Q-08: Ctrl+G is disabled here; INTENDED status line 'PROPOSED: Bu "
-                  "sekmede belge listesi yok...'" for k in ("effect", "via")}
-        | {"na": "M-01: no job: Ctrl+G is disabled and silent"})
+                  "sekmede belge listesi yok...'" for k in ("effect", "via")})
 for _tab in ("sablonlar", "disa_aktar"):
     PLANS["app.git", _tab] = Plan(
         pre="pre.go_to_first_document", effect="effect.go_to_document_2",
         feedback="feedback.go_to_document_2", na="na.says_no_job", na_pre="pre.none",
         xfail={k: "M-01: Ctrl+G is disabled on this tab; INTENDED to route the go-to dialog"
-               for k in ("effect", "via", "na")})
+               for k in ("effect", "via")})
 PLANS["app.git", "kontrol"] = Plan(
     pre="pre.go_to_first_document", effect="effect.go_to_document_2",
     feedback="feedback.go_to_document_2", na="na.says_no_job", na_pre="pre.none",
@@ -1348,8 +1369,7 @@ PLANS["app.git", "kontrol"] = Plan(
                  "M-30's key list)"})
 PLANS["app.git", "degerler"] = Plan(
     pre="pre.go_to_first_document", effect="effect.go_to_document_2",
-    feedback="feedback.go_to_document_2", na="na.says_no_job", na_pre="pre.none",
-    xfail={"na": "M-02: go_to() returns without a word when there is nothing to go to"})
+    feedback="feedback.go_to_document_2", na="na.says_no_job", na_pre="pre.none")
 
 PLANS["app.kaydet"] = Plan(pre="pre.saveable", effect="effect.written_now",
                            feedback="feedback.saved_said", na="na.says_no_job",
@@ -1369,7 +1389,10 @@ PLANS["app.kaydet", "rehber"] = Plan(
               "'PROPOSED: Rehber'de kaydedilecek bir şey yok.'" for k in ("effect", "via", "na")})
 PLANS["app.kaydet", "sablonlar"] = Plan(
     pre="pre.saveable", effect="effect.written_now", feedback="feedback.saved_said",
-    na="na.says.no_template_save", na_pre="pre.none")
+    na="na.says.no_template_save", na_pre="pre.none",
+    xfail={"na": "M-11: no template: Ctrl+S is disabled; INTENDED to show the existing text "
+                 "'Kaydedilecek bir şablon yok...'; conflicts with "
+                 "test_sablon_window.py::test_nothing_is_usable_without_a_template; owner Q-09"})
 PLANS["app.disa_aktar", "disa_aktar"] = Plan(
     pre="pre.export_ready", window="fresh", effect="effect.export_written",
     feedback="feedback.export_done", na_window="fresh", na_pre="pre.none",
@@ -1385,7 +1408,7 @@ PLANS["app.dosya_ekle"] = Plan(
     feedback="feedback.batch_added", na_pre="pre.none", na_window="empty",
     broken="broken.read_running_no_job", na="na.says_read_running")
 PLANS["app.cikis"] = Plan(
-    pre="pre.none", window="fresh_empty", effect="effect.window_closed",
+    pre="pre.quit_known_geometry", window="fresh_empty", effect="effect.window_closed",
     feedback="feedback.window_closed", na_window="fresh_empty")
 
 # undo, redo: the job's stack (Şablonlar: the template's own); Rehber shows no job content, so
@@ -1498,7 +1521,10 @@ PLANS["app.yan_panel"] = Plan(snap="snap.panel", effect="effect.panel_toggled",
                               feedback="feedback.panel_tooltip")
 PLANS["app.yan_panel", "kontrol"] = Plan(
     snap="snap.panel", effect="effect.panel_toggled", feedback="feedback.panel_tooltip",
-    na_pre="pre.none", na="na.says_no_job")
+    na_pre="pre.none", na="na.says_no_job",
+    xfail={"na": "M-21: no job: Kontrol has no side panel and F9 is disabled, silent; "
+                 "conflicts with test_shell.py::test_f9_hides_and_shows_the_side_panel; "
+                 "owner Q-09"})
 
 # refresh
 PLANS["app.yenile"] = Plan(pre="pre.refresh_change", effect="effect.refreshed",

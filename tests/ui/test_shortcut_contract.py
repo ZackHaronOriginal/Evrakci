@@ -272,6 +272,26 @@ def test_export_key_with_no_job_on_the_export_tab(windows, tmp_path):
         _finish(ctx)
 
 
+@pytest.mark.action("app.git")
+@pytest.mark.xfail(strict=True, reason="M-02 Q-08: a job is open but Değerler has no rows: "
+                                       "go_to() returns without a word; INTENDED status line "
+                                       "'PROPOSED: Gidilecek bir belge yok.'")
+def test_degerler_go_to_with_a_job_but_no_rows_says_so(windows, tmp_path):
+    row = {"tab": "degerler", "key": "Ctrl+G", "action_id": "app.git"}
+    ctx = _start(row, windows, "fresh", tmp_path)
+    try:
+        ctx.win.show_tab("degerler")
+        settle()
+        assert ctx.win.controller() is not None
+        ctx.win.degerler.rows = []  # a job whose documents have no template
+        ctx.win.degerler.table.setFocus()
+        press(ctx.win, "Ctrl+G")
+        assert said(ctx.win, "Gidilecek bir belge yok."), \
+            f"nothing said: {heard(ctx.win)!r}"
+    finally:
+        _finish(ctx)
+
+
 @pytest.mark.action("app.cikis")
 def test_quit_asks_first_while_a_read_runs(windows, tmp_path):
     """Ctrl+Q with a read running: the question comes first; No keeps the window open."""
@@ -339,6 +359,8 @@ def test_sablon_delete_item_names_a_variable(windows, tmp_path):
         contract_sablon.choose(ctx, "Firma_Adi", None)
         assert ctx.win.registry.action("sablonlar.kutu_sil").text().replace("&", "") == \
             "Değişkeni sil"
+        palette = {e.id: e.text for e in ctx.win.registry.palette_entries("sablonlar")}
+        assert palette["sablonlar.kutu_sil"] == "Değişkeni sil", palette["sablonlar.kutu_sil"]
     finally:
         _finish(ctx)
 

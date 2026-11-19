@@ -769,6 +769,11 @@ class DegerlerScreen(QWidget):
         """Ctrl+G: a document (Belge N) or a page; its row is selected in the table."""
         from evrakci.ui.kontrol_dialogs import GoToDialog
 
+        if self.controller() is None:  # no job: say what to do first (F1)
+            say = getattr(self.window(), "say_no_job", None)
+            if say is not None:
+                say()
+            return
         if not self.rows:
             return
         current = self.model.row_at(self.table.currentIndex().row()) \
@@ -1272,6 +1277,11 @@ class DegerlerScreen(QWidget):
             self.table.setCurrentIndex(current)
 
     def select_all(self, *_args) -> None:
+        if self.controller() is None:  # no job: say what to do first (L6)
+            say = getattr(self.window(), "say_no_job", None)
+            if say is not None:
+                say()
+            return
         self.table.selectAll()
 
     def _sample_progress(self) -> None:
@@ -1325,7 +1335,7 @@ class DegerlerScreen(QWidget):
             "degerler.elle_yaz": row is not None and row.read and cell is not None,
             "degerler.varyant": row is not None and row.template is not None,
             "degerler.vazgec": has_rows,
-            "degerler.tumunu_sec": has_rows,
+            "degerler.tumunu_sec": has_rows or not has_job,  # no job: it says so (L6)
             "degerler.tum_sayfa": row is not None,
             "degerler.sonraki_kontrol": counts.kontrol > 0,
             "degerler.onceki_kontrol": counts.kontrol > 0,

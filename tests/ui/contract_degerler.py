@@ -13,7 +13,6 @@ import time
 from unittest import mock
 
 from contract_helpers import (
-    NOJOB,
     PLANS,
     Ctx,
     Plan,
@@ -473,8 +472,7 @@ PLANS["degerler.vazgec"] = _plan(
     na="na.degerler_quiet")
 PLANS["degerler.tumunu_sec"] = _plan(
     "pre.degerler_one_row_selected", "effect.degerler_all_rows", "feedback.degerler_all_rows",
-    na_pre="pre.none", na="na.says_no_job",
-    xfail={"na": "M-41: no rows: Ctrl+A is disabled and silent; INTENDED status line " + NOJOB})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["degerler.tum_sayfa"] = _plan(
     "pre.degerler_page_view", "effect.degerler_page_view_open",
     "feedback.degerler_page_view_open", na_pre="pre.none", na="na.says.degerler_pick_value",

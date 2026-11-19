@@ -139,6 +139,7 @@ PANEL_NAMES = {"yukle": "Ayrıntı panelini", "kontrol": "Ayrıntı panelini",
 # Tabs whose status line starts with the window's own job counts ("96 belge  640 sayfa
 # ⚠ 7 belge kontrol bekliyor"); every other tab's mockup draws its own line instead.
 STATUS_COUNTS = frozenset({"disa_aktar"})
+NO_GO_TO_TABS = ("yukle", "sablonlar", "disa_aktar", "rehber")  # Ctrl+G only says "no job"
 JOB_TABS = ("yukle", "kontrol", "degerler", "disa_aktar")
 TEXT_STEPS = theme.TEXT_SIZES
 STATUS_INSET = 2  # QStatusBar's own item margin
@@ -668,6 +669,10 @@ class MainWindow(QMainWindow):
         r.connect_tab("app.bul", "kontrol", self._find_in_kontrol)
         r.connect_tab("app.bul", "sablonlar", self.sablon.find_variable)
         r.connect_tab("app.bul", "disa_aktar", self._find_in_disa_aktar)
+        # Ctrl+G with no job says what to do first on the tabs that have no go-to of their own
+        # (L5); with a job it stays off there (M-01 waits for the owner).
+        for tab in NO_GO_TO_TABS:
+            r.connect_tab("app.git", tab, self.say_no_job)
         r.connect("app.yeni_is", self._new_job)
         r.connect("app.dosya_ekle", self._add_files)
         # Ctrl+S answers on every tab that has something to save: Şablonlar saves the
@@ -743,7 +748,7 @@ class MainWindow(QMainWindow):
     def _sync_inspector(self) -> None:
         tab = self.current_tab()
         side = self.inspector(tab)
-        self.registry.set_enabled("app.yan_panel", True)  # no panel yet: F9 says why (M-21)
+        self.registry.set_enabled("app.yan_panel", side is not None)
         verb = "göster" if side is not None and side.isHidden() else "gizle"
         key = actions.key_text("F9")
         self.registry.action("app.yan_panel").setToolTip(f"{PANEL_NAMES[tab]} {verb} ({key})")
@@ -775,6 +780,8 @@ class MainWindow(QMainWindow):
         # Ctrl+S, Ctrl+F and Ctrl+E stay on with no job: their handlers say so. Ctrl+W stays
         # off (M-15: the effect test of Ctrl+W asserts the item is disabled after closing).
         self.registry.set_enabled("app.isi_kapat", self.controller() is not None)
+        for tab in NO_GO_TO_TABS:
+            self.registry.set_enabled_for("app.git", tab, self.controller() is None)
         self._sync_export_action()
         self._sync_undo()
 

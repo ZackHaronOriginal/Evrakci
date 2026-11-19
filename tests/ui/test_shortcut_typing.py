@@ -95,9 +95,6 @@ def _combo_params():
                 for key in s.shortcuts:
                     if not actions.is_typing_key(key) and not s.local:
                         marks = [pytest.mark.action(s.id)]
-                        if s.id == "disa_aktar.yazdir":
-                            # NEW-1: the key fires, then print_index raises (see contract_export)
-                            marks.append(pytest.mark.qt_no_exception_capture)
                         out.append(pytest.param(tab, name, s.id, key, n == 0,
                                                 id=f"{tab}-{name}-{key}", marks=marks))
     return out

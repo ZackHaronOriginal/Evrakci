@@ -162,23 +162,23 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Yükle | Open Yükle. Setup: a job is open. Press Ctrl+S. | toast 'İş kaydedildi 14:32. Değişiklikler zaten kendiliğinden kaydedilir.'; save indicator in the title band shows the time; on failure an error toast 'İş kaydedilemedi: …' and the indicator turns to its failed state | M-10 | [ ] |
-| Kontrol | Open Kontrol. Setup: a job is open. Press Ctrl+S. | toast 'İş kaydedildi 14:32. Değişiklikler zaten kendiliğinden kaydedilir.'; save indicator in the title band shows the time; on failure an error toast 'İş kaydedilemedi: …' and the indicator turns to its failed state | M-10 | [ ] |
+| Yükle | Open Yükle. Setup: a job is open. Press Ctrl+S. | toast 'İş kaydedildi 14:32. Değişiklikler zaten kendiliğinden kaydedilir.'; save indicator in the title band shows the time; on failure an error toast 'İş kaydedilemedi: …' and the indicator turns to its failed state Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-10, fixed) | - | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open. Press Ctrl+S. | toast 'İş kaydedildi 14:32. Değişiklikler zaten kendiliğinden kaydedilir.'; save indicator in the title band shows the time; on failure an error toast 'İş kaydedilemedi: …' and the indicator turns to its failed state Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-10, fixed) | - | [ ] |
 | Şablonlar | Open Şablonlar. Setup: a template is open. Press Ctrl+S. | toast 'Şablon kaydedildi.'; status item 'Şablon kaydedildi 14:32'; on failure 'Şablon kaydedilemedi' status item and the message 'Şablon kaydedilemedi. Diskte yer olduğundan emin olup Şablonu kaydet'e basın.' | M-11 | [ ] |
-| Değerler | Open Değerler. Setup: a job is open. Press Ctrl+S. | toast 'İş kaydedildi 14:32. Değişiklikler zaten kendiliğinden kaydedilir.'; save indicator in the title band shows the time; on failure an error toast 'İş kaydedilemedi: …' and the indicator turns to its failed state | M-10 | [ ] |
-| Dışa Aktar | Open Dışa Aktar. Setup: a job is open. Press Ctrl+S. | toast 'İş kaydedildi 14:32. Değişiklikler zaten kendiliğinden kaydedilir.'; save indicator in the title band shows the time; on failure an error toast 'İş kaydedilemedi: …' and the indicator turns to its failed state | M-10 | [ ] |
+| Değerler | Open Değerler. Setup: a job is open. Press Ctrl+S. | toast 'İş kaydedildi 14:32. Değişiklikler zaten kendiliğinden kaydedilir.'; save indicator in the title band shows the time; on failure an error toast 'İş kaydedilemedi: …' and the indicator turns to its failed state Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-10, fixed) | - | [ ] |
+| Dışa Aktar | Open Dışa Aktar. Setup: a job is open. Press Ctrl+S. | toast 'İş kaydedildi 14:32. Değişiklikler zaten kendiliğinden kaydedilir.'; save indicator in the title band shows the time; on failure an error toast 'İş kaydedilemedi: …' and the indicator turns to its failed state Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-10, fixed) | - | [ ] |
 | Rehber | Open Rehber. Setup: none. Press Ctrl+S. | INTENDED: status line 'PROPOSED: Rehber'de kaydedilecek bir şey yok.' | M-09 | [ ] |
 
 ## Ctrl+E
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Yükle | Open Yükle. Setup: a job is open. Press Ctrl+E. | Dışa Aktar tab shown with its checklist and folder field | M-12, M-14 | [ ] |
-| Kontrol | Open Kontrol. Setup: a job is open. Press Ctrl+E. | Dışa Aktar tab shown with its checklist and folder field | M-12, M-14 | [ ] |
-| Şablonlar | Open Şablonlar. Setup: a job is open. Press Ctrl+E. | Dışa Aktar tab shown with its checklist and folder field | M-12, M-14 | [ ] |
-| Değerler | Open Değerler. Setup: a job is open. Press Ctrl+E. | Dışa Aktar tab shown with its checklist and folder field | M-12, M-14 | [ ] |
-| Dışa Aktar | Open Dışa Aktar. Setup: a job is open and the screen can start an export (state main or done). Press Ctrl+E. | progress band and status item while it runs; toast with 'Klasörü aç' when done; blocked: toast 'Dışa aktarılamıyor: <neden>'; no folder: hint 'Bir hedef klasör seçin.' announced | M-12, M-13 | [ ] |
-| Rehber | Open Rehber. Setup: a job is open. Press Ctrl+E. | Dışa Aktar tab shown with its checklist and folder field | M-12, M-14 | [ ] |
+| Yükle | Open Yükle. Setup: a job is open. Press Ctrl+E. | Dışa Aktar tab shown with its checklist and folder field Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-12, fixed) | M-14 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open. Press Ctrl+E. | Dışa Aktar tab shown with its checklist and folder field Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-12, fixed) | M-14 | [ ] |
+| Şablonlar | Open Şablonlar. Setup: a job is open. Press Ctrl+E. | Dışa Aktar tab shown with its checklist and folder field Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-12, fixed) | M-14 | [ ] |
+| Değerler | Open Değerler. Setup: a job is open. Press Ctrl+E. | Dışa Aktar tab shown with its checklist and folder field Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-12, fixed) | M-14 | [ ] |
+| Dışa Aktar | Open Dışa Aktar. Setup: a job is open and the screen can start an export (state main or done). Press Ctrl+E. | progress band and status item while it runs; toast with 'Klasörü aç' when done; blocked: toast 'Dışa aktarılamıyor: <neden>'; no folder: hint 'Bir hedef klasör seçin.' announced Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-12, fixed); blocked or running: key disabled (silent), so the toast 'Dışa aktarılamıyor: …' is reachable only by the button. INTENDED: key stays on and shows that toast | M-13 | [ ] |
+| Rehber | Open Rehber. Setup: a job is open. Press Ctrl+E. | Dışa Aktar tab shown with its checklist and folder field Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-12, fixed) | M-14 | [ ] |
 
 ## Ctrl+Shift+O
 
@@ -247,10 +247,10 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
 | Yükle | Open Yükle. Setup: none (works with or without a job). Press Ctrl+F. | the job list replaces the body; search field focused; Esc goes back | - | [ ] |
-| Kontrol | Open Kontrol. Setup: a job is open. Press Ctrl+F. | go-to dialog; after OK the page is highlighted, focus returns to the timeline | M-03, M-04 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open. Press Ctrl+F. | go-to dialog; after OK the page is highlighted, focus returns to the timeline Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-04, fixed) | M-03 | [ ] |
 | Şablonlar | Open Şablonlar. Setup: none (works without a template). Press Ctrl+F. | focus ring in the variable list; first variable selected / when not applicable, PROPOSED: Aranacak değişken yok. | M-05 | [ ] |
-| Değerler | Open Değerler. Setup: a job is open and the search field is enabled. Press Ctrl+F. | caret and selection in the search field | M-06 | [ ] |
-| Dışa Aktar | Open Dışa Aktar. Setup: a job is open. Press Ctrl+F. | focus ring in the file list; first row current when none was | M-04 | [ ] |
+| Değerler | Open Değerler. Setup: a job is open and the search field is enabled. Press Ctrl+F. | caret and selection in the search field Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-06, fixed) | - | [ ] |
+| Dışa Aktar | Open Dışa Aktar. Setup: a job is open. Press Ctrl+F. | focus ring in the file list; first row current when none was Not applicable: no job: status line 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-04, fixed) | - | [ ] |
 | Rehber | Open Rehber. Setup: none. Press Ctrl+F. | caret and selection in the search field; result line announced | - | [ ] |
 
 ## F3
@@ -393,7 +393,7 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 | Kontrol | Open Kontrol. Setup: none. Press F5. | Same as on Yükle (see the Yükle line). | M-22 | [ ] |
 | Şablonlar | Open Şablonlar. Setup: the tab lists something that can change on disk. Press F5. | Same as on Yükle (see the Yükle line). | - | [ ] |
 | Değerler | Open Değerler. Setup: the tab lists something that can change on disk. Press F5. | Same as on Yükle (see the Yükle line). | - | [ ] |
-| Dışa Aktar | Open Dışa Aktar. Setup: the screen is not empty or running. Press F5. | Same as on Yükle (see the Yükle line). | M-23 | [ ] |
+| Dışa Aktar | Open Dışa Aktar. Setup: the screen is not empty or running. Press F5. | Same as on Yükle (see the Yükle line). | - | [ ] |
 | Rehber | Open Rehber. Setup: none. Press F5. | Same as on Yükle (see the Yükle line). | M-22 | [ ] |
 
 ## Ctrl+,
@@ -416,7 +416,7 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 | Şablonlar | Open Şablonlar. Setup: none. Press F1. | Same as on Yükle (see the Yükle line). | - | [ ] |
 | Değerler | Open Değerler. Setup: none. Press F1. | Same as on Yükle (see the Yükle line). | - | [ ] |
 | Dışa Aktar | Open Dışa Aktar. Setup: none. Press F1. | Same as on Yükle (see the Yükle line). | - | [ ] |
-| Rehber | Open Rehber. Setup: none. Press F1. | Same as on Yükle (see the Yükle line). | M-24 | [ ] |
+| Rehber | Open Rehber. Setup: none. Press F1. | Same as on Yükle (see the Yükle line). | - | [ ] |
 
 ## Shift+F1
 
@@ -492,8 +492,8 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
 | Yükle | Open Yükle. Setup: a batch is selected and no text field has focus. Press Del. | toast '<dosya> işten çıkarıldı.' with Geri al; selection moves to the neighbouring row / when not applicable, PROPOSED: Önce bir parti seçin. | M-25 | [ ] |
-| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; at least one page selected. Press Del. | toast 'Sayfa 7 silinecek.' / '3 sayfa silinecek.' with Geri al; a document that loses all pages: 'Belge 4: bütün sayfaları silinecek, belge dışa aktarılmayacak.'; the item reads '3 sayfayı sil' / 'Sayfayı geri getir'; restore: side history 'Sayfa 7 geri getirildi' | M-30, M-31, M-33 | [ ] |
-| Şablonlar | Open Şablonlar. Setup: a variable is chosen; no text field has focus; the template list does not have focus. Press Del. | box: toast '“Firma” değişkeninin 2. bölümü silindi.' with Geri al; variable: toast '“Firma” değişkeni silindi (2 kutu).' with Geri al; selection moves to a neighbour / when not applicable, PROPOSED: Önce bir değişken ya da kutu seçin. | M-34, M-35 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; at least one page selected. Press Del. | toast 'Sayfa 7 silinecek.' / '3 sayfa silinecek.' with Geri al; a document that loses all pages: 'Belge 4: bütün sayfaları silinecek, belge dışa aktarılmayacak.'; the item reads '3 sayfayı sil' / 'Sayfayı geri getir'; restore: side history 'Sayfa 7 geri getirildi' Not applicable: only separator pages selected: status line 'Ayraç sayfaları zaten dışa aktarılmaz. Kesimi kaldırmak için M.'; nothing selected: status line 'Önce sayfaları seçin.' (M-31, fixed) | M-30, M-33 | [ ] |
+| Şablonlar | Open Şablonlar. Setup: a variable is chosen; no text field has focus; the template list does not have focus. Press Del. | box: toast '“Firma” değişkeninin 2. bölümü silindi.' with Geri al; variable: toast '“Firma” değişkeni silindi (2 kutu).' with Geri al; selection moves to a neighbour / when not applicable, PROPOSED: Önce bir değişken ya da kutu seçin. | M-35 | [ ] |
 
 ## F2
 
@@ -529,25 +529,25 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus (single character key: off when Ayarlar > Tek tuşlu kısayollar is off). Press K. | new document boundary on the timeline; status 'Belge N / M' and counts update; the side history lists 'Kesim eklendi, sayfa 7' or 'Kesim kaldırıldı, sayfa 7' | M-30, M-32 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus (single character key: off when Ayarlar > Tek tuşlu kısayollar is off). Press K. | new document boundary on the timeline; status 'Belge N / M' and counts update; the side history lists 'Kesim eklendi, sayfa 7' or 'Kesim kaldırıldı, sayfa 7' Not applicable: first page: status line 'İlk belgenin öncesi yok.'; no current page: status line 'Önce bir sayfa seçin.' (M-32, fixed). INTENDED for no job: 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' | M-30 | [ ] |
 
 ## M
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus (single character key: off when Ayarlar > Tek tuşlu kısayollar is off). Press M. | toast 'Belge 5, Belge 4 ile birleştirildi.' with Geri al; document count drops; side history 'Belge 5, Belge 4 ile birleşti' | M-30, M-32 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus (single character key: off when Ayarlar > Tek tuşlu kısayollar is off). Press M. | toast 'Belge 5, Belge 4 ile birleştirildi.' with Geri al; document count drops; side history 'Belge 5, Belge 4 ile birleşti' Not applicable: first document: 'İlk belgenin öncesi yok.'; a filter cut: 'Bu kesimi filtre yaptı; filtreyi değiştirin (F).'; no current page: status line 'Önce bir sayfa seçin.' (M-32, fixed). INTENDED for no job: 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' | M-30 | [ ] |
 
 ## R
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus (single character key: off when Ayarlar > Tek tuşlu kısayollar is off); at least one page selected. Press R. | thumbnails turn; side history 'Sayfa 7 sağa döndürüldü' or '3 sayfa sağa döndürüldü' | M-30, M-31, M-33 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus (single character key: off when Ayarlar > Tek tuşlu kısayollar is off); at least one page selected. Press R. | thumbnails turn; side history 'Sayfa 7 sağa döndürüldü' or '3 sayfa sağa döndürüldü' Not applicable: nothing selected: status line 'Önce sayfaları seçin.' (M-31, fixed) | M-30, M-33 | [ ] |
 
 ## Shift+R
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus (single character key: off when Ayarlar > Tek tuşlu kısayollar is off); at least one page selected. Press Shift+R. | thumbnails turn; side history 'Sayfa 7 sola döndürüldü' or '3 sayfa sola döndürüldü' | M-30, M-31, M-33 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus (single character key: off when Ayarlar > Tek tuşlu kısayollar is off); at least one page selected. Press Shift+R. | thumbnails turn; side history 'Sayfa 7 sola döndürüldü' or '3 sayfa sola döndürüldü' Not applicable: nothing selected: status line 'Önce sayfaları seçin.' (M-31, fixed) | M-30, M-33 | [ ] |
 
 ## Return
 
@@ -579,7 +579,7 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; focus not on a button (Space belongs to the button). Press Space. | loupe covers the timeline with the page and its title ('Belge 16, Ekspertiz Raporu, 2. sayfa'); zoom slider now controls the loupe; closing returns focus to the timeline | M-30, M-32 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; focus not on a button (Space belongs to the button). Press Space. | loupe covers the timeline with the page and its title ('Belge 16, Ekspertiz Raporu, 2. sayfa'); zoom slider now controls the loupe; closing returns focus to the timeline Not applicable: no current page: status line 'Önce bir sayfa seçin.' (M-32, fixed). INTENDED for no job: 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' | M-30 | [ ] |
 | Şablonlar | Open Şablonlar. Setup: the page canvas has focus (local key; held down). Press Space. | cursor turns to an open hand; back to the arrow or cross-hair on release | M-39 | [ ] |
 | Değerler | Open Değerler. Setup: the values table has focus on a value; no text field or button has focus; focus not on a button (Space belongs to the button). Press Space. | page view with 'Belge 16, sayfa 3'; closing returns to the table / when not applicable, PROPOSED: Önce bir değer seçin. | M-41 | [ ] |
 

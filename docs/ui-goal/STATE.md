@@ -15,12 +15,20 @@ Updated after every accepted step. A new session or a compacted one reads this f
   fixed in a075e9c and checked with tests/ui (664 passed, 27 xfailed; old file: 2 failed).
   ruff clean. Phase 0+1 report sent. Owner: Q-02 (25 conflict
   rows), Q-03 (enforcement). Then write the Phase 0+1 report (max 15 lines) to the owner.
-- Phase 2: fix committed bfb92bc (gates passed: Kapı 1, Kapı G (no clipping, no new measured
-  fail; shots checked), 4 lenses, Sonnet reviewer round 1 fixed). Running: official
-  perf-after-phase2.json (/tmp/claude-0/perf3/run.sh -> /tmp/claude-0/perf3, then combine like
-  perf-before.json v2). Then: full suite, Opus phase review (break it: huge job, zoom during
-  scroll, theme switch during load, cancel and re-add), Phase 2 report. Owner check Q-07 queued.
-- Phase 3 next (spec .claude/gorevler/2026-11-19-p3-shortcuts.md, load skill shortcut-audit).
+- Phase 2: fix bfb92bc; perf-after-phase2.json (all targets met, every set). Remaining for
+  the phase end: full suite at f3-ish HEAD in worktree /tmp/claude-0/wt-p2 (output
+  /tmp/claude-0/suite-p2.txt; remove the worktree after), Opus phase review running
+  (.claude/gorevler/p2-phase-review.md: fix must-fixes, ledger the rest), then the Phase 2
+  report (max 15 lines). Owner check Q-07 queued.
+- Phase 3: IN PROGRESS (spec .claude/gorevler/2026-11-19-p3-shortcuts.md).
+  3A done: shortcut-contract.tsv (319 rows), shortcut-mismatches.md (45; 31 PROPOSED texts),
+  shortcut-checklist.md (1625c5f); owner Q-08 queued. 3B done: audit_shortcuts.py --check /
+  --contract with action markers (8c98d02).
+  3C running: tests/ui/test_shortcut_contract.py + tests/ui/contract_helpers.py, app-wide rows;
+  mismatched rows as strict xfail "M-xx". Next: 3D tab-specific rows (split by tab, separate
+  agents only if helper files are separate), 3E fix mismatches that need no new text, typing
+  guard tests per text field, review gates, then Phase 3 end (full suite, Opus review: 20 random
+  rows driven by QTest), Q-09 owner checklist (non-blocking) when tests exist.
 - Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
 - Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.
 

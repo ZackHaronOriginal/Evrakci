@@ -21,6 +21,13 @@ from evrakci.pipeline.render import render_page
 
 Renderer = Callable[[str, int], Image.Image]
 
+# The cache holds at most this many bytes of QImage pixels, whatever the zoom: a count cap lets
+# memory grow with the thumbnail size (a 200 % tile is four times a 100 % tile). Pages farthest
+# from the viewport go first. A 100 % tile is about 92 KB, so 150 MB would hold 1600 of them: at
+# normal zoom the count cap (`capacity`, 400) binds first; the byte cap binds at high zoom
+# (the largest tile is about 366 KB).
+CACHE_MAX_BYTES = 150 * 1024 * 1024
+
 
 def to_qimage(image: Image.Image) -> QImage:
     rgb = image.convert("RGB")
@@ -80,12 +87,18 @@ class ThumbnailService(QObject):
         height: int = 100,
         capacity: int = 400,
         workers: int = 2,
+        max_bytes: int = CACHE_MAX_BYTES,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self.renderer = renderer
         self.height = height
         self.capacity = capacity
+        self.max_bytes = max_bytes
+        self.cache_bytes = 0
+        # How far a page is from the viewport (smaller is nearer); set by the view. Without it
+        # the least recently used page is evicted first.
+        self.distance: Callable[[str], float] | None = None
         self.cache: OrderedDict[str, QImage] = OrderedDict()
         self._heights: dict[str, int] = {}  # the height each cached image was rendered for
         self._wanted: set[str] = set()
@@ -140,9 +153,9 @@ class ThumbnailService(QObject):
         if pid is None:
             self.cache.clear()
             self._heights.clear()
+            self.cache_bytes = 0
         else:
-            self.cache.pop(pid, None)
-            self._heights.pop(pid, None)
+            self._drop(pid)
 
     def stop(self) -> None:
         """Forget all pending work, for example when another job is opened.
@@ -178,10 +191,32 @@ class ThumbnailService(QObject):
     def _finished(self, pid: str, image: QImage, version: int, height: int) -> None:
         if self._version.get(pid, 0) != version:
             return  # invalidated while rendering: an old picture
+        self._drop(pid)
         self.cache[pid] = image
+        self.cache_bytes += image.sizeInBytes()
         self._heights[pid] = height
-        self.cache.move_to_end(pid)
-        while len(self.cache) > self.capacity:
-            old, _ = self.cache.popitem(last=False)
-            self._heights.pop(old, None)
+        self._evict(keep=pid)
         self.ready.emit(pid, image)
+
+    def _drop(self, pid: str) -> None:
+        image = self.cache.pop(pid, None)
+        if image is not None:
+            self.cache_bytes -= image.sizeInBytes()
+        self._heights.pop(pid, None)
+
+    def _evict(self, keep: str) -> None:
+        """Bring the cache under its count and byte caps, never dropping `keep` (the page that
+        just arrived). Over a cap it drops down to 90 % of it in one go, farthest page from
+        the viewport first (else least recent), so the distances are computed once per batch
+        and not on every arrival (about 1 ms each at 400 pages)."""
+        if len(self.cache) <= max(1, self.capacity) and self.cache_bytes <= self.max_bytes:
+            return
+        others = [pid for pid in self.cache if pid != keep]  # least recent first
+        if self.distance is not None:
+            others.sort(key=self.distance, reverse=True)
+        count_goal = self.capacity - self.capacity // 10
+        bytes_goal = self.max_bytes - self.max_bytes // 10
+        for victim in others:
+            if len(self.cache) <= count_goal and self.cache_bytes <= bytes_goal:
+                break
+            self._drop(victim)

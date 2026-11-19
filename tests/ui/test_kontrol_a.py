@@ -423,7 +423,9 @@ def test_1000_pages_wrap_and_paint_only_what_is_in_view(qtbot, tmp_path):
     screen = _screen(qtbot, ctl, renderer)
     screen.timeline.viewport().repaint()
     qtbot.wait(200)
-    assert 0 < len({p for p, _h in renderer.calls}) <= 30
+    # the pages in view plus the prefetch margin, never the whole job (was <= 30: view only)
+    visible, margin = screen.timeline.prefetch_rows()
+    assert 0 < len({p for p, _h in renderer.calls}) <= len(visible) + len(margin)
     screen.go_to_row(990)
     qtbot.wait(100)
     assert screen.strip.visible[1] == 100
@@ -465,3 +467,102 @@ def test_every_control_has_an_accessible_name(qtbot, tmp_path):
     assert screen.side.accessibleName() == "Belge ayrıntısı"
     assert screen.strip.accessibleName().startswith("Tüm iş: ")
 
+
+# -- scrolling loads and draws the right pages (Phase 2, B-032) ---------------------------------
+def _colour(pid):
+    n = int(pid.split("/")[1]) % 1000
+    return tuple(20 + 24 * d for d in (n // 100, n // 10 % 10, n % 10))
+
+
+class ColourRenderer:
+    """A solid colour unique per page, so a tile showing another page's image is detectable."""
+
+    def __call__(self, pid, height):
+        return Image.new("RGB", (int(height * 0.7), height), _colour(pid))
+
+
+def _thousand(qtbot, tmp_path, service=None):
+    ctl = _controller(tmp_path, {"b1": ("p" * 9 + "q") * 100})
+    service = service or ThumbnailService(ColourRenderer(), height=100)
+    screen = KontrolScreen(ctl, service, templates=dict)
+    qtbot.addWidget(screen)
+    screen.resize(1366, 640)
+    screen.show()
+    qtbot.waitExposed(screen)
+    return screen, service
+
+
+def _visible_loaded(screen, service):
+    view = screen.timeline
+    model = view.model()
+    rows = [r for r in view.visible_rows() if model.state(r) != "separator"]
+    return bool(rows) and all(service.is_current(model.page_id(r)) for r in rows)
+
+
+def test_a_jump_with_no_mouse_or_repaint_loads_every_visible_row(qtbot, tmp_path):
+    screen, service = _thousand(qtbot, tmp_path)
+    qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+    bar = screen.timeline.verticalScrollBar()
+    for fraction in (0.5, 0.9, 0.1):
+        bar.setValue(round(bar.maximum() * fraction))  # no repaint(), no mouse event
+        qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+
+
+def test_the_margin_ahead_of_the_scroll_is_loaded_before_it_is_needed(qtbot, tmp_path):
+    screen, service = _thousand(qtbot, tmp_path)
+    view = screen.timeline
+    bar = view.verticalScrollBar()
+    qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+    bar.setValue(5000)
+    bar.setValue(bar.value() + 120)
+    visible, margin = view.prefetch_rows()
+    assert margin and margin[0] >= visible[-1] and margin[-1] > visible[-1]  # ahead is below
+    model = view.model()
+    wanted = [model.page_id(r) for r in visible + margin if model.state(r) != "separator"]
+    qtbot.waitUntil(lambda: all(service.is_current(pid) for pid in wanted), timeout=5000)
+    bar.setValue(bar.value() - 240)  # now moving up: the margin leads upwards
+    visible, margin = view.prefetch_rows()
+    assert margin[0] < visible[0] or margin[-1] < visible[0]
+
+
+def test_a_fast_scroll_never_leaves_another_pages_image_in_a_slot(qtbot, tmp_path):
+    screen, service = _thousand(qtbot, tmp_path)
+    view = screen.timeline
+    bar = view.verticalScrollBar()
+    qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+    for step in list(range(0, 60)) + list(range(60, 0, -3)):
+        bar.setValue(step * 120)
+        QApplication.processEvents()  # the app paints between wheel notches
+    qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+    qtbot.wait(100)
+    window = screen.window()
+    backing = window.screen().grabWindow(window.winId()).toImage()  # what the screen shows
+    origin = view.viewport().mapTo(window, QPoint(0, 0))
+    model = view.model()
+    for row in view.visible_rows():
+        if model.state(row) == "separator":
+            continue  # a tile with no scan
+        centre = view.page_rect(row).center()
+        if not view.viewport().rect().contains(centre):
+            continue  # a row only partly in view: its centre is outside the viewport
+        colour = backing.pixelColor(origin.x() + centre.x(), origin.y() + centre.y())
+        shown = (colour.red(), colour.green(), colour.blue())
+        want = _colour(model.page_id(row))
+        assert all(abs(a - b) <= 3 for a, b in zip(shown, want, strict=True)), (row, shown, want)
+
+
+def test_the_cache_stays_under_its_byte_ceiling_after_a_long_sweep(qtbot, tmp_path):
+    ceiling = 3_000_000  # about 32 thumbnails of 146 x 209 px x 3 bytes: the view and its margin
+    service = ThumbnailService(ColourRenderer(), height=100, max_bytes=ceiling)
+    screen, service = _thousand(qtbot, tmp_path, service)
+    view = screen.timeline
+    bar = view.verticalScrollBar()
+    for step in range(0, bar.maximum(), 240):  # the whole job, top to bottom
+        bar.setValue(step)
+        QApplication.processEvents()
+        qtbot.wait(5)
+        assert service.cache_bytes <= ceiling
+    qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+    assert service.cache_bytes == sum(i.sizeInBytes() for i in service.cache.values())
+    assert 0 < service.cache_bytes <= ceiling
+    assert len(service.cache) < 200  # not one image per page of the 1000

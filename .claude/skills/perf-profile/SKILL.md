@@ -15,7 +15,7 @@ The 1000-page synthetic job is the stress case.
   painting, draws `kp.paint_placeholder` when no image), `_forget_hidden` (on every
   `verticalScrollBar().valueChanged` calls `thumbnails.keep_only(visible pids)`),
   `_thumbnail_ready` (repaints one `visualRect`).
-- `src/evrakci/ui/thumbnails.py`: `ThumbnailService` (2 worker threads, LRU `capacity=400`,
+- `src/evrakci/ui/thumbnails.py`: `ThumbnailService` (2 worker threads, `capacity=400` images and `CACHE_MAX_BYTES` (150 MB), evicting the pages farthest from the viewport first (Phase 2),
   `request`, `keep_only`, `set_height`, `idle()`), `job_renderer` (pdfium via `pipeline.render`).
 - `src/evrakci/ui/kontrol_paint.py`: paper, placeholder, guide tabs.
 - Existing guard: `tests/ui/test_kontrol.py::test_1000_pages_first_paint_is_fast_and_renders_only_visible_pages`
@@ -96,7 +96,7 @@ Look at `TimelineView.paintEvent`, `_rows_between`, `TimelineDelegate._scan` (im
 | settle after a jump (fake 15 ms renderer) | <= 1500 ms | page content arrives without input |
 | settled_loaded_pct_real (jump, no repaint, no mouse) | 100 % | the hover bug must be gone |
 | rows prefetched beyond the view | > 0, bounded by capacity | scrolling at normal speed never shows empty paper |
-| memory | cache <= `capacity` (400) images | LRU holds |
+| memory | cache <= `capacity` (400) images and <= `CACHE_MAX_BYTES` | far pages evicted first |
 
 The same limits are constants (`THRESHOLDS`) in `perf_kontrol.py`; change both together and
 justify it in the commit. Do not trade correctness for speed: a thumbnail for page N must never be

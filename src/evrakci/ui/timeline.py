@@ -8,7 +8,8 @@ tiles between documents; pages that will be deleted stay in their document, dimm
 
 Smooth at 1,000 pages: the view is one QListView with its own flow layout (plain rectangles,
 computed in one pass), it paints only the rows in view, every page through the delegate, and
-asks the thumbnail service only for the pages it paints.
+asks the thumbnail service for the pages in view plus a margin ahead of the scroll (driven by
+the scroll position, not by painting or the mouse), nearest first.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from PySide6.QtCore import (
     QRectF,
     QSize,
     Qt,
+    QTimer,
 )
 from PySide6.QtGui import QColor, QFontMetrics, QImage, QPainter, QPen, QRegion
 from PySide6.QtWidgets import (
@@ -47,6 +49,8 @@ from evrakci.ui.thumbnails import ThumbnailService
 SEP_W = 48  # A .sepage
 DOC_GAP = 28  # A .row gap between documents
 ZOOM_MIN, ZOOM_MAX, ZOOM_STEP = 50, 200, 10
+PREFETCH_AHEAD = 1.0  # viewports of pages requested beyond the edge the scroll moves towards
+PREFETCH_BEHIND = 0.5  # and beyond the other edge
 
 
 class Roles(IntEnum):
@@ -438,6 +442,7 @@ class TimelineView(QListView):
         self._row_tops: list[int] = []
         self._height = 0
         self._laid_width = -1
+        self._last_offset = 0
         self._band: QRect | None = None
         self._press: QPoint | None = None
         super().__init__(parent)
@@ -460,7 +465,8 @@ class TimelineView(QListView):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         if thumbnails is not None:
             thumbnails.ready.connect(self._thumbnail_ready)
-            self.verticalScrollBar().valueChanged.connect(self._forget_hidden)
+            self.verticalScrollBar().valueChanged.connect(self.load_thumbnails)
+            thumbnails.distance = self._distance
         theme.follow(self, self.relayout)
 
     # -- layout -------------------------------------------------------------------------------
@@ -498,6 +504,8 @@ class TimelineView(QListView):
         self._row_tops = [row.y for row in self._rows]
         self._laid_width = self.viewport().width()
         QAbstractItemView.doItemsLayout(self)
+        if self.thumbnails is not None and self._rows:
+            QTimer.singleShot(0, self, self.load_thumbnails)  # after the layout settles
 
     def reset(self) -> None:
         super().reset()
@@ -507,6 +515,12 @@ class TimelineView(QListView):
         super().resizeEvent(event)
         if self.viewport().width() != self._laid_width:
             self.doItemsLayout()
+
+    def scrollContentsBy(self, dx: int, dy: int) -> None:  # noqa: N802
+        """Move the painted pixels and repaint the strip that came into view. The inherited
+        QListView version does nothing here (doItemsLayout skips the list-mode layout), which
+        left old pixels on screen after a scroll (B-032)."""
+        self.viewport().scroll(dx, dy)
 
     def updateGeometries(self) -> None:  # noqa: N802
         bar = self.verticalScrollBar()
@@ -772,12 +786,57 @@ class TimelineView(QListView):
             self.selectionModel().setCurrentIndex(model.index(current, 0), flags.NoUpdate)
 
     # -- thumbnails ---------------------------------------------------------------------------
-    def _forget_hidden(self) -> None:
+    def prefetch_rows(self) -> tuple[list[int], list[int]]:
+        """(rows in view, rows in the margin), each nearest to the viewport first. The margin is
+        PREFETCH_AHEAD viewports beyond the edge the scroll moves towards (down by default) and
+        PREFETCH_BEHIND beyond the other."""
+        if not self._rows:
+            return [], []
+        top = self.verticalOffset()
+        height = self.viewport().height()
+        down = top >= self._last_offset
+        ahead, behind = round(height * PREFETCH_AHEAD), round(height * PREFETCH_BEHIND)
+        before, after = (behind, ahead) if down else (ahead, behind)
+        view_top, view_bottom = top, top + height
+        seen = set()
+        near: list[tuple[int, int]] = []
+        far: list[tuple[int, int]] = []
+        for line in self._rows_between(view_top - before, view_bottom + after):
+            bottom = line.y + self.metrics.row_h
+            gap = max(view_top - bottom, line.y - view_bottom, 0)
+            for r in range(line.first, line.last + 1):
+                if r not in seen:
+                    seen.add(r)
+                    (near if gap == 0 else far).append((gap, r))
+        return [r for _g, r in sorted(near)], [r for _g, r in sorted(far)]
+
+    def load_thumbnails(self) -> None:
+        """Ask for the pages in view and the margin (nearest first), forget the rest. Runs on
+        every scroll and after a layout, so loading never waits for a paint or the mouse."""
         model = self.model()
-        if model is None or self.thumbnails is None:
+        service = self.thumbnails
+        if model is None or service is None or not isinstance(model, TimelineModel):
             return
-        rows = self.visible_rows()
-        self.thumbnails.keep_only({model.page_id(r) for r in rows})
+        visible, margin = self.prefetch_rows()
+        self._last_offset = self.verticalOffset()
+        # separator tiles are drawn without a scan, so they are never rendered
+        pids = [model.page_id(r) for r in visible + margin if model.state(r) != "separator"]
+        service.keep_only(set(pids))
+        for pid in pids:
+            if not service.is_current(pid):
+                service.request(pid)
+
+    def _distance(self, pid: str) -> float:
+        """Pixels between page `pid` and the viewport (0 inside it), for cache eviction."""
+        try:
+            row = self.model().row_of(pid)
+        except (ValueError, AttributeError, RuntimeError):
+            return float("inf")
+        if row >= len(self._rects):
+            return float("inf")
+        rect = self._rects[row]
+        top = self.verticalOffset()
+        return max(top - rect.bottom(), rect.top() - (top + self.viewport().height()), 0)
 
     def _thumbnail_ready(self, pid: str, _image) -> None:
         model = self.model()

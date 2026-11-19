@@ -248,9 +248,6 @@ def test_b031_palette_placeholder_is_true(qtbot, tmp_path):
     assert "belge ara" not in text
 
 
-@pytest.mark.xfail(strict=True, reason="B-032: TimelineView inherits QListView.scrollContentsBy "
-                                       "which does not repaint; thumbnails are only requested "
-                                       "from paint")
 def test_b032_scrolling_repaints_and_loads_visible_rows(qtbot, tmp_path):
     from PySide6.QtCore import QEvent, QObject
 

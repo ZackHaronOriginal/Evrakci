@@ -104,3 +104,20 @@ def test_a_render_for_the_old_height_is_not_current_after_set_height(qtbot):
     service.request("b1/0")
     qtbot.waitUntil(lambda: got == [50, 80], timeout=5000)
     assert service.is_current("b1/0")
+
+
+def test_over_the_byte_ceiling_the_page_farthest_from_the_viewport_goes_first(qtbot):
+    renderer = CountingRenderer()
+    one = 212 * 100  # bytes of one 70 x 100 RGB888 thumbnail (lines are padded to 4 bytes)
+    service = ThumbnailService(renderer, height=100, max_bytes=one * 3 + 10, workers=1)
+    service.distance = lambda pid: abs(int(pid.split("/")[1]) - 2.2)  # the viewport is at page 2
+    got = []
+    service.ready.connect(lambda pid, image: got.append(pid))
+    for i in (5, 4, 3, 0, 1, 2):  # one worker: they arrive in this order
+        service.request(f"b1/{i}")
+    qtbot.waitUntil(lambda: len(got) == 6, timeout=5000)
+    assert service.cache_bytes <= one * 3 + 10
+    # over the ceiling it drops to 90 % of it in one go, the farthest pages first
+    assert set(service.cache) == {"b1/2", "b1/3"}
+    service.invalidate("b1/2")
+    assert service.cache_bytes == one

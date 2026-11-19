@@ -1140,13 +1140,21 @@ class MainWindow(QMainWindow):
             return
         self.yukle.open_job(job)
 
+    def _retire_thumbnails(self) -> None:
+        """Stop and release the old job's thumbnail service (no callback into a dead view)."""
+        old, self.thumbnails = self.thumbnails, None
+        if old is not None:
+            old.stop()
+            old.invalidate()
+            old.distance = None
+            old.deleteLater()
+
     def _job_opened(self, job) -> None:
         controller = self.controller()
         self.store.root.mkdir(parents=True, exist_ok=True)
         (self.store.root / LAST_JOB).write_text(job.id, encoding="utf-8")
         self.prefs.add_recent_job(job.id)
-        if self.thumbnails is not None:
-            self.thumbnails.stop()  # the previous job's renders are no longer wanted
+        self._retire_thumbnails()  # the previous job's renders are no longer wanted
         self.thumbnails = ThumbnailService(
             job_renderer(job, lambda: self.store.batch_files(job)), height=110, parent=self)
         kontrol = KontrolScreen(controller, self.thumbnails, self.template_map)
@@ -1216,9 +1224,7 @@ class MainWindow(QMainWindow):
             return
         self._unwire_controller()
         self.yukle._close_now()  # the screen's own reset (its close_job comes back here)
-        if self.thumbnails is not None:
-            self.thumbnails.stop()
-            self.thumbnails = None
+        self._retire_thumbnails()
         self._set_kontrol_page(self._kontrol_placeholder)
         (self.store.root / LAST_JOB).unlink(missing_ok=True)
         self.setWindowTitle(f"Evrakçı {__version__}")

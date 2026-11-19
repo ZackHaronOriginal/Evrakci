@@ -220,6 +220,7 @@ class KontrolScreen(QWidget):
     def _rerender(self) -> None:
         if self.thumbnails is not None:
             self.thumbnails.set_height(self.timeline.thumbnail_height())
+            self.timeline.load_thumbnails()
         self.timeline.viewport().update()
 
     def _toast(self, text: str, undo: bool = True) -> None:

@@ -1,6 +1,6 @@
 # Evrakçı: quality phase plan (draft for owner review)
 
-Status: DRAFT for review. Written 2026-11-19. Owner answers so far (2026-11-19): Fluent wins over Apple
+Status: DRAFT for review (reviewed and corrected on Opus, 2026-11-19). Written 2026-11-19. Owner answers so far (2026-11-19): Fluent wins over Apple
 where they differ; hit-target minimums 24 px / 32 px in rows / 28 px button height accepted;
 performance check 1 is at the start. Everything else still needs the owner's review.
 Starting point: `main` with the UI overhaul merged plus 0.0.2 (PR #5). 97 registered actions
@@ -25,6 +25,39 @@ bindings, 65 UI modules, about 26 000 lines.
   version as a regression gate.
 - Order matters: measurements (1) before fixes, the layout-changing performance fix (2) before the
   per-element audit (4), and features (5) after the audit so new screens are built to the rules.
+  The research part of Phase 5 (5a to 5c) does not change code, so it runs in the background from
+  Phase 1 on; the owner's ranking (5d) is then ready before Phase 5 starts.
+
+## How the run works (unattended goal run)
+
+- **One step at a time through the model-akisi flow.** Each step gets a task spec, then:
+  Sonnet implements; Kapı 1 (Haiku) runs `ruff check .` and the test files for what changed;
+  Kapı G (Haiku) runs `tools/screenshots.py matrix` for the touched tabs, the clipping check and,
+  from Phase 1 on, `tools/ui_measure.py`, and the main session (Opus) looks at 2 to 3 of the
+  worst screenshots itself; four Haiku lenses (spec, edge cases, scope, project rules); a Sonnet
+  reviewer sorts the lens findings; Opus accepts against what the owner asked. Research agents
+  run on Sonnet. Every phase ends with a fresh Opus review of the whole phase diff and evidence.
+  Every Agent call names its model.
+- **The owner is not waiting at the keyboard.** Questions never stop the run while other work is
+  possible. They go into `docs/ui-goal/OWNER-QUEUE.md` (one line each: phase, question, options,
+  what is blocked). The run stops and asks only when every remaining step depends on an answer.
+  - Blocking answers (work that depends on them waits): which rules are enforced (Phase 1),
+    the feature ranking (5d), each feature spec (5e), any change to the approved look, Turkish
+    copy that is new, code signing, version and publishing (Phase 6).
+  - Non-blocking owner checks (collected, done on the owner's PC from a CI build): jitter gone
+    (Phase 2), the shortcut checklist (Phase 3), each screen (Phase 4). The run carries on; if
+    the owner reports a problem, it becomes a ledger row and is fixed before Phase 6 ends.
+- **State lives in files, not in the chat.** `docs/ui-goal/STATE.md` holds: current phase and
+  step, last commit, what is next, open owner questions, and links to the evidence files. It is
+  updated after every accepted step. After a context compaction or a new session the run reloads
+  the model-akisi skill, reads `STATE.md` and continues from there. Task specs live in
+  `.claude/gorevler/` (git-ignored, because this repo is public and specs quote the owner); nothing
+  private goes into committed files.
+- **Commits and PRs.** Commit after every accepted step on `claude/focused-heisenberg-prspvt`,
+  push, and at the end of each phase open (or update) one pull request for that phase. When the
+  owner merges it, the branch restarts from the new `main`.
+- **Private material never enters the repo:** the model-akisi skill, the Apple HIG pack text,
+  real documents.
 
 ## Already decided (do not ask again)
 
@@ -88,17 +121,25 @@ project skills in `.claude/skills/`.
 4. Run `audit_shortcuts.py` to produce the first shortcut table (`docs/ui-goal/baseline/shortcuts.tsv`).
 5. Run `keywalk.py` for every tab and record focus traps, unreachable areas and controls with no
    accessible name.
-6. Reproduce the Kontrol jitter by hand at least once with a recording or a frame log, and write the
-   exact repro (scroll speed, zoom, theme) into the bug ledger as the first row.
+6. Reproduce the Kontrol jitter with a frame log (which rows are blank or show an old image after a
+   scroll with no mouse event) and add it to the bug ledger with the exact repro.
+7. **Triage the ledger.** The 31 `needs-repro` rows (B-001 to B-031, found while making the
+   inventories) each get a reproduction (a failing test where possible) and a severity, or are
+   closed as not a bug with the reason.
+8. **Fix the S1 rows now** (data loss, silently wrong output, wrong merge), after the baseline above
+   is saved, each with a regression test. Known candidates: a failed read loses finished values
+   (B-011), M says "merged" when documents stay split (B-021), K on page 1 relabels without
+   splitting (B-020), a failed autosave shows no error (B-029). S2 and lower wait for their phase.
 
-**Checks.** Suite counts match the 526 passed / 6 skipped of the earlier baseline, or each
-difference is explained. Perf runs agree with each other within 15%. If the helper scripts fail
+**Checks.** Suite counts match the last recorded run of the UI overhaul (1081 passed, 6 skipped,
+commit `e1e3276`) or each difference is explained. Perf runs agree with each other within 15%. If the helper scripts fail
 the first time, fixing them is part of this phase, with a test for each fix.
 
 **Outputs.** `docs/ui-goal/baseline/` (suite counts, screenshot list, perf-before.json,
 shortcuts.tsv, keywalk output), first rows in `docs/ui-goal/bugs.md`.
 
-**Exit rule.** Every number above exists in a committed file and was produced twice.
+**Exit rule.** Every number above exists in a committed file and was produced twice; every
+ledger row has a repro or a reason; no S1 row is open.
 
 **Review.** A fresh agent checks the perf script against the code it measures (does it really
 exercise the real scroll and paint path, or only a fake?) before the numbers are trusted.
@@ -112,7 +153,8 @@ exercise the real scroll and paint path, or only a fake?) before the numbers are
 **Goal.** Turn "looks right" into numbers that a program can check.
 
 **Inputs.** Phase 0 baseline; the Apple HIG pack from `raintree-technology/apple-hig-skills`
-(kept outside the repo, its reference text is Apple's); approved decisions D1 to D13; PRODUCT.md
+(cloned fresh into the scratchpad at the start of the phase, never into the repo: its reference
+text is Apple's); approved decisions D1 to D13; PRODUCT.md
 and DESIGN.md.
 
 **Steps.**
@@ -120,7 +162,9 @@ and DESIGN.md.
    list every rule that has a number or a testable behaviour (spacing and alignment, control states,
    focus and selection, typography hierarchy, colour contrast, motion durations and purpose,
    icons, window and menu behaviour for macOS). Each line keeps its Apple source URL.
-2. **Verify each line against Apple's own page** where the page can be read. Lines that cannot be
+2. **Verify each line against Apple's own page** where the page can be read (Apple's pages are
+   built by JavaScript: open them with the pre-installed Chromium through Playwright, not a
+   plain fetch). Lines that cannot be
    verified are marked `unverified` and are not enforced, only reported.
 3. **Reconcile with D1 to D13.** For each rule, mark: same as ours, differs, not applicable
    (touch, iOS, visionOS), or needs an owner decision. Differences go into `rules-conflicts.md`.
@@ -147,13 +191,13 @@ same rows; every rule has a source and a severity.
 report `docs/ui-goal/baseline/measure-before.tsv`.
 
 **Exit rule.** The report covers all six tabs in all themes and sizes with no tool errors, and the
-owner has answered the conflict list.
+conflict list is in `OWNER-QUEUE.md`.
 
 **Review.** A fresh agent re-derives five random rules from Apple's source and from the code and
 confirms the tool measures the same thing a person would.
 
-**Owner decides.** Every row of `rules-conflicts.md`, the hit-target minimums, and which rules are
-enforced (fail the build) versus reported.
+**Owner decides.** Every row of `rules-conflicts.md` and which rules are enforced (fail the build)
+versus reported. Until the owner answers, every rule is "reported" and the run continues.
 
 ---
 
@@ -190,9 +234,9 @@ unreachable in the offscreen environment, they are re-set from the Phase 0 numbe
 **Outputs.** Code fix with tests, `docs/ui-goal/baseline/perf-after-phase2.json`, a short note on
 which hypotheses were true.
 
-**Exit rule.** All targets met in three runs, no previously passing test broken, and the owner has
-confirmed on their own PC (installer from CI) that the jitter is gone, because offscreen timing is
-not the same as a real monitor.
+**Exit rule.** All targets met in three runs and no previously passing test broken. The owner's
+check on their own PC (installer from CI; offscreen timing is not a real monitor) goes into
+`OWNER-QUEUE.md` as a non-blocking check.
 
 **Review.** A fresh agent reads only the diff and the before/after JSON and tries to break it
 (huge job, zoom change during scroll, theme switch during load, cancel and re-add).
@@ -219,7 +263,9 @@ the right feedback. A key that has no meaning on a screen says so instead of sta
    every tab where it is active; a key meaning "next/previous/accept/delete/find/undo" behaves the
    same way everywhere; no key does something different when focus is in a text field except the
    documented typing guard; keys on the Turkish Q layout are safe (no Ç Ş Ğ İ Ö Ü, no Ctrl+Alt).
-3. **Contract tests.** One test per row: build the real window with a demo job, go to the tab, put
+3. **Contract tests.** About 280 rows (35 app-wide actions on six tabs plus the tab actions), so
+   the tests are data-driven: one parametrized test reads `shortcut-contract.tsv`, plus small
+   helper functions per kind of effect and feedback. One test per row: build the real window with a demo job, go to the tab, put
    focus where the precondition says, send the real key event through `QTest`, then assert **both**
    the effect (read from the job or model, not from the UI text) **and** the feedback (the status
    bar, toast, focus widget, selection, undo stack entry). Add a second test for each row that
@@ -240,8 +286,9 @@ an owner-approved reason.
 **Outputs.** The contract table, the contract tests in `tests/ui/`, a cleaned `shortcuts.md`,
 a list of every mismatch found and how it was fixed in the bug ledger.
 
-**Exit rule.** 100% of bindings have all three tests passing, and a by-hand pass of every row on
-the installed Windows build by the owner found no mismatch (the owner gets a one-page checklist).
+**Exit rule.** 100% of bindings have all three tests passing. The owner's by-hand checklist
+(`docs/ui-goal/shortcut-checklist.md`, grouped by key, every row) goes into `OWNER-QUEUE.md` as a
+non-blocking check.
 
 **Review.** A fresh agent picks 20 random rows, runs the real app by hand through
 `QTest` driving, and tries to find a row where the table lies.
@@ -261,9 +308,10 @@ plugins, the contract table.
 
 **Method, one screen at a time, in this order:** Kontrol, Yükle, Değerler, Şablonlar, Dışa Aktar,
 Rehber (most used first). For each screen:
-1. **Inventory.** List every element: buttons, fields, tables and their cells, headers, menus and
-   context menus, dialogs and popups, tooltips, icons, badges, the status bar, the inspector and
-   the command bar. Save as `docs/ui-goal/audit/<screen>-inventory.md`.
+1. **Inventory.** Start from the feature inventory (`research/inventory-<screen>.md`) and add every
+   element it does not list: buttons, fields, tables and their cells, headers, menus and context
+   menus, dialogs and popups, tooltips, icons, badges, the status bar, the inspector and the
+   command bar. Save as `docs/ui-goal/audit/<screen>-inventory.md`.
 2. **State matrix.** For each element: default, hover, pressed, focused (keyboard), selected,
    disabled, empty, loading, error, and long text or many items. Each cell is either a screenshot
    reference, a measured row, or "n/a" with a reason.
@@ -289,8 +337,9 @@ no unreachable area and no unnamed control; the clipping check passes in all com
 with tests. After the last screen, the whole-app measure report `measure-after.tsv` next to
 `measure-before.tsv`.
 
-**Exit rule.** All six screens pass as above, the quick performance check (Phase 2 script) still
-meets its targets, and the owner has been through each screen on the real build.
+**Exit rule.** All six screens pass as above and the quick performance check (Phase 2 script)
+still meets its targets. The owner's walk through each screen is a non-blocking check in
+`OWNER-QUEUE.md`.
 
 **Review.** After each screen, a fresh agent reviews that screen's diff and ledger rows. After the
 last screen, one whole-app review.
@@ -304,6 +353,9 @@ wrong, and any visual change (anything that alters how the approved design looks
 
 **Goal.** Decide what to add from evidence (what the sector and comparable apps really do), not
 from guesses; then build only what is specified and approved.
+
+*5a to 5c run in the background from Phase 1 on (Sonnet research agents, Opus review); they change
+no code. 5d needs the owner; 5e starts after Phase 4.*
 
 **Sub-phase 5a: Inventory of what we have.** (A first draft was made while preparing this plan, in `research/`; the goal run re-verifies it against the code and extends it.)
 1. One table per tab (plus app-wide) listing every feature with an ID (K-01, V-01, ...), what it
@@ -362,8 +414,10 @@ approved, and every "must" and "should" is shipped or has a written reason it mo
    contrast theme, a slow disk (throttled), and a low-memory run. Produce
    `docs/ui-goal/baseline/perf-final.json` and a table of before, after Phase 2 and final for every
    metric. Anything worse than the "before" numbers must be explained or fixed.
-2. **Real documents.** Run the app end to end on real (anonymised) scans: add, read, check, fix
-   values, export. Compare exported files and index.xlsx against the CLI output for the same input.
+2. **Real documents.** Real scans never come into this container or the repo. The run writes a
+   script and a checklist; the owner runs them on their PC on real (anonymised) scans: add, read,
+   check, fix values, export, and compare the exported files and index.xlsx with the CLI output
+   for the same input. The owner reports the result; problems become ledger rows.
 3. **Windows.** The Windows installer from CI on a clean Windows user account: install, upgrade over
    0.0.1/0.0.2, run, uninstall. Include the "unknown publisher" warning in the notes; code signing is
    a separate owner decision.
@@ -374,7 +428,8 @@ approved, and every "must" and "should" is shipped or has a written reason it mo
    version; tag the release and attach installers and checksums to a GitHub Release.
 
 **Exit rule.** CI is green on both systems with the new gates, the final performance numbers are
-written down, and the owner has installed the release build and signed off.
+written down, every non-blocking owner check in `OWNER-QUEUE.md` is answered and its problems
+fixed, and the owner has installed the release build and signed off.
 
 **Review.** A last whole-repo review by a fresh agent with only the diff since Phase 0 and the
 evidence files.
@@ -387,6 +442,7 @@ evidence files.
 
 | Phase | Used |
 |---|---|
+| all | `model-akisi` (private, kept out of the repo) for every step; Opus reviews at every phase end |
 | 0 | `perf-profile`, `shortcut-audit`, `ui-bug-hunt` scripts, `run` |
 | 1 | Apple HIG pack (reference), `design-systems`, `design:design-system`, `impeccable` |
 | 2 | `perf-profile`, `audit-as-perf-eng`, `code-review`, `simplify` |

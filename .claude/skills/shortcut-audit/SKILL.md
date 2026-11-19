@@ -35,7 +35,41 @@ between tabs is a bug, unless documented.
    Columns: tab, key, action id, label, flags (`local`, `typing`, `checkable`), test files that
    mention the id or press the key. Write the result as a table `shortcut | expected action | test`
    per tab in your report (one section per tab: yukle, kontrol, sablonlar, degerler, disa_aktar,
-   rehber). Put the output in the scratchpad or the report, not in the repo.
+   rehber). This raw table is a working file (scratchpad); the contract below is the one that is
+   committed.
+
+## The contract: what the key does and what the user sees
+
+A binding is not checked until both its **effect** and its **feedback** are tested. The contract
+lives in `docs/ui-goal/shortcut-contract.tsv`, one row per binding per tab where it is active:
+
+| Column | Meaning |
+|---|---|
+| tab, key, action_id, label | from the registry |
+| precondition | what must be true: job loaded, selection, which widget has focus |
+| effect | the exact change in data or state, read from the job, model or controller (never from UI text) |
+| feedback | what the user sees: status-bar text, toast text and its Undo, focus move, selection or highlight change, undo-stack entry name, or "disabled: <reason in tooltip>" |
+| not_applicable | what happens when the precondition is false: disabled with a reason, or a status message; never silent |
+| undo | what Ctrl+Z restores and the undo entry's name |
+| same_as | for a key active on several tabs: the row it must behave like, or "page-specific: <why>" (must also be in `shortcuts.md`) |
+| test | the test id that covers the row |
+
+Rules:
+- Same key, same verb on every tab where it is active; a different verb is a bug unless
+  `same_as` says page-specific and `shortcuts.md` documents it.
+- Menu, command-bar button, command palette and key must give the same effect and feedback.
+- A key that does nothing visible is a bug (for example F5 enabled with no action, B-028).
+- Feedback text uses the project vocabulary (Kontrol, Emin / Orta / Kontrol / Okunamadı,
+  İncelendi / İncelenmedi). New Turkish text goes to the owner before it ships.
+
+Tests are data-driven: one parametrized test in `tests/ui/test_shortcut_contract.py` reads the TSV
+and, per row, (1) builds the demo window, goes to the tab, sets the precondition, sends the real key
+with `QTest` to the focus widget, asserts the effect and the feedback; (2) breaks the precondition,
+sends the key, asserts the `not_applicable` behaviour; (3) triggers the same action through the
+menu or palette and asserts the same result. Effect and feedback checks are small named helpers
+(`effect_cut_added`, `feedback_toast(text)`, `feedback_focus(widget)`, ...), so a row names them
+instead of carrying code. Mark each test with the action id (`@pytest.mark.action("kontrol.cut")`)
+so `audit_shortcuts.py` can match tests by id instead of by text search.
 
 2. Conflicts. `actions.validate()` (printed by the script) already catches: duplicate ids, Turkish
    letters or I in a key, Ctrl+Alt (AltGr), a key used twice on one tab, `single_key` flag

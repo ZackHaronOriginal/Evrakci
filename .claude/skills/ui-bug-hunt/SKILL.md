@@ -67,7 +67,7 @@ One row per bug, newest last, never delete a row (change Status instead). Column
 | ID | Sev | Tab | Where (theme / size / text) | Repro | Expected vs actual | Evidence | Status |
 |---|---|---|---|---|---|---|---|
 
-- ID: `UI-001`, increasing.
+- ID: `B-NNN`, continuing the existing sequence (B-001 to B-031 came from the feature inventories).
 - Severity: **S1** data loss, wrong silent output, or a flow that cannot be completed by keyboard;
   **S2** unreadable or unusable in a supported theme/size (clipped text, lost focus, contrast
   below D10), or Kontrol not shown with icon + word; **S3** visible but workable (misalignment,

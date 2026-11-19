@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest import mock
 
 from contract_helpers import (
-    NOJOB,
     PLANS,
     Ctx,
     Plan,
@@ -296,13 +295,10 @@ PLANS["yukle.cikar"] = Plan(
                  f"line {PARTI_SEC!r}"})
 PLANS["yukle.yeniden_adlandir"] = Plan(
     pre="pre.yukle_rename", effect="effect.yukle_renamed", feedback="feedback.yukle_renamed",
-    na_pre="pre.none", na="na.says_no_job",
-    xfail={"na": "M-26: no job: F2 is disabled and silent; INTENDED status line " + NOJOB})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["yukle.gezginde_goster"] = Plan(
     pre="pre.yukle_show", effect="effect.yukle_shown", feedback="feedback.yukle_shown",
-    na_pre="pre.none", na="na.says_no_job",
-    xfail={"na": "M-26: no job: Ctrl+Shift+O is disabled and silent; INTENDED status line "
-                 + NOJOB})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["yukle.iptal"] = Plan(
     pre="pre.yukle_reading", effect="effect.yukle_cancelled", feedback="feedback.yukle_cancelled",
     na_pre="pre.none", broken="broken.yukle_nothing_running", na="na.yukle_nothing_running_says",

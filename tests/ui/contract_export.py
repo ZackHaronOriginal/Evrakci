@@ -264,17 +264,12 @@ PLANS["disa_aktar.gezginde_goster"] = Plan(
     feedback="feedback.export_revealed", window="job_disa", na_pre="pre.none",
     na="na.says.export_no_folder",
     xfail={"na": _M44.format(why="no folder to show", text=P_NO_FOLDER)})
-# NEW-1 (found while writing these tests, not in shortcut-mismatches.md): the key, the menu item,
-# the palette and the bar button all call print_index(checked=False), whose first parameter is the
-# printer: QTextDocument.print_(False) raises a TypeError inside the slot and nothing prints.
-_NEW1 = ("NEW-1: Ctrl+P on Dışa Aktar raises TypeError (print_index gets the QAction's checked "
-         "flag as its printer) and prints nothing; INTENDED: the index is printed")
+# B-047 (fixed in 3E): print_index used to receive the QAction's checked flag as its printer.
 PLANS["disa_aktar.yazdir"] = Plan(
     pre="pre.export_print", snap="snap.export", effect="effect.export_printed",
     feedback="feedback.export_printed", window="job_disa", na_pre="pre.none",
     na="na.says.export_no_index", marks=(pytest.mark.qt_no_exception_capture,),
-    xfail={"effect": _NEW1, "via": _NEW1,
-           "na": _M44.format(why="empty list", text=P_NO_INDEX)})
+    xfail={"na": _M44.format(why="empty list", text=P_NO_INDEX)})
 PLANS["disa_aktar.durdur"] = Plan(
     pre="pre.export_running", snap="snap.export", effect="effect.export_stopped",
     feedback="feedback.export_stopped", window="fresh", na_pre="pre.none", na_window="job_disa",

@@ -26,6 +26,8 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QWidget, QWidgetAction
 from evrakci.ui import actions, icons, theme
 from evrakci.ui.chrome import make_icon, mark_danger
 
+NO_JOB_TEXT = "Önce Yükle sekmesinden bir iş açın (Ctrl+1)."
+
 # Every Kontrol command and the KontrolScreen method (+ arguments) that does it.
 SCREEN_SLOTS: dict[str, tuple] = {
     "kontrol.kes": ("toggle_cut",), "kontrol.birlestir": ("merge_current",),
@@ -117,7 +119,7 @@ class KontrolBinder(QObject):
             window = self.registry.parent()
             message = getattr(window, "message", None)
             if isinstance(message, QLabel):
-                message.setText("Önce Yükle sekmesinden bir iş açın (Ctrl+1).")
+                message.setText(NO_JOB_TEXT)
             return
         getattr(screen, method)(*args)
 
@@ -294,5 +296,5 @@ def label_delete(registry: actions.Registry | None, count: int, restore: bool) -
     return actions.plain_text(text)
 
 
-__all__ = ["SCREEN_SLOTS", "KontrolBinder", "KontrolStatus", "context_menu", "fallback_action",
-           "label_delete"]
+__all__ = ["NO_JOB_TEXT", "SCREEN_SLOTS", "KontrolBinder", "KontrolStatus", "context_menu",
+           "fallback_action", "label_delete"]

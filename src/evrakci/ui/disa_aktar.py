@@ -25,6 +25,7 @@ from PySide6.QtCore import QByteArray, QEvent, QModelIndex, QPoint, Qt, QTimer, 
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QKeySequence, QUndoCommand
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
     QFileDialog,
     QFrame,
     QHeaderView,
@@ -706,7 +707,7 @@ class DisaAktarScreen(QWidget):
             window._sync_export_action()
             r.set_enabled("disa_aktar.durdur", state == "running")
             r.set_enabled("disa_aktar.yazdir", state != "empty" and self.model.rowCount() > 0)
-            r.set_enabled_for("app.yenile", "disa_aktar", state not in ("empty", "running"))
+            r.set_enabled_for("app.yenile", "disa_aktar", state != "running")
             r.set_enabled("disa_aktar.gezginde_goster", self._reveal_target() is not None)
             r.set_enabled("disa_aktar.index_ac",
                           self._index_written and self._index_path().is_file())
@@ -1127,11 +1128,11 @@ class DisaAktarScreen(QWidget):
 
         if self.model.rowCount() == 0:
             return
-        if printer is None:
+        if not isinstance(printer, QPrinter):  # a QAction's checked flag arrives here too
             printer = QPrinter()
             dialog = QPrintDialog(printer, self)
             dialog.setWindowTitle("Dizini yazdır")
-            if dialog.exec() != QPrintDialog.DialogCode.Accepted:
+            if dialog.exec() != QDialog.DialogCode.Accepted:
                 return
         document = QTextDocument()
         document.setHtml(self.index_html())

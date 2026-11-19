@@ -56,7 +56,7 @@ from evrakci.ui.degerler import DegerlerScreen
 from evrakci.ui.disa_aktar import DisaAktarScreen
 from evrakci.ui.feedback import Toaster
 from evrakci.ui.kontrol import KontrolScreen
-from evrakci.ui.kontrol_actions import KontrolStatus
+from evrakci.ui.kontrol_actions import NO_JOB_TEXT, KontrolStatus
 from evrakci.ui.palette import CommandPalette
 from evrakci.ui.prefs import Prefs
 from evrakci.ui.rehber import RehberScreen
@@ -665,10 +665,9 @@ class MainWindow(QMainWindow):
         # search, Kontrol "Belgeye veya sayfaya git", Şablonlar the variable list (type to
         # jump), Dışa Aktar the file list (type a file name to jump).
         r.connect_tab("app.bul", "yukle", self.yukle.show_job_list)
-        r.connect_tab("app.bul", "kontrol", lambda: self.kontrol.go_to()
-                      if self.kontrol is not None else None)
+        r.connect_tab("app.bul", "kontrol", self._find_in_kontrol)
         r.connect_tab("app.bul", "sablonlar", self.sablon.find_variable)
-        r.connect_tab("app.bul", "disa_aktar", self.disa_aktar.find_file)
+        r.connect_tab("app.bul", "disa_aktar", self._find_in_disa_aktar)
         r.connect("app.yeni_is", self._new_job)
         r.connect("app.dosya_ekle", self._add_files)
         # Ctrl+S answers on every tab that has something to save: Şablonlar saves the
@@ -688,9 +687,9 @@ class MainWindow(QMainWindow):
         r.connect("app.yazi_buyut", lambda: self.step_text_size(1))
         r.connect("app.yazi_kucult", lambda: self.step_text_size(-1))
         r.connect("app.tam_ekran", self.set_full_screen)
-        r.connect("app.yenile", self.refresh_current)
+        r.connect("app.yenile", self._refresh_key)
         r.connect("app.ayarlar", self.open_settings)
-        r.connect("app.yardim", lambda: self.show_tab("rehber"))
+        r.connect("app.yardim", self._show_guide)
         r.connect("app.kisayollar", self.open_shortcut_sheet)
         r.connect("app.komut_ara", self.open_palette)
         r.connect("app.hakkinda", self.open_about)
@@ -735,14 +734,16 @@ class MainWindow(QMainWindow):
     def toggle_inspector(self, *_args) -> None:
         """F9: hide or show the current tab's side panel."""
         side = self.inspector()
-        if side is not None:
+        if side is None:
+            self.say_no_job()
+        else:
             side.setVisible(side.isHidden())
         self._sync_inspector()
 
     def _sync_inspector(self) -> None:
         tab = self.current_tab()
         side = self.inspector(tab)
-        self.registry.set_enabled("app.yan_panel", side is not None)
+        self.registry.set_enabled("app.yan_panel", True)  # no panel yet: F9 says why (M-21)
         verb = "göster" if side is not None and side.isHidden() else "gizle"
         key = actions.key_text("F9")
         self.registry.action("app.yan_panel").setToolTip(f"{PANEL_NAMES[tab]} {verb} ({key})")
@@ -754,29 +755,43 @@ class MainWindow(QMainWindow):
         action.blockSignals(False)
         action.changed.emit()
 
+    def say_no_job(self) -> None:
+        """A key that needs an open job says what to do first instead of staying silent."""
+        self.message.setText(NO_JOB_TEXT)
+
+    def _find_in_kontrol(self) -> None:
+        if self.kontrol is None:
+            self.say_no_job()
+        else:
+            self.kontrol.go_to()
+
+    def _find_in_disa_aktar(self) -> None:
+        if self.controller() is None:
+            self.say_no_job()
+        else:
+            self.disa_aktar.find_file()
+
     def _sync_job_actions(self) -> None:
-        has_job = self.controller() is not None
-        self.registry.set_enabled("app.isi_kapat", has_job)
-        for tab in JOB_TABS:
-            self.registry.set_enabled_for("app.kaydet", tab, has_job)
-        for tab in ("kontrol", "disa_aktar"):
-            self.registry.set_enabled_for("app.bul", tab, has_job)
+        # Ctrl+S, Ctrl+F and Ctrl+E stay on with no job: their handlers say so. Ctrl+W stays
+        # off (M-15: the effect test of Ctrl+W asserts the item is disabled after closing).
+        self.registry.set_enabled("app.isi_kapat", self.controller() is not None)
         self._sync_export_action()
         self._sync_undo()
 
     def _sync_export_action(self, *_args) -> None:
-        """app.disa_aktar has one owner: enabled with a job, and on Dışa Aktar only while
-        that screen can start an export (not blocked, not running)."""
-        has_job = self.controller() is not None
-        can = getattr(self.disa_aktar, "can_export", lambda: True)()
+        """app.disa_aktar has one owner: on with no job (_export says to open one); with a job
+        on Dışa Aktar only while that screen can start an export (not blocked, not running)."""
         on_tab = hasattr(self, "tabs") and self.current_tab() == "disa_aktar"
-        self.registry.set_enabled("app.disa_aktar", has_job and (not on_tab or can))
+        can = getattr(self.disa_aktar, "can_export", lambda: True)()
+        self.registry.set_enabled("app.disa_aktar",
+                                  self.controller() is None or not on_tab or can)
 
     def save_job(self) -> None:
         """Ctrl+S on a job tab: write the job now and confirm it (edits are saved as they
         happen, so this only reassures)."""
         controller = self.controller()
         if controller is None:
+            self.say_no_job()
             return
         try:
             controller.store.save(controller.job)
@@ -881,10 +896,23 @@ class MainWindow(QMainWindow):
         self.yukle.choose_batch()
 
     def _export(self) -> None:
-        if self.current_tab() == "disa_aktar":
+        if self.controller() is None:
+            self.say_no_job()
+        elif self.current_tab() == "disa_aktar":
             self.disa_aktar.export()
         else:
             self.show_tab("disa_aktar")
+
+    def _show_guide(self) -> None:
+        """F1: the guide, with focus on its text (also when Rehber is already shown)."""
+        self.show_tab("rehber")
+        self.rehber.text.setFocus(Qt.FocusReason.ShortcutFocusReason)
+
+    def _refresh_key(self) -> None:
+        """F5: Dışa Aktar with no job open says what to do first (M-23)."""
+        if self.current_tab() == "disa_aktar" and self.controller() is None:
+            self.say_no_job()
+        self.refresh_current()
 
     def refresh_current(self) -> None:
         tab = self.current_tab()

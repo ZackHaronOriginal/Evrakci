@@ -571,10 +571,6 @@ def _na_selection_stays(c: Ctx) -> None:
 
 
 _M30 = "M-30: no job: every Kontrol key is disabled and silent; INTENDED status line " + NOJOB
-_M31 = ("M-31: nothing selected: the key returns without a word; INTENDED status line "
-        f"{_SAYFALARI_SEC!r}")
-_M32 = ("M-32: no current page: the key returns without a word; INTENDED status line "
-        f"{_SAYFA_SEC!r}")
 
 
 def _plan(pre, effect, feedback, **kw):
@@ -591,23 +587,23 @@ PLANS["kontrol.secimi_kaldir"] = _plan(
 PLANS["kontrol.kes"] = _plan(
     "pre.kontrol_cut_here", "effect.kontrol_cut_added", "feedback.kontrol_cut_added",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_no_current_page",
-    na="na.kontrol_pick_page_says", xfail={"na": _M32})
+    na="na.kontrol_pick_page_says")
 PLANS["kontrol.birlestir"] = _plan(
     "pre.kontrol_merge", "effect.kontrol_merged", "feedback.kontrol_merged",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_no_current_page",
-    na="na.kontrol_pick_page_says", xfail={"na": _M32})
+    na="na.kontrol_pick_page_says")
 PLANS["kontrol.saga_dondur"] = _plan(
     "pre.kontrol_two_pages", "effect.kontrol_rotated_right", "feedback.kontrol_rotated_right",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_nothing_selected",
-    na="na.kontrol_pick_pages_says", xfail={"na": _M31})
+    na="na.kontrol_pick_pages_says")
 PLANS["kontrol.sola_dondur"] = _plan(
     "pre.kontrol_two_pages", "effect.kontrol_rotated_left", "feedback.kontrol_rotated_left",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_nothing_selected",
-    na="na.kontrol_pick_pages_says", xfail={"na": _M31})
+    na="na.kontrol_pick_pages_says")
 PLANS["kontrol.sil"] = _plan(
     "pre.kontrol_one_page", "effect.kontrol_deleted", "feedback.kontrol_deleted",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_nothing_selected",
-    na="na.kontrol_pick_pages_says", xfail={"na": _M31})
+    na="na.kontrol_pick_pages_says")
 PLANS["kontrol.onayla"] = _plan(
     "pre.kontrol_first_document", "effect.kontrol_approved", "feedback.kontrol_approved",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_no_current_page",
@@ -623,7 +619,7 @@ PLANS["kontrol.sablon"] = _plan(
 PLANS["kontrol.onizle"] = _plan(
     "pre.kontrol_loupe", "effect.kontrol_loupe_open", "feedback.kontrol_loupe_open",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_no_current_page",
-    na="na.kontrol_pick_page_says", xfail={"na": _M32})
+    na="na.kontrol_pick_page_says")
 for _id, _eff, _broken, _na in (
         ("kontrol.sonraki_kontrol", "effect.kontrol_at_doc2", "broken.kontrol_no_checks",
          "na.kontrol_stays_and_says_no_checks"),

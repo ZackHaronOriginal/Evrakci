@@ -227,8 +227,6 @@ def _sablon(qtbot, tmp_path, job_name="Kasım"):
     return screen, templates, template
 
 
-@pytest.mark.xfail(strict=True, reason="B-015: Del on a chosen variable removes the whole "
-                   "variable but the command is labelled Kutuyu sil (geri alınabilir)")
 def test_b015_the_delete_command_names_what_it_deletes(qtbot, tmp_path):
     window, _store, _job_, templates = _window(qtbot, tmp_path, prefs=False)
     made = templates.create("Faaliyet")

@@ -1353,12 +1353,10 @@ PLANS["app.git", "degerler"] = Plan(
 
 PLANS["app.kaydet"] = Plan(pre="pre.saveable", effect="effect.written_now",
                            feedback="feedback.saved_said", na="na.says_no_job",
-                           na_pre="pre.none",
-                           xfail={"na": "M-10: no job: Ctrl+S is disabled and silent"})
+                           na_pre="pre.none")
 PLANS["app.disa_aktar"] = Plan(
     pre="pre.none", effect="effect.export_tab_shown", feedback="feedback.export_tab_shown",
-    na="na.says_no_job", na_pre="pre.none",
-    xfail={"na": "M-12: no job: Ctrl+E is disabled and silent"})
+    na="na.says_no_job", na_pre="pre.none")
 PLANS["app.isi_kapat"] = Plan(
     pre="pre.job_open_state", window="fresh", effect="effect.job_closed",
     feedback="feedback.job_closed", na="na.says_no_job", na_pre="pre.none",
@@ -1371,9 +1369,7 @@ PLANS["app.kaydet", "rehber"] = Plan(
               "'PROPOSED: Rehber'de kaydedilecek bir şey yok.'" for k in ("effect", "via", "na")})
 PLANS["app.kaydet", "sablonlar"] = Plan(
     pre="pre.saveable", effect="effect.written_now", feedback="feedback.saved_said",
-    na="na.says.no_template_save", na_pre="pre.none",
-    xfail={"na": "M-11: no template: Ctrl+S is disabled; INTENDED to show the existing text "
-                 "'Kaydedilecek bir şablon yok...'"})
+    na="na.says.no_template_save", na_pre="pre.none")
 PLANS["app.disa_aktar", "disa_aktar"] = Plan(
     pre="pre.export_ready", window="fresh", effect="effect.export_written",
     feedback="feedback.export_done", na_window="fresh", na_pre="pre.none",
@@ -1419,24 +1415,21 @@ for _key in ("Ctrl+Y", "Ctrl+Shift+Z"):
                "na": "M-16 Q-08: nothing to redo: the key is disabled and silent"})
 
 # find: each tab finds what it lists (page-specific, shortcuts.md)
-_NOJOB_FIND = "M-04: no job: Ctrl+F is disabled and silent"
 PLANS["app.bul"] = Plan(
     pre="pre.find_start", effect="effect.find", feedback="feedback.find",
-    na_pre="pre.none", na="na.says_no_job", xfail={"na": _NOJOB_FIND})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["app.bul", "kontrol"] = Plan(
     pre="pre.find_start", effect="effect.find", feedback="feedback.find",
     na_pre="pre.none", na="na.says_no_job",
     xfail={"effect": "M-03: Ctrl+F is labelled 'Bul…' but opens the go-to dialog",
-           "via": "M-03: the palette item is labelled 'Bul…' but opens the go-to dialog",
-           "na": _NOJOB_FIND})
+           "via": "M-03: the palette item is labelled 'Bul…' but opens the go-to dialog"})
 PLANS["app.bul", "sablonlar"] = Plan(
     pre="pre.find_start", effect="effect.find", feedback="feedback.find",
     na_pre="pre.none", na="na.says.no_variable",
     xfail={"na": "M-05 Q-08: no template: focus moves to an empty list, nothing said"})
 PLANS["app.bul", "degerler"] = Plan(
     pre="pre.find_start", effect="effect.find", feedback="feedback.find",
-    na_pre="pre.none", na="na.says_no_job",
-    xfail={"na": "M-06: search field disabled: the key does nothing, nothing said"})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["app.bul", "yukle"] = Plan(
     pre="pre.find_start", effect="effect.find", feedback="feedback.find", na_pre="pre.find_start",
     na_window="fresh_closed", na="na.same_as_effect")
@@ -1445,7 +1438,7 @@ PLANS["app.bul", "rehber"] = Plan(
     na="na.same_as_effect")
 PLANS["app.bul", "disa_aktar"] = Plan(
     pre="pre.find_start", effect="effect.find", feedback="feedback.find",
-    na_pre="pre.none", na="na.says_no_job", xfail={"na": _NOJOB_FIND})
+    na_pre="pre.none", na="na.says_no_job")
 
 # F3 / Shift+F3: only Rehber has results; elsewhere INTENDED to say so (M-07, Q-08)
 PLANS["app.sonraki_sonuc"] = Plan(
@@ -1505,8 +1498,7 @@ PLANS["app.yan_panel"] = Plan(snap="snap.panel", effect="effect.panel_toggled",
                               feedback="feedback.panel_tooltip")
 PLANS["app.yan_panel", "kontrol"] = Plan(
     snap="snap.panel", effect="effect.panel_toggled", feedback="feedback.panel_tooltip",
-    na_pre="pre.none", na="na.says_no_job",
-    xfail={"na": "M-21: no job: Kontrol has no side panel and F9 is disabled, silent"})
+    na_pre="pre.none", na="na.says_no_job")
 
 # refresh
 PLANS["app.yenile"] = Plan(pre="pre.refresh_change", effect="effect.refreshed",
@@ -1520,8 +1512,7 @@ for _tab in ("kontrol", "rehber"):
                for k in ("effect", "via", "na")})
 PLANS["app.yenile", "disa_aktar"] = Plan(
     pre="pre.refresh_change", effect="effect.refreshed", feedback="feedback.refreshed",
-    na_pre="pre.none", na="na.says_no_job",
-    xfail={"na": "M-23: empty or running: F5 is disabled and silent"})
+    na_pre="pre.none", na="na.says_no_job")
 
 # dialogs and sheets
 PLANS["app.ayarlar"] = Plan(pre="pre.remember_opener", effect="effect.settings_open",
@@ -1529,9 +1520,7 @@ PLANS["app.ayarlar"] = Plan(pre="pre.remember_opener", effect="effect.settings_o
 PLANS["app.yardim"] = Plan(pre="pre.focus_title_tabs", effect="effect.help_shown",
                            feedback="feedback.help_shown")
 PLANS["app.yardim", "rehber"] = Plan(
-    pre="pre.focus_title_tabs", effect="effect.help_shown", feedback="feedback.help_shown",
-    xfail={k: "M-24: F1 on Rehber changes nothing visible; INTENDED focus moves to the guide"
-           for k in ("effect", "via", "na")})
+    pre="pre.focus_title_tabs", effect="effect.help_shown", feedback="feedback.help_shown")
 PLANS["app.kisayollar"] = Plan(pre="pre.remember_focus", effect="effect.sheet_open",
                                feedback="feedback.sheet_open", na_pre="pre.remember_focus")
 for _tab in TAB_IDS:

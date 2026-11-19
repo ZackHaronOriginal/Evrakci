@@ -464,9 +464,7 @@ PLANS["sablonlar.izgara"] = _plan(
     na_pre="pre.none", na="na.says.sablon_no_page_g", xfail={"na": f"{_M36} {P_NO_PAGE_G!r}"})
 PLANS["sablonlar.dene"] = _plan(
     "pre.sablon_dene", "effect.sablon_dene", "feedback.sablon_dene", na_pre="pre.none",
-    na="na.says.sablon_no_page_dene", marks=(needs_tesseract,),
-    xfail={"na": "M-37: no page: Ctrl+T is disabled and silent; INTENDED: the key stays on "
-                 f"and shows {NO_PAGE_DENE!r}"})
+    na="na.says.sablon_no_page_dene", marks=(needs_tesseract,))
 PLANS["sablonlar.kutu_sil"] = _plan(
     "pre.sablon_box_chosen", "effect.sablon_box_deleted", "feedback.sablon_box_deleted",
     na_pre="pre.none", na="na.says.sablon_nothing_chosen",

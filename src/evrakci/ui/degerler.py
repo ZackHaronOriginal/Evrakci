@@ -757,7 +757,11 @@ class DegerlerScreen(QWidget):
     # -- Ctrl+F and Ctrl+G ------------------------------------------------------------------
     def focus_search(self) -> None:
         """Ctrl+F: the table's search field, its text selected."""
-        if self.search.isEnabled():
+        if self.controller() is None:  # no job: say what to do first (M-06)
+            say = getattr(self.window(), "say_no_job", None)
+            if say is not None:
+                say()
+        elif self.search.isEnabled():
             self.search.setFocus(Qt.FocusReason.ShortcutFocusReason)
             self.search.selectAll()
 

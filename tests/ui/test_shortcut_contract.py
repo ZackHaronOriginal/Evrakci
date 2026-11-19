@@ -260,9 +260,6 @@ def test_same_through_menu_or_palette(row, windows, tmp_path):
 
 
 @pytest.mark.action("app.disa_aktar")
-@pytest.mark.xfail(strict=True, reason="M-12: no job: Ctrl+E is disabled and silent on Dışa "
-                                       "Aktar too; INTENDED status line 'Önce Yükle "
-                                       "sekmesinden bir iş açın (Ctrl+1).'")
 def test_export_key_with_no_job_on_the_export_tab(windows, tmp_path):
     """The no-job half of Ctrl+E on Dışa Aktar (its row's own not_applicable test covers a
     blocked export): the same status line as on the other five tabs."""
@@ -334,9 +331,6 @@ def test_kontrol_key_with_no_job_says_it(case, windows, tmp_path):
 
 # -- labels and refusals the rows cannot show (M-27, M-34, M-38) and the loupe's Esc ---------------
 @pytest.mark.action("sablonlar.kutu_sil")
-@pytest.mark.xfail(strict=True, reason="M-34 (B-015): the item reads 'Kutuyu sil' while a variable "
-                                       "with no box chosen is what Del removes; INTENDED "
-                                       "'Değişkeni sil' (existing undo-entry text)")
 def test_sablon_delete_item_names_a_variable(windows, tmp_path):
     row = {"tab": "sablonlar", "key": "Del", "action_id": "sablonlar.kutu_sil"}
     ctx = _start(row, windows, "job_sablon", tmp_path)

@@ -325,6 +325,7 @@ class KontrolScreen(QWidget):
         """K: cut before the current page, or remove the cut that is there."""
         index = self.timeline.currentIndex()
         if not index.isValid():
+            self.controller.status.emit("Önce bir sayfa seçin.")
             return
         pid = index.data(Roles.PID)
         position = index.row() + 1
@@ -341,6 +342,8 @@ class KontrolScreen(QWidget):
         """R / Shift+R: rotate the selected pages; one undo step for the whole selection."""
         ids = self._pages(self.selected_ids())
         if not ids:
+            if not self.selected_ids():
+                self.controller.status.emit("Önce sayfaları seçin.")
             return
         if self.controller.run("Döndür", lambda job: [job.rotate(pid, degrees) for pid in ids]):
             side = "sağa" if degrees > 0 else "sola"
@@ -359,6 +362,8 @@ class KontrolScreen(QWidget):
             if self.selected_ids():
                 self.controller.status.emit("Ayraç sayfaları zaten dışa aktarılmaz. "
                                             "Kesimi kaldırmak için M.")
+            else:
+                self.controller.status.emit("Önce sayfaları seçin.")
             return
         job = self.controller.job
         restore = all(pid in job.deleted for pid in ids)
@@ -388,6 +393,7 @@ class KontrolScreen(QWidget):
         """M: join the current document to the one before (removes the cut between them)."""
         number = self.current_document()
         if not number:
+            self.controller.status.emit("Önce bir sayfa seçin.")
             return
         document = self.controller.documents()[number - 1]
         first = document.page_ids[0]
@@ -531,6 +537,7 @@ class KontrolScreen(QWidget):
     def open_loupe(self, row: int | None = None) -> None:
         row = self.current_row() if row is None else row
         if row < 0 or not self.model.rowCount():
+            self.controller.status.emit("Önce bir sayfa seçin.")
             return
         loupe = self.loupe()
         loupe.open(self.model.rowCount(), self._render_page, row, self._loupe_title,

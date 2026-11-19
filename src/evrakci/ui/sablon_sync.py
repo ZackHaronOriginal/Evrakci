@@ -7,6 +7,7 @@ A mixin of `SablonScreen`; every `_sync_*` reads the screen's state and changes 
 
 from __future__ import annotations
 
+from evrakci.ui import actions
 from evrakci.ui import sablon_read as reading
 from evrakci.ui.sablon_canvas import fmt_mm
 from evrakci.ui.sablon_inspector import InspectorState
@@ -111,15 +112,23 @@ class Syncing:
                 up, down = place > 0, place < variable_count - 1
         states = {
             "sablonlar.kutu_ciz": page, "sablonlar.izgara": page,
-            "sablonlar.dene": page and not busy,
+            "sablonlar.dene": not busy,  # without a page it says what is missing
             "sablonlar.kutu_sil": has_variable, "sablonlar.kutu_cogalt": has_box and page,
             "sablonlar.degisken_ekle": has, "sablonlar.yukari": up, "sablonlar.asagi": down,
             "sablonlar.okumalari_goster": page,
         }
         for action_id, enabled in states.items():
             registry.set_enabled(action_id, enabled)
-        # Only this tab's route: MainWindow and the other tabs own Ctrl+S elsewhere.
-        registry.set_enabled_for("app.kaydet", "sablonlar", has)
+        # Del removes what is chosen: the item says "Değişkeni sil" while only a variable is.
+        delete = registry.action("sablonlar.kutu_sil")
+        spec = registry.spec("sablonlar.kutu_sil")
+        if has_variable and not has_box:
+            delete.setText("Değişkeni &sil")
+            delete.setToolTip(f"Değişkeni sil (geri alınabilir) ({actions.key_text('Del')})")
+        else:
+            delete.setText(spec.text)
+            delete.setToolTip(actions.tooltip_for(spec))
+        # Ctrl+S stays on with no template: save() says there is nothing to save (M-11).
         self.side.save.setEnabled(has)
 
     def _sync_status(self) -> None:

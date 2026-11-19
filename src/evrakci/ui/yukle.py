@@ -45,6 +45,7 @@ from evrakci.ui import theme
 from evrakci.ui.chrome import ActionButton
 from evrakci.ui.controller import JobController
 from evrakci.ui.feedback import InfoBar, undo_last
+from evrakci.ui.kontrol_actions import NO_JOB_TEXT
 from evrakci.ui.widgets import StatusPart
 from evrakci.ui.workers import Task, start
 from evrakci.ui.yukle_info import JobSummary, ScanProfile, scan_profile, summarize
@@ -559,6 +560,7 @@ class YukleScreen(QWidget):
         """F2: the job's name (undoable; the title band follows)."""
         controller = self._controller
         if controller is None:
+            self.refused.emit(NO_JOB_TEXT)
             return
         name, ok = QInputDialog.getText(self, "İşi yeniden adlandır", "İşin adı:",
                                         text=controller.job.name)
@@ -581,6 +583,7 @@ class YukleScreen(QWidget):
         """Ctrl+Shift+O: the selected batch's file in the file manager (else the job's folder)."""
         controller = self._controller
         if controller is None:
+            self.refused.emit(NO_JOB_TEXT)
             return
         batch_id = self.table.selected_batch()
         target = None
@@ -762,8 +765,9 @@ class YukleScreen(QWidget):
         ids = [b.id for b in controller.job.batches] if controller is not None else []
         pos = ids.index(batch_id) if batch_id in ids else -1
         state = {"yukle.yukari": pos > 0, "yukle.asagi": 0 <= pos < len(ids) - 1,
-                 "yukle.cikar": pos >= 0, "yukle.yeniden_adlandir": controller is not None,
-                 "yukle.gezginde_goster": controller is not None, "yukle.iptal": busy,
+                 "yukle.cikar": pos >= 0, "yukle.yeniden_adlandir": True,
+                 "yukle.gezginde_goster": True,  # both say "open a job first" with no job
+                 "yukle.iptal": busy,
                  }
         window = self.window_
         if window is not None:

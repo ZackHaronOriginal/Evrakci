@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.ui import theme
 from evrakci.ui.card_scroll import CardScroll
-from evrakci.ui.chrome import make_icon
+from evrakci.ui.chrome import ElidedLabel, make_icon, press_on_enter
 from evrakci.ui.degerler_table import paint_level, paint_marked
 
 SIDE_W = 368  # A: Değerler inspector
@@ -394,7 +394,7 @@ class SourceCard(QFrame):
         head.setSpacing(m.size("s1"))
         words = QVBoxLayout()
         words.setSpacing(0)
-        self.title = QLabel("")
+        self.title = ElidedLabel("")  # a long variable name elides; tooltip = full name (F-02)
         self.title.setFont(m.font("body-strong"))
         self.meta = _caption(wrap=True)
         words.addWidget(self.title)
@@ -527,6 +527,19 @@ class _Scroll(QScrollArea):
             self.updateGeometry()  # wrapped text: a new width is a new height
 
 
+class _OnceButton(QPushButton):
+    """A double click is one press: the second click would confirm the value the panel shows
+    next, one nobody has looked at (F-degerler-03). Enter presses it too: the window unbinds
+    Enter while a button has focus (same as chrome.press_on_enter users)."""
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if not press_on_enter(self, event):
+            super().keyPressEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
+        event.accept()
+
+
 class SidePanel(QWidget):
     """Source card + value card, then the actions (pinned under the cards; when nothing is
     selected they sit at the bottom, as A's empty state draws them)."""
@@ -558,11 +571,11 @@ class SidePanel(QWidget):
         acts = QVBoxLayout()
         acts.setSpacing(m.size("s2"))
         # One space after the icon: Qt's 4 px icon gap + a space = A's s2 between them
-        self.accept_button = QPushButton(" Onayla ve sonrakine geç")
+        self.accept_button = _OnceButton(" Onayla ve sonrakine geç")
         self.accept_button.setProperty("variant", "primary")
         self.accept_button.setProperty("sizeVariant", "lg")
-        self.type_button = QPushButton(" Elle yaz")
-        self.variant_button = QPushButton(" Yeni kutu çiz")
+        self.type_button = _OnceButton(" Elle yaz")
+        self.variant_button = _OnceButton(" Yeni kutu çiz")
         pair = QHBoxLayout()
         pair.setSpacing(m.size("s2"))
         pair.addWidget(self.type_button, 1)

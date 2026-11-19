@@ -714,7 +714,8 @@ class MainWindow(QMainWindow):
         r.connect("degerler.onayla", self.degerler.accept_current)
         r.connect("degerler.elle_yaz", self.degerler.type_current)
         r.connect("degerler.varyant", lambda: self.degerler.side.variant_button.click())
-        r.connect("degerler.sonraki_kontrol", self.degerler.next_check)
+        # a lambda: triggered(checked) would arrive as next_check's `step` (0 = from the top)
+        r.connect("degerler.sonraki_kontrol", lambda: self.degerler.next_check(1))
         r.connect("degerler.durdur", self.degerler.cancel)
         # The screen's two (hidden) read buttons hold the enabled state; the bar's commands
         # click them.
@@ -991,22 +992,24 @@ class MainWindow(QMainWindow):
 
     def undo(self) -> None:
         stack = self._undo_stack()
-        if stack is not None and stack.canUndo():
+        if stack is not None and stack.canUndo() and not self.degerler.busy():
             stack.undo()
 
     def redo(self) -> None:
         stack = self._undo_stack()
-        if stack is not None and stack.canRedo():
+        if stack is not None and stack.canRedo() and not self.degerler.busy():
             stack.redo()
 
     def _sync_undo(self, *_args) -> None:
         """Geri al / Yinele name the step they act on, in the Düzen menu, the command bar's
         tooltip and the palette: "Geri al: Kesim ekle (Ctrl+Z)"."""
         stack = self._undo_stack()
+        # a read in progress would be made stale by an undo: no Geri al / Yinele until it ends
+        reading = self.degerler.busy() if getattr(self, "degerler", None) is not None else False
         for action_id, can, what in (("app.geri_al", "canUndo", "undoText"),
                                      ("app.yinele", "canRedo", "redoText")):
             try:
-                enabled = stack is not None and getattr(stack, can)()
+                enabled = stack is not None and getattr(stack, can)() and not reading
                 detail = getattr(stack, what)() if enabled else ""
             except RuntimeError:  # the job's stack is already gone while closing
                 return

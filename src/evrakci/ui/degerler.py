@@ -629,7 +629,24 @@ class DegerlerScreen(QWidget):
         header.blockSignals(False)
         self._fit_columns(empty=True)
 
+    def _keep_focus(self) -> None:
+        """Focus on a button that is about to be hidden or disabled goes to the table, not to
+        the title tabs at the top of the window (F-degerler-09)."""
+        focus = QApplication.focusWidget()
+        if focus is None or focus is self.table:
+            return
+        bar = ()
+        if self.window_ is not None:
+            bar = tuple(self.window_.registry.action(i) for i in
+                        ("degerler.oku", "degerler.eksikleri_oku", "degerler.durdur"))
+        from evrakci.ui.chrome import ActionButton
+
+        if (self.empty.isAncestorOf(focus) or self.progress_band.isAncestorOf(focus)
+                or (isinstance(focus, ActionButton) and focus.action_ in bar)):
+            self.table.setFocus(Qt.FocusReason.OtherFocusReason)
+
     def _show_table(self) -> None:
+        self._keep_focus()
         self.empty.hide()
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.table.horizontalHeader().setSortIndicatorShown(True)
@@ -1540,6 +1557,7 @@ class DegerlerScreen(QWidget):
         return self.task is not None
 
     def _set_busy(self, busy: bool) -> None:
+        self._keep_focus()
         self.progress.setVisible(busy)
         self.progress_hint.setVisible(True)
         self.cancel_button.setVisible(busy)
@@ -1547,6 +1565,9 @@ class DegerlerScreen(QWidget):
         self.progress_icon.setVisible(not busy)
         self.progress_band.setVisible(busy or bool(self.progress_label.text()))
         self._sync_actions()
+        sync_undo = getattr(self.window_, "_sync_undo", None)
+        if sync_undo is not None:
+            sync_undo()  # Geri al / Yinele are off while a read runs (F-degerler-08)
 
 
 __all__ = ["DegerlerScreen", "LEVELS", "build_rows_fast"]

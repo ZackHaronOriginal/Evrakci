@@ -6,9 +6,10 @@ import threading
 
 import pytest
 from fakes import job_from_kinds, make_pdf, text_page
-from PySide6.QtCore import QByteArray, Qt
+from PySide6.QtCore import QByteArray, QEvent, QPointF, Qt
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QAbstractButton, QApplication, QComboBox, QLineEdit, QWidget
+from PySide6.QtWidgets import QAbstractButton, QApplication, QComboBox, QLabel, QLineEdit, QWidget
 
 from evrakci.pipeline.cuts import current_values, record_values
 from evrakci.pipeline.ocr.engine import Reading
@@ -627,3 +628,303 @@ def test_right_click_lists_the_value_commands_with_their_keys(qtbot, window):
     assert texts[0] == "Onayla ve sonrakine geç" and "Elle yaz" in texts
     assert screen.current_value()[0] == 1
     assert screen.table.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu
+
+
+# -- F-degerler-46 / B-056 / Q-12: what is stored must equal what the cell shows ---------------
+# Every Q-12 option leads to the same rule; today confirm stores the Öneri while the cell shows
+# the Okunan text, so these fail until the owner's decision is implemented.
+_B056 = pytest.mark.xfail(strict=True, reason="B-056 / Q-12: confirm stores the suggestion "
+                                              "while the cell shows the read text")
+
+
+def _shown_and_stored(qtbot, setup, how):
+    ctl, templates, _, sicil = setup
+    screen = _screen(qtbot, ctl, templates)
+    assert screen.current_value() == (2, sicil.key)
+    index = screen.table.currentIndex()
+    shown = screen.model.data(index, Qt.ItemDataRole.DisplayRole)
+    how(screen)
+    return shown, _value(ctl, 1, sicil.key).value
+
+
+@_B056
+def test_f46_enter_stores_what_the_cell_showed(qtbot, setup):
+    def press_enter(screen):
+        screen.table.setFocus()
+        QTest.keyClick(screen.table, Qt.Key.Key_Return)
+
+    shown, stored = _shown_and_stored(qtbot, setup, press_enter)
+    assert stored == shown
+
+
+@_B056
+def test_f46_the_accept_button_stores_what_the_cell_showed(qtbot, setup):
+    shown, stored = _shown_and_stored(qtbot, setup, lambda s: s.side.accept_button.click())
+    assert stored == shown
+
+
+# -- F-degerler-01: N / Sonraki kontrol through the action must step, not restart ------------
+def _three_kontrol(win, sicil):
+    ctl = win.controller()
+    for doc in ctl.documents():
+        current_values(ctl.job, doc)[sicil.key] = BAD
+    ctl.job_changed.emit()
+    screen = win.degerler
+    screen.refresh()
+    win.show_tab("degerler")
+    return screen
+
+
+def _routes(win):
+    from contract_helpers import run_via_menu, run_via_palette
+
+    from evrakci.ui.main_window import MainWindow  # noqa: F401
+
+    def key(screen):
+        screen.table.setFocus()
+        QTest.keyClick(screen.table, Qt.Key.Key_N)
+
+    def menu(screen):
+        run_via_menu(win, "degerler.sonraki_kontrol")
+
+    def palette(screen):
+        run_via_palette(win, "degerler", "degerler.sonraki_kontrol")
+
+    def trigger(screen):
+        win.registry.action("degerler.sonraki_kontrol").trigger()
+
+    def button(screen):
+        from evrakci.ui.chrome import ActionButton
+        action = win.registry.action("degerler.sonraki_kontrol")
+        bar = win.command_bars.currentWidget()
+        next(b for b in bar.findChildren(ActionButton) if b.action_ is action).click()
+
+    return {"key": key, "menu": menu, "palette": palette, "trigger": trigger, "button": button}
+
+
+@pytest.mark.parametrize("route", ["key", "menu", "palette", "trigger", "button"])
+def test_f01_next_kontrol_steps_through_every_route(window, route):
+    win, sicil = window
+    screen = _three_kontrol(win, sicil)
+    first = next(c for c in screen.model.value_columns()
+                 if screen.model.cell_at(screen.model.index(0, c)).needs_check)
+    screen.table.setCurrentIndex(screen.model.index(1, first))
+    step = _routes(win)[route]
+    step(screen)
+    assert (screen.table.currentIndex().row(), screen.table.currentIndex().column()) == (2, first)
+    step(screen)
+    assert screen.table.currentIndex().row() == 0  # wrapped, then it keeps stepping
+    step(screen)
+    assert screen.table.currentIndex().row() == 1
+
+
+def test_f01_shift_n_steps_back_by_key(window):
+    win, sicil = window
+    screen = _three_kontrol(win, sicil)
+    first = next(c for c in screen.model.value_columns()
+                 if screen.model.cell_at(screen.model.index(0, c)).needs_check)
+    screen.table.setCurrentIndex(screen.model.index(1, first))
+    screen.table.setFocus()
+    QTest.keyClick(screen.table, Qt.Key.Key_N, Qt.KeyboardModifier.ShiftModifier)
+    assert screen.table.currentIndex().row() == 0
+    QTest.keyClick(screen.table, Qt.Key.Key_N, Qt.KeyboardModifier.ShiftModifier)
+    assert screen.table.currentIndex().row() == 2
+
+
+# -- F-degerler-02: a long variable name elides in the inspector instead of widening it --------
+@pytest.mark.parametrize("scale", [100, 150])
+@pytest.mark.parametrize("name", ["Sicil_No_" + "uzun_degisken_adi_" * 3 + "son",
+                                  "S" * 52])
+def test_f02_long_variable_name_elides_and_the_cards_stay_inside_the_panel(
+        qtbot, setup, name, scale):
+    from evrakci.ui import theme
+
+    old = theme.manager().text_scale()
+    theme.manager().set_text_scale(scale)
+    try:
+        _f02(qtbot, setup, name)
+    finally:
+        theme.manager().set_text_scale(old)
+
+
+def _f02(qtbot, setup, name):
+    ctl, templates, template, sicil = setup
+    template.rename_variable("Sicil_No", name)
+    templates.save(template)
+    screen = _screen(qtbot, ctl, templates)
+    screen.show()
+    qtbot.waitUntil(lambda: screen.side.source.title.text() != "", timeout=3000)
+    qtbot.wait(100)
+    title = screen.side.source.title
+    assert title.full_text().replace(" ", "").replace("_", "") == name.replace("_", "")
+    assert title.toolTip() == title.full_text()
+    viewport = screen.side.scroll.viewport().width()
+    assert screen.side.source.width() <= viewport
+    assert screen.side.value.width() <= viewport
+    assert title.width() <= screen.side.source.width()
+
+
+# -- F-degerler-03: a double click on "Onayla ve sonrakine geç" confirms one value -------------
+def test_f03_double_click_on_the_accept_button_confirms_one_value(qtbot, tmp_path):
+    store, job = _job(tmp_path)
+    ctl = JobController(store, job)
+    templates, template, sicil, firma = _template(tmp_path)
+    _fill(ctl, template, sicil, firma, values=(GOOD, GOOD, GOOD))
+    screen = _screen(qtbot, ctl, templates)
+    screen.show()
+    screen.table.setCurrentIndex(screen.model.index(0, screen.model.value_columns()[0]))
+    button = screen.side.accept_button
+    pos = QPointF(button.rect().center())
+    for kind in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease,
+                 QEvent.Type.MouseButtonDblClick, QEvent.Type.MouseButtonRelease):
+        down = kind != QEvent.Type.MouseButtonRelease
+        QApplication.sendEvent(button, QMouseEvent(
+            kind, pos, button.mapToGlobal(pos), Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton if down else Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier))
+    edited = [v.edited for d in ctl.documents() for v in current_values(ctl.job, d).values()]
+    assert sum(edited) == 1, edited
+
+
+# -- F-degerler-08: no Geri al / Yinele while a read runs ---------------------------------------
+def _stop_read(qtbot, win, gate):
+    """Always leave no read running: it would block the window's teardown."""
+    gate.set()
+    win.degerler.cancel()
+    qtbot.waitUntil(lambda: not win.degerler.busy(), timeout=20000)
+
+
+class BrokenEngine(GatedEngine):
+    def read_region(self, image):
+        self.gate.wait(5)
+        raise OSError("sahte hata")
+
+
+@pytest.mark.parametrize("how", ["finish", "cancel", "error"])
+def test_f08_undo_and_redo_are_off_while_a_read_runs(qtbot, window, how):
+    win, _ = window
+    r = win.registry
+    ctl = win.controller()
+    assert r.is_enabled("app.geri_al")
+    gate = threading.Event()
+    engine = BrokenEngine if how == "error" else GatedEngine
+    win.degerler.engine = lambda: engine(gate)
+    win.degerler.read_button.click()
+    try:
+        assert win.degerler.busy()
+        assert not r.is_enabled("app.geri_al") and not r.is_enabled("app.yinele")
+        before = ctl.undo_stack.index()
+        win.undo()  # a route that does not look at the action's state
+        win.redo()
+        assert ctl.undo_stack.index() == before
+        if how == "cancel":
+            win.degerler.cancel()
+        gate.set()
+        qtbot.waitUntil(lambda: not win.degerler.busy(), timeout=20000)
+        assert r.is_enabled("app.geri_al"), how
+    finally:
+        _stop_read(qtbot, win, gate)
+
+
+# -- F-degerler-09: focus does not fall to the title tabs when its button goes away -------------
+def test_f09_space_on_the_read_button_keeps_focus_in_the_table(qtbot, window):
+    from evrakci.ui.chrome import ActionButton
+
+    win, _ = window
+    win.activateWindow()
+    assert QTest.qWaitForWindowActive(win)
+    action = win.registry.action("degerler.oku")
+    button = next(b for b in win.command_bars.currentWidget().findChildren(ActionButton)
+                  if b.action_ is action)
+    gate = threading.Event()
+    win.degerler.engine = lambda: GatedEngine(gate)
+    button.setFocus(Qt.FocusReason.TabFocusReason)
+    assert QApplication.focusWidget() is button
+    try:
+        QTest.keyClick(button, Qt.Key.Key_Space)
+        qtbot.waitUntil(win.degerler.busy, timeout=3000)
+        assert QApplication.focusWidget() is win.degerler.table
+        gate.set()
+        qtbot.waitUntil(lambda: not win.degerler.busy(), timeout=20000)
+        assert QApplication.focusWidget() is win.degerler.table
+    finally:
+        _stop_read(qtbot, win, gate)
+
+
+def test_f09_clearing_the_search_keeps_focus_in_the_table(qtbot, setup):
+    ctl, templates, _, _ = setup
+    screen = _screen(qtbot, ctl, templates)
+    screen.show()
+    screen.search.setText("yok böyle")
+    assert not screen.empty.isHidden()
+    screen.activateWindow()
+    assert QTest.qWaitForWindowActive(screen)
+    screen.empty.primary.setFocus(Qt.FocusReason.TabFocusReason)
+    assert QApplication.focusWidget() is screen.empty.primary
+    screen.empty.primary.click()
+    assert QApplication.focusWidget() is screen.table
+
+
+def test_f12_the_long_review_toast_is_not_cut(qtbot, window):
+    win, _ = window
+    text = "Kontrol gereken değer kalmadı; 5 değer incelenmedi. Enter sıradakini onaylar."
+    toaster = win.toaster
+    toaster.show(text, kind="info")
+    qtbot.wait(150)
+    label = next(w for w in toaster._current.findChildren(QLabel) if w.text() == text)
+    need = label.fontMetrics().boundingRect(label.rect(), int(Qt.TextFlag.TextWordWrap),
+                                            text).height()
+    assert label.wordWrap() or label.fontMetrics().horizontalAdvance(text) <= label.width()
+    assert label.height() >= need
+
+
+# -- more F-01 / F-03 edges, and Enter on the panel buttons ------------------------------------
+def test_n_with_no_kontrol_value_says_so_and_stays(qtbot, tmp_path):
+    store, job = _job(tmp_path)
+    ctl = JobController(store, job)
+    templates, template, sicil, firma = _template(tmp_path)
+    _fill(ctl, template, sicil, firma, values=(GOOD, GOOD, GOOD))
+    screen = _screen(qtbot, ctl, templates)
+    said = []
+    screen.status.connect(said.append)
+    screen.table.setCurrentIndex(screen.model.index(1, screen.model.value_columns()[0]))
+    here = screen.table.currentIndex().row()
+    screen.next_check()
+    assert said[-1] == "Kontrol bekleyen değer yok."
+    assert screen.table.currentIndex().row() == here
+
+
+def _double_click(button):
+    pos = QPointF(button.rect().center())
+    for kind in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease,
+                 QEvent.Type.MouseButtonDblClick, QEvent.Type.MouseButtonRelease):
+        down = kind != QEvent.Type.MouseButtonRelease
+        QApplication.sendEvent(button, QMouseEvent(
+            kind, pos, button.mapToGlobal(pos), Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton if down else Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier))
+
+
+def test_f03_double_click_on_a_disabled_accept_button_confirms_nothing(qtbot, setup):
+    ctl, templates, _, _ = setup
+    screen = _screen(qtbot, ctl, templates)
+    screen.show()
+    button = screen.side.accept_button
+    button.setEnabled(False)
+    _double_click(button)
+    assert not any(v.edited for d in ctl.documents() for v in current_values(ctl.job, d).values())
+
+
+def test_enter_on_the_focused_accept_button_presses_it_once(qtbot, window):
+    win, _ = window
+    win.activateWindow()
+    assert QTest.qWaitForWindowActive(win)
+    screen = win.degerler
+    screen.table.setCurrentIndex(screen.model.index(0, screen.model.value_columns()[0]))
+    button = screen.side.accept_button
+    button.setFocus(Qt.FocusReason.TabFocusReason)
+    assert QApplication.focusWidget() is button
+    ctl = win.controller()
+    QTest.keyClick(button, Qt.Key.Key_Return)
+    edited = [v.edited for d in ctl.documents() for v in current_values(ctl.job, d).values()]
+    assert sum(edited) == 1, edited

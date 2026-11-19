@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.ui import icons, theme
 from evrakci.ui.card_scroll import CardScroll
-from evrakci.ui.chrome import make_icon
+from evrakci.ui.chrome import ElidedLabel, make_icon
 from evrakci.ui.kontrol_paint import RiderLabel
 
 KEY_W = 76  # A .kv .r .k width
@@ -223,6 +223,18 @@ class GapButton(QPushButton):
         hint = super().sizeHint()
         return QSize(hint.width() + theme.manager().size("s1"), hint.height())
 
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        # the window unbinds Enter while a button has focus, so the button takes it (F-kontrol-04)
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not event.isAutoRepeat():
+            self.click()
+            return
+        super().keyPressEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
+        # the second click of a double click would act on what the panel shows next: for
+        # "Belgeyi onayla" that is a document the user has not looked at (F-kontrol-05)
+        event.accept()
+
     def paintEvent(self, _event) -> None:  # noqa: N802
         painter = QStylePainter(self)
         option = QStyleOptionButton()
@@ -301,7 +313,7 @@ class Inspector(QWidget):
         self.title = QLabel("Belge seçilmedi")
         self.title.setProperty("textRole", "page")
         self.title.setContentsMargins(0, m.size("s1"), 0, 0)
-        self.sub = QLabel("")
+        self.sub = ElidedLabel("")
         self.sub.setProperty("textRole", "secondary")
         self.sub.setContentsMargins(0, 2, 0, 0)
         self.reason = QLabel("")

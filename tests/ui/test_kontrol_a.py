@@ -3,8 +3,8 @@ inspector, status bar, empty state, persistence and accessible names."""
 
 from fakes import job_from_kinds
 from PIL import Image
-from PySide6.QtCore import QEvent, QItemSelectionModel, QPoint, QRect, Qt
-from PySide6.QtGui import QShortcut
+from PySide6.QtCore import QEvent, QItemSelectionModel, QPoint, QPointF, QRect, Qt
+from PySide6.QtGui import QMouseEvent, QShortcut
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
     QAbstractButton,
@@ -615,3 +615,90 @@ def test_the_cache_stays_under_its_byte_ceiling_after_a_long_sweep(qtbot, tmp_pa
     assert service.cache_bytes == sum(i.sizeInBytes() for i in service.cache.values())
     assert 0 < service.cache_bytes <= ceiling
     assert len(service.cache) < 200  # not one image per page of the 1000
+
+
+# -- F-kontrol-01 / 02: a Shift range is the pages between, not a rectangle ----------------------
+def _wrapped_view(qtbot, tmp_path):
+    ctl = _controller(tmp_path, {"a": "p" * 24})
+    screen = _screen(qtbot, ctl, size=(760, 640))
+    view = screen.timeline
+    tops = sorted({view.page_rect(r).top() for r in range(24)})
+    assert len(tops) >= 3
+    return screen, view
+
+
+def test_shift_click_over_a_row_wrap_selects_every_page_between(qtbot, tmp_path):
+    screen, view = _wrapped_view(qtbot, tmp_path)
+    per_row = next(r for r in range(24) if view.page_rect(r).top() != view.page_rect(0).top())
+    start, end = per_row + 1, 2 * per_row + 2
+    QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton, pos=view.page_rect(start).center())
+    QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.ShiftModifier, view.page_rect(end).center())
+    assert screen.selected_rows() == list(range(start, end + 1))
+    # and back over the anchor: the range follows the click, nothing stays behind
+    QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.ShiftModifier, view.page_rect(start - 1).center())
+    assert screen.selected_rows() == [start - 1, start]
+
+
+def test_shift_right_over_a_row_wrap_selects_a_contiguous_range(qtbot, tmp_path):
+    screen, view = _wrapped_view(qtbot, tmp_path)
+    per_row = next(r for r in range(24) if view.page_rect(r).top() != view.page_rect(0).top())
+    start = per_row - 1
+    QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton, pos=view.page_rect(start).center())
+    view.setFocus()
+    QTest.keyClick(view, Qt.Key.Key_Right, Qt.KeyboardModifier.ShiftModifier)
+    QTest.keyClick(view, Qt.Key.Key_Right, Qt.KeyboardModifier.ShiftModifier)
+    assert screen.selected_rows() == [start, start + 1, start + 2]
+
+
+# -- F-kontrol-03: a long template name must not widen the inspector ----------------------------
+def test_a_long_template_name_does_not_widen_the_inspector(qtbot):
+    from evrakci.ui.kontrol_inspector import DocumentInfo, Inspector
+
+    side = Inspector()
+    qtbot.addWidget(side)
+    side.resize(320, 700)
+    side.show()
+    for name in ("Ekspertiz Raporu Ek Belgeler Dosyası 2024", "E" * 45):
+        side.show_document(DocumentInfo(
+            number=3, template=name, first=2, last=9, pages=8,
+            reason="QR ayıraç yok, filtre kesti.",
+            cut_icon=None, cut_role="text-2", cut_text="Filtre, her 2 sayfada",
+            previous="Belge 2, 1 sayfa", check=False, reviewed=False))
+        QApplication.processEvents()
+        bar = side.scroll.horizontalScrollBar()
+        assert bar.maximum() == 0, f"{name!r}: content is {bar.maximum()} px wider than the view"
+        assert side.sub.text().startswith(name)  # the full text stays for the screen reader
+        assert side.sub.toolTip().startswith(name)
+
+
+# -- F-kontrol-04 / 05: Enter presses the focused "Belgeyi onayla"; a double click presses once --
+def test_enter_on_the_focused_approve_button_approves(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    screen.go_to_row(0)
+    screen.side.approve_button.setFocus()
+    QApplication.processEvents()
+    QTest.keyClick(screen.side.approve_button, Qt.Key.Key_Return)
+    assert screen.current_document() == 2
+    assert screen.reviews.is_reviewed(screen.controller.documents()[0])
+
+
+def test_double_click_on_approve_approves_one_document(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    screen.go_to_row(0)
+    button = screen.side.approve_button
+    QTest.mouseClick(button, Qt.MouseButton.LeftButton)  # what a double click starts with
+    assert screen.current_document() == 2
+    # its second half, as the window system sends it: double-click event, then release
+    pos = QPointF(button.rect().center())
+    for kind, buttons in ((QEvent.Type.MouseButtonDblClick, Qt.MouseButton.LeftButton),
+                          (QEvent.Type.MouseButtonRelease, Qt.MouseButton.NoButton)):
+        QApplication.sendEvent(button, QMouseEvent(kind, pos, button.mapToGlobal(pos),
+                                                   Qt.MouseButton.LeftButton, buttons,
+                                                   Qt.KeyboardModifier.NoModifier))
+    assert screen.current_document() == 2
+    docs = screen.controller.documents()
+    assert not screen.reviews.is_reviewed(docs[1])

@@ -649,6 +649,13 @@ class TimelineView(QListView):
         return min(range(line.first, line.last + 1),
                    key=lambda r: abs(self._rects[r].center().x() - centre))
 
+    def _row_at(self, point: QPoint) -> int | None:
+        for line in self._rows_between(point.y(), point.y()):
+            for r in range(line.first, line.last + 1):
+                if self._slot(r).contains(point):
+                    return r
+        return None
+
     def setSelection(self, rect: QRect, command) -> None:  # noqa: N802
         model = self.model()
         if model is None:
@@ -665,6 +672,21 @@ class TimelineView(QListView):
             if i + 1 == len(rows) or rows[i + 1] != r + 1:
                 selection.select(model.index(start, 0), model.index(r, 0))
                 start = None
+        here = self.currentIndex()
+        dragging = self.state() == QAbstractItemView.State.DragSelectingState
+        if (command & QItemSelectionModel.SelectionFlag.Current and not dragging
+                and here.isValid()):
+            # Shift+click / Shift+arrow: Qt hands over the rectangle from the anchor page to the
+            # current one. The pages between them in reading order are the range, not the slots
+            # the rectangle touches (F-kontrol-01, F-kontrol-02).
+            offset = QPoint(0, self.verticalOffset())
+            ends = {self._row_at(rect.topLeft() + offset),
+                    self._row_at(rect.bottomRight() + offset)}
+            ends.discard(None)
+            ends.discard(here.row())
+            if len(ends) == 1:
+                low, high = sorted((ends.pop(), here.row()))
+                selection = QItemSelection(model.index(low, 0), model.index(high, 0))
         self.selectionModel().select(selection, command)
 
     def visualRegionForSelection(self, selection) -> QRegion:  # noqa: N802

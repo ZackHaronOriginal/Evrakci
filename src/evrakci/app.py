@@ -41,11 +41,25 @@ def build_window(
     return window
 
 
+# The one context Qt uses for the standard dialog button texts (OK, Cancel, Yes, No, Save, ...).
+# qtbase_tr also translates key names (QShortcut: "Ctrl" -> "Kontrol"), which must stay as is.
+_BUTTON_CONTEXTS = frozenset({"QPlatformTheme"})
+
+
+class _ButtonsOnlyTranslator(QTranslator):
+    """qtbase_tr restricted to the standard dialog button texts; everything else is left alone."""
+
+    def translate(self, context, sourceText, disambiguation=None, n=-1):
+        if context not in _BUTTON_CONTEXTS:
+            return None
+        return super().translate(context, sourceText, disambiguation, n)
+
+
 def install_qt_translation(app: QApplication, directory: str | None = None) -> bool:
     """Qt's own Turkish texts (standard dialog buttons: Evet, Hayır, Tamam, İptal), so the
     dialogs we do not draw ourselves are not English. Returns False when the file is missing."""
     directory = directory or QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
-    translator = QTranslator(app)
+    translator = _ButtonsOnlyTranslator(app)
     if not translator.load(QLocale("tr_TR"), "qtbase", "_", directory):
         logging.getLogger(__name__).warning(
             "Qt Turkish translation (qtbase_tr.qm) not found in %s; dialog buttons stay English",

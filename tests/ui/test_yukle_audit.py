@@ -96,10 +96,11 @@ def test_inspector_without_scan_image_fits_its_viewport(qtbot, tmp_path, pdfs, l
     assert right <= inspector.scroll.viewport().width()
 
 
-def test_standard_dialog_buttons_read_turkish(qtbot):
-    """F-yukle-39: Qt's own qtbase_tr translation is loaded at startup (no text of ours)."""
+@pytest.fixture
+def qt_translation(qtbot):
+    """The app's Qt translation, removed again so other tests see the untranslated shared app."""
     from PySide6.QtCore import QLibraryInfo
-    from PySide6.QtWidgets import QApplication, QDialogButtonBox, QMessageBox
+    from PySide6.QtWidgets import QApplication
 
     from evrakci.app import install_qt_translation
 
@@ -108,6 +109,15 @@ def test_standard_dialog_buttons_read_turkish(qtbot):
         pytest.skip(f"qtbase_tr.qm is not shipped in this environment ({directory})")
     app = QApplication.instance()
     install_qt_translation(app)
+    yield app
+    app.removeTranslator(app._evrakci_qt_translator)
+    del app._evrakci_qt_translator
+
+
+def test_standard_dialog_buttons_read_turkish(qt_translation):
+    """F-yukle-39: Qt's own qtbase_tr button texts are loaded at startup (no text of ours)."""
+    from PySide6.QtWidgets import QDialogButtonBox, QMessageBox
+
     standard = QDialogButtonBox.StandardButton
     box = QDialogButtonBox(standard.Ok | standard.Cancel)
     texts = {b.text().replace("&", "") for b in box.buttons()}
@@ -115,6 +125,46 @@ def test_standard_dialog_buttons_read_turkish(qtbot):
     yes_no = QMessageBox(QMessageBox.Icon.Question, "x", "y",
                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
     assert {b.text().replace("&", "") for b in yes_no.buttons()} == {"Evet", "Hayır"}
+
+
+def test_qt_translation_leaves_registry_key_texts_alone(qtbot):
+    """key_text / tooltip_for of every registry action are identical with and without it."""
+    from PySide6.QtCore import QLibraryInfo
+    from PySide6.QtWidgets import QApplication
+
+    from evrakci.app import install_qt_translation
+    from evrakci.ui import actions
+
+    def snapshot():
+        return [(spec.id, actions.tooltip_for(spec),
+                 [actions.key_text(k) for k in spec.shortcuts]) for spec in actions.SPECS]
+
+    directory = QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
+    if not os.path.isfile(os.path.join(directory, "qtbase_tr.qm")):
+        pytest.skip("qtbase_tr.qm is not shipped in this environment")
+    before = snapshot()
+    assert any(keys for _, _, keys in before)
+    app = QApplication.instance()
+    install_qt_translation(app)
+    try:
+        assert snapshot() == before
+    finally:
+        app.removeTranslator(app._evrakci_qt_translator)
+        del app._evrakci_qt_translator
+
+
+def test_qt_translation_leaves_key_names_alone(qt_translation):
+    """The translation must not reach QKeySequence texts (Ctrl, Tab, Space, PgDown ...)."""
+    from PySide6.QtGui import QKeySequence
+
+    for text in ("Ctrl+Shift+Del", "Tab", "Space", "PgDown", "Ctrl+K", "Alt+Left", "Esc"):
+        assert QKeySequence(text).toString(QKeySequence.SequenceFormat.NativeText) == (
+            QKeySequence(text).toString(QKeySequence.SequenceFormat.PortableText)), text
+    shown = QKeySequence("Ctrl+Shift+Del").toString(QKeySequence.SequenceFormat.NativeText)
+    assert shown == "Ctrl+Shift+Del"
+    assert QKeySequence("Tab").toString(QKeySequence.SequenceFormat.NativeText) == "Tab"
+    assert QKeySequence("Space").toString(QKeySequence.SequenceFormat.NativeText) == "Space"
+    assert QKeySequence("PgDown").toString(QKeySequence.SequenceFormat.NativeText) == "PgDown"
 
 
 # -- the window-based findings --------------------------------------------------------------

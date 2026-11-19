@@ -28,15 +28,16 @@ Updated after every accepted step. A new session or a compacted one reads this f
   Görev B = fix step; step 7 lenses = Sonnet agent loading design-skills:design-critique,
   design-skills:accessibility-audit, audit-suite:audit-as-ux-eng, design-skills:interaction-design
   (or ux-writing), appending rows to <screen>-findings.md).
-  All six screens audited + lenses + fix steps committed: Kontrol 2663135, Yükle 4e5d62e,
-  Değerler 9a31c1c, Şablonlar b0cbd1e, Dışa Aktar+Rehber a7bbce8 (B-055 S1, B-008 fixed).
-  Owner questions Q-10..Q-15 (proposals per screen). Open S1 waiting for the owner: B-005 (Q-01),
-  B-056 (Q-12). S2 waiting for the owner: B-033 (Q-10).
-  RUNNING: remaining S2 without owner: B-035 (close after failed autosave), B-038 (placeholder
-  contrast) spec .claude/gorevler/2026-11-19-p4-remaining-s2.md.
-  Then Phase 4 end: ui_measure full matrix twice -> baseline/measure-after.tsv + summary (compare
-  with measure-before), quick perf (perf_kontrol.py --pages 1000 --runs 3 --frame-log),
-  full suite, Opus whole-app review, owner check Q-16 (walk each screen), report.
+  All six screens audited + lenses + fix steps committed (Kontrol 2663135, Yükle 4e5d62e,
+  Değerler 9a31c1c, Şablonlar b0cbd1e, Dışa Aktar+Rehber a7bbce8, B-035/B-038 876cd37, Qt
+  translation scope f7741f0). Owner Q-10..Q-17. Open S1 waiting: B-005 (Q-01), B-056 (Q-12);
+  S2 waiting: B-033 (Q-10).
+  Phase 4 end evidence: measure-after.tsv (220 fails vs 234, run twice identical, 95caed0);
+  quick perf: loaded 100 %, wrong 0, stale 0, settle 144 ms; full suite at f7741f0: 2200 passed,
+  6 skipped, 203 xfailed, 0 failed; ruff clean.
+  RUNNING: Opus whole-app review (.claude/gorevler/p4-phase-review.md). Then fix/ledger, Phase 4
+  report. Next: Phase 5 (5e waits on Q-06 ranking: nothing to build without it) and Phase 6
+  (perf check 2, CI gates, docs; release needs owner).
   Then Şablonlar, Dışa Aktar, Rehber (Görev A, lenses, Görev B). After each fix step: Kapı 1
   (tests), Kapı G (matrix + ui_measure for the screen, open 2-3 shots), lenses (Haiku a+c, b+d),
   Sonnet reviewer, accept, commit, merge findings into bugs.md (ledger rows for S1/S2 and open S3).

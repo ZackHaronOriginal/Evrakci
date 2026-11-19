@@ -31,13 +31,14 @@ Updated after every accepted step. A new session or a compacted one reads this f
   xfailed / 0 failed, keywalk clean, clipping 0. Review .claude/gorevler/p4-phase-review.md.
   Open S1 waiting on the owner: B-005 (Q-01), B-056 (Q-12). Owner Q-10..Q-17. Report sent.
 - Phase 5: 5a-5d done; 5e (specs and building) waits on Q-06 (ranking). Nothing to build first.
-- Phase 6: non-owner steps DONE: perf check 2 (936bfc6: perf-final.json, perf-table.md),
-  real-scan tool + owner checklist (efe2ccf), CI gates + docs (61c0878). Running: final full suite
-  (/tmp/claude-0/suite-final.txt) and the last whole-repo Opus review
-  (.claude/gorevler/p6-phase-review.md). Then: fix/ledger its must-fixes, open ONE PR to main
-  (repo PR template, no private content) so CI builds the installer for the owner's checks, final
-  report. Owner: Q-18 real scans, Q-19 Windows clean install, Q-20 signing/version/publish/sign-off,
-  plus Q-01..Q-17 (blocking ones listed in OWNER-QUEUE.md).
+- Phase 6: everything that does not need the owner is DONE. Perf check 2 (936bfc6), real-scan
+  tool + owner checklist (efe2ccf), CI gates + docs (61c0878), final review
+  (.claude/gorevler/p6-phase-review.md) must-fix fixed (79e4837), hygiene (227ed32). Full suite
+  at 79e4837: 2214 passed, 6 skipped, 203 xfailed, 0 failed; ruff clean.
+  Draft PR to main: https://github.com/ZackHaronOriginal/Evrakci/pull/6 (CI builds the installer
+  for the owner's checks). Phase 6 exit (CI green on both systems, owner checks answered, sign-off)
+  waits on the owner: see OWNER-QUEUE.md. The run stops here until the owner answers.
+
 - Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
 - Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.
 

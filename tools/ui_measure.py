@@ -10,7 +10,7 @@ and for every visible widget records: class and object name, geometry, content m
 margins and spacing, gap to the nearest sibling, font (family, px size, weight), text colour,
 background colour and their contrast ratio, hit area, focus ring (really focused by Tab, then
 read back from the overlay in evrakci.ui.style), tooltip, accessible name and role, enabled
-state and the duration of every animation the widget owns. Each rule in rules.json with a
+state. Each rule in rules.json with a
 "tool:<check>" measure is one function in CHECKS; a rule whose JSON has "rows_under" shares the
 check of another rule and writes no rows of its own. One TSV row per widget per rule:
 tab, theme, size, text, widget path, class, rule id, value, limit, result, severity. Rows are
@@ -25,9 +25,11 @@ the pixel colour with the highest contrast ratio against it (seen at least twice
 Anti-aliased text still has full-coverage pixels, so this finds the true text colour for glyphs
 of 11 px and up. Limits: a widget that draws an icon, border or image in a stronger colour than
 its text reads that colour as "text"; text over a photo (thumbnail grids, scan previews) is not
-measured ("skip"); only QTableView cells and headers are sampled for item views; disabled
-widgets are exempt (WCAG). Role: "secondary" when the sampled text colour is within 12 RGB steps
-of the theme's text-2 token (D10: secondary 4.5:1), otherwise "body" (body and table text, 7:1).
+measured ("skip"); disabled widgets are exempt (WCAG). A QTableView is sampled per cell (its
+worst cell per column is one row, "<path>[col N]", the icon part of a cell left out); headers
+as one box; the icon of a button is cut from its box. Role: "secondary" for placeholder text
+(by the widget) or when the sampled text colour is within 12 RGB steps of the theme's text-2
+token (D10: secondary 4.5:1), otherwise "body" (body and table text, 7:1).
 
 Other methods. Hit area is the widget's own size. "Controls in rows" are clickable widgets
 inside an item view or inside a widget whose class name ends in "Row". Neighbour gap is the
@@ -35,8 +37,17 @@ pixel gap to the nearest visible sibling on the right or below that overlaps it.
 focuses the widget with the Tab reason and reads EvrakciStyle's overlay (target, visible, ring
 width); item views get their ring per item from the style (PE_FrameFocusRect), so they are
 reported "skip". Radii are read from "border-radius" in the application's and the widgets' own
-style sheets; painted radii are "manual". Animations are the direct QPropertyAnimation /
-QVariantAnimation children (looping ones, as the indeterminate bar, are skipped).
+style sheets, and a radius of about half the box (indicator, scroll bar handle, the widget
+itself) is a circle or pill, not a corner; painted radii are "manual". Margins and spacing are
+judged only where the layout applies them: not a QStackedLayout / QStackedWidget (the page gets
+the full size), not a QMainWindow, and spacing only with two or more visible items; the spacing
+is the real gap between visible neighbours of a box layout (or the declared one when smaller).
+A's values (2 px and 6 px gaps, 3 px radius, in rules.json params "a_values") are exceptions
+named there. DEC-MOT-01 is a unit test (animations are deleted when they stop, so a window
+never holds one). The focus probe puts every focus policy back, so a result does not depend on
+the order of sizes or tabs. Window caption buttons and a QLineEdit's clear action are exempt
+from AUD-KBD-01 ("skip"). Button height (AUD-HIT-02) uses the D5 density value, not the text
+size step. The truncation check also counts cut table cells (screenshots._cells).
 Each state waits 300 ms (longer than the longest D7 duration) before it is measured.
 """
 
@@ -63,12 +74,9 @@ sys.path.insert(0, str(ROOT / "tests"))
 import screenshots  # noqa: E402
 import shiboken6  # noqa: E402
 from PySide6.QtCore import (  # noqa: E402
-    QAbstractAnimation,
     QPoint,
-    QPropertyAnimation,
     QRect,
     Qt,
-    QVariantAnimation,
 )
 from PySide6.QtGui import QAccessible, QFontInfo, QImage  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
@@ -78,16 +86,23 @@ from PySide6.QtWidgets import (  # noqa: E402
     QAbstractScrollArea,
     QAbstractSpinBox,
     QApplication,
+    QBoxLayout,
     QCheckBox,
     QComboBox,
+    QFrame,
     QHeaderView,
     QLabel,
+    QLayout,
     QLineEdit,
+    QMainWindow,
     QRadioButton,
     QScrollBar,
     QSlider,
+    QStackedLayout,
+    QStackedWidget,
     QTabBar,
     QTableView,
+    QToolButton,
     QWidget,
 )
 
@@ -265,20 +280,61 @@ def gap_to_neighbours(w: QWidget, root: QWidget) -> tuple[int | None, int | None
     return right, below
 
 
+def layout_applies(w: QWidget, layout: QLayout | None) -> bool:
+    """False for layouts whose margins and spacing are not applied geometrically: a stacked
+    layout puts its page at the full size, and a QMainWindow's layout only holds the bars."""
+    return (layout is not None and not isinstance(layout, QStackedLayout)
+            and not isinstance(w, (QStackedWidget, QMainWindow)))
+
+
+def visible_items(layout: QLayout) -> int:
+    """Widgets that show and nested layouts (stretches and spacers do not count)."""
+    count = 0
+    for n in range(layout.count()):
+        item = layout.itemAt(n)
+        if item.widget() is not None:
+            count += 1 if item.widget().isVisible() else 0
+        elif item.layout() is not None:
+            count += 1
+    return count
+
+
+def real_gap(layout: QLayout) -> int | None:
+    """The smallest pixel gap between two neighbouring visible items of a box layout (None
+    for other layouts, or when a spacer or stretch sits between every pair)."""
+    if not isinstance(layout, QBoxLayout):
+        return None
+    horizontal = layout.direction() in (QBoxLayout.Direction.LeftToRight,
+                                        QBoxLayout.Direction.RightToLeft)
+    gaps: list[int] = []
+    prev = None
+    for n in range(layout.count()):
+        item = layout.itemAt(n)
+        if item.spacerItem() is not None:
+            prev = None
+            continue
+        if item.widget() is not None and not item.widget().isVisible():
+            continue
+        box = item.geometry()
+        if prev is not None:
+            if horizontal:
+                gaps.append(max(box.left() - prev.right() - 1, prev.left() - box.right() - 1))
+            else:
+                gaps.append(max(box.top() - prev.bottom() - 1, prev.top() - box.bottom() - 1))
+        prev = box
+    return min(gaps) if gaps else None
+
+
+def icon_width(w: QAbstractButton) -> int:
+    return 0 if w.icon().isNull() else w.iconSize().width() + 6
+
+
 def accessible_role(w: QWidget) -> str:
     try:
         iface = QAccessible.queryAccessibleInterface(w)
         return iface.role().name if iface is not None else ""
     except (RuntimeError, AttributeError):
         return ""
-
-
-def animation_durations(w: QWidget) -> list[int]:
-    found = []
-    for child in w.findChildren(QAbstractAnimation, "", Qt.FindChildOption.FindDirectChildrenOnly):
-        if isinstance(child, (QPropertyAnimation, QVariantAnimation)) and child.loopCount() == 1:
-            found.append(child.duration())
-    return sorted(found)
 
 
 def in_row(w: QWidget) -> bool:
@@ -298,6 +354,40 @@ def is_clickable(w: QWidget) -> bool:
     return isinstance(w, (QAbstractButton, QComboBox, QAbstractSpinBox, QSlider, QTabBar))
 
 
+def sample_cells(ctx: Ctx, view: QTableView, limit: int = 30) -> list[tuple[int, int, int, float]]:
+    """The worst cell of each visible column as (column, background, text, contrast), read from
+    the rendered window; the icon part of a cell (decoration) is left out of its box."""
+    model = view.model()
+    port = view.viewport()
+    if model is None:
+        return []
+    origin = port.mapTo(ctx.root, QPoint(0, 0))
+    clip = visible_rect(port, ctx.root)
+    header = view.horizontalHeader()
+    icon = view.iconSize().width() if view.iconSize().width() > 0 else 16
+    first = max(0, view.rowAt(0))
+    last = view.rowAt(port.height() - 1)
+    last = model.rowCount() - 1 if last < 0 else last
+    worst: dict[int, tuple[int, int, int, float]] = {}
+    for row in range(first, min(last, first + limit - 1) + 1):
+        for column in range(model.columnCount()):
+            if view.isColumnHidden(column) or header.sectionSize(column) <= 0:
+                continue
+            index = model.index(row, column)
+            if not isinstance(model.data(index), str) or not model.data(index):
+                continue
+            rect = view.visualRect(index).translated(origin)
+            if model.data(index, Qt.ItemDataRole.DecorationRole) is not None:
+                rect = rect.adjusted(icon + 6, 0, 0, 0)
+            sampled = sample_colours(ctx, rect.intersected(clip))
+            if sampled is None:
+                continue
+            ratio = contrast(*sampled[::-1])
+            if column not in worst or ratio < worst[column][3]:
+                worst[column] = (column, sampled[0], sampled[1], ratio)
+    return [worst[c] for c in sorted(worst)]
+
+
 def describe(w: QWidget, ctx: Ctx) -> dict:
     """Everything the tool records about one widget."""
     root = ctx.root
@@ -310,10 +400,16 @@ def describe(w: QWidget, ctx: Ctx) -> dict:
         sample = sample.intersected(rect)
     else:
         sample = rect
+    if isinstance(w, QAbstractButton):
+        sample = sample.adjusted(icon_width(w), 0, 0, 0)  # the icon is not text
     colours = None
-    if text and w.isEnabled():
+    cells: list[tuple[int, int, int, float]] = []
+    if isinstance(w, QTableView) and text and w.isEnabled():
+        cells = sample_cells(ctx, w)
+    elif text and w.isEnabled():
         colours = sample_colours(ctx, sample)
     layout = w.layout()
+    applies = layout_applies(w, layout)
     margins = w.contentsMargins()
     gap_x, gap_y = gap_to_neighbours(w, root)
     icon_only = (isinstance(w, QAbstractButton) and not w.icon().isNull() and not text)
@@ -323,21 +419,28 @@ def describe(w: QWidget, ctx: Ctx) -> dict:
         "geometry": (w.mapTo(root, QPoint(0, 0)).x(), w.mapTo(root, QPoint(0, 0)).y(),
                      w.width(), w.height()),
         "margins": (margins.left(), margins.top(), margins.right(), margins.bottom()),
-        "layout_margins": None if layout is None else (
+        "layout_margins": None if not applies else (
             layout.contentsMargins().left(), layout.contentsMargins().top(),
             layout.contentsMargins().right(), layout.contentsMargins().bottom()),
-        "layout_spacing": None if layout is None else layout.spacing(),
+        "layout_spacing": None if not applies else layout.spacing(),
+        "layout_items": 0 if not applies else visible_items(layout),
+        "layout_gap": None if not applies else real_gap(layout),
+        "is_frame": isinstance(w, QFrame),
         "gap": (gap_x, gap_y),
         "family": font.family(), "resolved_family": info.family(),
         "px": info.pixelSize(), "weight": int(getattr(weight, "value", weight)),
         "text": text, "icon_only": icon_only,
+        "placeholder": isinstance(w, QLineEdit) and not w.text() and bool(w.placeholderText()),
         "background": None if colours is None else colours[0],
         "foreground": None if colours is None else colours[1],
         "contrast": None if colours is None else contrast(colours[0], colours[1]),
+        "cells": cells,
         "hit": (w.width(), w.height()),
         "tooltip": w.toolTip(), "accessible_name": w.accessibleName(),
         "role": accessible_role(w), "focus_policy": w.focusPolicy(),
-        "animations": animation_durations(w), "stylesheet": w.styleSheet(),
+        "kind": w.property("kind"), "bar_action": (isinstance(w, QToolButton)
+                                                    and isinstance(w.parentWidget(), QLineEdit)),
+        "stylesheet": w.styleSheet(),
         "ring": None,  # filled by probe_focus
     }
 
@@ -350,6 +453,19 @@ def probe_focus(app: QApplication, widgets: list[QWidget], records: dict[QWidget
     ring px) pair, "view" for item views (ring per item) or "off" when no ring style runs."""
     ring = style.focus_ring()
     root = ctx.root
+    # Focusing an item can change the focus policy of its neighbours (seen on the view
+    # selector's items); put every policy back so that the next size or tab starts clean.
+    policies = {w: w.focusPolicy() for w in widgets if shiboken6.isValid(w)}
+    try:
+        _probe_rings(app, widgets, records, ring, root)
+    finally:
+        for w, policy in policies.items():
+            if shiboken6.isValid(w):
+                w.setFocusPolicy(policy)
+
+
+def _probe_rings(app: QApplication, widgets: list[QWidget], records: dict[QWidget, dict],
+                 ring, root: QWidget) -> None:
     if ring is None:
         for w in widgets:
             records[w]["ring"] = "off"
@@ -427,7 +543,9 @@ def chk_contrast(i: dict, p: dict, ctx: Ctx, role: str) -> Res | None:
     if i["contrast"] is None:
         return ("no text pixels", limit, "skip") if role == "body" else None
     secondary_colour = int(theme.manager().hex(p["secondary_token"]).lstrip("#"), 16)
-    if (role == "secondary") != _near(i["foreground"], secondary_colour):
+    # Placeholder text is secondary text by role (D10, HIG-CTL-10), whatever colour it has.
+    secondary = i["placeholder"] or _near(i["foreground"], secondary_colour)
+    if (role == "secondary") != secondary:
         return None
     return _res(i["contrast"] >= p["min"], f"{i['contrast']:.2f}", limit)
 
@@ -455,11 +573,17 @@ def _d5(p: dict) -> int:
     return max(p["min"], theme.manager().size(p["d5_token"]))
 
 
+def _d5_density(p: dict) -> int:
+    """The D5 value of the density the user chose (Sıkı 28 / Normal 32 / Geniş 40). It does not
+    follow the text size (the one-step-up at 130 % and 150 % is left out)."""
+    return max(p["min"], int(tokens.SIZES[theme.manager().density()][p["d5_token"]]))
+
+
 def chk_hit_button_height(i: dict, p: dict, ctx: Ctx) -> Res | None:
     w = i["widget"]
     if not isinstance(w, QAbstractButton) or isinstance(w, (QCheckBox, QRadioButton)):
         return None
-    limit = _d5(p)
+    limit = _d5_density(p)
     return _res(i["hit"][1] >= limit, i["hit"][1], f">={limit}")
 
 
@@ -476,6 +600,11 @@ def chk_kbd_focus(i: dict, p: dict, ctx: Ctx) -> Res | None:
     if not is_clickable(w) or not i["enabled"]:
         return None
     ok = i["focus_policy"] != Qt.FocusPolicy.NoFocus
+    if not ok:  # exemptions: another way to the same action exists (listed in the rule's note)
+        if i["kind"] == "caption-button":
+            return "NoFocus: caption button (Alt+Space window menu)", "focusable", "skip"
+        if i["bar_action"]:
+            return "NoFocus: line-edit clear action (Esc, Delete)", "focusable", "skip"
     return _res(ok, "focusable" if ok else "NoFocus", "focusable")
 
 
@@ -517,43 +646,102 @@ def chk_layout_margin_grid(i: dict, p: dict, ctx: Ctx) -> Res | None:
     margins = i["layout_margins"]
     if margins is None:
         return None
-    ok = all(m % p["grid"] == 0 for m in margins)
+    stroke = p.get("stroke", 0) if i["is_frame"] else None  # a 1 px inset under a 1 px stroke
+    exempt = {*p.get("a_values", []), stroke} - {None}
+    ok = all(m % p["grid"] == 0 or m in exempt for m in margins)
     return _res(ok, ",".join(map(str, margins)), f"multiple of {p['grid']}")
 
 
 def chk_layout_spacing(i: dict, p: dict, ctx: Ctx) -> Res | None:
-    spacing = i["layout_spacing"]
-    if spacing is None:
-        return None
-    if spacing < 0:
+    """The gap people see: the real gap between visible neighbours of a box layout (or the
+    declared spacing when it is smaller, or when the layout is not a box layout)."""
+    declared = i["layout_spacing"]
+    if declared is None or i["layout_items"] < 2:
+        return None  # no layout, or fewer than two visible items: no gap to measure
+    real = i["layout_gap"]
+    if real is not None:
+        value = real if declared < 0 else min(real, declared)
+    elif declared < 0:
         return "style default", "|".join(map(str, p["allowed"])), "skip"
-    return _res(spacing in p["allowed"], spacing, "|".join(map(str, p["allowed"])))
+    else:
+        value = declared
+    allowed = sorted({*p["allowed"], *p.get("a_values", [])})
+    return _res(value in allowed, value, "|".join(map(str, allowed)))
 
 
-RADIUS = re.compile(r"border-radius\s*:\s*([^;}]+)")
+RADIUS = re.compile(r"(?<![\w-])border-radius\s*:\s*([^;}]+)")
+BLOCK = re.compile(r"([^{}]+)\{([^{}]*)\}")
 
 
 def _radii(css: str) -> list[int]:
     return [int(n) for m in RADIUS.findall(css) for n in re.findall(r"\d+", m)]
 
 
+def _px(body: str, name: str) -> int | None:
+    m = re.search(rf"(?<![\w-]){name}\s*:\s*(\d+)px", body)
+    return int(m.group(1)) if m else None
+
+
+def _handle_extent(selector: str, body: str, blocks: list[tuple[str, str]]) -> int | None:
+    """Thickness of a scroll bar handle: the bar's width (height) less the handle's margins."""
+    vertical = ":vertical" in selector
+    bar_selector = "QScrollBar:vertical" if vertical else "QScrollBar:horizontal"
+    bar = next((b for sel, b in blocks if sel == bar_selector), "")
+    thickness = _px(bar, "width" if vertical else "height")
+    margin = re.search(r"(?<![\w-])margin\s*:\s*(\d+)(?:px)?\s+(\d+)(?:px)?", body)
+    if thickness is None or margin is None:
+        return None
+    return thickness - 2 * int(margin.group(2 if vertical else 1))
+
+
+def _plain(selector: str) -> str:
+    """A selector without its state pseudo-classes (":hover", ":vertical"), "::sub" kept."""
+    return re.sub(r"(?<!:):(?!:)[\w-]+", "", selector.strip())
+
+
+def radius_split(css: str, own_extent: int | None = None) -> tuple[list[int], list[int]]:
+    """(corner radii, circle and pill radii) in a style sheet. A radius of about half the box's
+    smaller side or more makes a circle or pill, not a corner: the box is the width and height
+    of the same selector (an indicator), a scroll bar handle (bar thickness less its margins)
+    or, in a widget's own style sheet without a selector, the widget itself."""
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    blocks = [(sel.strip(), body) for sel, body in BLOCK.findall(css)]
+    if not blocks and RADIUS.search(css):
+        blocks = [("", css)]
+    base: dict[str, int] = {}  # plain selector -> smaller of its declared width and height
+    for selector, body in blocks:
+        sides = [n for n in (_px(body, "width"), _px(body, "height")) if n is not None]
+        for part in selector.split(","):
+            if sides and part.strip() == _plain(part):
+                base.setdefault(_plain(part), min(sides))
+    corners: list[int] = []
+    pills: list[int] = []
+    for selector, body in blocks:
+        radii = _radii(body)
+        if not radii:
+            continue
+        if "::handle" in selector:
+            extent = _handle_extent(selector, body, blocks)
+        else:
+            known = [base[_plain(part)] for part in selector.split(",") if _plain(part) in base]
+            extent = min(known) if known else own_extent if selector == "" else None
+        for r in radii:
+            (pills if extent is not None and 2 * r + 1 >= extent else corners).append(r)
+    return corners, pills
+
+
 def chk_radius(i: dict, p: dict, ctx: Ctx) -> Res | None:
-    css = i["stylesheet"]
+    extent = min(i["hit"])
+    corners, pills = radius_split(i["stylesheet"], extent)
     if i.get("is_window"):
-        css += "\n" + QApplication.instance().styleSheet()
-    radii = _radii(css)
-    if not radii:
+        more = radius_split(QApplication.instance().styleSheet())
+        corners, pills = corners + more[0], pills + more[1]
+    if not corners and not pills:
         return None
-    bad = sorted({r for r in radii if r not in p["allowed"]})
-    return _res(not bad, ",".join(map(str, sorted(set(radii)))),
-                "|".join(map(str, p["allowed"])))
-
-
-def chk_anim_duration(i: dict, p: dict, ctx: Ctx) -> Res | None:
-    if not i["animations"]:
-        return None
-    bad = [d for d in i["animations"] if d not in p["allowed"]]
-    return _res(not bad, ",".join(map(str, i["animations"])), "|".join(map(str, p["allowed"])))
+    allowed = sorted({*p["allowed"], *p.get("a_values", [])})
+    bad = sorted({r for r in corners if r not in allowed})
+    shown = ",".join(map(str, sorted(set(corners)))) or "circles and pills only"
+    return _res(not bad, shown, "|".join(map(str, allowed)))
 
 
 def chk_icon_size(i: dict, p: dict, ctx: Ctx) -> Res | None:
@@ -566,6 +754,9 @@ def chk_icon_size(i: dict, p: dict, ctx: Ctx) -> Res | None:
 
 def chk_text_elided(i: dict, p: dict, ctx: Ctx) -> Res | None:
     w = i["widget"]
+    if isinstance(w, QTableView):  # cells too (Apple: scrollable regions), see screenshots._cells
+        cut = screenshots._cells(w, "")
+        return _res(not cut, f"{len(cut)} cells elided" if cut else "whole", "whole text")
     shown = screenshots._shown_text(w)
     if shown is None:
         return None
@@ -616,9 +807,12 @@ CHECKS = {
     "kbd-focus": chk_kbd_focus, "a11y-name": chk_a11y_name, "icon-tooltip": chk_icon_tooltip,
     "focus-ring": chk_focus_ring,
     "layout-margin-grid": chk_layout_margin_grid, "layout-spacing": chk_layout_spacing,
-    "radius": chk_radius, "anim-duration": chk_anim_duration, "icon-size": chk_icon_size,
+    "radius": chk_radius, "icon-size": chk_icon_size,
     "window-fit": chk_window_fit, "window-scroll": chk_window_scroll,
 }
+
+
+CONTRAST_CHECKS = ("contrast-body", "contrast-secondary")
 
 
 # -- measuring ----------------------------------------------------------------------------
@@ -652,13 +846,19 @@ def measure_tree(app: QApplication, ctx: Ctx, rules: list[dict], tab: str) -> li
         if not shiboken6.isValid(w):
             continue
         path = "(window)" if w is ctx.root else widget_path(w, ctx.root)
+        columns = [(f"{path}[col {c}]", {**info, "background": bg, "foreground": fg,
+                                         "contrast": ratio})
+                   for c, bg, fg, ratio in info["cells"]]
         for check, rule in owners.items():
-            result = CHECKS[check](info, ctx.params.get(check, {}), ctx)
-            if result is None:
-                continue
-            value, limit, verdict = result
-            rows.append((tab, ctx.theme, size, str(ctx.text), path, info["cls"], rule["id"],
-                         value, limit, verdict, rule["severity"]))
+            # a table's contrast is judged per column (its worst cell), the rest as one widget
+            parts = columns if columns and check in CONTRAST_CHECKS else [(path, info)]
+            for part_path, part in parts:
+                result = CHECKS[check](part, ctx.params.get(check, {}), ctx)
+                if result is None:
+                    continue
+                value, limit, verdict = result
+                rows.append((tab, ctx.theme, size, str(ctx.text), part_path, info["cls"],
+                             rule["id"], value, limit, verdict, rule["severity"]))
     return rows
 
 

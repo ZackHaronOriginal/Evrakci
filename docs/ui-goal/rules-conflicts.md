@@ -4,11 +4,12 @@ Where an Apple HIG rule and our decisions disagree, ours applies now (Fluent 2 d
 D1-D13 win over HIG, owner rule 2026-11-19). The tool reports against ours. Rule ids are in
 `docs/ui-goal/rules.json`; nothing here is enforced until the owner says so.
 
-## Differs (13): ours applies, please confirm
+## Differs (14): ours applies, please confirm
 
 | Rule | Ours | Applies now | Question for the owner |
 |---|---|---|---|
 | HIG-SPC-04 icon-to-edge padding about 10 px | Icon 16/20 in a 36 px button = 8-10 px inset (A deviation 5) | Ours | Keep the 8-10 px inset? yes / no |
+| HIG-SPC-01 default control 28 pt, smallest 20 pt | Min target 24 px; buttons 32 px at Normal, 28 px floor (D5, owner) | Ours | Keep 24 px / 32 px, not HIG's 28 px default? yes / no |
 | HIG-FOC-03 ring for fields, full-row highlight for lists | D11 ring on every focusable widget; list rows get a selection fill plus the ring | Ours (item views draw the ring per item, tool reports them "skip") | Keep fill plus ring on list rows? yes / no |
 | HIG-FOC-07 respect standard shortcuts | Ctrl instead of Cmd; the I key is unreliable on Turkish keyboards | Ours | Keep Windows-style shortcuts and no I key? yes / no |
 | HIG-TYP-01 default 13 pt, minimum 10 pt | Body 15 px, caption 13 px is the floor (D4) | Ours (rule DEC-TYP-01) | Keep 13 px as the floor? yes / no |
@@ -33,3 +34,15 @@ D1-D13 win over HIG, owner rule 2026-11-19). The tool reports against ours. Rule
 | HIG-ICO-06 app icon sizes 16/32/128/256/512 | Windows .ico 16-256 | As built | Ship 16/24/32/48/256 in the .ico? (The macOS list does not apply.) |
 | HIG-WIN-03 active and inactive windows look different | Not specified in A | Unchanged | Dim the title band when the window is inactive (as Fluent does), or leave it? |
 | HIG-WIN-14 standard menu order and shortcuts | Our own menus: Alt+D/E/G/T/A/Y (Turkish) | Ours | Keep our order, or map to Dosya/Düzen/Görünüm/Pencere/Yardım? |
+
+## A vs D6 (4): approved direction A applies, please confirm
+
+decisions.md says A's approved chrome supersedes D2 and D6 where they differ. The three layout rules
+(DEC-LAY-01..03) keep the D6 values and list A's values as named exceptions in their params.
+
+| Rule | A uses (file:line in `mockups/directions/a/`) | D6 says | Applies now | Question for the owner |
+|---|---|---|---|---|
+| DEC-LAY-02 gap 2 px | Command bar and tab strip gap 2 px (`shell.css:37`, `:90`) | Spacing {4, 8, 12, ...}, nothing under 4 | A as approved (2 px) | Add 2 px to the scale as a named exception, or change A to 4 px? |
+| DEC-LAY-02 gap 6 px | Icon-to-text gap 6 px in tabs, status items, warnings (`shell.css:39`, `:126`, `:169`, `:171`) | 4 or 8 | A as approved (6 px) | Add 6 px to the scale as a named exception, or change A to 4 / 8 px? |
+| DEC-LAY-03 radius 3 px | Rider chip radius 3 px (`shell.css:120`), also the tab radius, `src/evrakci/ui/kontrol_paint.py:22` | Radii 2, 4, 8 | A as approved (3 px) | Add 3 px as a named exception, or change A to 2 / 4 px? |
+| DEC-LAY-01 inset 1 px | 1 px strokes on cards (A deviation 2) leave a 1 px layout inset inside the stroke | 4 px grid | A as approved (1 px, only on QFrame) | Keep the 1 px inset as an exception? yes / no |

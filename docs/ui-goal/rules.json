@@ -138,10 +138,10 @@
   {
    "id": "AUD-HIT-02",
    "category": "HIT",
-   "rule": "Buttons are at least 28 px high, and at least the density's control height (D5)",
+   "rule": "Buttons are at least 28 px high, and at least the control height of the chosen density (D5)",
    "measure": "tool:hit-button-height",
    "what": "height of every button (not check or radio boxes)",
-   "value": "28 px, or control-h 28 / 32 / 40 by density when larger",
+   "value": "28 px, or the D5 control-h of the chosen density (28 / 32 / 40) when larger; not scaled by text size",
    "severity": "S3",
    "source": "audience: owner 2026-11-19; decisions.md#D5",
    "verified": true,
@@ -174,13 +174,14 @@
    "category": "KBD",
    "rule": "Every clickable widget can take keyboard focus (or has a shortcut that does the same)",
    "measure": "tool:kbd-focus",
-   "what": "focus policy of every enabled clickable widget",
+   "what": "focus policy of every enabled clickable widget; exemptions are reported as skip",
    "value": "not NoFocus",
    "severity": "S2",
    "source": "PRODUCT.md (keyboard-heavy work)",
    "verified": true,
    "enforceable": true,
-   "enforced": false
+   "enforced": false,
+   "note": "Exempt (skip): window caption buttons (Alt+Space opens the window menu with the same actions) and the built-in clear action of a QLineEdit (Esc, or select and Delete, do the same)"
   },
   {
    "id": "AUD-KBD-02",
@@ -270,28 +271,30 @@
   {
    "id": "DEC-LAY-01",
    "category": "SPC",
-   "rule": "Layout margins are on the 4 px grid",
+   "rule": "Layout margins are on the 4 px grid (a 1 px inset under a card stroke is allowed)",
    "measure": "tool:layout-margin-grid",
-   "what": "contents margins of every widget's layout",
+   "what": "contents margins of every widget's layout that applies them (stacked pages and the main window's layout are skipped)",
    "value": "multiple of 4 px (0 allowed)",
    "severity": "S4",
-   "source": "decisions.md#D6",
+   "source": "decisions.md#D6; approved direction A (decisions.md: A supersedes D6)",
    "verified": true,
    "enforceable": true,
    "enforced": false,
    "params": {
-    "grid": 4
+    "grid": 4,
+    "stroke": 1,
+    "a_values": []
    }
   },
   {
    "id": "DEC-LAY-02",
    "category": "SPC",
-   "rule": "Layout spacing comes from the spacing scale",
+   "rule": "Spacing between neighbours comes from the D6 scale, plus A's 2 px and 6 px gaps",
    "measure": "tool:layout-spacing",
-   "what": "spacing of every widget's layout",
-   "value": "0, 4, 8, 12, 16, 24, 32, 48 px",
+   "what": "the gap between visible neighbours of a layout (the smaller of the real gap and the declared spacing); layouts with fewer than two visible items or a stacked page are skipped",
+   "value": "0, 4, 8, 12, 16, 24, 32, 48 px (D6) and 2, 6 px (A: command bar and tabs 2, icon-text 6)",
    "severity": "S4",
-   "source": "decisions.md#D6",
+   "source": "decisions.md#D6; approved direction A, docs/ui-goal/mockups/directions/a/shell.css:37,90,126,169,171",
    "verified": true,
    "enforceable": true,
    "enforced": false,
@@ -305,18 +308,22 @@
      24,
      32,
      48
+    ],
+    "a_values": [
+     2,
+     6
     ]
    }
   },
   {
    "id": "DEC-LAY-03",
    "category": "SPC",
-   "rule": "Corner radii in style sheets are 2, 4 or 8 px only",
+   "rule": "Corner radii in style sheets are 2, 4 or 8 px, plus A's 3 px rider radius; circles and pills are exempt",
    "measure": "tool:radius",
-   "what": "border-radius in the application and widget style sheets (painted radii: manual)",
-   "value": "0, 2, 4, 8 px",
+   "what": "border-radius in the application and widget style sheets, except radii of half the box or more (circles, pills); painted radii: manual",
+   "value": "0, 2, 4, 8 px (D6) and 3 px (A: rider and tab)",
    "severity": "S4",
-   "source": "decisions.md#D6",
+   "source": "decisions.md#D6; approved direction A, docs/ui-goal/mockups/directions/a/shell.css:120",
    "verified": true,
    "enforceable": true,
    "enforced": false,
@@ -326,6 +333,9 @@
      2,
      4,
      8
+    ],
+    "a_values": [
+     3
     ]
    }
   },
@@ -333,23 +343,15 @@
    "id": "DEC-MOT-01",
    "category": "MOT",
    "rule": "Animation durations are 0, 80, 120, 180 or 240 ms",
-   "measure": "tool:anim-duration",
-   "what": "duration of the animations a widget owns (looping ones skipped)",
+   "measure": "manual",
+   "what": "unit test, not a window probe: tests/ui/test_ui_measure.py::test_motion_duration_tokens (motion.Duration is exactly the D7 set, motion.duration() rejects any other value)",
    "value": "0 | 80 | 120 | 180 | 240 ms",
    "severity": "S4",
    "source": "decisions.md#D7",
    "verified": true,
    "enforceable": true,
    "enforced": false,
-   "params": {
-    "allowed": [
-     0,
-     80,
-     120,
-     180,
-     240
-    ]
-   }
+   "note": "Animations are made on demand and deleted when they stop (motion.animate), so the measured window never holds one; the tool had no row for this rule in any run."
   },
   {
    "id": "DEC-MOT-02",
@@ -436,15 +438,15 @@
    "verified": true,
    "enforceable": true,
    "enforced": false,
-   "reconcile": "same",
-   "ours": "Owner: 24 px min target, 28 px button height (D5: 28/32/40)",
-   "note": "Our 24 px floor is above HIG 20 px floor",
+   "reconcile": "differs",
+   "ours": "Owner: 24 px min target; buttons 32 px at Normal (D5: 28/32/40), 28 px floor",
+   "note": "Our 24 px floor is above HIG 20 px; HIG's 28 px default is not our target, D5's 32 px applies",
    "rows_under": "AUD-HIT-01"
   },
   {
    "id": "HIG-SPC-02",
    "category": "SPC",
-   "rule": "A button needs a hit region of at least 44x44 pt (touch/pointer/eyes/remote)",
+   "rule": "Apple: minimum button target 44x44 pt (touch, pointer, eyes, remote)",
    "measure": "manual",
    "what": "widget size",
    "value": "44x44 pt",
@@ -593,7 +595,7 @@
    "enforceable": true,
    "enforced": false,
    "reconcile": "same",
-   "ours": "28 px height all; primary = accent fill",
+   "ours": "32 px height at Normal (D5), 28 px owner floor; primary = accent fill",
    "note": ""
   },
   {
@@ -839,7 +841,7 @@
   {
    "id": "HIG-FOC-05",
    "category": "FOC",
-   "rule": "Focusing an item may also select it, except when selection would cause a context shift (opening a view)",
+   "rule": "Focus may select an item too, unless selecting would switch the view or context",
    "measure": "manual",
    "what": "manual",
    "value": "n/a",
@@ -926,7 +928,7 @@
   {
    "id": "HIG-TYP-02",
    "category": "TYP",
-   "rule": "macOS text styles run from 26/32 down to 10/13 with clear steps (Large Title 26, Title 1 22, Title 2 17, Title 3 15, Body 13)",
+   "rule": "macOS text styles step down from Large Title 26 pt to Body 13 pt",
    "measure": "tool:type-ramp",
    "what": "set of font sizes used",
    "value": "limited ramp",
@@ -1018,7 +1020,7 @@
    "category": "TYP",
    "rule": "Keep truncation low as text grows; avoid truncating in scrollable regions",
    "measure": "tool:text-elided",
-   "what": "elided text count at 150 %",
+   "what": "elided text in labels, buttons, combo boxes and table cells (cells as in screenshots._cells)",
    "value": "minimal",
    "severity": "S3",
    "source": "https://developer.apple.com/design/human-interface-guidelines/typography",
@@ -1034,7 +1036,7 @@
   {
    "id": "HIG-CON-01",
    "category": "CON",
-   "rule": "Text up to 17 pt needs >= 4.5:1 contrast; 18 pt or bold text needs >= 3:1",
+   "rule": "Small text needs 4.5:1 contrast; 18 pt and bold text need 3:1",
    "measure": "tool:contrast-body",
    "what": "contrast ratio per token pair",
    "value": "4.5:1 text; 3:1 large/bold",
@@ -1052,7 +1054,7 @@
   {
    "id": "HIG-CON-02",
    "category": "CON",
-   "rule": "Check contrast in both light and dark appearance, and offer higher contrast when Increase Contrast is on",
+   "rule": "Check contrast in light and dark modes; offer more when Increase Contrast is on",
    "measure": "manual",
    "what": "contrast test per theme",
    "value": "all themes pass",
@@ -1088,11 +1090,11 @@
    "category": "CON",
    "rule": "Avoid similar colours between control labels and a colourful background",
    "measure": "tool:contrast-secondary",
-   "what": "contrast label vs background",
-   "value": ">=4.5:1",
+   "what": "contrast of secondary (text-2) text against neutral surfaces, shared with DEC-CON-02; labels on coloured fills are counted under DEC-CON-01",
+   "value": ">=4.5:1 (the number is from the Accessibility page; the Color page gives none)",
    "severity": "S3",
-   "source": "https://developer.apple.com/design/human-interface-guidelines/color",
-   "locator": "Color > avoid similar colors in control labels",
+   "source": "https://developer.apple.com/design/human-interface-guidelines/color ; https://developer.apple.com/design/human-interface-guidelines/accessibility",
+   "locator": "Color > control labels; Accessibility > contrast ratio table",
    "verified": true,
    "enforceable": true,
    "enforced": false,
@@ -1207,7 +1209,7 @@
    "id": "HIG-MOT-04",
    "category": "MOT",
    "rule": "Feedback animations should be brief and precise",
-   "measure": "tool:anim-duration",
+   "measure": "manual",
    "what": "animation duration",
    "value": "HIG gives no number",
    "severity": "S4",
@@ -1218,8 +1220,7 @@
    "enforced": false,
    "reconcile": "same",
    "ours": "80/120/180/240 ms (D7)",
-   "note": "HIG sets no millisecond values; ours are Fluent-derived",
-   "rows_under": "DEC-MOT-01"
+   "note": "HIG sets no millisecond values; ours are Fluent-derived. Checked by the unit test of DEC-MOT-01, not by the tool"
   },
   {
    "id": "HIG-MOT-05",
@@ -1587,7 +1588,7 @@
    "value": "constant",
    "severity": "S3",
    "source": "https://developer.apple.com/design/human-interface-guidelines/the-menu-bar",
-   "locator": "Menu bar > Always show the same set of menu items",
+   "locator": "Menu bar > menu items stay the same",
    "verified": true,
    "enforceable": false,
    "enforced": false,
@@ -1615,7 +1616,7 @@
   {
    "id": "HIG-WIN-15",
    "category": "WIN",
-   "rule": "Alerts: title, optional text, up to three buttons; default on trailing side; never \"OK\" for a decision",
+   "rule": "Alerts: title, optional text, up to three buttons, trailing default, no bare OK",
    "measure": "manual",
    "what": "dialog button count and order",
    "value": "<=3 buttons; default last/trailing",

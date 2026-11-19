@@ -6,14 +6,25 @@ import sys
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QPalette, QPixmap
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 TOOLS = Path(__file__).resolve().parents[2] / "tools"
 sys.path.insert(0, str(TOOLS))
 import ui_measure as um  # noqa: E402
 
-from evrakci.ui import theme  # noqa: E402
+from evrakci.ui import motion, theme  # noqa: E402
+from evrakci.ui.chrome import CaptionButton  # noqa: E402
 
 
 @pytest.fixture
@@ -122,3 +133,85 @@ def test_two_runs_give_identical_rows(light_100, tmp_path):
     assert len(first) > 100
     assert first == second
     assert um.to_tsv(first) == um.to_tsv(second)
+
+
+def _extras(qapp: QApplication) -> QWidget:
+    """Widgets for the false-fail fixes: a stacked page with declared margins, a box with real
+    off-grid margins, a pill and a square-ish corner, placeholder text, a caption button."""
+    root = QWidget()
+    palette = root.palette()
+    palette.setColor(QPalette.ColorRole.Window, QColor("#ffffff"))
+    root.setPalette(palette)
+    root.setAutoFillBackground(True)
+    layout = QVBoxLayout(root)
+    stack = QStackedWidget()
+    stack.setObjectName("probeStack")
+    stack.layout().setContentsMargins(9, 9, 9, 9)  # a stacked layout never applies these
+    stack.layout().setSpacing(5)
+    stack.addWidget(QLabel("Sayfa"))
+    box = QWidget()
+    box.setObjectName("probeBox")
+    inner = QHBoxLayout(box)
+    inner.setContentsMargins(9, 9, 9, 9)  # applied: really off the 4 px grid
+    inner.setSpacing(5)
+    inner.addWidget(QLabel("a"))
+    inner.addWidget(QLabel("b"))
+    pill = QPushButton()
+    pill.setObjectName("probePill")
+    pill.setFixedSize(20, 20)
+    pill.setStyleSheet("border-radius: 10px;")  # a circle: radius is half the side
+    corner = QPushButton()
+    corner.setObjectName("probeCorner")
+    corner.setFixedSize(40, 40)
+    corner.setStyleSheet("border-radius: 5px;")  # a corner radius off the scale
+    field = QLineEdit()
+    field.setObjectName("probeField")
+    field.setPlaceholderText("Ara")
+    ink = QPalette(field.palette())
+    ink.setColor(QPalette.ColorRole.PlaceholderText, QColor("#707070"))  # about 5:1 on white
+    field.setPalette(ink)
+    grey = QLabel("Ara")  # the same colour as body text: needs 7:1
+    grey.setObjectName("probeGrey")
+    grey_ink = QPalette(grey.palette())
+    grey_ink.setColor(QPalette.ColorRole.WindowText, QColor("#707070"))
+    grey.setPalette(grey_ink)
+    caption = CaptionButton("min", "Küçült")
+    caption.setObjectName("probeCaption")
+    stuck = QPushButton("Sabit")
+    stuck.setObjectName("probeNoFocus")
+    stuck.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+    for widget in (stack, box, pill, corner, field, grey, caption, stuck):
+        layout.addWidget(widget)
+    root.resize(420, 420)
+    root.show()
+    for _ in range(5):
+        qapp.processEvents()
+    return root
+
+
+def test_stacked_page_pill_placeholder_and_caption_button(light_100):
+    root = _extras(light_100)
+    found = _results(light_100, root)
+    root.close()
+    # a stacked layout does not apply its margins or spacing: no verdict, so no false fail
+    assert ("probeStack", "DEC-LAY-01") not in found
+    assert ("probeStack", "DEC-LAY-02") not in found
+    assert found[("probeBox", "DEC-LAY-01")] == "fail"  # the same numbers on a real layout
+    assert found[("probeBox", "DEC-LAY-02")] == "fail"
+    assert found[("probePill", "DEC-LAY-03")] == "pass"  # radius = half the side
+    assert found[("probeCorner", "DEC-LAY-03")] == "fail"  # 5 px on a 40 px box
+    assert found[("probeField", "DEC-CON-02")] == "pass"  # placeholder: secondary tier, 4.5:1
+    assert ("probeField", "DEC-CON-01") not in found
+    assert found[("probeGrey", "DEC-CON-01")] == "fail"  # same colour as body text: 7:1
+    assert found[("probeCaption", "AUD-KBD-01")] == "skip"  # exempt: Alt+Space window menu
+    assert found[("probeNoFocus", "AUD-KBD-01")] == "fail"  # any other NoFocus button fails
+
+
+def test_motion_duration_tokens():
+    """DEC-MOT-01 (D7) is a unit check: animations are deleted when they stop, so the window
+    never holds one for the tool to read."""
+    assert {int(d) for d in motion.Duration} == {0, 80, 120, 180, 240}
+    assert motion.MAX_DURATION == 240
+    for bad in (1, 100, 200, 300, 500):
+        with pytest.raises(ValueError):
+            motion.duration(bad)

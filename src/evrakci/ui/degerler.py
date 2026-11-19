@@ -1488,6 +1488,8 @@ class DegerlerScreen(QWidget):
     def _store(self, results) -> int:
         """Store readings on the window thread, as one undoable edit. Returns how many."""
         controller = self.controller()
+        if controller is None:  # the job was closed meanwhile: nothing to store into
+            return 0
         job = controller.job
         current = {tuple(d.page_ids): document_template(job, d)[0]
                    for d in controller.documents()}

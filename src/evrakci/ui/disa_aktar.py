@@ -913,6 +913,14 @@ class DisaAktarScreen(QWidget):
         controller = self.controller()
         if controller is None or self.task is not None:
             return
+        window = self.window_
+        others = [s for s in window._busy_screens() if s is not self] if window else []
+        if others:  # a read is running: it would find the job gone (delete after export)
+            toaster = self._toaster()
+            if toaster is not None:
+                toaster.show("Dışa aktarma ya da okuma sürüyor; bitince başka bir iş açın.",
+                             kind="info")
+            return
         if self._written:
             self.again()
             return

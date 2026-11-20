@@ -2,22 +2,24 @@
 
 Status: proposal, nothing built. The owner approves each idea before it is built. Checked at HEAD on 2026-11-20. Idea rows: `docs/ui-goal/ideas-ranking.md`. Evidence: `research/findings-filtering.md`, `findings-selection.md`, `findings-splitting.md`, `findings-page-operations.md`, `findings-review-qc.md`, `inventory-kontrol.md`. D13 is lifted (decisions.md, 2026-11-20): core changes below are named, each with core tests, an old-job-file check and a CLI/window parity check.
 
+**Reconciled with B, C and D (2026-11-20).** Build order, shared pieces, the Kontrol key table and the owner's decisions (O-1 to O-5 are this spec's) are in `specs/README.md`. This spec owns `pipeline/select.py`, the "Sayfaları seç" dialog and the CLI command `is sec`; C adds to them. `value_level` is owned by quick-wins I-17. The I-04 jumps lost the key D to I-21 and are menu-only. Job files stay version 2 for every spec (new fields are additive).
+
 ## 0. The shared part: one "Seç…" entry point and one selection model
 
-**Problem.** Today F = "Filtre uygula…" only cuts the selected pages every N pages (`ui/kontrol.py:apply_filter` L284, `ui/kontrol_dialogs.py:FilterDialog` L39). Everything the five ideas add is a different thing: it chooses pages, and does nothing else. If each got its own key and dialog, Kontrol would gain five dialogs and the word "filtre" would mean two things.
+**Problem.** Today F = "Filtre uygula…" only cuts the selected pages every N pages (`ui/kontrol.py:apply_filter` L300, `ui/kontrol_dialogs.py:FilterDialog` L39). Everything the five ideas add is a different thing: it chooses pages, and does nothing else. If each got its own key and dialog, Kontrol would gain five dialogs and the word "filtre" would mean two things.
 
 **Decision in this spec.**
 - F stays exactly as it is (every N pages, K-21 to K-30). Nothing in it changes except the new "Filtreyi kaldır" (I-08).
 - New command **"Seç…"** (key **S**, menu Araçlar, context menu, command-bar icon `list-checks`) opens one dialog, `SelectDialog`, next to `FilterDialog` in `ui/kontrol_dialogs.py`. Its result is only a set of page ids that becomes the timeline selection. It never edits the job, so it has no undo step; the user then presses Del, F, T, R, K as today. The word "Filtre" is kept for the cut kind; the new word is "Seç".
-- The dialog is a list of criteria (one radio row each, with its live count in the row) and, on the right, the parameters of the chosen row, then "Seçimi değiştir / Seçime ekle / Seçimin içinde ara" and the primary button "Seç". Group C adds rows ("QR içeriği") and AND-combined saved chips on the same dialog; it must not need a second entry point.
+- The dialog is a list of criteria (one radio row each, with its live count in the row) and, on the right, the parameters of the chosen row, then "Seçimi değiştir / Seçime ekle / Seçimin içinde ara" and the primary button "Seç". Group C (`qr-saved-filters.md`) adds the row "QR içeriği" to this dialog, and its key Q opens this same dialog with that row chosen: there is no second dialog. Saved filters (C, I-07) are a chip row above the timeline, owned by C; the chips call the same core functions.
 
 **Core: new module `src/evrakci/pipeline/select.py`** (pure, no Qt, no imaging; same functions for window and CLI).
-- `Criterion(kind: str, params: dict)` with `to_dict()` / `from_dict()`. Kinds in this group: `belge`, `tek`, `cift`, `bos`, `farkli`, `guven`. Group C stores `Criterion.to_dict()` next to a template and adds kinds (`qr`); a saved filter is a list of criteria that are AND-combined with `intersect`.
+- `Criterion(kind: str, params: dict)` with `to_dict()` / `from_dict()`. Kinds in this group: `belge`, `tek`, `cift`, `bos`, `farkli`, `guven`. Group C stores `Criterion.to_dict()` next to a template and adds kinds (`qr`); a saved filter is one named criterion (kind + params); several turned-on chips are AND-combined with `combine(..., "within")` through C's `select_pages`.
 - `evaluate(job, criterion, *, templates=None, selection=()) -> Match`; `Match(page_ids: tuple[str, ...] in job order, documents: int, reasons: dict[str, int])`. `combine(base, match, mode)` with modes `replace`, `add`, `within` (intersection). `count()` is `len(match.page_ids)`. Separators are never part of a match (they cannot be filtered or deleted, K-47).
 - Evaluate is a loop over `job.pages` (800 entries): well under 5 ms each; the dialog recomputes all rows on open and only the chosen row while a parameter changes (debounce 80 ms).
-- CLI parity: `evrakci is sec <ölçüt> [--esik X] [--sil]` prints the same counts and page numbers the dialog shows (and with `--sil` soft-deletes them, same as Del). Test: the same job through `select.evaluate` and through the CLI gives the same page list.
+- CLI parity: `evrakci is sec <iş> <ölçüt> [--esik X] [--sil]` (this spec owns the command; C adds the ölçüt `qr`, `--kes`, `--sablon` and `--filtre`) prints the same counts and page numbers the dialog shows (and with `--sil` soft-deletes them, same as Del). Test: the same job through `select.evaluate` and through the CLI gives the same page list.
 
-**Keys of the group** (all free on Kontrol, run `shortcut-audit` before building; no Turkish-only letters, no I, no Ctrl+Alt): S, B, D, Shift+D, Shift+F, Shift+T, Ctrl+Space, Alt+Left, Alt+Right. Single-letter ones obey Ayarlar "Tek tuşlu kısayollar" like K/M/R and have a menu path. Contract rows are listed per idea.
+**Keys of the group** (all free on Kontrol, run `shortcut-audit` before building; no Turkish-only letters, no I, no Ctrl+Alt): S, B, Shift+F, Shift+T, Ctrl+Space, Alt+Left, Alt+Right. (D and Shift+D were dropped in the reconcile: D is "Değerlerde aç", quick-wins I-21; the I-04 jumps are menu-only. The Kontrol key table of all four specs is in `specs/README.md`.) B is also "Kutu çiz" on Şablonlar, so `B` needs a page-specific line in `shortcuts.md` at build. Single-letter ones obey Ayarlar "Tek tuşlu kısayollar" like K/M/R and have a menu path. Contract rows are listed per idea.
 
 **New Turkish text for the entry point** (all "draft"; words checked against how Windows and Microsoft Office Turkish name the same things: "Tümünü seç", "Seçimi kaldır", "Vazgeç", "Ölçüt", "Tek/Çift sayfalar" in the print dialog):
 
@@ -31,7 +33,7 @@ Status: proposal, nothing built. The owner approves each idea before it is built
 | Seçimin içinde ara | radio in dialog | Keep only matches inside the current selection | draft |
 | Seç | primary button | Select | draft |
 | Hiç yok | grey count in a row with no match | None | draft |
-| {n} sayfa seçildi. | status line / toast after Seç | n pages selected | draft |
+| {n} sayfa seçildi. / {n} sayfa seçildi ({ölçüt}). | status line / toast after Seç; the second form names the criterion (C uses it as "(QR: KAP-*)") | n pages selected | draft |
 | Eşleşen sayfa yok. | status line when nothing matches | No page matches | draft |
 | Vazgeç | cancel button | Cancel | existing |
 | sayfa seçili | status bar item | pages selected | existing |
@@ -94,9 +96,9 @@ Reuses `QDialog` with the `FilterDialog` margins (s6), `QRadioButton`, `kind="gr
 | Bu belgede seçilecek sayfa yok. | status when all pages are deleted | No page to select in this document | draft |
 
 **Owner decisions needed.**
-1. Odd/even counted from each document's start (recommended: duplex fronts and backs follow the document) or by job page number.
-2. Should a click on a document's guide tab select the whole document? Recommended: no, keep it as it is (it moves focus); B and the context menu are enough and avoid changing a click the staff know.
-3. Alt+Left/Right for moving without selecting (recommended: yes; without it Ctrl+Space cannot pick scattered pages by keyboard).
+1. (README O-1) Odd/even counted from each document's start (recommended: duplex fronts and backs follow the document) or by job page number.
+2. (README O-2) Should a click on a document's guide tab select the whole document? Recommended: no, keep it as it is (it moves focus); B and the context menu are enough and avoid changing a click the staff know.
+3. ~~Alt+Left/Right~~ Merged into README O-5 (the Kontrol keys of this spec).
 
 **Build steps.** (1) `select.py` with `belge`, `tek`, `cift` and tests. (2) `Ctrl+Space` and Alt+arrows in `TimelineView` with key-press tests. (3) Registry ids, contract rows, `shortcuts.md`. (4) `SelectDialog` shell with these three rows and the entry key S. (5) CLI `is sec`.
 
@@ -104,7 +106,7 @@ Reuses `QDialog` with the `FilterDialog` margins (s6), `QRadioButton`, `kind="gr
 
 ## I-03 Blank pages with a threshold and a live count
 
-**1. Problem.** On a duplex pile every second page is blank; blank backs stay in the documents unless the CLI is used (K-20, B-006). "Is it blank" is judged by one fixed number (`EMPTY_INK_RATIO = 0.003`, `pipeline/analyze.py:22`) the user cannot see. Principle: Less paper handling; Never silent.
+**1. Problem.** On a duplex pile every second page is blank; blank backs stay in the documents unless the CLI is used (K-20, B-006). "Is it blank" is judged by one fixed number (`EMPTY_INK_RATIO = 0.003`, `pipeline/analyze.py:16`) the user cannot see. Principle: Less paper handling; Never silent.
 
 **2. Who and when.** Staff after import, before Filtre/Şablon; the same day as I-09.
 
@@ -144,8 +146,8 @@ Reuses spin box, secondary caption, `QLabel[state="orta"]`-free plain text. The 
 | Boş | caption of a dropped page | Blank | existing |
 
 **Owner decisions needed.**
-1. Default limit: keep 0,3 % (recommended, the value the CLI and the guide use) or choose a stricter 0,2 %.
-2. Add a switch for the global "drop blank pages" (B-006)? Recommended: no. Selecting then Del is visible and undoable; a hidden global switch would hide pages again.
+1. Decided in the reconcile (not the owner's): keep 0,3 %, the value the CLI and the guide use; the user changes it in the dialog.
+2. (README O-4) Add a switch for the global "drop blank pages" (B-006)? Recommended: no. Selecting then Del is visible and undoable; a hidden global switch would hide pages again.
 
 **Build steps.** (1) `select` kind `bos` with tests. (2) Criterion row and live count in `SelectDialog`. (3) Status line text and `is sec bos`. (4) Screenshot.
 
@@ -153,11 +155,11 @@ Reuses spin box, secondary caption, `QLabel[state="orta"]`-free plain text. The 
 
 ## I-04 Page size or orientation, "looks different" mark, jump
 
-**1. Problem.** In 400 pages a sideways page or an A5 insert hides; it shows only when exported. The app does not know a page's size at all (`PageInfo` has `ink_ratio`, `is_separator` only, `analyze.py:30`). Principle: Never silent.
+**1. Problem.** In 400 pages a sideways page or an A5 insert hides; it shows only when exported. The app does not know a page's size at all (`PageInfo` has `ink_ratio`, `is_separator` only, `analyze.py:29`). Principle: Never silent.
 
 **2. Who and when.** Reviewers of mixed piles, in Kontrol after import.
 
-**3. Keyboard flow.** **D** = "Sonraki farklı sayfa", **Shift+D** = "Önceki farklı sayfa" (wrap round, toast "Farklı sayfa yok." when none, like N). To pick them: S, "Farklı boyut veya yön", choose Boyut and/or Yön, Seç; then R fixes sideways pages (R rotates by 90 and the mark goes away, because orientation is judged after the job's rotations). Registry `kontrol.sonraki_farkli`, `kontrol.onceki_farkli` (menu Git), and the checkable `kontrol.farkli_isaretle` (menu Görünüm, no key) to turn marks on or off.
+**3. Keyboard flow.** "Sonraki farklı sayfa" / "Önceki farklı sayfa" in menu Git and the command palette, no key (reconcile: D is I-21's "Değerlerde aç"; see README O-10) (wrap round, toast "Farklı sayfa yok." when none, like N). To pick them: S, "Farklı boyut veya yön", choose Boyut and/or Yön, Seç; then R fixes sideways pages (R rotates by 90 and the mark goes away, because orientation is judged after the job's rotations). Registry `kontrol.sonraki_farkli`, `kontrol.onceki_farkli` (menu Git), and the checkable `kontrol.farkli_isaretle` (menu Görünüm, no key) to turn marks on or off.
 
 **4. Screen sketch.** A marked tile (caption line under the sheet, same place as "Silinecek"):
 ```
@@ -169,15 +171,15 @@ Mark = a 14 px Lucide icon (`ruler` for size, `rectangle-horizontal` for Yatay) 
 **5. Data and core (needs a core change).**
 - `PageInfo` gets `width_mm: float = 0.0`, `height_mm: float = 0.0` (page as displayed, before the job's own rotation; 0.0 = unknown). `analyze_pdf` reads `page.get_size()` inside the existing per-page lock before rendering: no extra render, near-zero cost.
 - Job file: `job_to_dict` writes `width_mm` and `height_mm` (one decimal) per page; `job_from_dict` reads them with a default of 0.0. `JOB_FORMAT_VERSION` stays 2, so an older program still opens a newer file (it ignores the keys) and a newer program opens old files.
-- Old jobs: `analyze.read_page_sizes(path) -> list[tuple[float, float]]` (no rendering) and `JobStore.fill_page_sizes(job)`, called once when a job with unknown sizes is opened; it is housekeeping, not an undo step; it saves the job. Pages still 0.0 (file gone) are shown as "Boyutu bilinmiyor" in the dialog, never marked.
+- Old jobs: `analyze.read_page_sizes(path) -> list[tuple[float, float]]` (no rendering) and `JobStore.fill_page_sizes(job)`, called once when a job with unknown sizes is opened; it is housekeeping, not an undo step; it saves the job. Pages still 0.0 (file gone) are shown as "Boyutu bilinmiyor" in the dialog, never marked. C's `JobStore.reread_qr` (I-01) is the other old-job helper: it renders, so it runs only on demand; `fill_page_sizes` does not render and runs on open. Both use `JobStore.batch_file`; whichever is built first adds the shared old-job test fixture.
 - `select.evaluate(kind="farkli", params={"by": ["boyut","yon"], "reference": "is"|"belge"})`. Size differs when either side is more than 3 % off the reference (A4 scanner jitter); reference = the most frequent size or orientation among non-deleted, non-separator pages of the job (or of each document). Pure core function, `select.different_pages(job, ...)`.
 - No `index.xlsx` change (marks are a view aid; export is unchanged).
 
-**6. Tests.** Core: `tests/test_analyze.py` size from a real two-page PDF (A4 and A5, one landscape) via `fakes.make_pdf`; `tests/test_job.py` round trip plus loading a stored old dict without the keys; `tests/test_select.py` A4 jitter does not mark, user rotation fixes orientation; `tests/test_store.py` `fill_page_sizes`. CLI/window parity: `is sec farkli` and the dialog give the same list. UI: D wraps and toasts; caption text and accessible name; matrix shot with a marked tile in light, dark, high contrast at 150 %. Failure it must catch: a sideways page unmarked after R fixed it, or marked after user rotation.
+**6. Tests.** Core: `tests/test_analyze.py` size from a real two-page PDF (A4 and A5, one landscape) via `fakes.make_pdf`; `tests/test_job.py` round trip plus loading a stored old dict without the keys; `tests/test_select.py` A4 jitter does not mark, user rotation fixes orientation; `tests/test_store.py` `fill_page_sizes`. CLI/window parity: `is sec farkli` and the dialog give the same list. UI: "Sonraki farklı sayfa" wraps and toasts; caption text and accessible name; matrix shot with a marked tile in light, dark, high contrast at 150 %. Failure it must catch: a sideways page unmarked after R fixed it, or marked after user rotation.
 
 **7. Risks.** A mixed job (A4 and A5 forms by design) marks half the pages: so the mark is switchable and the reference can be the document. The user decides what is normal (nothing built-in about document kinds): the reference is the job's own majority. Perf: marks computed once per model rebuild, O(n). Scope creep: no auto-rotate, no auto-crop.
 
-**Shortcut contract rows it adds:** `kontrol D kontrol.sonraki_farkli`, `kontrol Shift+D kontrol.onceki_farkli`.
+**Shortcut contract rows it adds:** none (the jumps are menu-only after the reconcile).
 
 **Rules it must meet.** DEC-IDN-01 (orange only kontrol), HIG-CON-03 (icon plus word, not colour), DEC-TYP-01 (caption at least 13 px), DEC-ICO-01 (icon 16 or scaled), DEC-THM-01 (three themes), AUD-TXT-01, AUD-KBD-02, HIG-CTL-08 (checkable item clearly on or off).
 
@@ -203,11 +205,11 @@ Mark = a 14 px Lucide icon (`ruler` for size, `rectangle-horizontal` for Yatay) 
 | Farklı görünenleri işaretle | menu Görünüm, checkable | Mark pages that look different | draft |
 
 **Owner decisions needed.**
-1. Marks on by default (recommended: yes, Never silent; one click off in Görünüm) or off until the user opens "Seç…".
-2. Reference: whole job (recommended; simplest to explain) or each document.
-3. Tolerance 3 % (recommended) or exact.
+1. (README O-3) Marks on by default (recommended: yes, Never silent; one click off in Görünüm) or off until the user opens "Seç…".
+2. Decided in the reconcile (the dialog offers both): reference = whole job by default.
+3. Decided in the reconcile (engineering): tolerance 3 %.
 
-**Build steps.** (1) `PageInfo` fields, `analyze_pdf`, dict round trip, old-file test. (2) `read_page_sizes` and `fill_page_sizes` on open. (3) `select` kind `farkli`. (4) Mark painting and accessible text. (5) D / Shift+D and the Görünüm switch. (6) Dialog row and CLI.
+**Build steps.** (1) `PageInfo` fields, `analyze_pdf`, dict round trip, old-file test. (2) `read_page_sizes` and `fill_page_sizes` on open. (3) `select` kind `farkli`. (4) Mark painting and accessible text. (5) Git menu items and the Görünüm switch. (6) Dialog row and CLI.
 
 ---
 
@@ -233,7 +235,7 @@ Sayfalar: (o) Değerin sayfası ( ) Belgenin bütün sayfaları
 Every reason keeps its existing icon plus word (`degerler_model.LEVELS`: `triangle-alert` Kontrol, `circle-x` Okunamadı, `signal-medium` Orta, `clock` Okunmadı); only the Kontrol word uses the orange-family `check-text` colour it already has in Değerler; no second Kontrol colour, no new orange. Reuses checkbox rows in the dialog; at 150 % the counts move under the words.
 
 **5. Data and core.**
-- Core: `pipeline/templates/values.py` gets `EMIN_AT = 0.90` and `value_level(value: VariableValue) -> str` (`emin` / `orta` / `kontrol` / `okunamadi`), the one classification now repeated in `ui/degerler_model.py:make_cell` (L210) and `ui/sablon_read.py:level_of` (L35). `make_cell` calls it. Parity test: for a table of values, `make_cell(...).level` equals the old result.
+- Core: uses `value_level` in `pipeline/templates/values.py`, which quick-wins I-17 adds and owns (`value_level(value: VariableValue | None)` -> `emin` / `orta` / `kontrol` / `okunamadi` / `okunmadi`, with `EMIN_AT = 0.90`; `make_cell` (`ui/degerler_model.py` L210) switches to it there). I-06 is built after I-17. This spec only switches `ui/sablon_read.py:level_of` (L35) to it where the meaning is the same, with a parity test.
 - `select.evaluate(kind="guven", params={"levels": [...], "checks": [...], "pages": "deger"|"belge"})` uses `value_level`, `export.plan_export` checks (core, already the source of the rider) and a core copy of `Row.page_of` (`select.value_page(...)`; `degerler_model.Row.page_of` calls it). Match carries `reasons` with counts.
 - No job-file field. The CLI `is sec guven` prints the same reasons and counts.
 
@@ -245,7 +247,7 @@ Every reason keeps its existing icon plus word (`degerler_model.LEVELS`: `triang
 
 **Rules it must meet.** HIG-CON-03 (icon, word, never colour alone), DEC-IDN-01, DEC-CON-01/02, AUD-KBD-02, AUD-A11Y-01 (each count readable: "Kontrol, 4 değer"), AUD-TXT-01.
 
-**Performance cost (800 pages, about 200 documents).** `plan_export` is already run after every job change (`kontrol.py:_job_changed` L675); the dialog calls `build_rows` once on open (about 200 rows times the template's variables) and caches it until the job changes, tens of milliseconds. Not on scroll.
+**Performance cost (800 pages, about 200 documents).** `plan_export` is already run after every job change (`kontrol.py:_job_changed` L706); the dialog calls `build_rows` once on open (about 200 rows times the template's variables) and caches it until the job changes, tens of milliseconds. Not on scroll.
 
 **New Turkish text.**
 
@@ -264,10 +266,10 @@ Every reason keeps its existing icon plus word (`degerler_model.LEVELS`: `triang
 | {d} belge seçildi: Kontrol {a}, Okunamadı {b} | status line after Seç | d documents selected with the reasons | draft |
 
 **Owner decisions needed.**
-1. Default pages: "Değerin sayfası" (recommended: you see the exact page to look at) or the whole document.
-2. Orta included by default? Recommended: no (it is many values; the owner picks it).
+1. Decided in the reconcile (a radio the user flips): default "Değerin sayfası".
+2. Decided in the reconcile (a check box the user flips): Orta off by default.
 
-**Build steps.** (1) `value_level` and the refactor of `make_cell`/`level_of`, with parity tests. (2) `select` kind `guven` and `value_page`. (3) Dialog row with reasons and counts. (4) Status text. (5) `is sec guven`.
+**Build steps.** (1) (after I-17 has added `value_level`) switch `level_of` to it, with a parity test. (2) `select` kind `guven` and `value_page`. (3) Dialog row with reasons and counts. (4) Status text. (5) `is sec guven`.
 
 ---
 
@@ -316,8 +318,8 @@ Every reason keeps its existing icon plus word (`degerler_model.LEVELS`: `triang
 | Önce sayfaları seçin. | status line | Select pages first | existing |
 
 **Owner decisions needed.**
-1. Keys Shift+F and Shift+T (recommended) or menu-only.
-2. Restore-blank only appears when the job has `drop_empty` on (set in the CLI): fine (recommended), or add the global switch (see I-03 decision 2).
+1. (README O-5, with the other Kontrol keys) Keys Shift+F and Shift+T (recommended) or menu-only.
+2. (README O-4) Restore-blank only appears when the job has `drop_empty` on (set in the CLI): fine (recommended), or add the global switch (see I-03 decision 2).
 
 **Build steps.** (1) `Job.remove_filter` with tests. (2) Controller methods with undo names. (3) Menu, context menu, registry, contract rows. (4) Messages and inspector rows. (5) CLI `filtre-kaldir`.
 
@@ -335,4 +337,4 @@ Every reason keeps its existing icon plus word (`degerler_model.LEVELS`: `triang
 
 ## Owner decisions, summary
 
-I-09: odd/even basis, guide-tab click, Alt+arrows. I-03: default limit, global drop switch. I-04: marks default, reference, tolerance. I-06: default pages, Orta default. I-08: Shift+F / Shift+T, restore-blank switch. Total 12; each has a recommended option above.
+Before the reconcile: 12. After: 5, numbered O-1 to O-5 in `specs/README.md` (odd/even basis, guide-tab click, marks on by default, blank-page switch, the Kontrol keys). The other 7 were decided in the reconcile and are marked above.

@@ -4,6 +4,8 @@ Seven small ideas from `ideas-ranking.md`: I-17, I-19, I-21, I-22, I-23, I-28, I
 
 Turkish wording: checked against terms already in the UI (reused where one exists). Sector check: ABBYY's Turkish help calls OCR output "tanınan metin" ([ABBYY Sprint, tr-tr](https://help.abbyy.com/tr-tr/finereader_sprint/12/text_formats)); we keep our own "Okunan" for the same thing. No Turkish page on "revert one field" or "required field empty" was found, so those strings stay "draft". Free keys were taken from `docs/ui-goal/shortcut-contract.tsv` and `audit_shortcuts.py --check` (0 problems). Keys on Kontrol (I-21) must be reserved against group A (A also adds Kontrol keys).
 
+**Reconciled with A, C and D (2026-11-20).** Build order, shared pieces, the key table and the owner's decisions (O-6 to O-10 are this file's) are in `specs/README.md`. This file owns `value_level` (I-17, in `pipeline/templates/values.py`, reused by A's I-06) and `motion.wait_cursor` (I-47, reused by D's I-38). D on Kontrol is I-21's; A's I-04 jumps became menu-only. New single keys whose label differs on another tab (K, R, N, Shift+N) each need a page-specific line in `shortcuts.md` at build, or `audit_shortcuts.py --check` fails.
+
 Shared note: single-letter keys are switched off by Ayarlar > "Tek tuşlu kısayollar" (WCAG 2.1.4); every such command also has a menu item and a button or context-menu entry.
 
 ---
@@ -20,8 +22,8 @@ Shared note: single-letter keys are switched off by Ayarlar > "Tek tuşlu kısay
  13     37-38   Örnek A.Ş.        980,00      [x] boş      Okunamadı
 ```
 A 16 px icon sits left of the value in a cell that needs a check: `triangle-alert` in `check-text` for Kontrol, `circle-x` in `danger` for Okunamadı (icons and roles from `degerler_model.LEVELS`, same as the Güven column). The word is in the cell tooltip and the spoken text (both exist: `_spoken`, `data()` tooltip role). Reuses the delegate and `icons.paint`; no new component. At 150 % the icon scales with `m.inline_icon(16)`; in high contrast the icon uses the `ink` role like Güven does. Orange only on Kontrol, and the icon always has a word next to it in the row (Güven) and in the tooltip.
-**5. Data and core changes.** Core is the better home for "what level is a value": today the rule (`EMIN_AT = 0.90`, flagged = Kontrol or Okunamadı) lives in `ui/degerler_model.py:make_cell` (210) and the CLI prints a different word for the same cell (`cli/jobs.py:454-455` writes `[okunamadı, öneri: ...]` for any flagged value). Change: add `pipeline/review.py:value_level(value) -> "emin"|"orta"|"kontrol"|"okunamadi"|"okunmadi"` with `EMIN_AT`; `make_cell` and `fix_value`/`is degerler` call it. CLI line for a flagged value with a reading becomes `Firma: 482I3 [kontrol, öneri: 482I3 Ltd.]` and `[okunamadı]` only when nothing was read. Job file: no change. `index.xlsx`: no change (Kontrol reasons already per document, D-46). Older job files open as before (values are unchanged). Offline: yes.
-**6. Tests.** Core: `tests/test_review.py` cases for each level and the 0.90 edge (synthetic `fakes.py`); `tests/test_cli_values.py` updated for the new CLI wording and a test that window level == CLI level for the same job. UI: `tests/ui/test_degerler_table.py` offscreen: a Kontrol cell paints an icon (pixel check left of text), an Emin cell none; tooltip contains "Kontrol". Screenshot: Değerler main shot in the matrix, all three themes plus 150 %. Failure it must catch: the mark on a cell that is not Kontrol, or missing on one that is.
+**5. Data and core changes.** Core is the better home for "what level is a value": today the rule (`EMIN_AT = 0.90`, flagged = Kontrol or Okunamadı) lives in `ui/degerler_model.py:make_cell` (210) and the CLI prints a different word for the same cell (`cli/jobs.py:455-456` writes `[okunamadı, öneri: ...]` for any flagged value). Change: add `pipeline/templates/values.py:value_level(value: VariableValue | None) -> "emin"|"orta"|"kontrol"|"okunamadi"|"okunmadi"` with `EMIN_AT` (moved from `ui/degerler_model.py:31`; `values.py` has no imports, so `review.py`, `select.py` and the UI can all use it). This spec owns it; kontrol-filters I-06 and `sablon_read.level_of` reuse it. `make_cell` and `is degerler` call it. CLI line for a flagged value with a reading becomes `Firma: 482I3 [kontrol, öneri: 482I3 Ltd.]` and `[okunamadı]` only when nothing was read. Job file: no change. `index.xlsx`: no change (Kontrol reasons already per document, D-46). Older job files open as before (values are unchanged). Offline: yes.
+**6. Tests.** Core: new `tests/test_values.py` cases for each level and the 0.90 edge (synthetic `fakes.py`); `tests/test_cli_values.py` updated for the new CLI wording and a test that window level == CLI level for the same job. UI: `tests/ui/test_degerler_table.py` offscreen: a Kontrol cell paints an icon (pixel check left of text), an Emin cell none; tooltip contains "Kontrol". Screenshot: Değerler main shot in the matrix, all three themes plus 150 %. Failure it must catch: the mark on a cell that is not Kontrol, or missing on one that is.
 **7. Risks.** Visual noise: only needs-check cells are marked, so a clean job looks the same as today. 800 documents x 4 variables: icon paint only for visible rows. CLI wording change breaks scripts that parse `[okunamadı` (owner decision).
 
 **Shortcut contract rows it adds:** none (existing N / Shift+N rows get an extra feedback sentence).
@@ -35,8 +37,8 @@ A 16 px icon sits left of the value in a cell that needs a check: `triangle-aler
 | Bu değere bakın: okuma emin değil. | tooltip, first line of a Kontrol cell | Please look at this value: the reading is not sure | draft |
 
 **Owner decisions needed.**
-1. In-cell word: icon only, word in tooltip and in the row's Güven (recommended), or icon + word "Kontrol" inside the cell where it fits (wider columns, more noise).
-2. CLI wording `[okunamadı…]` -> `[kontrol…]` for a flagged value with a reading (recommended: yes, one vocabulary).
+1. (README O-6) In-cell word: icon only, word in tooltip and in the row's Güven (recommended), or icon + word "Kontrol" inside the cell where it fits (wider columns, more noise).
+2. (README O-7) CLI wording `[okunamadı…]` -> `[kontrol…]` for a flagged value with a reading (recommended: yes, one vocabulary).
 **Build steps.** (1) `value_level` + core tests; (2) `make_cell` uses it; (3) CLI uses it + test update; (4) delegate icon + tooltip; (5) UI test and matrix shot.
 
 ---
@@ -72,9 +74,9 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 | +{n} daha | row cap | n more | draft |
 
 **Owner decisions needed.**
-1. Show the list always for 2+ readings (recommended) or only on a key.
-2. Alt+1..4 / click picks a reading: yes (recommended, one undo step) or list is read-only.
-3. Cap at 4 rows (recommended).
+1. Decided in the reconcile: always shown for 2+ readings.
+2. (README O-8) Alt+1..4 / click picks a reading: yes (recommended, one undo step) or list is read-only.
+3. Decided in the reconcile (layout): cap at 4 rows.
 **Build steps.** (1) list widget in `ValueCard`, read-only; (2) cap and 150 % check; (3) click-to-pick; (4) Alt+N keys and tests.
 
 ---
@@ -87,7 +89,7 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 **4. Screen sketch.** No new region: a menu item and a key; optional secondary button. Reuses the command-bar menu and `registry.action` context menu (`CONTEXT` in `degerler.py:337`).
 **5. Data and core changes.** None in the core. `KontrolScreen.open_values(int)` already carries the number; change the connection to call `DegerlerScreen.select_value(number, first_key)` (`degerler.py:941`, exists) after `show_tab`; add `DegerlerScreen.open_in_kontrol` emitting a new `open_kontrol(int)` signal handled by `KontrolScreen.go_to_document(number)` (`kontrol.py:461`, exists). Edge cases: a document without a template is not a row in Değerler (status text says so, no tab switch); the "Kontrol gerekenler" view hides a clean document: switch to "Tümü" and say so. Fixes B-012 as step 1.
 **6. Tests.** UI: flip the strict xfail `tests/ui/test_ledger_c.py::test_b012_values_button_in_kontrol_selects_that_document`; new test the other way; test for no-template and filtered-out cases. Shortcut: registry rows for both keys, key-press test in each tab, `audit_shortcuts.py --check` clean. Failure to catch: the wrong document selected after the switch (number off by one between "belge N" and row index).
-**7. Risks.** Silent wrong target is the risk, so the status line names it ("Belge 12 seçildi"). Focus must land in the main view, not stay on the old tab's button. Key `D` must not clash with group A/C choices on Kontrol.
+**7. Risks.** Silent wrong target is the risk, so the status line names it ("Belge 12 seçildi"). Focus must land in the main view, not stay on the old tab's button. Key `D`: reserved for this command in the reconcile (A's I-04 jumps are menu-only; no C key uses D). `K` is "Kes" on Kontrol, so `K` needs a page-specific line in `shortcuts.md`.
 
 **Shortcut contract rows it adds:** `kontrol D kontrol.degerlerde_ac`; `degerler K degerler.kontrolde_ac` (both single-key, off with the Tek tuşlu setting).
 **Rules it must meet:** AUD-KBD-02, DEC-FOC-01, HIG-FOC-02 (focus moves only because of the user's key), HIG-WIN-12 (key shown in the menu).
@@ -102,8 +104,8 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 | Tümü | view name after the switch | All | existing |
 
 **Owner decisions needed.**
-1. Keys D (Kontrol) and K (Değerler): yes (recommended) or menu only.
-2. A button in the Değerler side panel (recommended: no, menu and key only; the panel is full at 150 %).
+1. (README O-10, with R and the Şablonlar keys) Keys D (Kontrol) and K (Değerler): yes (recommended) or menu only.
+2. Decided in the reconcile: no button in the Değerler side panel (full at 150 %); menu, context menu and key.
 **Build steps.** (1) fix B-012 with the existing `select_value`; (2) reverse direction + signal; (3) edge cases and status; (4) keys, registry rows, tests.
 
 ---
@@ -114,7 +116,7 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 **2. Who and when.** Staff who clear a wrong value meaning to type another one; Değerler, once per mistake, found only in Dışa Aktar's Ön kontrol today.
 **3. Keyboard flow.** No new key. F2, clear, Enter: the value is stored as Kontrol with the reason, the toast says so, N finds it again. Mouse: the same in the editor.
 **4. Screen sketch.** Header text carries the mark: `Firma *` (accessible name "Firma, zorunlu"); the value card meta reads "Belge 3, sayfa 5 · zorunlu"; the reason line (`Cell.why`, `degerler_model.py:172`) gets a new case; toast uses `_toast` (`degerler.py:1192`) with kind `kontrol`. Reuses the table header, `ValueCard`, toast. "*" matches the template legend "* zorunlu" in `sablon_nav.py:416`. 150 %: the header may elide; the tooltip says "zorunlu".
-**5. Data and core changes.** Core is the better home, so the CLI warns the same way. `pipeline/review.py:set_value(job, document, key, text, required=False) -> bool`: when `required` and the cleaned text is empty, store the value as flagged and unreviewed with the old reading kept as suggestion (the state `revert_value` makes) and return False; otherwise store as today and return True. `ui/controller.py:set_value` (108) passes `required` and returns the flag; `_apply_edit` passes `cell.required`; `cli/jobs.py:fix_value` (line ~461) passes `template.variable(...).required` and prints the same sentence as the toast. Job file: no new field (flagged + empty already exists). `index.xlsx`: the document gets the existing "zorunlu değer eksik" check at export (`export.py` plan_export). Older job files: unchanged; an old empty edited required value stays stored and Dışa Aktar still reports it.
+**5. Data and core changes.** Core is the better home, so the CLI warns the same way. `pipeline/review.py:set_value(job, document, key, text, required=False) -> bool`: when `required` and the cleaned text is empty, store the value as flagged and unreviewed with the old reading kept as suggestion (the state `revert_value` makes) and return False; otherwise store as today and return True. `ui/controller.py:set_value` (108) passes `required` and returns the flag; `_apply_edit` passes `cell.required`; `cli/jobs.py:fix_value` (line 463) passes `template.variable(...).required` and prints the same sentence as the toast. Job file: no new field (flagged + empty already exists). `index.xlsx`: the document gets the existing "zorunlu değer eksik" check at export (`export.py` plan_export). Older job files: unchanged; an old empty edited required value stays stored and Dışa Aktar still reports it.
 **6. Tests.** Core: `tests/test_review.py`: required + empty -> flagged, returns False, readings kept, can be undone by `revert_value`; not required + empty -> stored as before; whitespace-only counts as empty. CLI: `tests/test_cli_values.py` prints the sentence and exit code stays 0. UI: `tests/ui/test_degerler.py`: clearing a required cell shows Kontrol and the toast; the window and CLI give the same stored value for the same job. Old job: `tests/test_job.py` fixture without the field still loads. Shot: header with "*". Failure to catch: an empty required value left İncelendi.
 **7. Risks.** A person who really means "empty" for a required variable cannot make it Emin; they use the template (Zorunlu off) or leave it Kontrol (owner decision 1). No false alarm for non-required variables.
 
@@ -129,8 +131,8 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 | Zorunlu değer boş bırakılamaz; Kontrol'e alındı. | toast, CLI line | A required value cannot stay empty; it is now Kontrol | draft |
 
 **Owner decisions needed.**
-1. Empty required value: store as Kontrol with the reason (recommended) or refuse the edit and keep the editor open.
-2. Mark in the header as "*" (recommended, matches Şablonlar) or the word "zorunlu" under the title.
+1. (README O-9) Empty required value: store as Kontrol with the reason (recommended) or refuse the edit and keep the editor open.
+2. Decided in the reconcile: "*" in the header (matches Şablonlar' "* zorunlu" legend).
 **Build steps.** (1) core `set_value(required=)` + core tests; (2) controller and `_apply_edit`; (3) CLI + test; (4) header mark, card meta, reason line, toast; (5) UI tests and shot.
 
 ---
@@ -145,7 +147,7 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 **6. Tests.** Core: `can_revert` true/false cases; `revert_value` after `set_value` and after `accept_suggestion` restores suggestion and flags. CLI: `--geri-al` on a value with no reading exits with the new message. UI: key `R` on a corrected value gives Kontrol with the suggestion, one undo step restores the correction; disabled state and status text; registry row and key-press test; window and CLI leave the same stored value for the same start. Failure to catch: a revert that drops the machine reading (suggestion lost).
 **7. Risks.** A stray R reverts a correction: it is one step away from Ctrl+Z, and the status line names the value. Sample (Örnek) view: the command is disabled there (the sample has its own error rule, V-69).
 
-**Shortcut contract rows it adds:** `degerler R degerler.okunana_don` (single-key, off with the Tek tuşlu setting; menu entry stays).
+**Shortcut contract rows it adds:** `degerler R degerler.okunana_don` (single-key, off with the Tek tuşlu setting; menu entry stays). R is "Sağa döndür" on Kontrol: add a page-specific line in `shortcuts.md`.
 **Rules it must meet:** HIG-WIN-19 (undo names the action), HIG-CTL-09 (unavailable shown dimmed, with reason), AUD-KBD-02, DEC-IDN-01.
 **Performance cost (800 pages):** none.
 
@@ -157,8 +159,8 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 | Okunan | root word | Read | existing |
 
 **Owner decisions needed.**
-1. Key R or menu only (recommended: R).
-2. Wording "Okunana dön" (recommended; reuses "Okunan") or "Okumayı geri getir".
+1. (README O-10) Key R or menu only (recommended: R).
+2. Wording: left to the Turkish terms check (`research/turkish-terms.md`) and the owner's string review; draft "Okunana dön".
 **Build steps.** (1) `can_revert` + core tests; (2) action, menu, handler; (3) CLI message + test; (4) enabled state, status, UI tests.
 
 ---
@@ -181,7 +183,7 @@ Reuses the QMenu-style popup of the job switcher and the triangle-alert icon + w
 **6b.** Without a try-all result the keys are disabled with the status "Önce Ctrl+T ile örnekleri deneyin."
 **7. Risks.** Results are dropped when the template or job changes (existing behaviour), so the list must empty then. Ctrl+L is free on every tab today; keep it Şablonlar-only.
 
-**Shortcut contract rows it adds:** `sablonlar N sablonlar.sonraki_zayif`, `sablonlar Shift+N sablonlar.onceki_zayif`, `sablonlar Ctrl+L sablonlar.zayif_ornekler`.
+**Shortcut contract rows it adds:** `sablonlar N sablonlar.sonraki_zayif`, `sablonlar Shift+N sablonlar.onceki_zayif`, `sablonlar Ctrl+L sablonlar.zayif_ornekler`. N / Shift+N are "Sonraki/Önceki kontrol" on Kontrol and Değerler, so the labels differ: add page-specific lines for `N` and `Shift+N` in `shortcuts.md`.
 **Rules it must meet:** DEC-IDN-01, HIG-CON-03, AUD-KBD-02, AUD-HIT-03, HIG-WIN-12.
 **Performance cost (800 pages):** one sort of up to 800 small tuples after a try-all: negligible next to the read.
 
@@ -195,8 +197,8 @@ Reuses the QMenu-style popup of the job switcher and the triangle-alert icon + w
 | kontrol | row word | check | existing |
 
 **Owner decisions needed.**
-1. Keys: N / Shift+N and Ctrl+L (recommended) or the list only.
-2. Move `flagged_count` into the core (recommended) or keep a UI copy.
+1. (README O-10) Keys: N / Shift+N and Ctrl+L (recommended) or the list only.
+2. Decided in the reconcile (engineering): `flagged_count` moves into the core.
 **Build steps.** (1) core `weakest_examples` + tests; (2) list popup; (3) N / Shift+N and status; (4) registry rows, key tests, shot.
 
 ---
@@ -220,7 +222,7 @@ Reuses the QMenu-style popup of the job switcher and the triangle-alert icon + w
 | (none) | | | |
 
 **Owner decisions needed.**
-1. Threshold: show the cursor only for jobs over a measured page count (recommended) or always.
+1. Decided in the reconcile (engineering): only above a measured page count. `motion.wait_cursor` is shared: disa-aktar I-38 uses it for the 800-row print preview.
 **Build steps.** (1) measure with `perf-profile`, list the blocks over 1 s; (2) `wait_cursor` + tests; (3) wrap the named blocks; (4) re-run perf.
 
 ---
@@ -237,4 +239,4 @@ Reuses the QMenu-style popup of the job switcher and the triangle-alert icon + w
 | Copy (Turkish, project words) | Pass | Pass | Pass | Pass | Pass | Pass | N/A |
 | Local-first, no new dependency | Pass | Pass | Pass | Pass | Pass | Pass | Pass |
 
-**Core changes in this file:** `review.value_level` (I-17), `review.set_value(required=)` (I-22), `review.can_revert` (I-23), `templates/read.py:weakest_examples` (I-28); CLI wording changes in `is degerler` (I-17), `is deger` (I-22, I-23). No job-file field is added; older job files open unchanged.
+**Core changes in this file:** `templates/values.value_level` (I-17, shared with A's I-06), `review.set_value(required=)` (I-22), `review.can_revert` (I-23), `templates/read.py:weakest_examples` (I-28); CLI wording changes in `is degerler` (I-17), `is deger` (I-22, I-23). No job-file field is added; older job files open unchanged.

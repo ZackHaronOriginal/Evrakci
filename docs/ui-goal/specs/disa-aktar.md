@@ -2,18 +2,20 @@
 
 Status: proposal, waits for the owner's approval (decisions.md, "Owner answers: Phase 5 build order and rules"). D13 is lifted (owner, 2026-11-20): the core may change where the feature is better for it. All examples use invented data. Turkish strings are `draft`: wording follows Windows/Office Turkish terms as remembered ("Baskı önizleme", "Alt bilgi", "Panoya kopyala", "Özet"); I did not check them on the web in this run, so the owner or a Turkish reader should confirm.
 
+**Reconciled with A, B and C (2026-11-20).** Build order, shared pieces and the owner's decisions (O-15 to O-19 are this file's) are in `specs/README.md`. Changes here: the job format stays version 2 for all four specs (C5 is additive, old D-1 is no longer an owner question); dates use one Turkish format, "20.11.2026 14:32", in the sheet and on paper (old D-4 decided); the preview's busy cue uses `motion.wait_cursor` from quick-wins I-47; `pdfa_note` (I-40, B-003) is listed with the other `ExportItem` fields.
+
 ## Shared core changes (one set, used by all four ideas)
 
 | # | Where | Change | Why |
 |---|---|---|---|
-| C1 | `pipeline/export.py:19` `ExportItem` | new fields `sources: list[str]` (scan file names of the document's pages, in order, no repeats) and `name_note: str` ("" or why the written name differs from the pattern) | I-39 old name and conflict flag; the same text in window, CLI and sheet |
+| C1 | `pipeline/export.py:21` `ExportItem` | new fields `sources: list[str]` (scan file names of the document's pages, in order, no repeats), `name_note: str` ("" or why the written name differs from the pattern) and `pdfa_note: str` (I-40, B-003: the PDF/A note kept out of `checks`) | I-39 old name and conflict flag; the same text in window, CLI and sheet |
 | C2 | `pipeline/export.py` `plan_export` | fills both fields; the "Ad çakışması" and "Geçersiz karakter silindi" logic moves here from `ui/disa_aktar_model.py:110` `_name_change` | one source of truth (the window and the CLI must show the same notes) |
 | C3 | `pipeline/exporting.py:61-76` | the "fit names to the folder path" loop becomes `plan_names(job, templates, out_dir) -> list[ExportItem]` (plan_export + fit_names + unique_names + notes); `export_job` calls it | the preview must equal what is written; today the window cannot know "dosya adı kısaltıldı" before export |
 | C4 | `pipeline/index.py:39` `write_index` | new columns and two sheets (see I-35, I-40); signature gains `exported_at: datetime | None = None` | one writer for window and CLI |
-| C5 | `pipeline/job.py:16` | `JOB_FORMAT_VERSION = 3`; new `Job.last_export: LastExport | None` (`at` ISO text, `folder`, `documents`, `needing_check`); `job_from_dict` (line 260) accepts versions 1, 2, 3; missing field means None | I-35 time and I-38 "record, not plan" survive a restart. Separable: see decision D-1 |
+| C5 | `pipeline/job.py:16` | `JOB_FORMAT_VERSION` stays 2 (one plan for A, C and D: every new job field is additive and read with a default, so older app versions still open newer files). New `Job.last_export: LastExport | None` (`at` ISO text, `folder`, `documents`, `needing_check`); `job_from_dict` (line 259) reads it with `.get`, missing means None. An older app that saves the job drops the field; the print then says "plan" again, never something wrong | I-35 time and I-38 "record, not plan" survive a restart |
 | C6 | `cli/jobs.py:258` `export`, `:619` parser | per-file line gets ` [ad: <not>]` when `name_note` is set; new flag `--onizle` (dry run: prints Kaynak, new name, note; writes nothing) | same output as the window list |
 
-Tests for the set (`tests/test_export.py`, `tests/test_exporting.py`, `tests/test_index.py`, new `tests/test_job_format.py`): (a) `plan_names` equals the names `export_job` writes, with a long folder path and a name clash; (b) a version 1 and a version 2 job file still open and gain `last_export=None`; a version 3 file round-trips; (c) the CLI `--onizle` lines equal the window's list rows for the same job (`tests/ui/test_disa_aktar.py`); (d) old `index.xlsx` assertions in `tests/test_index.py:33` are updated for the new first column.
+Tests for the set (`tests/test_export.py`, `tests/test_exporting.py`, `tests/test_index.py`, new `tests/test_job_format.py`): (a) `plan_names` equals the names `export_job` writes, with a long folder path and a name clash; (b) a version 1 and a version 2 job file without the field open with `last_export=None`; a job with it round-trips and is still written as version 2; (c) the CLI `--onizle` lines equal the window's list rows for the same job (`tests/ui/test_disa_aktar.py`); (d) old `index.xlsx` assertions in `tests/test_index.py:33` are updated for the new first column.
 
 ---
 
@@ -36,10 +38,10 @@ No new key. Ctrl+E exports; "index.xlsx'i aç" (existing action `disa_aktar.inde
 | 1 | 101_Örnek.pdf | 2 | 1, 2 | Deneme | evet | hayır | | |
 | 7 | belge_007.pdf | 1 | 14 | | evet | evet | değerler okunmadı | |
 
-New second sheet `Özet`: İş adı | Örnek iş; Dışa aktarma zamanı | 2026-11-20 14:32; Belge sayısı | 8; Sayfa sayısı | 21; Kontrol gerekli | 2. Printed list gets a "No" column before "Dosya adı" (same `FileRow.number`). Existing look otherwise.
+New second sheet `Özet`: İş adı | Örnek iş; Dışa aktarma zamanı | 20.11.2026 14:32; Belge sayısı | 8; Sayfa sayısı | 21; Kontrol gerekli | 2. Printed list gets a "No" column before "Dosya adı" (same `FileRow.number`). Existing look otherwise.
 
 ### 5. Data and core changes
-C4: `write_index` inserts "Belge no" (`item.number`, text) first; `_FIXED` (`index.py:16`) gains it; a variable named "Belge no" gets the "(değişken)" mark like the other fixed names. `Özet` sheet from `job.name`, `exported_at` (default `datetime.now()`, plain text "YYYY-MM-DD HH:MM", through `_set_text`, never a formula). `export_job` (`exporting.py:138`, `:147`) passes one time to both write paths; with C5 the same time is stored in `job.last_export`. Printed list: `index_html` (`disa_aktar.py:1154`) adds the column. CLI prints nothing new. No undo step (no job edit).
+C4: `write_index` inserts "Belge no" (`item.number`, text) first; `_FIXED` (`index.py:16`) gains it; a variable named "Belge no" gets the "(değişken)" mark like the other fixed names. `Özet` sheet from `job.name`, `exported_at` (default `datetime.now()`, plain text "DD.MM.YYYY HH:MM" (same format as the printed footer), through `_set_text`, never a formula). `export_job` (`exporting.py:138`, `:147`) passes one time to both write paths; with C5 the same time is stored in `job.last_export`. Printed list: `index_html` (`disa_aktar.py:1154`) adds the column. CLI prints nothing new. No undo step (no job edit).
 
 ### 6. Tests
 Core: `tests/test_index.py::test_columns_and_rows` expects the new first column and values; new test: `Özet` holds job name, time (injected `exported_at`), counts equal the list; a variable called "Belge no" is marked. UI: `tests/ui/test_disa_aktar.py` printed HTML has a "No" header and number 7 for `belge_007`. Failure caught: a row that cannot be tied to its file.
@@ -66,10 +68,10 @@ Column order changes for people with macros on the sheet (decision D-2). Time is
 **Check against the product:** Never silent: Pass. No built-in kinds: Pass. Keyboard: Pass (no new action). Colour: Pass. Layout: Pass (print only). Copy: Pass. Local-first: Pass.
 
 **Owner decisions needed**
-- D-1 Store the export in the job file (C5, format 3; an older app version cannot open a version 3 job)? Recommended: yes, so time and the "written" print survive a restart. Alternative: time only in the sheet.
-- D-2 Where does "Belge no" go? Recommended: first column. Alternative: last fixed column (before variables), which shifts fewer macros but hides the key.
+- D-1 Decided in the reconcile: store the export in the job file (C5), additive, format stays 2, so nothing is lost for older app versions.
+- D-2 (README O-15) Where does "Belge no" go? Recommended: first column. Alternative: last fixed column (before variables), which shifts fewer macros but hides the key.
 
-**Build steps:** (1) C5 job field plus format 3 and old-file tests; (2) C4 column and `Özet` sheet; (3) pass one time from `export_job`; (4) printed "No" column; (5) update `test_index.py` and the UI print test.
+**Build steps:** (1) C5 job field (format stays 2) and old-file tests; (2) C4 column and `Özet` sheet; (3) pass one time from `export_job`; (4) printed "No" column; (5) update `test_index.py` and the UI print test.
 
 ---
 
@@ -109,7 +111,7 @@ Not tried on real printers (Obs. 15). Page break inside a row is possible with Q
 
 **Shortcut contract rows it adds:** none new; row `disa_aktar` Ctrl+P `disa_aktar.yazdir` changes "what happens" to "the print preview opens; Yazdır… prints", with the refusal text "Yazdırılacak bir dizin yok." (already PROPOSED in the contract).
 **Rules it must meet:** AUD-KBD-02, AUD-A11Y-01 (every dialog button named), AUD-HIT-02, AUD-TXT-01, AUD-WIN-01, DEC-FOC-01, DEC-LAY-03, DEC-THM-01, HIG-WIN-09 (ellipsis), HIG-WIN-16 (Esc closes).
-**Performance cost:** the HTML for 800 rows is built on the GUI thread (QTextDocument); layout estimate under 2 s, not measured. First build step measures it; if over 1 s, show "Önizleme hazırlanıyor…" with a busy cursor. Preview renders 3 to 20 pages, lazily.
+**Performance cost:** the HTML for 800 rows is built on the GUI thread (QTextDocument); layout estimate under 2 s, not measured. First build step measures it; if over 1 s, show "Önizleme hazırlanıyor…" with `motion.wait_cursor` (owned by quick-wins I-47; build I-47 first). Preview renders 3 to 20 pages, lazily.
 
 **New Turkish text**
 
@@ -128,8 +130,8 @@ Not tried on real printers (Obs. 15). Page break inside a row is possible with Q
 **Check against the product:** Never silent: Pass (plan vs record is printed). No built-in kinds: Pass. Keyboard: Pass. Colour: Pass (no orange; Kontrol still icon + word in the table). Layout: Pass. Copy: Pass. Local-first: Pass (no new dependency).
 
 **Owner decisions needed**
-- D-3 Ctrl+P opens the preview first (one more step, Enter prints)? Recommended: yes. Alternative: keep Ctrl+P = print dialog and add the preview under another key.
-- D-4 Footer wording and date format: "20.11.2026 14:32" (recommended, Turkish order) or ISO.
+- D-3 (README O-16) Ctrl+P opens the preview first (one more step, Enter prints)? Recommended: yes. Alternative: keep Ctrl+P = print dialog and add the preview under another key.
+- D-4 Decided in the reconcile: "20.11.2026 14:32" (Turkish order) on paper and in the `Özet` sheet.
 
 **Build steps:** (1) `<thead>` plus "No" column and test the PDF header on page 2; (2) own page painter with footer and "Sayfa n / m"; (3) preview dialog with Turkish buttons; (4) Ctrl+P wiring and key tests; (5) plan/record subtitle; (6) measure 800 rows.
 
@@ -187,8 +189,8 @@ Core: `plan_names` marks a name cut by a long folder path, a clash suffix and a 
 **Check against the product:** Never silent: Pass (shortening now visible before writing). No built-in kinds: Pass. Keyboard: Pass (two keys, filter by Tab). Colour: Pass. Layout: Needs check at 150 % (Şablon scrolls as today). Copy: Pass. Local-first: Pass.
 
 **Owner decisions needed**
-- D-5 What is the "old name"? Recommended: the scan file (Kaynak). Alternatives: the numbered `belge_NNN` name, or none.
-- D-6 Show Kaynak always, or only with the toggle? Recommended: toggle, default off (keeps the list narrow).
+- D-5 (README O-17) What is the "old name"? Recommended: the scan file (Kaynak). Alternatives: the numbered `belge_NNN` name, or none.
+- D-6 Decided in the reconcile: toggle, default off (keeps the list narrow). Wording note for the Turkish terms check: list column "Kaynak" (scan file) sits next to the sheet's "Kaynak sayfalar" (page numbers).
 
 **Build steps:** (1) C1-C2 `sources` and `name_note` with core tests; (2) C3 `plan_names` and `export_job` switch with equality test; (3) `file_rows` uses core notes; (4) Kaynak column and toggle; (5) "Adı değişenler" filter; (6) copy list and key; (7) CLI `--onizle`.
 
@@ -232,7 +234,7 @@ B-003 must be decided first, otherwise report and list disagree. Reasons are the
 
 | string | where | meaning in English | status |
 |---|---|---|---|
-| Kontrol gerekenler | sheet name | needs check | existing words (`disa_aktar.py:190`) |
+| Kontrol gerekenler | sheet name | needs check | existing (`degerler_model.py:47` view name; lower case in `disa_aktar.py:189-190`) |
 | Belge no, Dosya, Kaynak sayfalar, Kontrol nedenleri | sheet header | document no., file, source pages, reasons | existing (`index.py:16-23`) except Belge no (I-35) |
 | Kontrol gerektiren belge yok. | sheet row, status line | no document needs a check | draft |
 | Kontrol listesi: index.xlsx, sayfa 'Kontrol gerekenler'. | CLI line | where the report is | draft |
@@ -242,12 +244,12 @@ B-003 must be decided first, otherwise report and list disagree. Reasons are the
 **Check against the product:** Never silent: Pass once B-003 is settled (Needs change before). No built-in kinds: Pass. Keyboard: Pass. Colour: Pass. Layout: N/A. Copy: Pass ("Kontrol", not "Şüpheli"). Local-first: Pass.
 
 **Owner decisions needed**
-- D-7 B-003: PDF/A failure is Bilgi (not Kontrol) everywhere? Recommended: yes, fix it in this build (small core change above).
-- D-8 Also a command to save the report before exporting? Recommended: no for now (sheet only); the supervisor reads the finished export.
+- D-7 (README O-18) B-003: PDF/A failure is Bilgi (not Kontrol) everywhere? Recommended: yes, fix it in this build (small core change above).
+- D-8 (README O-19) Also a command to save the report before exporting? Recommended: no for now (sheet only); the supervisor reads the finished export.
 
 **Build steps:** (1) decide and fix B-003 with its test; (2) `Kontrol gerekenler` sheet and tests; (3) CLI line; (4) UI count test; (5) only with D-8: `write_check_report`, command, key, CLI flag.
 
 ---
 
 ## Order and dependencies
-I-35 first (C4, C5, the new column), then I-40 (needs C4 and the B-003 decision), then I-39 (C1-C3, C6), then I-38 (UI only; uses C5 for the written time). Each idea can be built and tested alone after C4.
+I-35 first (C4, C5, the new column), then I-40 (needs C4 and the B-003 decision), then I-39 (C1-C3, C6), then I-38 (UI only; uses C5 for the written time). Each idea can be built and tested alone after C4. Across specs: I-38 uses `motion.wait_cursor` from quick-wins I-47; nothing here depends on A or C. Full order: `specs/README.md`.

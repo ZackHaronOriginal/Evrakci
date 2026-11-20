@@ -216,6 +216,17 @@ def _screen_scroller(window, tab: str) -> CardScroll:
 
 @pytest.mark.parametrize("text, height", [(150, 768), (150, 560), (100, 768)])
 def test_every_side_panel_at_1366_wide(qtbot, tmp_path, text, height):
+    _side_panels_at_1366_wide(qtbot, tmp_path, text, height)
+
+
+@pytest.mark.parametrize("text, height", [(150, 768), (150, 560), (100, 768)])
+def test_every_side_panel_at_1366_wide_in_the_real_look(real_look, qtbot, tmp_path, text, height):
+    """The same check as the real application is set up (Inter, palette, style sheet), where
+    the Değerler panel's "Tüm okumalar" rows once made its card taller than the panel."""
+    _side_panels_at_1366_wide(qtbot, tmp_path, text, height)
+
+
+def _side_panels_at_1366_wide(qtbot, tmp_path, text, height):
     """At 150 % no panel shows part of a card, at every stop; the hairline is there exactly
     while more is below. At 100 % the panels that fit do not scroll, trim or draw a line.
     (In-process the app font differs from the screenshot matrix, so 560 px makes sure

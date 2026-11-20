@@ -15,6 +15,59 @@ def _private_ui_settings(tmp_path, monkeypatch):
     monkeypatch.setenv("EVRAKCI_UI_AYARLAR", str(tmp_path / "ui-ayarlar.ini"))
 
 
+def _look():
+    from PySide6.QtWidgets import QApplication
+
+    from evrakci.ui import theme
+
+    app = QApplication.instance() or QApplication([])
+    return theme.manager(), app
+
+
+def _snapshot(manager, app):
+    return (manager._app, app.font(), app.palette(), app.styleSheet(), app.applicationName(),
+            app.desktopFileName())
+
+
+def _restore(manager, app, saved) -> None:
+    if _snapshot(manager, app) == saved:
+        return  # nothing changed the application's look
+    app.processEvents()  # the last test's windows finish closing before the look changes
+    manager._app, font, palette, sheet, name, desktop = saved
+    app.setFont(font)
+    app.setPalette(palette)
+    app.setStyleSheet(sheet)
+    app.setApplicationName(name)
+    app.setDesktopFileName(desktop)
+    app.processEvents()
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _app_look_stays_in_its_module():
+    """A test that calls evrakci.app.configure_application (or builds the real window, as the
+    shortcut audit does) binds the theme manager to the QApplication and installs Inter, the
+    palette and the style sheet on it. Without this, every later module measures the panels in
+    that look and every text-size change re-applies it (the Değerler side-panel scroll test
+    failed in full runs only). The look is put back when the module ends."""
+    manager, app = _look()
+    saved = _snapshot(manager, app)
+    yield
+    _restore(manager, app, saved)
+
+
+@pytest.fixture
+def real_look():
+    """The application as the real start-up sets it up (evrakci.app.configure_application:
+    Inter, palette, style sheet), for one test; the plain test look comes back afterwards."""
+    from evrakci import app as start_up
+
+    manager, app = _look()
+    saved = _snapshot(manager, app)
+    start_up.configure_application(app)
+    yield app
+    _restore(manager, app, saved)
+
+
 MODAL_ANSWERED = "evrakci_test_modal_answered"  # QApplication property: a helper answers dialogs
 
 

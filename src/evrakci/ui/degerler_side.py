@@ -495,7 +495,7 @@ class ReadingRow(QFrame):
         self.setMinimumHeight(self.MIN_HEIGHT)
         self.setToolTip(item.text)
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, m.size("s1"), 0, m.size("s1"))
+        outer.setContentsMargins(0, 0, 0, 0)  # the rows are at least 32 px high anyway
         outer.setSpacing(0)
         row = QHBoxLayout()
         row.setSpacing(m.size("s2"))
@@ -571,9 +571,9 @@ class ValueCard(QFrame):
         col.addWidget(self.suggestion_label)
         col.addSpacing(2)
         col.addWidget(self.suggestion)
-        self.readings_box = QWidget()
+        self.readings_box = QFrame()
         self.readings_col = QVBoxLayout(self.readings_box)
-        self.readings_col.setContentsMargins(0, m.size("s3"), 0, 0)
+        self.readings_col.setContentsMargins(0, m.size("s1"), 0, 0)
         self.readings_col.setSpacing(m.size("s1"))
         self.readings_label = _caption("Tüm okumalar")
         self.readings_col.addWidget(self.readings_label)
@@ -581,8 +581,10 @@ class ValueCard(QFrame):
         self.more = _caption("")
         self.readings_col.addWidget(self.more)
         self.readings_box.hide()
+        self.has_readings = False
+        self._in_card = col
         col.addWidget(self.readings_box)
-        col.addSpacing(m.size("s3"))
+        col.addSpacing(m.size("s1"))
         col.addWidget(self.level)
         col.addSpacing(m.size("s1"))
         col.addWidget(self.why)
@@ -616,7 +618,38 @@ class ValueCard(QFrame):
         extra = len(items) - len(shown) if shown else 0
         self.more.setText(f"+{extra} daha")
         self.more.setVisible(extra > 0)
-        self.readings_box.setVisible(bool(shown))
+        self.has_readings = bool(shown)
+        self.sync_readings()
+        self.layout().invalidate()
+
+    def sync_readings(self) -> None:
+        """The block shows with readings, and only while this card shows (it can sit outside)."""
+        self.readings_box.setVisible(self.has_readings and not self.isHidden())
+
+    def split_readings(self, stack: QVBoxLayout | None) -> None:
+        """Bigger text: the whole card (with its rows) is taller than a short window's panel,
+        and a card taller than the panel cannot scroll whole. "Tüm okumalar" then is a card of
+        its own under this one (`stack` = the panel's column); at normal text it stays inside
+        (stack is None)."""
+        box, margin = self.readings_box, theme.manager().size("s4")
+        split = stack is not None
+        if split == (box.property("kind") == "card"):
+            return
+        if split:
+            self._in_card.removeWidget(box)
+            box.setProperty("kind", "card")
+            stack.insertWidget(stack.indexOf(self) + 1, box)
+            self.readings_col.setContentsMargins(margin, margin, margin, margin)
+        else:
+            stack_layout = box.parentWidget().layout()
+            stack_layout.removeWidget(box)
+            box.setProperty("kind", "")
+            self.readings_col.setContentsMargins(0, theme.manager().size("s1"), 0, 0)
+            self._in_card.insertWidget(self._in_card.indexOf(self.level) - 1, box)
+        box.setParent(self if not split else stack.parentWidget())
+        box.style().unpolish(box)
+        box.style().polish(box)
+        self.sync_readings()
         self.layout().invalidate()
 
     def show_value(self, text: str, colour: str = "text") -> None:
@@ -684,6 +717,7 @@ class SidePanel(QWidget):
         self.value = ValueCard()
         stack.addWidget(self.source)
         stack.addWidget(self.value)
+        self.stack = stack
         stack.addStretch(1)
         self.scroll = _Scroll()
         self.scroll.setWidgetResizable(True)
@@ -733,6 +767,7 @@ class SidePanel(QWidget):
             button: QPushButton = getattr(self, name)
             button.setIcon(make_icon(icon, role, m.size("icon-sm")))
         self.accept_button.setMinimumHeight(m.size("lg-h"))
+        self.value.split_readings(self.stack if m.text_scale() > 100 else None)
 
     def set_blank(self, blank: bool) -> None:
         layout = self.layout()
@@ -740,6 +775,7 @@ class SidePanel(QWidget):
         layout.setStretch(1, 0)
         layout.setStretch(3, 0 if blank else 1)
         self.value.setVisible(not blank)
+        self.value.sync_readings()
         self.relayout()
 
     def relayout(self) -> None:

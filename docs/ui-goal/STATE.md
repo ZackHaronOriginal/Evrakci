@@ -74,16 +74,14 @@ Updated after every accepted step. A new session or a compacted one reads this f
   Side panel whole-card fix fb66733 (Q-24). A test_ui_measure order failure is being fixed (main tree).
   Step I-22 DONE (merge c66d42a): required values marked ("Firma *", "· zorunlu"); emptying one stores Kontrol
   with the toast (Geri al only for its own step) and the same CLI sentence; review.set_value(required=).
-  GROUP B BUILT (I-47a/b, I-21, I-19, I-17, I-23, I-22, I-28). Before the group B report:
-  (1) CI linux-build segfault: crash after test_i19_building_the_rows_opens_no_stray_window with the saver
-      thread writing (cyclic GC frees Qt objects off the window thread). An Opus agent's UNCOMMITTED fix is in
-      the main tree (src/evrakci/ui/gc_guard.py, app.py, saver.py, workers.py, thumbnails.py, degerler_side.py,
-      tests/ui/test_gc_guard.py, test_degerler.py); paused by the usage limit until 00:10 UTC; resume it, then
-      verify (timing tests 5/5, perf, full suite) and commit.
-  (2) tests/ui/test_ui_measure.py::test_stacked_page_pill_placeholder_and_caption_button fails in full runs
-      only (DEC-CON-02 placeholder contrast; look state from earlier modules); agent paused, resume.
-  (3) Then full suite + ruff, Opus review of the group diff (b3709f9..HEAD), report to the owner.
-  Then A (I-08 first; task specs to write from specs/kontrol-filters.md).
+  GROUP B CLOSED (471b7dd): all 8 items built; CI crash fixed (B-089: gc_guard c7008ab, controller cycle
+  5b9f3aa, CardScroll filter 3ba18d1); group review docs/ui-goal/review-group-b.md (0 S1, 0 S2, 7 S3, 10 S4):
+  R-B-1/3/4/6/7 fixed in 471b7dd, R-B-2 ledgered B-093, R-B-5 half waits on Q-25 (B-091); B-092 needs-repro.
+  Full suite at the fix: 2686 passed, 4 skipped, 202 xfailed, 0 failed; ruff clean; action paths 285 pairs,
+  0 problems. Group B report sent to the owner.
+  GROUP A: I-08 built on worktree branch a08 (685f3a9), gates done (Kapı G clean; lens c: new CLI/history
+  strings outside the table -> fix round), reviewer running. Next: I-08 fix round, merge, then A §0 + I-09
+  (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,

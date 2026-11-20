@@ -52,3 +52,4 @@ docs/superpowers/mockups/fonts/
 
 # ui_measure CI report
 ui-measure.tsv
+.claude/worktrees/

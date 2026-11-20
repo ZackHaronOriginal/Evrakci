@@ -63,7 +63,12 @@ Updated after every accepted step. A new session or a compacted one reads this f
   test_cli_values.py::test_cli_levels_match_the_window_levels, test_degerler.py icon tests; matrix 0 clipping.
   OPEN: tests/ui/test_card_scroll.py::test_every_side_panel_at_1366_wide (Değerler) fails in full runs and on
   Windows CI since I-19 (afe9ada), passes alone; being fixed next.
-  Next: I-23, I-22 (task specs written), I-28 (in a worktree), I-23, I-22, I-28, then A,
+  Step I-28 DONE (merge cde7e7c): weakest examples first in Şablonlar (core weakest_examples, flagged_count in
+  core; N / Shift+N, Ctrl+L list "Zayıf örnekler" with title; keys say "Önce Ctrl+T ile örnekleri deneyin."
+  before a try-all; popup deleted on close; scrolling only for that popup). Evidence tests/ui/test_sablon_weak.py,
+  tests/test_template_read.py; 930 passed on the touched files after the merge; audits clean; matrix 0 clipping.
+  IN PROGRESS: I-23 (worktree branch i23), test_card_scroll fix (main tree), CI segfault hunt (py3.12, seg2).
+  Next: I-22, then the group B review and report, then A (I-08 first).
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,

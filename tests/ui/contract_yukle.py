@@ -20,7 +20,7 @@ from contract_helpers import (
     settle,
     wait_until,
 )
-from PySide6.QtCore import QModelIndex, QUrl
+from PySide6.QtCore import QModelIndex
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QInputDialog, QPushButton
 
@@ -195,36 +195,37 @@ def _feedback_yukle_renamed(c: Ctx) -> None:
 
 @helper("pre.yukle_show")
 def _pre_yukle_show(c: Ctx) -> None:
-    opened: list[QUrl] = []
-    patcher = mock.patch.object(QDesktopServices, "openUrl",
-                                staticmethod(lambda url: opened.append(url) or True))
+    shown: list[Path] = []
+    patcher = mock.patch.object(QDesktopServices, "openUrl", staticmethod(
+        lambda url: shown.append(Path(url.toLocalFile())) or True))
     patcher.start()
     c.undo.append(patcher.stop)
-    # Windows selects the batch file in Explorer instead of opening the folder: the same
-    # outcome (the file's folder is shown), through the one function the code uses there.
+    # Windows selects the batch file in Explorer instead of opening its folder: both record
+    # what was shown as a Path (not a string: the separators differ), through the one function
+    # the code uses there.
     from evrakci.ui import yukle as yukle_module
-    selector = mock.patch.object(
-        yukle_module, "select_in_explorer",
-        lambda target: opened.append(QUrl.fromLocalFile(str(Path(target).parent))))
+    selector = mock.patch.object(yukle_module, "select_in_explorer",
+                                 lambda target: shown.append(Path(target)))
     selector.start()
     c.undo.append(selector.stop)
-    c.data["opened"] = opened
+    c.data["opened"] = shown
     c.win.yukle.table.select_batch("b1")
     _focus_table(c)
 
 
 @helper("effect.yukle_shown")
 def _effect_yukle_shown(c: Ctx) -> None:
+    import os
+
     ctl = c.win.controller()
-    expected = c.win.store.batch_file(ctl.job, ctl.job.batches[0]).parent
-    assert [u.toLocalFile() for u in c.data["opened"]] == [str(expected)], c.data["opened"]
+    batch_file = c.win.store.batch_file(ctl.job, ctl.job.get_batch("b1"))  # the selected batch
+    expected = batch_file if os.name == "nt" else batch_file.parent  # file selected / folder opened
+    assert c.data["opened"] == [expected], c.data["opened"]
 
 
 @helper("feedback.yukle_shown")
 def _feedback_yukle_shown(c: Ctx) -> None:
-    from pathlib import Path
-
-    assert len(c.data["opened"]) == 1 and Path(c.data["opened"][0].toLocalFile()).is_dir()
+    assert len(c.data["opened"]) == 1 and c.data["opened"][0].exists()
     assert not c.win.toaster.current_text(), heard(c.win)  # no 'Dosya bulunamadı'
 
 

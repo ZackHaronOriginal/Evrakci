@@ -94,6 +94,10 @@ def _heading_row() -> tuple[QWidget, QLabel, QLabel]:
     return bar, title, hint
 
 
+def _on_windows() -> bool:
+    return os.name == "nt"
+
+
 def select_in_explorer(target: Path) -> None:
     """Windows: Explorer with `target` selected. The one place Yükle starts Explorer."""
     subprocess.Popen(["explorer", "/select,", str(target)])  # noqa: S603, S607
@@ -607,7 +611,7 @@ class YukleScreen(QWidget):
             target = self.store.batch_file(controller.job, controller.job.get_batch(batch_id))
         folder = self.store.batch_file(controller.job, controller.job.batches[0]).parent \
             if controller.job.batches else self.store._job_dir(controller.job.id)
-        if target is not None and target.is_file() and os.name == "nt":
+        if target is not None and target.is_file() and _on_windows():
             select_in_explorer(target)
         elif folder.is_dir():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))

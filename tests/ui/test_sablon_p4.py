@@ -2,8 +2,9 @@
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QScrollArea
+from PySide6.QtWidgets import QApplication, QScrollArea
 from test_ledger_c import _sablon
 
 from evrakci.ui.sablon_inspector import InspectorPanel, InspectorState
@@ -33,6 +34,25 @@ def test_long_unbroken_read_value_stays_inside_the_inspector(qtbot, width):  # F
     panel = _panel(qtbot, state, width)
     assert _fits(panel)
     assert panel.read_value.toolTip() == text
+
+
+@pytest.mark.parametrize("points", [16, 20])
+@pytest.mark.parametrize("width", [320, 380])
+def test_wide_glyphs_do_not_push_the_inspector_past_its_viewport(qtbot, width, points):
+    """Windows fonts are wider than the Linux ones: the panel's minimum must follow the content
+    (a break mark every 12 glyphs, an unwrapped caption, the row of the page field)."""
+    app = QApplication.instance()
+    old = app.font()
+    wide = QFont(old)
+    wide.setPointSize(points)
+    app.setFont(wide)
+    try:
+        state = InspectorState(mode="box", top="Kutu 1 / 1", title="Sicil_No",
+                               box=(10, 10, 60, 20), shown=Shown("X" * 150, "emin", 90))
+        panel = _panel(qtbot, state, width)
+        assert _fits(panel)
+    finally:
+        app.setFont(old)
 
 
 def test_variable_less_template_inspector_fits(qtbot):  # F-sablonlar-03

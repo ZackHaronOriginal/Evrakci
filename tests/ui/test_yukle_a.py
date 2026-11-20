@@ -267,6 +267,33 @@ def test_yukle_actions_are_connected_and_follow_the_selection(qtbot, tmp_path, p
     assert first in [b.id for b in screen.controller.job.batches]
 
 
+def test_show_in_explorer_selects_the_batch_file_on_windows(qtbot, tmp_path, pdfs, monkeypatch):
+    """The Windows branch, run here: with a batch selected its file is selected in Explorer;
+    without one (or off Windows) the job's folder is opened."""
+    from PySide6.QtGui import QDesktopServices
+
+    from evrakci.ui import yukle as yukle_module
+
+    window = _window(qtbot, tmp_path)
+    window.show_tab("yukle")
+    screen = _open(window, pdfs)
+    job = screen.controller.job
+    selected: list[Path] = []
+    opened: list[Path] = []
+    monkeypatch.setattr(yukle_module, "select_in_explorer", selected.append)
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(
+        lambda url: opened.append(Path(url.toLocalFile())) or True))
+    second = job.batches[1]
+    monkeypatch.setattr(yukle_module, "_on_windows", lambda: True)
+    screen.table.select_batch(second.id)
+    screen.show_in_explorer()
+    assert selected == [screen.store.batch_file(job, second)] and not opened
+    selected.clear()
+    monkeypatch.setattr(yukle_module, "_on_windows", lambda: False)
+    screen.show_in_explorer()
+    assert not selected and opened == [screen.store.batch_file(job, second).parent]
+
+
 def test_alt_arrows_and_del_work_from_the_table(qtbot, tmp_path, pdfs):
     from PySide6.QtTest import QTest
 

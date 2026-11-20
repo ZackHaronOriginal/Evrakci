@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QLocale, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QLocale, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QValidator
 from PySide6.QtWidgets import (
     QApplication,
@@ -234,12 +234,14 @@ class BreakableLabel(QLabel):
 
 
 def _breakable(text: str, run: int = 12) -> str:
-    """Text with a zero-width space after every `run` characters of an unbroken run, so a
-    word-wrapped label can break it."""
+    """Text with a zero-width space after every character of an unbroken run longer than `run`,
+    so a word-wrapped label can break it anywhere. A fixed number of characters per piece would
+    make the label's minimum width the width of that many glyphs, which wider fonts (Windows)
+    push past a narrow inspector; one character is the least any font needs."""
     out = []
     for word in text.split(" "):
         if len(word) > run:
-            word = "\u200b".join(word[i:i + run] for i in range(0, len(word), run))
+            word = "\u200b".join(word)
         out.append(word)
     return " ".join(out)
 
@@ -303,6 +305,31 @@ class InspectorPanel(QWidget):
             previous = spin
         self.setTabOrder(previous, self.save)
         theme.follow(self, self._restyle, "sablon-inspector")
+        scroll.viewport().installEventFilter(self)
+        body.installEventFilter(self)
+
+    # -- fitting ----------------------------------------------------------------------------
+    def least_width(self) -> int:
+        """What the content needs plus the panel's own frame: the content grows with the font
+        (Windows fonts are wider) without the panel being resized, and then it was cut."""
+        frame = self.width() - self.scroll.viewport().width() if self.isVisible() else 0
+        return self.scroll.widget().minimumSizeHint().width() + max(frame, 0)
+
+    def _fit(self) -> None:
+        wanted = self.least_width()
+        if wanted != self.minimumWidth():
+            self.setMinimumWidth(wanted)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._fit()
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        kind = event.type()
+        if (watched is self.scroll.viewport() and kind == QEvent.Type.Resize) \
+                or (watched is self.scroll.widget() and kind == QEvent.Type.LayoutRequest):
+            QTimer.singleShot(0, self, self._fit)
+        return super().eventFilter(watched, event)
 
     # -- building ---------------------------------------------------------------------------
     def _head(self) -> QVBoxLayout:
@@ -360,6 +387,7 @@ class InspectorPanel(QWidget):
         self.required = QCheckBox("Zorunlu")
         self.required.setAccessibleName("Zorunlu")
         self.page_key = _label("Kutunun sayfası")
+        self.page_key.setWordWrap(True)  # the row gives way before the panel does
         self.page = PageSpin()
         self.page.setFixedWidth(FIELD_W)
         self.page_key.setBuddy(self.page)
@@ -373,6 +401,7 @@ class InspectorPanel(QWidget):
         geometry.setContentsMargins(0, 0, 0, 0)
         geometry.setSpacing(m.size("s1"))
         self.geometry_label = _label("X, Y, genişlik, yükseklik (mm)")
+        self.geometry_label.setWordWrap(True)  # wider fonts must not push the panel wider
         grid = QGridLayout()
         grid.setSpacing(m.size("s2"))
         self.spins = [MmSpin(label) for label in ("Kutu X (mm)", "Kutu Y (mm)",

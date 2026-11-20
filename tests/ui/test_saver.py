@@ -197,7 +197,9 @@ def test_the_job_file_is_whole_whenever_it_is_read_while_the_saver_writes(qtbot,
         path = store._job_file(job.id)
         while not stop.is_set():
             try:
-                json.loads(path.read_text(encoding="utf-8"))
+                # the store's own read (what the job list and load use; it retries a read
+                # that meets os.replace on Windows) must never see an error or half a file
+                json.loads(store._read_text(path))
                 reads[0] += 1
             except (OSError, ValueError) as error:
                 bad.append(repr(error))

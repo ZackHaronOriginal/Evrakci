@@ -56,10 +56,12 @@ from evrakci.ui.degerler_model import (
     joined,
     make_cell,
     matches,
+    section_name,
     tr_lower,
+    uncertain_positions,
 )
 from evrakci.ui.degerler_parts import EmptyState, HeaderBar, StatusItem, ViewSelector
-from evrakci.ui.degerler_side import Crop, PageImages, SidePanel
+from evrakci.ui.degerler_side import MAX_READINGS, Crop, PageImages, ReadingItem, SidePanel
 from evrakci.ui.degerler_table import (
     SAMPLE_COLUMNS,
     VALUE_KINDS,
@@ -242,6 +244,7 @@ class DegerlerScreen(QWidget):
         card.addWidget(self.header_bar)
         self.model = ValuesModel(self)
         self.model.edited.connect(self._apply_edit)
+        self._readings: list[ReadingItem] = []
         self.table = ValuesTable()
         self.table.setModel(self.model)
         self.table.hint_keys = self._hint_keys
@@ -249,6 +252,7 @@ class DegerlerScreen(QWidget):
         self.table.selectionModel().selectionChanged.connect(lambda *_: self._sync_actions())
         self.table.submitted.connect(self._editor_closed)
         self.table.return_pressed.connect(self.accept_current)
+        self.table.reading_key.connect(self.pick_reading)
         header = self.table.horizontalHeader()
         header.sectionResized.connect(self._header_moved)
         header.sortIndicatorChanged.connect(self._header_moved)
@@ -264,6 +268,7 @@ class DegerlerScreen(QWidget):
         self.side = SidePanel(self.images)
         self.side.accept_button.clicked.connect(self.accept_current)
         self.side.type_button.clicked.connect(self.type_current)
+        self.side.value.reading_picked.connect(self.pick_reading)
         self.side.variant_button.clicked.connect(self._draw_variant)
         self.side.source.whole.clicked.connect(self.toggle_whole_page)
         self.side.source.view.box_clicked.connect(self._box_clicked)
@@ -1077,6 +1082,7 @@ class DegerlerScreen(QWidget):
                                    "Okunan değerler burada kaynağıyla görünür.")
             side.set_blank(True)
             side.set_actions(False, False, False)
+            self._readings = []
             return
         side.set_blank(False)
         page = row.page_of(cell)
@@ -1111,9 +1117,41 @@ class DegerlerScreen(QWidget):
         else:
             card.why.setText(cell.why() if not row.error else f"{cell.why()} {row.error}".strip())
         card.why.setVisible(bool(card.why.text()))
+        self._readings = self._reading_items(cell)
+        card.set_readings(self._readings)
         side.relayout()
         # Onayla works on every read value: it accepts, confirms, or (already reviewed) moves on
         side.set_actions(cell.value is not None, row.read, row.template is not None)
+
+    @staticmethod
+    def _reading_items(cell: Cell) -> list[ReadingItem]:
+        """"Tüm okumalar": one item per stored reading (I-19)."""
+        value = cell.value
+        if value is None or len(value.readings) < 2:
+            return []
+        texts = [r.text for r in value.readings] + [value.suggestion]
+        return [ReadingItem(section_name(r.section), r.text,
+                            uncertain_positions(r.text, texts, value.flagged),
+                            round(r.confidence * 100),
+                            bool(value.suggestion) and r.text == value.suggestion,
+                            r.problem or "")
+                for r in value.readings]
+
+    def pick_reading(self, number: int) -> None:
+        """Click on a reading row or Alt+1..Alt+4: the editor takes that reading's text (it
+        opens first when closed); Enter then stores it as one undo step."""
+        items = self._readings[:MAX_READINGS]
+        if not 0 <= number < len(items) or not items[number].text:
+            return  # no such reading, or an empty one ("boş")
+        if not self.table.is_editing():
+            self.type_current()
+        editor = self.table.open_editor_widget()
+        if editor is None:
+            return
+        editor.setText(items[number].text)
+        editor.setModified(True)
+        editor.end(False)
+        editor.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _crop(self, row: Row, cell: Cell, pid: str) -> Crop:
         template = row.template

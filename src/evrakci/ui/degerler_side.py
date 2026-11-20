@@ -244,18 +244,21 @@ class MarkedText(QWidget):
 
     def __init__(self, role: str, style: str = "uncertain", parent=None) -> None:
         super().__init__(parent)
-        self.role = role  # "read" (panel size) or "big" (page size, semibold)
+        self.role = role  # "read" (panel size), "big" (page size, semibold) or "body" (one line)
         self.style = style
         self.text = ""
         self.marks: tuple[int, ...] = ()
         self.colour = "text"
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        if role == "body":
+            self.setMinimumWidth(0)
         theme.follow(self, self._resize, "marked")
 
     def font_(self) -> QFont:
         m = theme.manager()
         font = m.font("value")
         size, weight = {"read": ("fs-panel", QFont.Weight.Normal),
+                        "body": ("fs-body", QFont.Weight.Normal),
                         "big": ("fs-page", QFont.Weight.DemiBold)}[self.role]
         font.setPixelSize(m.size(size))
         font.setWeight(weight)
@@ -263,11 +266,13 @@ class MarkedText(QWidget):
         return font
 
     def _line(self) -> int:
-        return theme.manager().size("lh-panel" if self.role == "read" else "lh-page")
+        return theme.manager().size({"read": "lh-panel", "body": "lh-body"}.get(self.role,
+                                                                                    "lh-page"))
 
     def _wraps(self, width: int) -> bool:
         metrics = QFontMetrics(self.font_())
-        return not self.marks and width > 0 and metrics.horizontalAdvance(self.text) > width
+        return (self.role != "body" and not self.marks and width > 0
+                and metrics.horizontalAdvance(self.text) > width)
 
     def _resize(self) -> None:
         height = self._line()
@@ -455,8 +460,94 @@ class SourceCard(QFrame):
         self.view.set_crop(crop, description)
 
 
+MAX_READINGS = 4  # I-19: rows in "Tüm okumalar"; the rest is "+N daha"
+
+
+@dataclass(frozen=True)
+class ReadingItem:
+    """One row of "Tüm okumalar": a section's reading, as the card shows it."""
+
+    name: str
+    text: str
+    marks: tuple[int, ...]
+    percent: int
+    suggested: bool
+    problem: str = ""
+
+
+class ReadingRow(QFrame):
+    """A clickable reading (at least 32 px high, AUD-HIT-03; it grows with its content):
+    section, text in the body style (one line, elided), Güven %, and the words "Öneri" (with
+    an icon) / the problem under it. Click = put it into the editor; a reading without text
+    shows "boş" and cannot be picked."""
+
+    picked = Signal()
+    MIN_HEIGHT = 32
+
+    def __init__(self, item: ReadingItem, parent=None) -> None:
+        super().__init__(parent)
+        m = theme.manager()
+        self.item = item
+        self.pickable = bool(item.text)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # the keys are F2 + Alt+digit
+        if self.pickable:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMinimumHeight(self.MIN_HEIGHT)
+        self.setToolTip(item.text)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, m.size("s1"), 0, m.size("s1"))
+        outer.setSpacing(0)
+        row = QHBoxLayout()
+        row.setSpacing(m.size("s2"))
+        self.name = _caption(item.name)
+        self.text = MarkedText("body")
+        self.text.set(item.text or "boş", item.marks if item.text else (),
+                      "text" if item.text else "text-2")
+        self.text.setToolTip(item.text)
+        self.percent = _caption(f"%{item.percent}")
+        row.addWidget(self.name)
+        row.addWidget(self.text, 1)
+        row.addWidget(self.percent)
+        outer.addLayout(row)
+        # the second line (only when there is something to say): the "Öneri" tag, the problem
+        notes = QHBoxLayout()
+        notes.setSpacing(m.size("s2"))
+        self.icon = QLabel()
+        self.tag = _caption("Öneri" if item.suggested else "")
+        self.problem = _caption(item.problem, wrap=True)
+        notes.addWidget(self.icon)
+        notes.addWidget(self.tag)
+        notes.addWidget(self.problem)
+        notes.addStretch(1)
+        outer.addLayout(notes)  # parents the labels: only then may they be shown or hidden
+        self.icon.setVisible(item.suggested)
+        self.tag.setVisible(item.suggested)
+        self.problem.setVisible(bool(item.problem))
+        for label in (self.name, self.text, self.percent, self.icon, self.tag, self.problem):
+            label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAccessibleName(" ".join(p for p in (
+            f"{item.name}: {item.text or 'boş'}", f"%{item.percent}",
+            "Öneri" if item.suggested else "", item.problem) if p))
+        theme.follow(self, self._restyle, f"degerler-reading-{id(self)}")
+
+    def _restyle(self) -> None:
+        m = theme.manager()
+        size = m.size("icon-sm")
+        self.icon.setPixmap(make_icon("check", "icon", size).pixmap(size, size))
+        self.name.setFixedWidth(QFontMetrics(self.name.font()).horizontalAdvance("Varyant 99"))
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton and self.pickable:
+            self.picked.emit()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+
 class ValueCard(QFrame):
     """Okunan (with uncertain characters), Öneri (with the changes marked), Güven and why."""
+
+    reading_picked = Signal(int)  # the row's index in "Tüm okumalar"
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -480,6 +571,17 @@ class ValueCard(QFrame):
         col.addWidget(self.suggestion_label)
         col.addSpacing(2)
         col.addWidget(self.suggestion)
+        self.readings_box = QWidget()
+        self.readings_col = QVBoxLayout(self.readings_box)
+        self.readings_col.setContentsMargins(0, m.size("s3"), 0, 0)
+        self.readings_col.setSpacing(m.size("s1"))
+        self.readings_label = _caption("Tüm okumalar")
+        self.readings_col.addWidget(self.readings_label)
+        self.reading_rows: list[ReadingRow] = []
+        self.more = _caption("")
+        self.readings_col.addWidget(self.more)
+        self.readings_box.hide()
+        col.addWidget(self.readings_box)
         col.addSpacing(m.size("s3"))
         col.addWidget(self.level)
         col.addSpacing(m.size("s1"))
@@ -495,6 +597,26 @@ class ValueCard(QFrame):
         self.suggestion_label.setVisible(bool(suggestion))
         self.suggestion.setVisible(bool(suggestion))
         self.suggestion.set(suggestion, changes)
+        self.layout().invalidate()
+
+    def set_readings(self, items: list[ReadingItem]) -> None:
+        """"Tüm okumalar": only with two or more readings; at most MAX_READINGS rows, then
+        "+N daha"."""
+        for row in self.reading_rows:
+            self.readings_col.removeWidget(row)
+            row.hide()
+            row.deleteLater()
+        self.reading_rows = []
+        shown = items[:MAX_READINGS] if len(items) >= 2 else []
+        for number, item in enumerate(shown):
+            row = ReadingRow(item)
+            row.picked.connect(lambda n=number: self.reading_picked.emit(n))
+            self.readings_col.insertWidget(1 + number, row)
+            self.reading_rows.append(row)
+        extra = len(items) - len(shown) if shown else 0
+        self.more.setText(f"+{extra} daha")
+        self.more.setVisible(extra > 0)
+        self.readings_box.setVisible(bool(shown))
         self.layout().invalidate()
 
     def show_value(self, text: str, colour: str = "text") -> None:

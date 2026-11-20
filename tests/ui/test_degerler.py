@@ -7,7 +7,7 @@ import threading
 import pytest
 from fakes import job_from_kinds, make_pdf, text_page
 from PySide6.QtCore import QByteArray, QEvent, QPointF, Qt
-from PySide6.QtGui import QMouseEvent
+from PySide6.QtGui import QFontMetrics, QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QAbstractButton, QApplication, QComboBox, QLabel, QLineEdit, QWidget
 
@@ -508,6 +508,8 @@ def window(qtbot, tmp_path):
     win.show()
     win.show_tab("degerler")
     qtbot.waitUntil(lambda: win.degerler.window_ is win)
+    win.activateWindow()
+    qtbot.waitUntil(win.isActiveWindow)  # activation is asynchronous; the N / Enter keys need it
     return win, sicil
 
 
@@ -929,3 +931,142 @@ def test_enter_on_the_focused_accept_button_presses_it_once(qtbot, window):
     QTest.keyClick(button, Qt.Key.Key_Return)
     edited = [v.edited for d in ctl.documents() for v in current_values(ctl.job, d).values()]
     assert sum(edited) == 1, edited
+
+
+# -- I-19: every section's reading in the value card ------------------------------------------
+def _many(n):
+    return VariableValue("", 0.0, None, True, "48213", tuple(
+        SectionReading(i, "48213" if i == 1 else f"4821{i}", 0.4 + i / 100) for i in range(n)))
+
+
+def _card_screen(qtbot, tmp_path, value):
+    store, job = _job(tmp_path)
+    ctl = JobController(store, job)
+    templates, template, sicil, firma = _template(tmp_path)
+    _fill(ctl, template, sicil, firma, values=(value, GOOD, GOOD))
+    return ctl, _screen(qtbot, ctl, templates), sicil
+
+
+def test_i19_two_readings_are_listed_and_the_suggestion_is_tagged(qtbot, tmp_path):
+    _, screen, _ = _card_screen(qtbot, tmp_path, BAD)
+    card = screen.side.value
+    assert card.readings_label.text() == "Tüm okumalar" and not card.readings_box.isHidden()
+    rows = card.reading_rows
+    assert [r.name.text() for r in rows] == ["Bölüm 1", "Varyant 2"]
+    assert [r.text.text for r in rows] == ["482I3", "48213"]
+    assert rows[0].text.marks == (3,)
+    assert [r.percent.text() for r in rows] == ["%41", "%55"]
+    assert [r.tag.text() for r in rows] == ["", "Öneri"]
+    assert all(r.height() >= 32 for r in rows) and card.more.isHidden()
+
+
+def test_i19_a_single_reading_shows_no_block(qtbot, tmp_path):
+    one = VariableValue("", 0.0, None, True, "48213", (SectionReading(1, "48213", 0.55),))
+    _, screen, _ = _card_screen(qtbot, tmp_path, one)
+    assert screen.side.value.readings_box.isHidden()
+
+
+def test_i19_six_readings_are_four_rows_and_n_more(qtbot, tmp_path):
+    _, screen, _ = _card_screen(qtbot, tmp_path, _many(6))
+    card = screen.side.value
+    assert len(card.reading_rows) == 4
+    assert card.more.text() == "+2 daha" and not card.more.isHidden()
+
+
+def test_i19_clicking_a_row_fills_the_editor_and_enter_is_one_undo_step(qtbot, tmp_path):
+    ctl, screen, sicil = _card_screen(qtbot, tmp_path, BAD)
+    screen.show()
+    steps = ctl.undo_stack.index()
+    QTest.mouseClick(screen.side.value.reading_rows[0], Qt.MouseButton.LeftButton)
+    editor = screen.table.open_editor_widget()
+    assert editor is not None and editor.text() == "482I3"
+    QTest.keyClick(editor, Qt.Key.Key_Return)
+    qtbot.waitUntil(lambda: _value(ctl, 0, sicil.key).value == "482I3")
+    assert ctl.undo_stack.index() == steps + 1
+    assert ctl.undo_stack.undoText() == "Değeri düzelt"
+    ctl.undo()
+    assert _value(ctl, 0, sicil.key).flagged and ctl.undo_stack.index() == steps
+
+
+def test_i19_alt_2_in_the_editor_takes_reading_two(qtbot, tmp_path):
+    ctl, screen, sicil = _card_screen(qtbot, tmp_path, _many(3))
+    screen.show()
+    screen.type_current()
+    editor = screen.table.open_editor_widget()
+    QTest.keyClick(editor, Qt.Key.Key_3, Qt.KeyboardModifier.AltModifier)
+    assert editor.text() == "48212"
+    QTest.keyClick(editor, Qt.Key.Key_2, Qt.KeyboardModifier.AltModifier)
+    assert editor.text() == "48213"  # reading 2 (index 1)
+    QTest.keyClick(editor, Qt.Key.Key_4, Qt.KeyboardModifier.AltModifier)
+    assert editor.text() == "48213"  # no fourth reading: nothing changes
+    assert _value(ctl, 0, sicil.key).flagged  # taking a reading alone stores nothing
+
+
+def test_i19_rows_do_not_overlap_at_150_percent_and_long_text_is_elided(qtbot, tmp_path):
+    from evrakci.ui import theme
+    manager = theme.manager()
+    manager.set_text_scale(150)
+    try:
+        long = "48213" * 12
+        value = VariableValue("", 0.0, None, True, "48213", (
+            SectionReading(0, "482I3", 0.41, "1 karakter belirsiz"),
+            SectionReading(1, "48213", 0.55), SectionReading(2, long, 0.30),
+            SectionReading(3, "48218", 0.45)))
+        _, screen, _ = _card_screen(qtbot, tmp_path, value)
+        screen.resize(1100, 700)
+        screen.show()
+        card = screen.side.value
+        qtbot.waitUntil(lambda: card.reading_rows and card.reading_rows[0].height() > 0)
+        rows = card.reading_rows
+        label_bottom = card.readings_label.geometry().bottom()
+        boxes = [r.geometry() for r in rows]
+        assert boxes[0].top() > label_bottom
+        for a, b in zip(boxes, boxes[1:], strict=False):
+            assert a.bottom() < b.top(), (a, b)
+        assert all(r.height() >= 32 for r in rows)
+        for r in rows:
+            assert r.text.height() <= r.height()
+            right = r.text.geometry().right()
+            assert right < r.percent.geometry().left()
+            assert r.name.geometry().right() < r.text.geometry().left()
+            for note in (r.tag, r.problem):  # the second line sits below the first
+                if note.isVisible():
+                    assert note.geometry().top() >= r.text.geometry().bottom()
+            assert r.geometry().right() <= card.readings_box.rect().right() + 1
+        assert rows[2].toolTip() == long and rows[2].text.toolTip() == long
+        metrics = QFontMetrics(rows[2].text.font_())
+        assert metrics.horizontalAdvance(long) > rows[2].text.width()  # elided when painted
+    finally:
+        manager.set_text_scale(100)
+
+
+def test_i19_an_empty_reading_is_shown_but_cannot_be_picked(qtbot, tmp_path):
+    value = VariableValue("", 0.0, None, True, "48213", (
+        SectionReading(0, "", 0.0), SectionReading(1, "48213", 0.55)))
+    ctl, screen, sicil = _card_screen(qtbot, tmp_path, value)
+    screen.show()
+    row = screen.side.value.reading_rows[0]
+    assert row.text.text == "boş" and not row.pickable
+    QTest.mouseClick(row, Qt.MouseButton.LeftButton)
+    assert screen.table.open_editor_widget() is None
+    screen.type_current()
+    editor = screen.table.open_editor_widget()
+    before = editor.text()
+    QTest.keyClick(editor, Qt.Key.Key_1, Qt.KeyboardModifier.AltModifier)
+    assert editor.text() == before
+
+
+def test_i19_every_row_equal_to_the_suggestion_is_tagged(qtbot, tmp_path):
+    value = VariableValue("", 0.0, None, True, "48213", (
+        SectionReading(0, "48213", 0.40), SectionReading(1, "482I3", 0.41),
+        SectionReading(2, "48213", 0.55)))
+    _, screen, _ = _card_screen(qtbot, tmp_path, value)
+    assert [r.tag.text() for r in screen.side.value.reading_rows] == ["Öneri", "", "Öneri"]
+
+
+def test_i19_building_the_rows_opens_no_stray_window(qtbot, tmp_path):
+    from evrakci.ui.degerler_side import ReadingItem, ReadingRow
+    before = {id(w) for w in QApplication.topLevelWidgets() if w.isVisible()}
+    ReadingRow(ReadingItem("Bölüm 1", "48213", (), 55, True, "boş olabilir"))
+    after = {id(w) for w in QApplication.topLevelWidgets() if w.isVisible()}
+    assert after == before

@@ -625,6 +625,13 @@ class ValuesDelegate(QStyledItemDelegate):
         if isinstance(obj, QLineEdit) and event.type() == QEvent.Type.KeyPress and \
                 event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             obj.setProperty("submit", True)
+        if isinstance(obj, QLineEdit) and event.type() == QEvent.Type.KeyPress and \
+                event.modifiers() == Qt.KeyboardModifier.AltModifier and \
+                Qt.Key.Key_1 <= event.key() <= Qt.Key.Key_4:
+            table = self.parent()
+            if hasattr(table, "reading_key"):  # I-19: Alt+1..Alt+4 take a reading
+                table.reading_key.emit(event.key() - Qt.Key.Key_1)
+                return True
         return super().eventFilter(obj, event)
 
     def updateEditorGeometry(self, editor, option, index) -> None:  # noqa: N802
@@ -721,6 +728,7 @@ class ValuesTable(QTableView):
 
     submitted = Signal(int)  # the editor closed: 1 = Enter, 0 = Esc
     return_pressed = Signal()
+    reading_key = Signal(int)  # Alt+1..Alt+4 in the open editor: reading 0..3
     hint_keys: Callable[[], list[tuple[str, str]]] | None = None
 
     def __init__(self, parent=None) -> None:

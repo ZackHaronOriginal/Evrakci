@@ -51,7 +51,13 @@ Updated after every accepted step. A new session or a compacted one reads this f
   test files 888 passed; audits clean; Kapı G 0 clipping, menu labels un-elided at 150 %.
   OPEN: CI segfault at ~31 % of `pytest -q` since I-47 part b (Linux), and Windows read PermissionError in
   test_saver; a Sonnet agent works on both in scratchpad worktree segwt (not yet merged).
-  Next: I-19, I-17 (task specs written), I-23, I-22, I-28, then A,
+  Step I-19 DONE (see git log): "Tüm okumalar" block in the Değerler value card (2+ readings, max 4 rows +
+  "+N daha", "Öneri" on matching rows, click or Alt+1..4 in the editor fills it, Enter stores, one undo step).
+  Evidence tests/ui/test_degerler.py (64 passed), tests/ui 1847 passed; matrix 0 clipping; 150 % card checked.
+  The Alt+1..4 contract row waits on Q-23 (a name). Ledgered B-090.
+  OPEN: CI Linux segfault at ~31 % still after 46dabfd; a Sonnet agent reproduces on Python 3.12 in worktree
+  scratchpad/seg2. Windows saver read test fixed in 6c00e43.
+  Next: I-17 (task spec written), I-23 (task spec written), I-23, I-22, I-28, then A,
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,

@@ -105,6 +105,7 @@ Logged as given; not specced or built now. Several extend rows above (noted).
 | I-53 | Variables learn from earlier confirmed answers: check that the reader looks at the right place and that new values look like past correct ones | I-26, I-30 | later |
 | I-54 | Rule-based filters and checks on values: length, number vs text, known formats (e.g. bank account number / IBAN), and check-digit or other calculations to verify a value | I-31, I-32 | later |
 | I-55 | Connect variables to a future CRM-like app: fetch and send data | I-48, I-49 | later |
+| I-56 | Learn from the corrections staff make: every value fixed in Değerler (with its template, box, the reader's text and the confirmed text) is kept as a local example; a learning step after the OCR uses these examples to correct the reader's typical mistakes for that template and box (e.g. I read as 1, 0 as O), so reading gets better with each job. Aim stated with the idea: below 1 % wrong values in the end result. Needs planning: local-only training (no network), how much data is enough, how a learned correction is shown to the reviewer (suggestion, never a silent change), measuring the error rate before and after on synthetic and anonymised data | I-53, I-26, I-30, I-19 | later |
 
 ## Already deferred: later (already decided)
 

@@ -77,7 +77,8 @@ def test_b010_the_saved_template_pick_is_restored(qtbot, tmp_path):
     win, store, job, templates = _window(qtbot, tmp_path)
     first, sicil, firma = _template(templates, "Birinci")
     second, sicil2, firma2 = _template(templates, "Ikinci")
-    win.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(win.yukle.job_opened, timeout=10000):
+        win.yukle.open_job(store.load(job.id))
     ctl = win.controller()
     ctl.add_cut("b1/1")
     ctl.add_cut("b1/2")
@@ -97,7 +98,8 @@ def test_b010_the_saved_template_pick_is_restored(qtbot, tmp_path):
     win2 = MainWindow(store, templates, settings_path=tmp_path / "ayar.json",
                       prefs=Prefs(tmp_path / "p.ini"))
     qtbot.addWidget(win2)
-    win2.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(win2.yukle.job_opened, timeout=10000):
+        win2.yukle.open_job(store.load(job.id))
     win2.show_tab("degerler")
     assert win2.degerler.template_combo.currentData() == second.id
 
@@ -145,7 +147,8 @@ def test_b011_values_read_before_an_unexpected_error_are_kept(qtbot, tmp_path):
 def test_b012_values_button_in_kontrol_selects_that_document(qtbot, tmp_path):
     win, store, job, templates = _window(qtbot, tmp_path, prefs=False)
     template, sicil, firma = _template(templates, "Kapasite Raporu")
-    win.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(win.yukle.job_opened, timeout=10000):
+        win.yukle.open_job(store.load(job.id))
     ctl = win.controller()
     ctl.add_cut("b1/1")
     ctl.add_cut("b1/2")
@@ -170,7 +173,8 @@ def test_b012_values_button_in_kontrol_selects_that_document(qtbot, tmp_path):
 def test_b013_variant_drawing_opens_the_variables_page(qtbot, tmp_path):
     win, store, job, templates = _window(qtbot, tmp_path, kinds="pppp", prefs=False)
     template, sicil, firma = _template(templates, "Kapasite Raporu", page=2)  # both read page 2
-    win.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(win.yukle.job_opened, timeout=10000):
+        win.yukle.open_job(store.load(job.id))
     ctl = win.controller()
     ctl.add_cut("b1/2")  # document 1 = pages 1-2, document 2 = pages 3-4
     ctl.apply_template(ctl.job.ordered_page_ids(), template.id)
@@ -189,7 +193,8 @@ def test_b013_variant_drawing_opens_the_variables_page(qtbot, tmp_path):
 def test_b014_a_failed_document_is_announced(qtbot, tmp_path):
     win, store, job, templates = _window(qtbot, tmp_path, prefs=False)
     template, sicil, firma = _template(templates, "Kapasite Raporu")
-    win.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(win.yukle.job_opened, timeout=10000):
+        win.yukle.open_job(store.load(job.id))
     ctl = win.controller()
     ctl.add_cut("b1/1")
     ctl.add_cut("b1/2")

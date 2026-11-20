@@ -64,7 +64,8 @@ def _window(qtbot, tmp_path, spec=SPEC, show=True):
                         settings_path=tmp_path / "ayar.json", prefs=Prefs(tmp_path / "p.ini"))
     qtbot.addWidget(window)
     window.resize(1366, 768)
-    window.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(job.id))
     window.show_tab("kontrol")
     qtbot.wait(1)  # the screen takes over the commands once the window has placed it
     if show:
@@ -166,12 +167,21 @@ def test_every_kontrol_command_is_wired_and_enabled_with_a_job(qtbot, tmp_path):
             assert not window.registry.is_enabled(action_id), action_id
 
 
+def _open_other(qtbot, window, job_id="other"):
+    """Open a second job: the open job is not read again (reopening it keeps it as it is)."""
+    other = job_from_kinds(SPEC)
+    other.id = job_id
+    window.store.save(other)
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(window.store.load(job_id))
+
+
 def test_one_binder_per_window_and_a_new_job_takes_over(qtbot, tmp_path):
     window = _window(qtbot, tmp_path, show=False)
     binder = KontrolBinder.for_registry(window.registry)
     assert binder.screen() is window.kontrol
     first = window.kontrol
-    window.yukle.open_job(window.store.load("test"))
+    _open_other(qtbot, window)
     qtbot.wait(1)
     assert window.kontrol is not first
     assert KontrolBinder.for_registry(window.registry) is binder
@@ -392,7 +402,7 @@ def test_status_bar_zoom_sets_thumbnail_size_and_is_remembered(qtbot, tmp_path):
     window.registry.action("app.sigdir").trigger()
     assert screen.timeline.zoom == 100
     window.registry.action("app.yakinlastir").trigger()
-    window.yukle.open_job(window.store.load("test"))  # a new screen starts at the saved size
+    _open_other(qtbot, window)  # a new screen starts at the saved size
     assert window.kontrol.timeline.zoom == 110
 
 
@@ -400,7 +410,7 @@ def test_splitter_is_named_and_restored(qtbot, tmp_path):
     window = _window(qtbot, tmp_path, show=False)
     assert window.kontrol.body.objectName() == SPLITTER
     window.prefs.set_splitter_sizes(SPLITTER, [900, 360])
-    window.yukle.open_job(window.store.load("test"))
+    _open_other(qtbot, window)
     assert window.kontrol.body.sizes()[1] == 360 or window.kontrol.body.sizes()[1] > 300
 
 
@@ -468,7 +478,8 @@ def test_job_switch_detaches_the_old_screen_from_the_retired_service(qtbot, tmp_
     second = job_from_kinds(SPEC)
     second.id = "second"
     window.store.save(second)
-    window.yukle.open_job(window.store.load("second"))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(window.store.load("second"))
     assert window.thumbnails is not old_service and window.kontrol is not old_screen
     requests.clear()
     # what the old screen would still do on the event loop: a layout, a scroll, a zoom pause

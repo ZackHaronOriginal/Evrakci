@@ -100,7 +100,8 @@ class Syncing:
         page = has and self.canvas.has_page()
         has_variable = self.current_variable() is not None
         has_box = has_variable and self.section_index is not None
-        busy = self._all_task is not None
+        loading = getattr(self.window(), "loading", lambda: False)()  # a job loads
+        waiting = self._all_task is not None or loading
         variable_count = len(self.template.variables) if has else 0
         up = down = False
         variable = self.current_variable()
@@ -112,7 +113,7 @@ class Syncing:
                 up, down = place > 0, place < variable_count - 1
         states = {
             "sablonlar.kutu_ciz": page, "sablonlar.izgara": page,
-            "sablonlar.dene": page and not busy,
+            "sablonlar.dene": page and not waiting,
             "sablonlar.kutu_sil": has_variable, "sablonlar.kutu_cogalt": has_box and page,
             "sablonlar.degisken_ekle": has, "sablonlar.yukari": up, "sablonlar.asagi": down,
             "sablonlar.okumalari_goster": page,

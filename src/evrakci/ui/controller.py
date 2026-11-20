@@ -51,6 +51,36 @@ class _Snapshot(QUndoCommand):
         self._controller._restore(self._before)
 
 
+FROZEN_REASON = "İş siliniyor"  # an existing title: shown when a frozen job refuses a change
+
+
+class _GuardedStack(QUndoStack):
+    """The job's undo stack: while the job is being deleted it neither undoes nor redoes
+    (memory and disk must not part), and says why."""
+
+    def __init__(self, controller: JobController) -> None:
+        super().__init__(controller)
+        self._controller = controller
+
+    def undo(self) -> None:
+        if self._controller.frozen:
+            self._controller.status.emit(FROZEN_REASON)
+            return
+        super().undo()
+
+    def redo(self) -> None:
+        if self._controller.frozen:
+            self._controller.status.emit(FROZEN_REASON)
+            return
+        super().redo()
+
+    def canUndo(self) -> bool:
+        return super().canUndo() and not self._controller.frozen
+
+    def canRedo(self) -> bool:
+        return super().canRedo() and not self._controller.frozen
+
+
 class JobController(QObject):
     job_changed = Signal()
     status = Signal(str)
@@ -60,7 +90,8 @@ class JobController(QObject):
         super().__init__(parent)
         self.store = store
         self.job = job
-        self.undo_stack = QUndoStack(self)
+        self.frozen = False  # while the job's folder is deleted: no edit, no save (rule 5)
+        self.undo_stack = _GuardedStack(self)
         self._documents: list[Document] | None = None
         self._kinds: dict[str, str] | None = None
 
@@ -122,7 +153,19 @@ class JobController(QObject):
         self.undo_stack.redo()
 
     # Internals
+    def freeze(self) -> None:
+        """Stop edits and saves (the job is being deleted in a worker)."""
+        self.frozen = True
+        self.undo_stack.indexChanged.emit(self.undo_stack.index())  # menus re-read canUndo
+
+    def unfreeze(self) -> None:
+        self.frozen = False
+        self.undo_stack.indexChanged.emit(self.undo_stack.index())
+
     def _edit(self, text: str, change: Callable[[Job], None]) -> bool:
+        if self.frozen:
+            self.status.emit(FROZEN_REASON)
+            return False
         before = job_to_dict(self.job)
         try:
             change(self.job)
@@ -148,7 +191,8 @@ class JobController(QObject):
         self._kinds = None
         failure = None
         try:
-            self.store.save(self.job)
+            if not self.frozen:
+                self.store.save(self.job)
         except OSError as error:
             failure = error
         self.job_changed.emit()  # views refresh; listeners that mark "saved" run before ...

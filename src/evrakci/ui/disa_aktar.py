@@ -21,6 +21,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 
+import shiboken6
 from PySide6.QtCore import QByteArray, QEvent, QModelIndex, QPoint, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QKeySequence, QUndoCommand
 from PySide6.QtWidgets import (
@@ -65,7 +66,7 @@ from evrakci.ui.disa_aktar_parts import EmptyPane, HeadBar, PartsButton, Preflig
 from evrakci.ui.disa_aktar_side import SidePanel, mark_invalid, side_width
 from evrakci.ui.disa_aktar_table import NAME_MIN, WIDTHS, WIDTHS_150, FilesModel, FilesTable
 from evrakci.ui.feedback import announce
-from evrakci.ui.workers import Task, start
+from evrakci.ui.workers import Task, run_background, start
 
 STAGES = {"write": "dosyalar yazılıyor", "layer": "metin katmanı ekleniyor"}
 HEADER_KEY = "disa_aktar/dosyalar"
@@ -726,7 +727,8 @@ class DisaAktarScreen(QWidget):
             state = self._state
             # app.disa_aktar's one owner is MainWindow; it asks can_export().
             window._sync_export_action()
-            r.set_enabled("disa_aktar.durdur", state == "running")
+            r.set_enabled("disa_aktar.durdur", state == "running" or getattr(
+                self.window_, "loading_cancellable", lambda: False)())
             r.set_enabled("disa_aktar.yazdir", state != "empty" and self.model.rowCount() > 0)
             r.set_enabled_for("app.yenile", "disa_aktar", state != "running")
             r.set_enabled("disa_aktar.gezginde_goster", self._reveal_target() is not None)
@@ -1035,16 +1037,50 @@ class DisaAktarScreen(QWidget):
             retention = load_settings(self.settings_path).retention
         except SettingsError:
             retention = ""  # a broken settings file never deletes a job
-        count = len(result.paths)
         kept = "İş listede kalır; Yükle'den yeniden açabilirsiniz."
         if retention == DELETE_AFTER_EXPORT and may_delete_after_export(result):
-            if self._delete_job(controller, job.id):
+            if self._delete_in_worker(controller, job, result):
+                return  # the outcome is written when the delete is done
+        elif retention == DELETE_AFTER_EXPORT and result.paths and not result.with_layer:
+            kept = "İş saklandı: metin katmanı eklenmedi."
+        self._write_outcome(result, kept)
+
+    def _delete_in_worker(self, controller, job, result) -> bool:
+        """Delete the job's folder in a worker (it can wait on a slow disk); the outcome and the
+        window's close of the job follow in on_done. False when no loading job could start."""
+        window = self.window_ if self.window_ is not None else self
+        start = getattr(window, "start_loading", None)
+        store, job_id = controller.store, job.id  # plain data for the worker
+        controller.freeze()  # no edit or save while the folder goes (a save would bring it back)
+
+        def done(deleted: bool) -> None:
+            if not shiboken6.isValid(self):
+                return
+            kept = "İş listede kalır; Yükle'den yeniden açabilirsiniz."
+            if not deleted:
+                controller.unfreeze()
+            if deleted:
                 kept = "İş silindi (saklama ayarı)."
                 self._job_gone = True
                 self.job_deleted.emit()
-        elif retention == DELETE_AFTER_EXPORT and result.paths and not result.with_layer:
-            kept = "İş saklandı: metin katmanı eklenmedi."
+            self._write_outcome(result, kept)
+
+        def failed(_message: str) -> None:
+            done(False)
+
+        work = lambda _progress: self._delete_job_files(store, job_id)  # noqa: E731
+        options = {"title": "İş siliniyor", "name": job.name, "on_done": done,
+                   "on_failed": failed, "on_cancelled": lambda: done(False),
+                   "cancellable": False}
+        handle = start(work, **options) if start is not None else run_background(
+            window, work, **options)
+        if handle is None:
+            controller.unfreeze()
+        return handle is not None
+
+    def _write_outcome(self, result, kept: str) -> None:
         check = ""
+        count = len(result.paths)
         if result.needing_check:
             check = (f"{result.needing_check} belge kontrol gerektiriyor; index.xlsx'te işaretli,"
                      " nedeni yazılı.")
@@ -1057,6 +1093,10 @@ class DisaAktarScreen(QWidget):
 
     @staticmethod
     def _delete_job(controller, job_id: str) -> bool:
+        return DisaAktarScreen._delete_job_files(controller.store, job_id)
+
+    @staticmethod
+    def _delete_job_files(store, job_id: str) -> bool:
         """Delete the job folder; False (the job stays, listed and open) when that fails.
 
         Windows refuses to delete a file that is open. Every PDFium document of this process is
@@ -1064,7 +1104,7 @@ class DisaAktarScreen(QWidget):
         holding the lock makes sure no render has a job PDF open while the folder goes."""
         try:
             with PDFIUM_LOCK:
-                controller.store.delete(job_id)
+                store.delete(job_id)
         except (OSError, KeyError):
             return False
         return True

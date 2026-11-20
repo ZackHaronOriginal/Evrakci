@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import shiboken6
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, Signal
 from PySide6.QtGui import QUndoStack
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -40,7 +40,7 @@ from evrakci import __version__
 from evrakci.pipeline.store import JobFileError, JobStore, default_root
 from evrakci.pipeline.templates.model import TemplateError
 from evrakci.pipeline.templates.store import TemplateStore
-from evrakci.ui import actions, icons, kontrol_empty, motion, style, theme
+from evrakci.ui import actions, icons, kontrol_empty, motion, ocr_engine, style, theme
 from evrakci.ui.chrome import (
     AboutDialog,
     CommandBar,
@@ -57,6 +57,7 @@ from evrakci.ui.disa_aktar import DisaAktarScreen
 from evrakci.ui.feedback import Toaster
 from evrakci.ui.kontrol import KontrolScreen
 from evrakci.ui.kontrol_actions import NO_JOB_TEXT, KontrolStatus
+from evrakci.ui.loading import LoadingCard
 from evrakci.ui.palette import CommandPalette
 from evrakci.ui.prefs import Prefs
 from evrakci.ui.rehber import RehberScreen
@@ -67,6 +68,7 @@ from evrakci.ui.taskbar import TaskbarProgress
 from evrakci.ui.thumbnails import ThumbnailService, job_renderer
 from evrakci.ui.titlebar import TitleBand, WindowsFrame, use_custom_frame
 from evrakci.ui.widgets import StatusPart
+from evrakci.ui.workers import BUSY_REASON, Background, Task, run_background, start
 from evrakci.ui.yukle import YukleScreen
 from evrakci.ui.yukle_parts import ago
 from evrakci.ui.zoomview import ZoomController, ZoomSlider
@@ -352,6 +354,13 @@ class _EnabledMirror(QObject):
 
 
 class MainWindow(QMainWindow):
+    loading_card: LoadingCard  # over the tab body; run_background shows it for a loading job
+    _background: Background | None = None  # the one loading job of this window
+    _closed = False  # set when the close is accepted: late results are dropped (rule 6)
+    recent_changed = Signal()  # the recent-jobs list was fetched anew
+    _recent: list[tuple[object, str]] = []  # the last list a worker fetched (never mutated)
+    _recent_run = 0
+
     def __init__(
         self,
         store: JobStore,
@@ -409,7 +418,10 @@ class MainWindow(QMainWindow):
         self._restore_state()
         self._restoring = False
         self._tab_changed(self.tabs.currentIndex())
+        self._loading_tips: dict[str, str] = {}
         self._open_last_job()
+        self.refresh_recent_jobs()
+        QTimer.singleShot(0, ocr_engine.warm_up)  # the engine probe, off the window thread
 
     # -- building -------------------------------------------------------------------------
     def _build_screens(self) -> None:
@@ -439,6 +451,7 @@ class MainWindow(QMainWindow):
                                 strict=True):
             self.tabs.addTab(widget, name)
         self.tabs.currentChanged.connect(self._tab_changed)
+        self.loading_card = LoadingCard(self.tabs, dim=True)
         for widget in (self.yukle, self.sablon, self.degerler, self.disa_aktar, self.rehber):
             self._track_splitters(widget)
 
@@ -616,7 +629,8 @@ class MainWindow(QMainWindow):
 
     def _undo_to(self, index: int, *_args) -> None:
         stack = self._undo_stack()
-        if stack is not None:
+        controller = self.controller()
+        if stack is not None and not (controller is not None and controller.frozen):
             stack.setIndex(index)
 
     def _fill_command_bars(self) -> None:
@@ -717,7 +731,7 @@ class MainWindow(QMainWindow):
         r.connect("degerler.varyant", lambda: self.degerler.side.variant_button.click())
         # a lambda: triggered(checked) would arrive as next_check's `step` (0 = from the top)
         r.connect("degerler.sonraki_kontrol", lambda: self.degerler.next_check(1))
-        r.connect("degerler.durdur", self.degerler.cancel)
+        r.connect("degerler.durdur", self._stop_on_degerler)
         # The screen's two (hidden) read buttons hold the enabled state; the bar's commands
         # click them.
         for action_id, button in (("degerler.oku", self.degerler.read_button),
@@ -725,7 +739,7 @@ class MainWindow(QMainWindow):
             r.connect(action_id, button.click)
             _EnabledMirror(button, partial(self.registry.set_enabled, action_id))
         r.connect("app.yan_panel", self.toggle_inspector)
-        r.connect("disa_aktar.durdur", self.disa_aktar.cancel)
+        r.connect("disa_aktar.durdur", self._stop_on_disa_aktar)
         # Kontrol's commands are routed by kontrol_actions.KontrolBinder to the open job's screen.
         self._sync_job_actions()
         self.sablon.undo_stack.indexChanged.connect(self._sync_undo)
@@ -792,8 +806,8 @@ class MainWindow(QMainWindow):
         on Dışa Aktar only while that screen can start an export (not blocked, not running)."""
         on_tab = hasattr(self, "tabs") and self.current_tab() == "disa_aktar"
         can = getattr(self.disa_aktar, "can_export", lambda: True)()
-        self.registry.set_enabled("app.disa_aktar",
-                                  self.controller() is None or not on_tab or can)
+        self.registry.set_enabled("app.disa_aktar", not self.loading() and (
+            self.controller() is None or not on_tab or can))
 
     def save_job(self) -> None:
         """Ctrl+S on a job tab: write the job now and confirm it (edits are saved as they
@@ -801,6 +815,8 @@ class MainWindow(QMainWindow):
         controller = self.controller()
         if controller is None:
             self.say_no_job()
+            return
+        if controller.frozen:  # the job is being deleted: nothing is written
             return
         try:
             controller.store.save(controller.job)
@@ -897,15 +913,23 @@ class MainWindow(QMainWindow):
                 return
 
     def _new_job(self) -> None:
+        if self.loading():
+            self.message.setText(BUSY_REASON)
+            return
         self.show_tab("yukle")
         self.yukle.choose_new_job()
 
     def _add_files(self) -> None:
+        if self.loading():
+            self.message.setText(BUSY_REASON)
+            return
         self.show_tab("yukle")
         self.yukle.choose_batch()
 
     def _export(self) -> None:
-        if self.controller() is None:
+        if self.loading():
+            self.message.setText(BUSY_REASON)
+        elif self.controller() is None:
             self.say_no_job()
         elif self.current_tab() == "disa_aktar":
             self.disa_aktar.export()
@@ -1120,8 +1144,17 @@ class MainWindow(QMainWindow):
 
     def open_job_switcher(self) -> None:
         """A's job switch: the open job, recent jobs, Yeni iş oluştur…, Tüm işler…"""
+        if self.loading():
+            self.message.setText(BUSY_REASON)
+            return
         menu = QMenu(self)
         menu.setAccessibleName("İş değiştir")
+        self._fill_switcher(menu)
+        menu.popup(self.job_switch.mapToGlobal(QPoint(0, self.job_switch.height())))
+        self.job_menu = menu
+        self.refresh_recent_jobs()  # the menu shows the last list; a newer one replaces it
+
+    def _fill_switcher(self, menu: QMenu) -> None:
         controller = self.controller()
         if controller is not None:
             menu.addSection("Açık iş")
@@ -1138,29 +1171,60 @@ class MainWindow(QMainWindow):
         menu.addAction(self.registry.action("app.yeni_is"))
         every = menu.addAction(make_icon("folder-open"), "Tüm işler…")
         every.triggered.connect(self._show_all_jobs)
-        menu.popup(self.job_switch.mapToGlobal(QPoint(0, self.job_switch.height())))
-        self.job_menu = menu
+
+    def _recent_arrived(self) -> None:
+        menu = getattr(self, "job_menu", None)
+        if menu is not None and shiboken6.isValid(menu) and menu.isVisible():
+            menu.clear()
+            self._fill_switcher(menu)
+        self.recent_changed.emit()
 
     def _show_all_jobs(self) -> None:
         self.show_tab("yukle")
         self.yukle.show_job_list()
 
     def recent_jobs(self) -> list[tuple[object, str]]:
-        """(job, "3 gün önce") for the remembered jobs that still exist, open job left out."""
+        """(job, "3 gün önce") for the remembered jobs, open job left out: the list the last
+        `refresh_recent_jobs` fetched (it is read in a worker, never on the window thread)."""
         controller = self.controller()
         open_id = controller.job.id if controller is not None else None
-        found = []
-        for job_id in self.prefs.recent_jobs():
-            if job_id == open_id:
-                continue
-            try:
-                job = self.store.load(job_id)
-            except (KeyError, JobFileError, OSError):
-                continue
-            path = self._job_file(job_id)
-            age = time.time() - path.stat().st_mtime if path.is_file() else 0
-            found.append((job, ago(age)))
-        return found[:5]
+        return [(job, when) for job, when in self._recent if job.id != open_id][:5]
+
+    def refresh_recent_jobs(self) -> None:
+        """Fetch the remembered jobs in a worker; `recent_changed` fires when they are here."""
+        ids = list(self.prefs.recent_jobs())
+        store = self.store
+        self._recent_run = run = self._recent_run + 1
+
+        def work(_progress):
+            found = []
+            for job_id in ids:
+                try:
+                    job = store.load(job_id)
+                except (KeyError, JobFileError, OSError):
+                    continue
+                try:
+                    path = store._job_file(job_id)
+                    age = time.time() - path.stat().st_mtime if path.is_file() else 0
+                except OSError:
+                    age = 0
+                found.append((job, ago(age)))
+            return found
+
+        def done(found) -> None:
+            if shiboken6.isValid(self) and run == self._recent_run and not self._closed:
+                self._recent = found
+                self._recent_arrived()
+
+        task = Task(work)
+        task.signals.done.connect(done, Qt.ConnectionType.QueuedConnection)
+        pending = self.__dict__.setdefault("_recent_tasks", set())
+        pending.add(task)  # kept until it answered: a newer run must not free it
+        task.signals.done.connect(lambda _r, t=task: pending.discard(t),
+                                  Qt.ConnectionType.QueuedConnection)
+        task.signals.failed.connect(lambda _m, t=task: pending.discard(t),
+                                    Qt.ConnectionType.QueuedConnection)
+        start(task)
 
     # -- shared state ---------------------------------------------------------------------
     def controller(self) -> JobController | None:
@@ -1177,13 +1241,90 @@ class MainWindow(QMainWindow):
 
     def _open_last_job(self) -> None:
         path = self.store.root / LAST_JOB
-        if not path.is_file():
-            return
         try:
-            job = self.store.load(path.read_text(encoding="utf-8").strip())
-        except (KeyError, JobFileError, OSError):
+            job_id = path.read_text(encoding="utf-8").strip() if path.is_file() else ""
+        except OSError:
             return
-        self.yukle.open_job(job)
+        if job_id:
+            self.yukle.open_job_id(job_id, quiet=True)  # loaded in a worker; a failure is silent
+
+    # -- the loading job ------------------------------------------------------------------
+    def loading(self) -> bool:
+        """True while a loading job (a job open, a job delete) runs in a worker."""
+        job = self._background
+        return job is not None and job.running
+
+    def loading_cancellable(self) -> bool:
+        job = self._background
+        return job is not None and job.running and job.cancellable
+
+    def start_loading(self, work, **options) -> Background | None:
+        """`run_background` for this window; None (nothing started) while another job loads."""
+        handle = run_background(self, work, **options)
+        if handle is not None:
+            handle.finished.connect(self._sync_loading)
+            self._sync_loading()
+        return handle
+
+    def _stop_on_degerler(self) -> None:
+        """Ctrl+. on Değerler: a loading job first (it blocks the read), else the read."""
+        if self.loading_cancellable():
+            self.cancel_loading()
+        else:
+            self.degerler.cancel()
+
+    def _stop_on_disa_aktar(self) -> None:
+        if self.loading_cancellable():
+            self.cancel_loading()
+        else:
+            self.disa_aktar.cancel()
+
+    def cancel_loading(self) -> None:
+        job = self._background
+        if job is not None:
+            job.cancel()
+
+    def _sync_loading(self) -> None:
+        """Commands that would start or show another job are off while one loads, each with
+        the reason as its tooltip; they come back when the job ends."""
+        loading = self.loading()
+        for action_id in ("app.yeni_is", "app.dosya_ekle"):
+            action = self.registry.action(action_id)
+            if loading and action_id not in self._loading_tips:
+                self._loading_tips[action_id] = action.toolTip()
+            self.registry.set_enabled(action_id, not loading)
+            if loading:
+                action.setToolTip(BUSY_REASON)
+            elif action_id in self._loading_tips:
+                action.setToolTip(self._loading_tips.pop(action_id))
+        for action_id in ("degerler.oku", "degerler.eksikleri_oku", "sablonlar.dene"):
+            action = self.registry.action(action_id)  # their screens switch them off (reason: tip)
+            if loading and action_id not in self._loading_tips:
+                self._loading_tips[action_id] = action.toolTip()
+            if loading:
+                action.setToolTip(BUSY_REASON)
+            elif action_id in self._loading_tips:
+                action.setToolTip(self._loading_tips.pop(action_id))
+        for button in (self.degerler.read_button, self.degerler.missing_button):
+            key = "button:" + button.property("action_id")
+            if loading and key not in self._loading_tips:
+                self._loading_tips[key] = button.toolTip()
+            if loading:
+                button.setToolTip(BUSY_REASON)
+            elif key in self._loading_tips:
+                button.setToolTip(self._loading_tips.pop(key))
+        action = self.registry.action("app.disa_aktar")
+        if loading and "app.disa_aktar" not in self._loading_tips:
+            self._loading_tips["app.disa_aktar"] = action.toolTip()
+        self._sync_export_action()
+        if loading:
+            action.setToolTip(BUSY_REASON)
+        elif "app.disa_aktar" in self._loading_tips:
+            action.setToolTip(self._loading_tips.pop("app.disa_aktar"))
+        self.yukle._sync_actions()
+        self.degerler._sync_actions()
+        self.sablon._sync_actions()
+        self.disa_aktar._sync_actions()
 
     def _retire_thumbnails(self) -> None:
         """Stop and release the old job's thumbnail service (no callback into a dead view)."""
@@ -1198,6 +1339,7 @@ class MainWindow(QMainWindow):
         self.store.root.mkdir(parents=True, exist_ok=True)
         (self.store.root / LAST_JOB).write_text(job.id, encoding="utf-8")
         self.prefs.add_recent_job(job.id)
+        self.refresh_recent_jobs()
         self._retire_thumbnails()  # the previous job's renders are no longer wanted
         self.thumbnails = ThumbnailService(
             job_renderer(job, lambda: self.store.batch_files(job)), height=110, parent=self)
@@ -1464,6 +1606,8 @@ class MainWindow(QMainWindow):
 
     # -- closing --------------------------------------------------------------------------
     def _switch_refusal(self) -> str | None:
+        if self.loading():
+            return BUSY_REASON
         if self._busy_screens():
             return "Dışa aktarma ya da okuma sürüyor; bitince başka bir iş açın."
         return self._unsaved_refusal()
@@ -1472,7 +1616,8 @@ class MainWindow(QMainWindow):
         """After a failed save, closing or leaving the job first retries the save; if it still
         fails the close is blocked with the existing "Kaydedilemedi: ..." status (B-035)."""
         controller = self.controller()
-        if controller is None or self.job_switch.save_state.state() != "failed":
+        if controller is None or controller.frozen \
+                or self.job_switch.save_state.state() != "failed":
             return None
         if self._close_warned:  # the second attempt goes ahead, the edits stay unsaved
             return None
@@ -1511,6 +1656,8 @@ class MainWindow(QMainWindow):
             self.message.setText(refusal)
             event.ignore()
             return
+        self.cancel_loading()  # the close goes ahead: the loading job first, its late result drops
+        self._closed = True
         self.prefs.save_window(self)
         QApplication.instance().removeEventFilter(self.alt_menus)
         event.accept()

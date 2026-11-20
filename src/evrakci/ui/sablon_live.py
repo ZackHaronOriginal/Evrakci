@@ -12,16 +12,16 @@ from PySide6.QtCore import QTimer
 
 from evrakci.pipeline.templates.model import template_from_dict, template_to_dict
 from evrakci.ui import sablon_read as reading
-from evrakci.ui.workers import Task, start
+from evrakci.ui.workers import BUSY_REASON, Task, start
 
 
 class LiveReads:
     def _engine(self):
         if self.engine is not None:
             return self.engine()
-        from evrakci.pipeline.ocr.tesseract import default_engine
+        from evrakci.ui.ocr_engine import LazyEngine
 
-        return default_engine()
+        return LazyEngine()  # the real one is made in the worker, at its first use
 
     def _read_input(self, numbers: list[int] | None = None) -> reading.ReadInput:
         """Everything a worker needs, copied here on the window thread."""
@@ -42,6 +42,8 @@ class LiveReads:
             return
         if self._read_task is not None or self._all_task is not None:
             self._reread = True
+            return
+        if getattr(self.window(), "loading", lambda: False)():  # a job is loading: no read now
             return
         job = self._read_input()
         number = self._read_number = self.example
@@ -116,6 +118,10 @@ class LiveReads:
             self.message.setText("Denemek için bir şablon ve açık bir iş gerekir.")
             return
         if self._all_task is not None:
+            return
+        window = self.window()
+        if getattr(window, "loading", lambda: False)():  # a job is loading: no read now
+            window.message.setText(BUSY_REASON)
             return
         numbers = list(range(1, len(self._documents()) + 1))
         if not numbers:

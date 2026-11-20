@@ -48,7 +48,7 @@ def test_reopening_shows_the_last_job(qtbot, tmp_path):
     job_id = first.yukle.controller.job.id
     first.close()
     second = _window(qtbot, tmp_path)
-    assert second.yukle.controller is not None
+    qtbot.waitUntil(lambda: second.yukle.controller is not None, timeout=10000)
     assert second.yukle.controller.job.id == job_id
 
 

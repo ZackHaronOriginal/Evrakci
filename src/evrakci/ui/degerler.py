@@ -71,7 +71,7 @@ from evrakci.ui.degerler_table import (
 from evrakci.ui.feedback import undo_last
 from evrakci.ui.thumbnails import to_qimage
 from evrakci.ui.widgets import add_clear_button
-from evrakci.ui.workers import Task, start
+from evrakci.ui.workers import BUSY_REASON, Task, start
 
 ZOOM_KEY = "degerler"
 VIEW_KEY = "degerler.gorunum"  # the chosen view (prefs.view_state)
@@ -1338,8 +1338,10 @@ class DegerlerScreen(QWidget):
         has_job = self.controller() is not None
         read_any = any(r.read for r in self.rows)
         busy = self.task is not None
-        self.read_button.setEnabled(has_job and bool(self.rows) and not busy)
-        self.missing_button.setEnabled(has_job and read_any and not busy)
+        stoppable = getattr(self.window_, "loading_cancellable", lambda: False)()
+        waiting = busy or getattr(self.window_, "loading", lambda: False)()  # a job loads
+        self.read_button.setEnabled(has_job and bool(self.rows) and not waiting)
+        self.missing_button.setEnabled(has_job and read_any and not waiting)
         if self.window_ is None:
             return
         r = self.window_.registry
@@ -1361,7 +1363,7 @@ class DegerlerScreen(QWidget):
             "degerler.onceki_kontrol": counts.kontrol > 0,
             "degerler.tumunu_incele": read_any,
             "degerler.ornek_kontrol": read_any,
-            "degerler.durdur": busy,
+            "degerler.durdur": busy or stoppable,
         }
         for action_id, enabled in state.items():
             r.set_enabled(action_id, enabled)
@@ -1409,19 +1411,19 @@ class DegerlerScreen(QWidget):
     def _engine(self):
         if self.engine is not None:
             return self.engine()
-        from evrakci.pipeline.ocr.tesseract import default_engine
+        from evrakci.ui.ocr_engine import LazyEngine
 
-        return default_engine()
+        return LazyEngine()  # the real one is made in the worker, at its first use
 
     def read_values(self, only_missing: bool) -> None:
         controller = self.controller()
         if controller is None or self.task is not None:
             return
-        engine = self._engine()
-        reason = engine.available()
-        if reason:  # refuse like the command line does; nothing is touched
-            self._show_message(f"Okunamadı: {reason}", "triangle-alert", "check-text")
+        window = self.window()
+        if getattr(window, "loading", lambda: False)():  # a job is loading: no read now
+            window.message.setText(BUSY_REASON)
             return
+        engine = self._engine()
         job = controller.job
         templates = self.templates()
         files = controller.store.batch_files(job)
@@ -1440,6 +1442,9 @@ class DegerlerScreen(QWidget):
         self._results = results
 
         def run(progress):
+            reason = engine.available()  # the probe can be slow: here, not on the window thread
+            if reason:  # refuse like the command line does; nothing is touched
+                raise EngineUnavailable(reason)
             for done, (document, template_id, template) in enumerate(work, start=1):
                 progress(done - 1, len(work))
                 if template is None:
@@ -1516,7 +1521,8 @@ class DegerlerScreen(QWidget):
         self._finish(f"{count_} belge okundu.", "circle-check", "ok", toast=True)
 
     def _read_failed(self, message: str) -> None:
-        self._store(self._results)  # keep what was finished, as cancel does
+        if self._results:
+            self._store(self._results)  # keep what was finished, as cancel does
         self._finish(f"Okunamadı: {message}", "triangle-alert", "check-text")
 
     def _read_cancelled(self) -> None:

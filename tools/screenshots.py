@@ -28,6 +28,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -85,7 +86,11 @@ def build(root: Path) -> MainWindow:
     job = store.create_job("Kasım 2026 kapasite raporları", [pdf])  # A's demo job
     store.create_job("Ekim 2026 – Faaliyet belgeleri", [pdf2])
     window = MainWindow(store, templates, settings_path=root / "ayar.json")
-    window.yukle.open_job(store.load(job.id))
+    window.yukle.open_job(store.load(job.id))  # read in a worker: wait for the swap
+    deadline = time.monotonic() + 30
+    while window.controller() is None and time.monotonic() < deadline:
+        QApplication.processEvents()
+        time.sleep(0.01)
     ctl = window.controller()
     ids = ctl.job.ordered_page_ids()
     ctl.apply_template(ids, template.id)

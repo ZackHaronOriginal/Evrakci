@@ -149,7 +149,8 @@ def test_b008_the_outcome_card_stays_after_the_deleted_job_closes(qtbot, tmp_pat
     pdf = make_pdf(tmp_path / "t.pdf", [text_page("A"), text_page("B")])
     job = window.store.create_job("İş", [pdf])
     save_settings(Settings(DELETE_AFTER_EXPORT), tmp_path / "ayar.json")
-    window.yukle.open_job(window.store.load(job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(window.store.load(job.id))
     window.show_tab("disa_aktar")
     screen = window.disa_aktar
     real = module.export_job
@@ -174,7 +175,8 @@ def _full_export_window(qtbot, tmp_path, monkeypatch):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page("A"), text_page("B")])
     job = window.store.create_job("İş", [pdf])
     save_settings(Settings(DELETE_AFTER_EXPORT), tmp_path / "ayar.json")
-    window.yukle.open_job(window.store.load(job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(window.store.load(job.id))
     window.show_tab("disa_aktar")
     screen = window.disa_aktar
     real = module.export_job

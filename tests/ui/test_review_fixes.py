@@ -192,7 +192,7 @@ def test_read_with_no_engine_refuses_and_keeps_corrections(qtbot, values_setup):
     doc = ctl.documents()[0]
     ctl.set_value(doc, variable.key, "11111")
     screen.read_button.click()
-    assert not screen.busy()
+    qtbot.waitUntil(lambda: not screen.busy(), timeout=5000)  # the probe runs in the worker
     assert "Tesseract" in screen.progress_label.text()
     assert current_values(ctl.job, doc)[variable.key].value == "11111"
 
@@ -359,7 +359,8 @@ def test_adding_a_batch_keeps_edits_made_while_it_was_analysed(qtbot, tmp_path, 
     store, job = _real_job(tmp_path, pages=[text_page(), text_page()])
     screen = YukleScreen(store)
     qtbot.addWidget(screen)
-    screen.open_job(job)
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(job)
     screen.controller.rotate(job.ordered_page_ids()[0], 90)
     gate = threading.Event()
     real = store.prepare_batch
@@ -407,9 +408,10 @@ def test_another_job_cannot_be_opened_while_work_runs(qtbot, tmp_path):
     window = MainWindow(store, TemplateStore(tmp_path / "tpl"),
                         settings_path=tmp_path / "ayar.json")
     qtbot.addWidget(window)
-    window.yukle.open_job(job_a)
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(job_a)
     window.disa_aktar.task = object()
-    window.yukle.open_job(job_b)
+    window.yukle.open_job(job_b)  # refused at once: nothing is loaded
     assert window.yukle.controller.job.id == job_a.id
     assert "sürüyor" in window.message.text()
     window.disa_aktar.task = None

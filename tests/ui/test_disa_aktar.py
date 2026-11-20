@@ -71,7 +71,8 @@ def _window(qtbot, tmp_path):
                         prefs=Prefs(tmp_path / "p.ini"))
     qtbot.addWidget(window)
     window.show()
-    window.yukle.open_job(store.load(ctl.job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(ctl.job.id))
     window.show_tab("disa_aktar")
     return window, window.disa_aktar
 
@@ -533,7 +534,8 @@ def test_the_default_export_folder_of_ayarlar_is_offered(qtbot, tmp_path):
     window = MainWindow(store, templates, settings_path=tmp_path / "ayar.json", prefs=prefs)
     qtbot.addWidget(window)
     window.show()
-    window.yukle.open_job(store.load(ctl.job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(ctl.job.id))
     window.show_tab("disa_aktar")
     assert window.disa_aktar.folder.text() == str(tmp_path / "varsayilan")
     window.disa_aktar.folder.setText(str(tmp_path / "ben"))

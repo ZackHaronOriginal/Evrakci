@@ -33,11 +33,16 @@ Updated after every accepted step. A new session or a compacted one reads this f
 - Phase 5: 5a-5d done; Q-06 answered. 5e specs A-D written, reconciled, Turkish terms checked,
   every decision settled by evidence (docs/ui-goal/specs/README.md); I-01 dropped (QR is only the
   separator); I-47 rewritten (background work + loading view). Readable page for the owner:
-  https://claude.ai/artifact/HsKTkfuka1QDq89p351XuX. Specs APPROVED 2026-11-20 (f69cb85). Building in README §1 order. Step 1 = I-47
-  part a: NOT STARTED (a first attempt was stopped at the owner's request and its partial edits
-  discarded; write a fresh task spec from specs/quick-wins.md I-47 build steps 1-4 and 6); then the gates
-  (Kapı 1, Kapı G, four Haiku lenses, Sonnet reviewer, Opus acceptance), commit, then I-47 part b
-  (write-behind saver, high risk, own step), then I-21, I-19, I-17... per README §1.
+  https://claude.ai/artifact/HsKTkfuka1QDq89p351XuX. Specs APPROVED 2026-11-20 (f69cb85). Building in README §1 order.
+  Step 1 I-47 part a DONE (see last commit): `run_background` + `LoadingCard` (ui/workers.py, ui/loading.py), job open /
+  job list / recent jobs / delete in workers, OCR engine made in the worker (ui/ocr_engine.py), commands off with
+  the reason while loading, controller frozen during a delete. Evidence: tests/ui/test_workers.py (29 tests,
+  incl. (a) longest event-loop gap < 100 ms while JobStore.load blocks 1.5 s); tests/ui 1793 passed / 203
+  xfailed; core tests 732 passed / 6 skipped; ruff and both shortcut audits clean; perf 800 pages equal to HEAD
+  (first paint 76 ms, paint p95 14.5 ms); screenshot matrix 0 clipping; loading card shot in 3 themes x 100/150 %.
+  Two review rounds (Sonnet), fixes verified by mutation. Ledgered: B-083, B-085, B-086, B-087 (B-084 older).
+  Next: I-47 part b (write-behind saver, high risk, own step), then I-21, I-19, I-17, I-23, I-22, I-28, then A,
+  D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,
   d94d41b; CI green on both): 280 tab x action pairs, 0 key-only, 27 exempt. Ledger B-081 (Ctrl+Space,

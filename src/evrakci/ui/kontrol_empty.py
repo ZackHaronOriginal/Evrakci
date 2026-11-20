@@ -160,6 +160,8 @@ def for_window(window) -> KontrolEmpty:
 
     page = KontrolEmpty(lambda: window.show_tab("yukle"),
                         lambda: window.registry.action("app.yeni_is").trigger(), recent)
+    if hasattr(window, "recent_changed"):  # the list is fetched in a worker: redraw when here
+        window.recent_changed.connect(page.refresh)
     if getattr(window, "_slots", None):  # else the window fills the slot once it is built
         KontrolStatus.in_slot(window.status_slot("kontrol")).set_empty()
     return page

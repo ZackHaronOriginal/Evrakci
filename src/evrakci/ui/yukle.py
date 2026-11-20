@@ -20,6 +20,7 @@ from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 
+import shiboken6
 from PySide6.QtCore import QObject, QPoint, QRectF, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QPainter
 from PySide6.QtWidgets import (
@@ -40,14 +41,14 @@ from evrakci import __version__
 from evrakci.pipeline import export
 from evrakci.pipeline.analyze import count_pages
 from evrakci.pipeline.job import Job, job_from_dict, job_to_dict
-from evrakci.pipeline.store import JobFileError, JobStore
+from evrakci.pipeline.store import JobStore
 from evrakci.ui import theme
 from evrakci.ui.chrome import ActionButton
 from evrakci.ui.controller import JobController
 from evrakci.ui.feedback import InfoBar, undo_last
 from evrakci.ui.kontrol_actions import NO_JOB_TEXT
 from evrakci.ui.widgets import StatusPart
-from evrakci.ui.workers import Task, start
+from evrakci.ui.workers import BUSY_REASON, CANCELLED_TEXT, Task, run_background, start
 from evrakci.ui.yukle_info import JobSummary, ScanProfile, scan_profile, summarize
 from evrakci.ui.yukle_parts import (
     PDF_LIMIT,
@@ -223,7 +224,7 @@ class YukleScreen(QWidget):
         self.status_parts: dict[str, StatusPart] = {}
         self._own: dict[str, ActionButton] = {}
         # Returns a Turkish reason when another job must not be opened now.
-        self.can_switch = lambda: "Bir iş sürüyor; bitince açın." if self.task else None
+        self.can_switch = lambda: BUSY_REASON if self.task or self.loading() else None
 
         m = theme.manager()
         root = QVBoxLayout(self)
@@ -334,6 +335,75 @@ class YukleScreen(QWidget):
             self._show_state()
 
     def open_job(self, job: Job) -> None:
+        """Open a job: it is read from disk in a worker (the loading view shows after 300 ms);
+        the open job stays as it is until `_swap_job` runs."""
+        self.open_job_id(job.id, job.name)
+
+    def open_job_id(self, job_id: str, name: str = "", *, quiet: bool = False) -> None:
+        if self._controller is not None and self._controller.job.id == job_id:
+            self._show_open_job()  # already open: keep it (a reload would drop later edits)
+            return
+        reason = self.can_switch() if self._controller is not None else None
+        if reason:
+            self.refused.emit(reason)
+            return
+        store = self.store
+
+        def work(_progress):
+            return store.load(job_id)  # plain data in, a Job out; no widget in here
+
+        def done(job: Job) -> None:
+            if not shiboken6.isValid(self) or job.id != job_id:  # another job's result: dropped
+                return
+            if self._controller is not None and self._controller.job.id == job.id:
+                self._show_open_job()  # it was opened meanwhile: the open copy is the newer one
+                return
+            self._swap_job(job)
+
+        def failed(message: str) -> None:
+            if not shiboken6.isValid(self):
+                return
+            if not quiet:
+                self._tell("İş açılamadı: " + (message.strip("'\"") or "dosya okunamadı"),
+                           "kontrol")
+            self.refresh_jobs()
+
+        def cancelled() -> None:
+            if shiboken6.isValid(self):
+                self._tell(CANCELLED_TEXT, "info")
+
+        owner = self.window_ if self.window_ is not None else self
+        start = getattr(owner, "start_loading", None)
+        options = {"title": "İş açılıyor", "name": name, "on_done": done, "on_failed": failed,
+                   "on_cancelled": cancelled}
+        handle = start(work, **options) if start is not None else run_background(
+            owner, work, **options)
+        if handle is None:  # one loading job at a time
+            self.refused.emit(BUSY_REASON)
+
+    def loading(self) -> bool:
+        owner = self.window_ if self.window_ is not None else self
+        job = getattr(owner, "_background", None)
+        return job is not None and job.running
+
+    def _loading_cancellable(self) -> bool:
+        owner = self.window_ if self.window_ is not None else self
+        job = getattr(owner, "_background", None)
+        return job is not None and job.running and job.cancellable
+
+    def _show_open_job(self) -> None:
+        """The job that is already open, shown again: the same screen a normal open ends on,
+        without reading it from disk or making a new controller."""
+        self._listing = False
+        self._clear_error()
+        self._sync_state()
+        first = self.model.items[0].batch_id if self.model.items else ""
+        if first and not self.table.selected_batch():
+            self.table.select_batch(first)
+
+    def _swap_job(self, job: Job) -> None:
+        """The one place that replaces the open job, on the window thread, once its data is
+        here (a new job after its read, or an opened one after its load)."""
         reason = self.can_switch() if self._controller is not None else None
         if reason:
             self.refused.emit(reason)
@@ -356,16 +426,6 @@ class YukleScreen(QWidget):
         self.refresh_jobs()
         self.job_opened.emit(job)
 
-    def open_job_id(self, job_id: str) -> None:
-        try:
-            job = self.store.load(job_id)
-        except (KeyError, JobFileError, OSError) as error:
-            self._tell("İş açılamadı: " + (str(error).strip("'\"") or "dosya okunamadı"),
-                       "kontrol")
-            self.refresh_jobs()
-            return
-        self.open_job(job)
-
     def close_job(self) -> None:
         """İşi kapat: back to "Henüz iş yok"; the job stays in the job list."""
         if self.window_ is not None:
@@ -387,19 +447,37 @@ class YukleScreen(QWidget):
         self.refresh_jobs()
 
     def refresh_jobs(self) -> None:
-        """The recent jobs of the empty page: newest first, with pages and "3 gün önce"."""
-        found = []
-        for job in self.store.list_jobs():
-            path = self.store._job_file(job.id)
-            try:
-                age = time.time() - path.stat().st_mtime
-                stamp = path.stat().st_mtime
-            except OSError:
-                age, stamp = 0, 0
-            found.append((stamp, JobEntry(job.id, job.name,
-                                          sum(b.page_count for b in job.batches), ago(age))))
-        found.sort(key=lambda item: item[0], reverse=True)
-        self.empty.set_jobs([entry for _stamp, entry in found])
+        """The recent jobs of the empty page: newest first, with pages and "3 gün önce". They are
+        read in a worker; the list shows what it had until the new one arrives."""
+        store = self.store
+        self._jobs_run = run = getattr(self, "_jobs_run", 0) + 1
+
+        def work(_progress):
+            found = []
+            for job in store.list_jobs():
+                path = store._job_file(job.id)
+                try:
+                    stamp = path.stat().st_mtime
+                    age = time.time() - stamp
+                except OSError:
+                    age, stamp = 0, 0
+                found.append((stamp, JobEntry(job.id, job.name,
+                                              sum(b.page_count for b in job.batches), ago(age))))
+            found.sort(key=lambda item: item[0], reverse=True)
+            return [entry for _stamp, entry in found]
+
+        def done(entries) -> None:
+            if shiboken6.isValid(self) and run == self._jobs_run:  # an older answer is dropped
+                self.empty.set_jobs(entries)
+
+        task = Task(work)
+        queued = Qt.ConnectionType.QueuedConnection
+        task.signals.done.connect(done, queued)
+        pending = self.__dict__.setdefault("_jobs_tasks", set())
+        pending.add(task)  # kept until it answered: a newer run must not free it
+        task.signals.done.connect(lambda _r, t=task: pending.discard(t), queued)
+        task.signals.failed.connect(lambda _m, t=task: pending.discard(t), queued)
+        start(task)
 
     def show_job_list(self) -> None:
         """Tüm işler…: the job search and every job, even while one is open (Esc goes back)."""
@@ -426,6 +504,9 @@ class YukleScreen(QWidget):
             prefs.add_recent_folder(path.parent)
 
     def choose_new_job(self) -> None:
+        if self.loading():
+            self.refused.emit(BUSY_REASON)
+            return
         if self.busy():
             self._tell("Okuma sürüyor; bitince yeni iş oluşturun.", "info")
             return
@@ -439,6 +520,9 @@ class YukleScreen(QWidget):
             self.create_job([Path(p) for p in paths], name.strip())
 
     def choose_batch(self) -> None:
+        if self.loading():
+            self.refused.emit(BUSY_REASON)
+            return
         if self._controller is None and self.busy():
             self._tell("Okuma sürüyor; bitince yeni iş oluşturun.", "info")
             return
@@ -453,6 +537,9 @@ class YukleScreen(QWidget):
 
     def choose_folder(self) -> None:
         """Klasör ekle…: every PDF in a folder (and its subfolders)."""
+        if self.loading():
+            self.refused.emit(BUSY_REASON)
+            return
         folder = QFileDialog.getExistingDirectory(self, "PDF klasörü seçin", self._start_folder())
         if folder:
             prefs = getattr(self.window_, "prefs", None)
@@ -463,6 +550,9 @@ class YukleScreen(QWidget):
     def add_paths(self, paths: list[Path]) -> None:
         """Files and folders from a drop or a dialog: the PDFs among them become a new job (no
         job open) or batches at the end of the open one."""
+        if self.loading():  # a job is opening: no new job or batch until it is here
+            self.refused.emit(BUSY_REASON)
+            return
         pdfs, found = find_pdfs(paths)
         if not pdfs:
             self._tell("PDF bulunamadı. Yalnızca PDF dosyaları ve klasörleri eklenir.", "kontrol")
@@ -485,7 +575,7 @@ class YukleScreen(QWidget):
     def create_job(self, paths: list[Path], name: str) -> None:
         paths = [Path(p) for p in paths]
         self._begin(paths, lambda _total: (
-            lambda progress: self.store.create_job(name, paths, progress)), self.open_job)
+            lambda progress: self.store.create_job(name, paths, progress)), self._swap_job)
 
     def add_batch(self, path: Path) -> None:
         self.add_batches([Path(path)])
@@ -786,7 +876,8 @@ class YukleScreen(QWidget):
         pos = ids.index(batch_id) if batch_id in ids else -1
         state = {"yukle.yukari": pos > 0, "yukle.asagi": 0 <= pos < len(ids) - 1,
                  "yukle.cikar": pos >= 0, "yukle.yeniden_adlandir": controller is not None,
-                 "yukle.gezginde_goster": controller is not None, "yukle.iptal": busy,
+                 "yukle.gezginde_goster": controller is not None,
+                 "yukle.iptal": busy or self._loading_cancellable(),
                  }
         window = self.window_
         if window is not None:
@@ -981,7 +1072,7 @@ class YukleScreen(QWidget):
         if error is not None:
             self._fail(error)
         elif cancelled:
-            self._tell("İptal edildi; hiçbir şey değişmedi.", "info")
+            self._tell(CANCELLED_TEXT, "info")
         if on_done is not None:
             on_done(result)
         queued, self._queued = self._queued, []
@@ -1001,6 +1092,11 @@ class YukleScreen(QWidget):
 
     def cancel(self) -> None:
         """İptal et (Ctrl+.): stop reading; nothing in the job changes. Esc does not cancel."""
+        owner = self.window_ if self.window_ is not None else self
+        job = getattr(owner, "_background", None)
+        if job is not None and job.running:
+            job.cancel()
+            return
         if self.task is not None and self._reading is not None:
             self._reading.cancelling = True
             self.task.cancel()

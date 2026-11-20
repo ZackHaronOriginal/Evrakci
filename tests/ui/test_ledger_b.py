@@ -56,7 +56,8 @@ def test_b001_choosing_files_while_a_read_runs_queues_them_or_says_why(qtbot, tm
                                                                       monkeypatch):
     window = _window(qtbot, tmp_path)
     screen = window.yukle
-    screen.open_job(window.store.load(window.store.create_job("İş", pdfs[:1]).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(window.store.load(window.store.create_job("İş", pdfs[:1]).id))
     gate = threading.Event()
     real = window.store.prepare_batch
 
@@ -93,7 +94,8 @@ def test_b002_batch_status_and_inspector_agree_after_a_filter_split(qtbot, tmp_p
     pdf = make_pdf(tmp_path / "t.pdf", [text_page(c) for c in "ABCD"])
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
-    screen.open_job(screen.store.load(screen.store.create_job("İş", [pdf]).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(screen.store.load(screen.store.create_job("İş", [pdf]).id))
     controller = screen.controller
     batch = controller.job.batches[0]
     assert controller.apply_filter([f"{batch.id}/{i}" for i in range(4)], 2)
@@ -173,7 +175,8 @@ def test_b008_the_open_job_closes_when_the_export_deleted_it(qtbot, tmp_path, pd
     window = _window(qtbot, tmp_path)
     job = window.store.create_job("İş", pdfs[:1])
     save_settings(Settings(DELETE_AFTER_EXPORT), tmp_path / "ayar.json")
-    window.yukle.open_job(window.store.load(job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(window.store.load(job.id))
     window.show_tab("disa_aktar")
     screen = window.disa_aktar
     real = disa_aktar_module.export_job

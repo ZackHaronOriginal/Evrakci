@@ -501,7 +501,8 @@ def window(qtbot, tmp_path):
     prefs = Prefs(tmp_path / "p.ini")
     win = MainWindow(store, templates, settings_path=tmp_path / "ayar.json", prefs=prefs)
     qtbot.addWidget(win)
-    win.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(win.yukle.job_opened, timeout=10000):
+        win.yukle.open_job(store.load(job.id))
     _fill(win.controller(), template, sicil, firma)
     win.resize(1366, 768)
     win.show()

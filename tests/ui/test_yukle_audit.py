@@ -43,7 +43,8 @@ def pdfs(tmp_path):
 def _screen(qtbot, tmp_path, pdfs) -> YukleScreen:
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
-    screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
     return screen
 
 
@@ -178,16 +179,18 @@ def _window(qtbot, tmp_path) -> MainWindow:
     return window
 
 
-def _open(window, pdfs, name="Kasım"):
+def _open(qtbot, window, pdfs, name="Kasım"):
     job = window.store.create_job(name, pdfs)
-    window.yukle.open_job(window.store.load(job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(window.store.load(job.id))
     return window.yukle
 
 
 def _three(qtbot, tmp_path, pdfs):
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
-    screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs + pdfs[:1]).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs + pdfs[:1]).id))
     screen.resize(900, 500)
     screen.show()
     screen.table.setFocus()
@@ -235,7 +238,7 @@ def test_columns_cannot_be_dragged_below_their_title_and_the_grip_is_fixed(qtbot
 def test_a_double_click_on_a_command_button_acts_once_and_enter_presses_it(qtbot, tmp_path, pdfs):
     """F-yukle-14, F-yukle-15."""
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs + pdfs[:1])
+    screen = _open(qtbot, window, pdfs + pdfs[:1])
     bar = window.command_bar("yukle")
     screen.table.select_batch(screen.controller.job.batches[0].id)
     button = bar.button_for("yukle.cikar")
@@ -254,10 +257,12 @@ def test_a_double_click_on_a_command_button_acts_once_and_enter_presses_it(qtbot
     go.clicked.connect(lambda *_: seen.append("bar"))
     screen.side.go.connect(lambda: seen.append("side"))
     for widget in (go, screen.side.go_button):
+        window.show_tab("yukle")  # the first Enter went to Kontrol; the buttons are on Yükle
         QTest.keyClick(widget, Qt.Key.Key_Return)
     assert sorted(seen) == ["bar", "side"]
     closed = []
     screen.side.close_job.connect(lambda: closed.append(1))
+    window.show_tab("yukle")
     QTest.keyClick(screen.side.close_button, Qt.Key.Key_Enter)
     assert closed == [1]
 
@@ -274,7 +279,7 @@ def test_enter_presses_a_job_row(qtbot):
 def test_dialog_files_are_queued_while_a_read_runs(qtbot, tmp_path, pdfs, monkeypatch):
     """F-yukle-17: Dosya ekle… during a read goes through add_paths (which queues)."""
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs[:1])
+    screen = _open(qtbot, window, pdfs[:1])
     monkeypatch.setattr(QFileDialog, "getOpenFileNames",
                         staticmethod(lambda *a, **k: ([str(pdfs[1])], "")))
     monkeypatch.setattr(screen, "busy", lambda: True)
@@ -312,7 +317,7 @@ def test_a_long_file_name_does_not_cut_the_toast_sentence(qtbot, tmp_path, look)
     look.set_text_scale(150)  # after the window: its prefs set the scale while it is built
     look.apply(QApplication.instance())  # the application font follows the scale
     window.resize(1366, 768)
-    screen = _open(window, [pdf, other])
+    screen = _open(qtbot, window, [pdf, other])
     screen.table.select_batch(screen.controller.job.batches[0].id)
     screen.remove_batch()
     qtbot.wait(300)

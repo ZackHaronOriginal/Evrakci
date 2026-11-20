@@ -51,7 +51,8 @@ def _window(qtbot, tmp_path, spec):
                         settings_path=tmp_path / "ayar.json", prefs=Prefs(tmp_path / "p.ini"))
     qtbot.addWidget(window)
     window.resize(1366, 768)
-    window.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(job.id))
     window.show_tab("kontrol")
     qtbot.wait(1)
     return window

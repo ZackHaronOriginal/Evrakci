@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMenu,
-    QProgressBar,
     QPushButton,
     QSizePolicy,
     QVBoxLayout,
@@ -28,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.ui import actions, icons, theme
 from evrakci.ui.chrome import ElidedLabel, RecentJobRow, make_icon
+from evrakci.ui.loading import ProgressCard  # noqa: F401  (moved; Yükle imports it from here)
 from evrakci.ui.widgets import add_clear_button
 
 PDF_LIMIT = 5000  # a dropped folder tree is read this far; more is almost certainly a mistake
@@ -106,81 +106,6 @@ def collect_pdfs(paths: list[Path], limit: int = PDF_LIMIT) -> list[Path]:
 
 
 # -- status bar -------------------------------------------------------------------------
-# -- reading progress -------------------------------------------------------------------
-class ProgressCard(QFrame):
-    """A .progress card: what is read, the bar, and "%62, Yaklaşık 40 sn kaldı, 3,2 sayfa/sn,
-    İptal ederseniz hiçbir şey değişmez." A live region for screen readers."""
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setProperty("kind", "card")
-        self.setAccessibleName("Okuma ilerlemesi")
-        m = theme.manager()
-        column = QVBoxLayout(self)
-        column.setContentsMargins(m.size("s4"), m.size("s4"), m.size("s4"), m.size("s4"))
-        column.setSpacing(m.size("s2"))
-        top = QHBoxLayout()
-        top.setSpacing(m.size("s3"))
-        self.icon = QLabel()
-        self.icon.setFixedSize(m.size("icon-md"), m.size("icon-md"))
-        self.title = QLabel("")
-        self.title.setFont(m.font("body-strong"))
-        self.name = ElidedLabel("", min_chars=12)
-        self.name.setProperty("textRole", "secondary")
-        top.addWidget(self.icon)
-        top.addWidget(self.title)
-        top.addWidget(self.name, 1)
-        column.addLayout(top)
-        self.bar = QProgressBar()
-        self.bar.setTextVisible(False)
-        self.bar.setAccessibleName("Okuma ilerlemesi")
-        column.addWidget(self.bar)
-        sub = QHBoxLayout()
-        sub.setSpacing(m.size("s4"))
-        self.percent, self.eta, self.rate, self.note = (QLabel() for _ in range(4))
-        for label in (self.percent, self.eta, self.rate, self.note):
-            label.setProperty("textRole", "secondary")
-            sub.addWidget(label)
-        sub.addStretch(1)
-        self.note.setText("İptal ederseniz hiçbir şey değişmez.")
-        column.addLayout(sub)
-        theme.bind_style(self, lambda: (
-            f"QProgressBar {{ min-height: 6px; max-height: 6px; "
-            f"background: {theme.manager().hex('track')}; }}"))
-        theme.follow(self, self._restyle, "yukle-progress")
-
-    def _restyle(self) -> None:
-        m = theme.manager()
-        self.icon.setPixmap(icons.pixmap("scan-text", m.hex("icon"), m.size("icon-md")))
-        size = f"font-size: {m.size('fs-caption')}px;"
-        for label in (self.percent, self.eta, self.rate, self.note, self.name):
-            label.setStyleSheet(size)
-        self.percent.setFont(m.font("caption-num"))
-
-    def show_progress(self, done: int, total: int, name: str, eta: float | None,
-                      rate: float | None) -> None:
-        total = max(total, 1)
-        self.bar.setRange(0, total)
-        self.bar.setValue(min(done, total))
-        self.title.setText(f"Sayfalar okunuyor: {done} / {total}")
-        self.name.setText(name)
-        percent = round(100 * done / total)
-        self.percent.setText(f"%{percent}")
-        self.eta.setText(eta_text(eta))
-        self.rate.setText(rate_text(rate) if rate else "")
-        self.rate.setVisible(bool(rate))
-        self.setAccessibleDescription(f"%{percent}, {self.eta.text()}")
-
-    def show_waiting(self, text: str, name: str) -> None:
-        """Before the first page is read: an indeterminate bar."""
-        self.bar.setRange(0, 0)
-        self.title.setText(text)
-        self.name.setText(name)
-        self.percent.setText("")
-        self.eta.setText("")
-        self.rate.hide()
-
-
 # -- the window-wide drop ---------------------------------------------------------------
 def _breakable(name: str, run: int = 16) -> str:
     """Zero-width break points in a long unbroken name, so the sentence wraps inside the card

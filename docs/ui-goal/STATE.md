@@ -42,7 +42,12 @@ Updated after every accepted step. A new session or a compacted one reads this f
   (first paint 76 ms, paint p95 14.5 ms); screenshot matrix 0 clipping; loading card shot in 3 themes x 100/150 %.
   Two review rounds (Sonnet), fixes verified by mutation. Ledgered: B-083, B-085, B-086, B-087 (B-084 older).
   IN PROGRESS: I-47 part b (write-behind saver, high risk, own step; task spec
-  .claude/gorevler/2026-11-20-i47b-write-behind.md; uncommitted work in the tree belongs to it). Then I-21, I-19, I-17, I-23, I-22, I-28, then A,
+  .claude/gorevler/2026-11-20-i47b-write-behind.md; the uncommitted work in the tree belongs to it).
+  State at handoff: implemented (ui/saver.py JobSaver, store.save_dict, flush on close/Ctrl+S/export/switch/
+  delete; tests/ui 1816 passed, core 735); Kapı G clean; lenses in .mercek-acd.md and .mercek-b.md; Sonnet
+  reviewer writing .denetci.md. Next: fix round from .denetci.md (Tur 1/3), re-review, commit, push.
+  CI fix c1275eb (test timing in test_workers.py) pushed after b3550dc's CI build failure.
+  Lesson: never `git stash` while an agent edits the tree. Then I-21, I-19, I-17, I-23, I-22, I-28, then A,
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,

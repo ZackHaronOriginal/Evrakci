@@ -11,6 +11,7 @@ import time
 import pytest
 from PySide6.QtCore import QThread, QTimer
 from PySide6.QtWidgets import QApplication, QWidget
+from saving import wait_saved
 
 from evrakci.pipeline.store import JobFileError, JobStore
 from evrakci.ui import loading, workers
@@ -642,6 +643,7 @@ def test_a_failed_delete_unfreezes_the_job(qtbot, tmp_path, monkeypatch):
     qtbot.waitUntil(lambda: not window.loading(), timeout=3000)
     assert not controller.frozen
     assert controller.run("Ad", lambda job: setattr(job, "name", "Sonra"))
+    wait_saved(controller)  # saving is write-behind (I-47 part b)
     assert store.load(first.id).name == "Sonra"
 
 

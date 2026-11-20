@@ -50,7 +50,7 @@ def test_real_doc_documents_every_divergent_key():
     for _tab, key, spec in table:
         meaning.setdefault(key, set()).add(audit.actions.plain_text(spec.text))
     divergent = {k: v for k, v in meaning.items() if len(v) > 1}
-    assert len(divergent) == 17  # K joined; N and Shift+N joined (Sonraki zayıf örnek on Şablonlar)
+    assert len(divergent) == 18  # K, N, Shift+N joined; R joined (Okunana dön on Değerler)
     assert audit.divergent_problems(divergent, audit.page_specific()) == []
 
 

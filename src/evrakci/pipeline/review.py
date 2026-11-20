@@ -46,6 +46,12 @@ def accept_suggestion(job: Job, document: Document, key: str) -> None:
                           edited=True)
 
 
+def can_revert(value: VariableValue) -> bool:
+    """True when the value was corrected or confirmed and the machine had read something
+    (a reading or a suggestion) to go back to."""
+    return value.edited and bool(value.readings or value.suggestion)
+
+
 def revert_value(job: Job, document: Document, key: str) -> None:
     """Undo the user's correction: the value waits for a check again, with what was read as
     its suggestion, and the next reading may replace it."""

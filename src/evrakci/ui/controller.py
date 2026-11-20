@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import weakref
 from collections.abc import Callable, Iterable
 
 from PySide6.QtCore import QObject, Signal
@@ -37,7 +38,7 @@ class _Snapshot(QUndoCommand):
 
     def __init__(self, controller: JobController, text: str, before: dict, after: dict) -> None:
         super().__init__(text)
-        self._controller = controller
+        self._ref = weakref.ref(controller)
         self._before = before
         self._after = after
         self._first = True
@@ -46,10 +47,10 @@ class _Snapshot(QUndoCommand):
         if self._first:  # the edit is already applied when the command is pushed
             self._first = False
             return
-        self._controller._restore(self._after)
+        self._ref()._restore(self._after)
 
     def undo(self) -> None:
-        self._controller._restore(self._before)
+        self._ref()._restore(self._before)
 
 
 FROZEN_REASON = "İş siliniyor"  # an existing title: shown when a frozen job refuses a change
@@ -61,7 +62,11 @@ class _GuardedStack(QUndoStack):
 
     def __init__(self, controller: JobController) -> None:
         super().__init__(controller)
-        self._controller = controller
+        self._ref = weakref.ref(controller)
+
+    @property
+    def _controller(self):
+        return self._ref()
 
     def undo(self) -> None:
         if self._controller.frozen:

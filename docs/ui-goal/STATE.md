@@ -67,8 +67,12 @@ Updated after every accepted step. A new session or a compacted one reads this f
   core; N / Shift+N, Ctrl+L list "Zayıf örnekler" with title; keys say "Önce Ctrl+T ile örnekleri deneyin."
   before a try-all; popup deleted on close; scrolling only for that popup). Evidence tests/ui/test_sablon_weak.py,
   tests/test_template_read.py; 930 passed on the touched files after the merge; audits clean; matrix 0 clipping.
-  IN PROGRESS: I-23 (worktree branch i23), test_card_scroll fix (main tree), CI segfault hunt (py3.12, seg2).
-  Next: I-22, then the group B review and report, then A (I-08 first).
+  Step I-23 DONE (merge 5a0393f): "Okunana dön" (R, Düzen menu, context menu; one undo step; review.can_revert;
+  CLI refuses only a hand-typed value with no reading). Evidence tests/test_review.py, test_cli_values.py,
+  test_degerler.py test_i23_*; 929 passed on touched files; audits clean; matrix 0 clipping.
+  CI segfault: fixed by 5b9f3aa (controller/undo-stack reference cycle; CI ran to 100 % without crash).
+  Side panel whole-card fix fb66733 (Q-24). A test_ui_measure order failure is being fixed (main tree).
+  IN PROGRESS: I-22 (worktree branch i22). Next: group B review and report, then A (I-08 first).
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,

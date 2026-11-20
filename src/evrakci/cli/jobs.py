@@ -485,7 +485,10 @@ def fix_value(args: argparse.Namespace, store: JobStore) -> int:
             accept_suggestion(job, document, key)
         elif args.geri_al:
             current = current_values(job, document)
-            if current is not None and key in current and not can_revert(current[key]):
+            value = current.get(key) if current is not None else None
+            # only a hand-typed value with no reading has nothing to go back to; an
+            # unedited value keeps the command's earlier behaviour
+            if value is not None and value.edited and not can_revert(value):
                 raise UserError(f"{args.ad}: Bu değer elle yazıldı; okunmuş bir değer yok.")
             revert_value(job, document, key)
         else:

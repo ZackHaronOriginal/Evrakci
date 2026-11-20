@@ -118,3 +118,10 @@ def test_cli_revert_and_its_refusal(tmp_path, capsys):
     assert run("deger", job_id, "2", "Kayıt No", "--geri-al") == 2
     assert "Bu değer elle yazıldı; okunmuş bir değer yok." in capsys.readouterr().err
     assert current_values(store.load(job_id), second)[kayit].value == "elle"  # untouched
+    # an unedited machine-read value is not "typed by hand": no such refusal for it
+    record_values(job, second, template.id, {
+        unvan: got, kayit: VariableValue("48213", 0.95, 0, False, "", (), False)})
+    store.save(job)
+    capsys.readouterr()
+    run("deger", job_id, "2", "Kayıt No", "--geri-al")
+    assert "elle yazıldı" not in capsys.readouterr().err

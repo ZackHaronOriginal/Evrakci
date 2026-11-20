@@ -34,7 +34,8 @@ Updated after every accepted step. A new session or a compacted one reads this f
   every decision settled by evidence (docs/ui-goal/specs/README.md); I-01 dropped (QR is only the
   separator); I-47 rewritten (background work + loading view). Readable page for the owner:
   https://claude.ai/artifact/HsKTkfuka1QDq89p351XuX. Specs APPROVED 2026-11-20 (f69cb85). Building in README §1 order. Step 1 = I-47
-  part a (task .claude/gorevler/2026-11-20-p5e-build-i47a.md, Sonnet implementing); then the gates
+  part a: NOT STARTED (a first attempt was stopped at the owner's request and its partial edits
+  discarded; write a fresh task spec from specs/quick-wins.md I-47 build steps 1-4 and 6); then the gates
   (Kapı 1, Kapı G, four Haiku lenses, Sonnet reviewer, Opus acceptance), commit, then I-47 part b
   (write-behind saver, high risk, own step), then I-21, I-19, I-17... per README §1.
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no

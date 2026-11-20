@@ -197,6 +197,8 @@ class EvrakciStyle(QProxyStyle):
             return int(self._underlines)
         if hint == QStyle.StyleHint.SH_Widget_Animation_Duration and motion.reduced_motion():
             return 0
+        if hint == QStyle.StyleHint.SH_Menu_Scrollable:  # a menu with a maximum height scrolls
+            return 1
         return super().styleHint(hint, option, widget, data)
 
     def pixelMetric(self, metric, option=None, widget=None):  # noqa: N802

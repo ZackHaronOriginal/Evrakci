@@ -92,7 +92,7 @@ def test_validate_catches_menu_access_key_clash(app):
 
 def test_same_key_on_two_tabs_is_allowed(app):
     owners = {s.context for s in SPECS if "N" in s.shortcuts}
-    assert owners == {"kontrol", "degerler"}
+    assert owners == {"kontrol", "degerler", "sablonlar"}  # N: the next one to check
 
 
 def test_unconnected_actions_are_disabled(app, window):

@@ -164,6 +164,9 @@ sablonlar		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	
 sablonlar	B	sablonlar.kutu_ciz	Kutu çiz	Araçlar > Kutu çiz	bar	page menu	yes	ok
 sablonlar	G	sablonlar.izgara	Izgaraya oturt	Araçlar > Izgaraya oturt	bar	page menu	yes	ok
 sablonlar	Ctrl+T	sablonlar.dene	Bütün örneklerde dene	Araçlar > Bütün örneklerde dene	bar		yes	ok
+sablonlar	N	sablonlar.sonraki_zayif	Sonraki zayıf örnek	Git > Sonraki zayıf örnek [state-dependent]	bar Diğer komutlar [state-dependent]		yes	ok
+sablonlar	Shift+N	sablonlar.onceki_zayif	Önceki zayıf örnek	Git > Önceki zayıf örnek [state-dependent]	bar Diğer komutlar [state-dependent]		yes	ok
+sablonlar	Ctrl+L	sablonlar.zayif_ornekler	Zayıf örnekler	Git > Zayıf örnekler [state-dependent]	bar Diğer komutlar [state-dependent]		yes	ok
 sablonlar	Del	sablonlar.kutu_sil	Kutuyu sil	Düzen > Değişkeni sil	bar | panel Diğer	box menu | variable row	yes	ok
 sablonlar	Ctrl+D	sablonlar.kutu_cogalt	Kutuyu çoğalt	Düzen > Kutuyu çoğalt [state-dependent]	bar [state-dependent] | panel Diğer [state-dependent]	box menu [state-dependent] | variable row [state-dependent]	yes	ok
 sablonlar	Ctrl+Shift+N	sablonlar.degisken_ekle	Değişken ekle	Düzen > Değişken ekle	QToolButton | bar | panel Diğer	box menu | variable row	yes	ok

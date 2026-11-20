@@ -203,6 +203,104 @@ def _feedback_dene(c: Ctx) -> None:
                    for r in range(s.examples.count())), "no example is marked"
 
 
+# -- N, Shift+N, Ctrl+L (I-28: the weakest examples first) -------------------------------------
+NEEDS_TRY = "Önce Ctrl+T ile örnekleri deneyin."
+
+
+def _weak_value(*confidences):
+    from evrakci.pipeline.templates.values import SectionReading, VariableValue
+
+    readings = tuple(SectionReading(i, "x", conf) for i, conf in enumerate(confidences))
+    return VariableValue("", 0.0, None, True, "x", readings)
+
+
+def _forget_try(c: Ctx) -> None:
+    s = _s(c)
+    s.example_values, s.tried_all = {}, False
+    s._mark_example_checks()
+    s._sync_all()
+
+
+@helper("pre.sablon_weak")
+def _pre_weak(c: Ctx) -> None:
+    """A try-all that left examples 3, 2 and 1 (worst first), the page on example 1; the
+    reads of the examples that open are not wanted: only the order is under test."""
+    ensure_template(c)
+    s = _s(c)
+    wait_until(lambda: s._read_task is None)
+    choose(c, "Sicil_No", None)
+    s.set_example(1)
+    keep = s.__dict__.get("read_example")
+    s.read_example = lambda: None
+
+    def undo() -> None:
+        weak = getattr(s, "_weak_menu", None)
+        if weak is not None and weak.isVisible():
+            weak.close()
+        _forget_try(c)
+        s.set_example(1)
+        if keep is None:
+            del s.read_example
+        else:
+            s.read_example = keep
+
+    c.undo.append(undo)
+    s.example_values = {1: {"a": _weak_value(0.61)}, 2: {"a": _weak_value(0.38)},
+                       3: {"a": _weak_value(0.5), "b": _weak_value(0.45)}}
+    s.tried_all = True
+    s._mark_example_checks()
+    s._sync_all()
+
+
+@helper("pre.sablon_no_try")
+def _pre_no_try(c: Ctx) -> None:
+    ensure_template(c)
+    _forget_try(c)
+
+
+@helper("effect.sablon_weak_next")
+def _effect_weak_next(c: Ctx) -> None:
+    assert _s(c).example == 3, "N did not open the weakest example"
+
+
+@helper("effect.sablon_weak_previous")
+def _effect_weak_previous(c: Ctx) -> None:
+    assert _s(c).example == 2, "Shift+N did not open the previous example in the order (2)"
+
+
+@helper("feedback.sablon_weak_opened")
+def _feedback_weak_opened(c: Ctx) -> None:
+    s = _s(c)
+    assert s.examples.currentData() == s.example, "the picker does not show the opened example"
+    assert s.canvas.has_page()
+    assert any(f"Örnek {s.example}" in t or str(s.example) in t
+               for t in slot_texts(c.win, "sablonlar")), slot_texts(c.win, "sablonlar")
+
+
+@helper("effect.sablon_weak_list")
+def _effect_weak_list(c: Ctx) -> None:
+    menu = _s(c)._weak_menu
+    assert menu.isVisible()
+    rows = [a.text() for a in menu.actions() if a.data() is not None]
+    assert rows == ["Belge 3  2 kontrol  en düşük %45", "Belge 2  1 kontrol  en düşük %38",
+                    "Belge 1  1 kontrol  en düşük %61"], rows
+
+
+@helper("feedback.sablon_weak_list")
+def _feedback_weak_list(c: Ctx) -> None:
+    menu = _s(c)._weak_menu
+    assert menu.accessibleName() == "Zayıf örnekler"
+    assert any(a.isSeparator() and a.text() == "Zayıf örnekler" for a in menu.actions())
+
+
+@helper("na.sablon_weak_off")
+def _na_weak_off(c: Ctx) -> None:
+    action = c.win.registry.action(c.action_id)
+    assert not action.isEnabled(), "the key is on before a try-all"
+    assert action.toolTip().startswith(NEEDS_TRY), action.toolTip()
+    assert _s(c).example == 1
+
+
 # -- Del, Ctrl+D, Ctrl+Shift+N, Alt+Up / Alt+Down ----------------------------------------------
 @helper("pre.sablon_box_chosen")
 def _pre_box_chosen(c: Ctx) -> None:
@@ -468,6 +566,15 @@ PLANS["sablonlar.dene"] = _plan(
     xfail={"na": "M-37: no page: Ctrl+T is disabled and silent; INTENDED: the key stays on "
                  f"and shows {NO_PAGE_DENE!r}; conflicts with "
                  "test_sablon_window.py::test_nothing_is_usable_without_a_template; owner Q-09"})
+PLANS["sablonlar.sonraki_zayif"] = _plan(
+    "pre.sablon_weak", "effect.sablon_weak_next", "feedback.sablon_weak_opened",
+    na_pre="pre.sablon_no_try", na_window="job_sablon", na="na.sablon_weak_off")
+PLANS["sablonlar.onceki_zayif"] = _plan(
+    "pre.sablon_weak", "effect.sablon_weak_previous", "feedback.sablon_weak_opened",
+    na_pre="pre.sablon_no_try", na_window="job_sablon", na="na.sablon_weak_off")
+PLANS["sablonlar.zayif_ornekler"] = _plan(
+    "pre.sablon_weak", "effect.sablon_weak_list", "feedback.sablon_weak_list",
+    na_pre="pre.sablon_no_try", na_window="job_sablon", na="na.sablon_weak_off")
 PLANS["sablonlar.kutu_sil"] = _plan(
     "pre.sablon_box_chosen", "effect.sablon_box_deleted", "feedback.sablon_box_deleted",
     na_pre="pre.none", na="na.says.sablon_nothing_chosen",

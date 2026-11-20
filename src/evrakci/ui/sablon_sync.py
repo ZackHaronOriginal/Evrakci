@@ -7,6 +7,7 @@ A mixin of `SablonScreen`; every `_sync_*` reads the screen's state and changes 
 
 from __future__ import annotations
 
+from evrakci.pipeline.templates.read import flagged_count
 from evrakci.ui import actions
 from evrakci.ui import sablon_read as reading
 from evrakci.ui.sablon_canvas import fmt_mm
@@ -120,6 +121,7 @@ class Syncing:
         }
         for action_id, enabled in states.items():
             registry.set_enabled(action_id, enabled)
+        self._sync_weak_actions(registry, page and not waiting)
         # Del removes what is chosen: the item says "Değişkeni sil" while only a variable is.
         delete = registry.action("sablonlar.kutu_sil")
         spec = registry.spec("sablonlar.kutu_sil")
@@ -171,8 +173,8 @@ class Syncing:
         check = s["check"]
         if self._all_task is not None:
             return
-        flagged = sum(reading.flagged_count(v) for v in self.example_values.values()) \
-            if len(self.example_values) > 1 else reading.flagged_count(self.values)
+        flagged = sum(flagged_count(v) for v in self.example_values.values()) \
+            if len(self.example_values) > 1 else flagged_count(self.values)
         check.set_icon("triangle-alert", "rider-edge")
         check.setVisible(bool(flagged) and page)
         check.set(str(flagged), " okuma kontrol bekliyor")

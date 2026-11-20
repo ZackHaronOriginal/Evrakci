@@ -43,8 +43,8 @@ from evrakci.pipeline.templates.model import (
     template_revision,
     template_to_dict,
 )
+from evrakci.pipeline.templates.read import flagged_count
 from evrakci.pipeline.templates.store import TemplateStore
-from evrakci.ui import sablon_read as reading
 from evrakci.ui import theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.controller import JobController
@@ -57,6 +57,7 @@ from evrakci.ui.sablon_nav import USER, NavPane
 from evrakci.ui.sablon_parts import TemplateEdit
 from evrakci.ui.sablon_rulers import CanvasWell
 from evrakci.ui.sablon_sync import Syncing
+from evrakci.ui.sablon_weak import WeakExamples
 from evrakci.ui.widgets import StatusPart
 from evrakci.ui.workers import Task
 
@@ -82,7 +83,7 @@ def _widths() -> tuple[int, int]:
     return (360 if m.effective_density() == "comfortable" else 264, m.size("inspector-w"))
 
 
-class SablonScreen(LiveReads, Syncing, QWidget):
+class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
     drawing_changed = Signal(bool)
     snap_changed = Signal(bool)
 
@@ -109,6 +110,7 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         self.zoom = None
         self.values: dict = {}  # the live read of the example on the canvas
         self.example_values: dict[int, dict] = {}  # after "Bütün örneklerde dene"
+        self.tried_all = False  # example_values holds a try-all (I-28 lists need one)
         self._docs: list = []
         self._read_number = 0
         self.read_lines: list[str] = []
@@ -291,6 +293,7 @@ class SablonScreen(LiveReads, Syncing, QWidget):
             layout.addWidget(part)
             self._status[name] = part
         layout.addStretch(1)  # the items sit at the left, not centred in the widest tab's slot
+        self._connect_weak(r)
         self._make_zoom(getattr(window, "prefs", None))
         prefs = getattr(window, "prefs", None)
         if prefs is not None:
@@ -407,6 +410,7 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         self.variable_name = self.template.variables[0].name if self.template.variables else None
         self.section_index = None
         self.values, self.example_values = {}, {}
+        self.tried_all = False
         self.pattern.setText(self.template.filename_pattern)
         self.message.setText("")
         self._show_variables()
@@ -636,6 +640,7 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         if job_id != self.job_id:  # another job: the old example number means nothing
             self.job_id, self.example, self.page_number = job_id, 0, 1
             self.values, self.example_values = {}, {}
+            self.tried_all = False
         self._docs = list(controller.documents()) if controller is not None else []
         self.examples.blockSignals(True)
         self.examples.clear()
@@ -664,7 +669,7 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         triangle and its count in the picker (icon + word, never colour alone)."""
         warn = make_icon("triangle-alert", "check-text", theme.manager().size("icon-sm"))
         for row in range(self.examples.count()):
-            flagged = reading.flagged_count(self.example_values.get(self.examples.itemData(row),
+            flagged = flagged_count(self.example_values.get(self.examples.itemData(row),
                                                                     {}))
             base = self.examples.itemData(row, BASE)
             self.examples.setItemText(row, f"{base} · {flagged} kontrol" if flagged else base)

@@ -57,6 +57,8 @@ the part between the two comments.
 - `Esc`: page-specific: dismiss without losing work (clear selection, Vazgeç, clear search)
 - `F2`: page-specific: edit the selected item's name or value by hand (Yeniden adlandır, Elle yaz)
 - `K`: page-specific: Burada kes on Kontrol, Kontrol'de aç on Değerler
+- `N`: page-specific: next one to check (Sonraki kontrol on Kontrol and Değerler, Sonraki zayıf örnek on Şablonlar)
+- `Shift+N`: page-specific: previous one to check (Önceki kontrol on Kontrol and Değerler, Önceki zayıf örnek on Şablonlar)
 - `Left`: page-specific: local key of the focused view (previous page on Kontrol, nudge box on Şablonlar)
 - `Right`: page-specific: local key of the focused view (next page on Kontrol, nudge box on Şablonlar)
 - `Shift+Left`: page-specific: local key of the focused view (extend selection, 1 mm nudge)
@@ -139,6 +141,8 @@ the part between the two comments.
 | B | Kutu çiz | Araçlar | checkable; yazarken kapalı |
 | G | Izgaraya oturt | Araçlar | checkable snap toggle; yazarken kapalı |
 | Ctrl+T | Bütün örneklerde dene | Araçlar | |
+| N / Shift+N | Sonraki zayıf örnek / Önceki zayıf örnek | Git | after Ctrl+T; weakest first; yazarken kapalı |
+| Ctrl+L | Zayıf örnekler | Git | list of the weak examples under the example picker; after Ctrl+T |
 | Del | Kutuyu sil | Düzen | undoable; yazarken kapalı. Acts on the chosen box, or on the chosen variable when it has no box |
 | Ctrl+D | Kutuyu çoğalt | Düzen | |
 | Ctrl+Shift+N | Değişken ekle | Düzen | |

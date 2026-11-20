@@ -481,12 +481,13 @@ def test_placeholder_has_no_form_shapes():
 
 # -- Şablonlar -------------------------------------------------------------------------------------
 def test_a_variable_without_a_box_is_not_a_false_kontrol():
+    from evrakci.pipeline.templates.read import flagged_count
     from evrakci.pipeline.templates.values import VariableValue
     from evrakci.ui import sablon_read
 
     nothing = VariableValue("", 0.0, None, True)
     assert sablon_read.shown_for(nothing, None, 0.9).level == "okunmadi"
-    assert sablon_read.flagged_count({"k": nothing}) == 0
+    assert flagged_count({"k": nothing}) == 0
 
 
 def test_a_box_can_be_drawn_and_resized_from_the_keyboard(demo):

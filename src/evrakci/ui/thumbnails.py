@@ -18,6 +18,7 @@ from PySide6.QtGui import QImage
 
 from evrakci.pipeline.job import Job, parse_page_id
 from evrakci.pipeline.render import render_page
+from evrakci.ui import gc_guard
 
 Renderer = Callable[[str, int], Image.Image]
 
@@ -91,7 +92,8 @@ class _Job(QRunnable):
         self.pid = pid
 
     def run(self) -> None:
-        self.service._render(self.pid)
+        with gc_guard.working():
+            self.service._render(self.pid)
 
 
 class ThumbnailService(QObject):
@@ -154,6 +156,7 @@ class ThumbnailService(QObject):
                 return
             self._wanted.add(pid)
             self._busy += 1
+        gc_guard.install()  # cyclic garbage is never collected on the worker
         self._pool.start(_Job(self, pid))
 
     def keep_only(self, pids: set[str]) -> None:

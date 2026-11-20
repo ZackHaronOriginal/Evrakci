@@ -13,6 +13,8 @@ at least LOADING_MIN_MS once shown. Thread-safety rules, kept by every worker fu
 5. A job file is written from one thread only: the JobSaver's writer (ui/saver.py).
 6. A result that arrives after the owner is closed, or after a newer run started, is dropped
    (the caller's on_done also checks its own job id).
+7. Python's cycle collector never runs on a worker: `start` installs ui/gc_guard.py (window-
+   thread collection) and `Task.run` marks the worker busy, so no full pass stalls the window.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ import shiboken6
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, Signal
 from PySide6.QtWidgets import QWidget
 
+from evrakci.ui import gc_guard
 from evrakci.ui.loading import LoadingCard, assert_window_thread
 
 LOADING_SHOW_MS = 300  # no loading card for work that finishes sooner
@@ -68,17 +71,19 @@ class Task(QRunnable):
         self.signals.progress.emit(done, total)
 
     def run(self) -> None:
-        try:
-            result = self.work(self._progress)
-        except Cancelled:
-            self.signals.cancelled.emit()
-        except Exception as error:  # shown to the user in Turkish; the window keeps working
-            self.signals.failed.emit(str(error) or type(error).__name__)
-        else:
-            self.signals.done.emit(result)
+        with gc_guard.working():
+            try:
+                result = self.work(self._progress)
+            except Cancelled:
+                self.signals.cancelled.emit()
+            except Exception as error:  # shown to the user in Turkish; the window keeps working
+                self.signals.failed.emit(str(error) or type(error).__name__)
+            else:
+                self.signals.done.emit(result)
 
 
 def start(task: Task) -> Task:
+    gc_guard.install()  # cyclic garbage is never collected on the worker (ui/gc_guard.py)
     QThreadPool.globalInstance().start(task)
     return task
 

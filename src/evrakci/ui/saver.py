@@ -35,6 +35,7 @@ from collections.abc import Callable
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
 from evrakci.pipeline.store import JobStore
+from evrakci.ui import gc_guard
 
 SAVING_SHOW_MS = 200  # no "Kaydediliyor…" for a write that finishes sooner
 STALL_MS = 10_000  # a write that takes longer than this is reported as failed (a hung share)
@@ -77,6 +78,10 @@ class _Core:
         self.running = False
 
     def run(self) -> None:
+        with gc_guard.working():
+            self._run()
+
+    def _run(self) -> None:
         ended = False  # the loop set `running` False itself, under the lock
         try:
             while True:
@@ -123,6 +128,9 @@ class JobSaver(QObject):
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._announce)
+        # Cyclic garbage (Qt objects in it) is collected on the window thread only, never by
+        # the writer thread that happens to allocate (ui/gc_guard.py).
+        gc_guard.install()
         # Writer-thread state (a plain object, never this QObject: see `_Relay`).
         global _relay
         if _relay is None:
@@ -157,6 +165,7 @@ class JobSaver(QObject):
         """Queue `data` (a snapshot nobody changes any more) to be written as job `job_id`."""
         if self.frozen:
             return
+        gc_guard.install()  # cheap when installed (by __init__); see ui/gc_guard.py
         was_idle = self.idle
         self._submitted += 1
         failure: tuple[int, str] | None = None

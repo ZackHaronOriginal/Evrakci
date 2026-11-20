@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication
 from evrakci.pipeline.settings import SettingsError, load_settings
 from evrakci.pipeline.store import JobStore, default_root
 from evrakci.pipeline.templates.store import TemplateStore, default_template_root
-from evrakci.ui import fonts, icons, theme
+from evrakci.ui import fonts, gc_guard, icons, theme
 from evrakci.ui.main_window import MainWindow
 from evrakci.ui.prefs import Prefs
 
@@ -85,6 +85,7 @@ def configure_application(app: QApplication, prefs: Prefs | None = None) -> None
         manager.bind_prefs(prefs)
     manager.apply(app)
     app.setWindowIcon(icons.app_icon())
+    gc_guard.install()  # cyclic garbage is collected on the window thread only
 
 
 def hide_console_for_children(windows=None, frozen=None, kernel32=None, user32=None) -> bool:

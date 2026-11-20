@@ -1157,7 +1157,8 @@ def test_i19_every_row_equal_to_the_suggestion_is_tagged(qtbot, tmp_path):
 def test_i19_building_the_rows_opens_no_stray_window(qtbot, tmp_path):
     from evrakci.ui.degerler_side import ReadingItem, ReadingRow
     before = {id(w) for w in QApplication.topLevelWidgets() if w.isVisible()}
-    ReadingRow(ReadingItem("Bölüm 1", "48213", (), 55, True, "boş olabilir"))
+    row = ReadingRow(ReadingItem("Bölüm 1", "48213", (), 55, True, "boş olabilir"))
+    qtbot.addWidget(row)  # closed and deleted by qtbot, not left to the cycle collector
     after = {id(w) for w in QApplication.topLevelWidgets() if w.isVisible()}
     assert after == before
 

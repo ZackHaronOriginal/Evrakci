@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.ui import theme
+from evrakci.ui import gc_guard, theme
 from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import ElidedLabel, make_icon, press_on_enter
 from evrakci.ui.degerler_table import paint_level, paint_marked
@@ -52,11 +52,12 @@ class _Render(QRunnable):
         self.relay, self.render, self.pid, self.dpi = relay, render, pid, dpi
 
     def run(self) -> None:
-        try:
-            image = self.render(self.pid, self.dpi)
-        except Exception:  # noqa: BLE001 - a missing or broken batch file shows no crop
-            image = QImage()
-        self.relay.done.emit(self.pid, self.dpi, image)
+        with gc_guard.working():
+            try:
+                image = self.render(self.pid, self.dpi)
+            except Exception:  # noqa: BLE001 - a missing or broken batch file shows no crop
+                image = QImage()
+            self.relay.done.emit(self.pid, self.dpi, image)
 
 
 class PageImages(QObject):
@@ -83,6 +84,7 @@ class PageImages(QObject):
             return self._cache[key]
         if self.render is not None and key not in self._pending:
             self._pending.add(key)
+            gc_guard.install()  # cyclic garbage is never collected on the worker
             QThreadPool.globalInstance().start(_Render(self._relay, self.render, pid, dpi))
         return None
 

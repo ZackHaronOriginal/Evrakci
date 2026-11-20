@@ -26,7 +26,7 @@ Smallest and safest first. Each step is built and tested on its own. A step mark
 for the step it names.
 
 **Stage 1: window only, no core change**
-1. B I-47 busy cursor (measure first). *Needed by step 17.*
+1. B I-47 keep the window responsive: background work with a loading view (shared `run_background` helper and loading card). *Needed by step 17.*
 2. B I-21 carry the document between Kontrol and Değerler (also fixes bug B-012).
 3. B I-19 every section's reading in the value card.
 
@@ -68,7 +68,7 @@ One spec owns each shared piece; the others point to it.
 | `value_level` + `EMIN_AT = 0.90` in `pipeline/templates/values.py` | B I-17 | A I-06, `ui/sablon_read.level_of` | A put it in `values.py` with 4 levels, B in `review.py` with 5. Now one function, in `values.py` (it has no imports, so the select module and the UI can use it), with all 5 levels including "okunmadı". |
 | Job file format | this page | A I-04, C I-01, D I-35 | A and C kept version 2; D wanted version 3. Version 3 would stop older Evrakçı versions opening the job. **Plan: stays version 2.** Every new field (`width_mm`/`height_mm`, `qr_texts`, `last_export`) is added with a default, so old files open in the new app and new files open in older apps. |
 | Re-reading old jobs | A I-04 `fill_page_sizes` (automatic, no rendering), C I-01 `reread_qr` (on demand, renders) | each other | Kept as two helpers because their cost differs; both use `JobStore.batch_file`; one shared old-job test fixture, made by whichever is built first (I-04). |
-| `motion.wait_cursor` | B I-47 | D I-38 | D's "busy cursor" for the 800-row preview uses it. |
+| `run_background` + `LoadingCard` (`ui/workers.py`, `ui/loading.py`) | B I-47 | D I-38 | Replaces the dropped `motion.wait_cursor`: D's 800-row preview is built through it (or shows its own "Önizleme hazırlanıyor…" band) instead of a busy cursor. |
 | `ExportItem` fields `sources`, `name_note`, `pdfa_note` | D (C1) | D I-39, I-40 | `pdfa_note` (from the B-003 fix) was missing from D's shared list. |
 | Kontrol keys | this page (table below) | A, B, C | D was proposed twice; see section 3. |
 | Saved-filter chips | C I-07 | A | A first put the chips inside its dialog; they are a row above the timeline (C), using A's core. |
@@ -178,6 +178,11 @@ recommendation.
   D was also wanted for "Sonraki farklı sayfa" (O-3's pages); that command then has no key (menu
   only). Options: (a) these keys, (b) menu only. **Recommended: (a)**: D and K are the first letter
   of the tab you go to, and N already means "next one to check".
+- **O-22 Save edits in the background (B I-47 step 5).** A background saver keeps a slow network
+  folder from stalling each edit. Options: (a) yes, with "Kaydediliyor…" and a flush on close,
+  Ctrl+S, export and job switch, (b) no, saving stays on the window thread (0.6 ms measured on a
+  local disk). **Recommended: (a) only if jobs live on network folders, else (b)**; depends on where
+  staff keep jobs, which no measurement here can tell.
 
 ### C: QR content and saved filters
 

@@ -203,27 +203,95 @@ Reuses the QMenu-style popup of the job switcher and the triangle-alert icon + w
 
 ---
 
-## I-47 Busy cursor for any window-thread block over 1 second
+## I-47 Keep the window responsive: background work with a loading view
 
-**1. Problem.** Opening a big job or the first paint of Kontrol can hold the window for seconds with no cue (A-65). `MainWindow.busy()` / `motion.busy_cursor` exist and nothing calls them. Worse, `busy_cursor` starts a timer that needs the event loop, so around a fully blocking call it never fires ([NN/g](https://www.nngroup.com/articles/response-times-3-important-limits/): over 1 s show that work is going on). Principle: Never silent (the window must not look frozen).
-**2. Who and when.** Everyone on older PCs, Yükle -> Kontrol, when opening a 400-800 page job.
-**3. Keyboard flow.** None; no key is needed. The cursor shows for the work started by Enter in the job list or Ctrl+O/N.
-**4. Screen sketch.** None: the mouse pointer turns to the wait cursor; the status line keeps its text. No new component.
-**5. Data and core changes.** UI only, no core. Step 1 is measuring which blocks really pass 1 s at 800 pages (use the `perf-profile` skill; candidates: `JobStore.load` in `yukle.py:open_job` 336, `KontrolScreen` construction in `main_window.py:_job_opened` 1196, first paint). Then add `motion.wait_cursor(expected_long: bool)`: sets the override cursor at once and calls `QApplication.processEvents()` once so the cursor is drawn before the blocking call, restores it in `finally`, and does nothing for small jobs (page count under a measured limit) to avoid flicker. Wrap only the blocks the measurement names. Longer work stays a worker with progress (D-38 pattern).
-**6. Tests.** `tests/ui/test_motion.py`: cursor set before the call and restored after, also when the block raises; nested use leaves no leaked override cursor; not set for the small case. Perf: `perf-profile` before/after on the synthetic 800-page job must show no slower open. Failure to catch: a wait cursor that stays after an error.
-**7. Risks.** `processEvents()` can let a click in before the block: guard re-entry (the job switcher is already disabled by `can_switch`). A cursor alone is a weak cue beyond 10 s: if a block measures over 10 s it needs a worker and progress, which is a separate idea to raise with the owner.
+**Owner's direction (2026-11-20):** no busy-cursor approach; the window thread is never blocked; long work runs in a background job and the person sees a loading view with progress (and cancel where the work can stop). This replaces the earlier "busy cursor" idea. Source for the timing: response time over 0.1 s needs no cue, over 1 s the person must see that work is going on, over 10 s they need progress and a way out ([NN/g](https://www.nngroup.com/articles/response-times-3-important-limits/)); the loading view therefore appears after 300 ms, not 1 s.
 
-**Shortcut contract rows it adds:** none.
-**Rules it must meet:** HIG-CTL-07 (show activity for actions that do not finish instantly), HIG-MOT-03, DEC-MOT-02 (no animation added).
-**Performance cost (800 pages):** one `processEvents()` call (< 5 ms); no extra work otherwise.
+**1. Problem.** Nothing in `src/evrakci/ui/` tells a person that a long job open or a first read is running unless the work already has its own progress card (Yükle, Değerler, Dışa Aktar). `MainWindow.busy()` / `motion.busy_cursor` exist and nothing calls them, and `busy_cursor` needs the event loop so it cannot cover a blocking call. Principle: Never silent; the window must not look frozen.
+
+**Inventory (measured 2026-11-20 on the synthetic 800-page job, offscreen Qt, this machine; `perf-profile` skill, scratch scripts in the run folder).** Ordinary office PCs are slower; read each number as a floor.
+
+| Where the window thread works | ms (800 pages unless said) | Verdict |
+|---|---|---|
+| `JobStore.load` (`yukle.py:open_job` 336, `main_window.py` 1157, 1183 start-up "last job", `list_jobs` for the job list) | 0.4 (52 KB job.json); `list_jobs` 24 for 200 jobs x 120 pages | fast on a local disk; the call is a plain file read, so a network or sleeping disk stalls it for as long as the share does: move to a worker |
+| `yukle.open_job` through `_job_opened` (`JobController`, `ThumbnailService`, `KontrolScreen` build, Değerler and Dışa Aktar refresh) | 86 | widgets, must stay on the window thread; grows with pages (about 0.1 ms per page), over 300 ms near 3000 pages |
+| first events after the open (Kontrol first paint) | 40; `perf_kontrol` first paint 84 fake, 80 real pdfium | fine (existing bound under 1000 ms) |
+| `show_tab` Değerler / Dışa Aktar / Kontrol | 26 / 92 / 52 | fine |
+| `controller._changed` (save on every edit, `JobStore.save`) and Ctrl+S | 8 / 0.6 | local disk fine; on a network folder every edit waits for the write: write-behind (step 5) |
+| OCR engine probe `engine.available()` (`degerler.py:1418` `read_values`, `sablon_read.py:125`) | 288 on the first call, 0.001 after | worst block found: pressing "Oku" freezes the window for about 0.3 s on this machine, more on a PC with a slow disk or a virus scanner: probe in the worker |
+| `scan_profile` (Yükle side panel, `yukle.py:645`) | 105 first call (pdfium start), 0.2 after | below 300; move to the existing worker only if it grows with a real scan (not measured with a real scan) |
+| page renders for the loupe, Şablon canvas and the Değerler crop (`kontrol._render_page`, `sablon._render`, `degerler._render_page`), per page | 17 at 150 dpi, 25 at 200 dpi (synthetic text PDF) | below 300; real scans at 300 dpi are heavier and not measured; they take `PDFIUM_LOCK`, so they wait up to one analysed page (about 11 ms) |
+| `template_store.list` 50 templates / `save` | 1.5 / 0.2 | fine; same network caveat as the job file |
+| `ThumbnailService._delete_job` holds `PDFIUM_LOCK` and calls `JobStore.delete` | not measured (delete is refused while work runs) | folder removal on a network drive is the risk; worker, step 4 |
+| File dialogs (`QFileDialog` in Yükle, Ayarlar, Dışa Aktar) | not measurable | native dialogs run their own loop; the window repaints, a slow share stalls the dialog only; cannot be threaded, left as is |
+
+**Already in a worker (reuse, do not rewrite):** page analysis and batch copy (`yukle._begin`, `Task`), value reads in Değerler and Şablonlar live reads (`degerler.read_values`, `sablon_live.LiveReads`), export (`disa_aktar`, `export_job` with progress and cancel), thumbnails (`ThumbnailService` own 2-thread pool), Değerler side renders (`degerler_side._Render`). The shared pattern is `ui/workers.py`: `Task(work)` with `progress(done, total)` that raises `Cancelled` after `cancel()`, signals `progress`, `done`, `failed`, `cancelled`, started on `QThreadPool.globalInstance()`. Progress card: `yukle_parts.ProgressCard`; "İptal et" is Ctrl+. (`yukle.iptal`, `degerler.durdur`, `disa_aktar.durdur`).
+
+**2. Who and when.** Everyone, most on older PCs or when the job folder is on a network drive: opening a job (Yükle list, Enter, recent-jobs menu, start-up "last job"), the first "Oku", saving after an edit, deleting a job.
+**3. Keyboard flow.** No new key. While the loading view shows, Ctrl+. (İptal et) cancels when the work can stop; Esc does not cancel (existing rule). Focus moves to the loading card's "İptal et" button when it appears and returns to where it was (the job row, the "Oku" button) when it closes. The screen reader announces the title once (live region, like `ProgressCard`).
+**4. Screen sketch.** The loading view is the existing progress card shown alone, centred in the area the work will fill (the tab body), not a modal dialog and not over the title bar or tabs, so the window can still be moved, resized, minimised.
+
+```
+┌ tab body ───────────────────────────────────────────────┐
+│                                                         │
+│        ┌──────────────────────────────────────┐         │
+│        │ [icon] İş açılıyor     Kasim-raporlari│         │
+│        │ ▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░  (6 px bar)    │         │
+│        │ %42   Yaklaşık 3 sn kaldı             │         │
+│        │ İptal ederseniz hiçbir şey değişmez.  │         │
+│        │                          [İptal et]   │         │
+│        └──────────────────────────────────────┘         │
+└─────────────────────────────────────────────────────────┘
+```
+
+Fluent 2 (DESIGN.md direction A): no ProgressRing exists in the app; the 6 px `ProgressBar` of `ProgressCard` is used (determinate when the work reports counts, otherwise the indeterminate bar with the slide animation; reduced motion shows a static half-filled bar and the words). Colours from tokens (`track`, accent). The previous screen stays under the card, dimmed to the disabled colour, so the layout does not jump when the real screen arrives. No spinner on a cold start under 300 ms: the card appears only after `LOADING_SHOW_MS = 300` and, once shown, stays at least `LOADING_MIN_MS = 400` so it never flashes.
+**5. Data and core changes.** UI only, except that the core functions stay as they are (D13 lifted: no core change is needed; the worker calls `JobStore.load`, `template_store.list`, `engine.available()`, `JobStore.save`, `JobStore.delete` as they are; each is already free of Qt).
+
+Design:
+- `ui/workers.py` gains `run_background(owner, work, *, title, name="", on_done, on_failed=None, cancellable=True, show_after_ms=LOADING_SHOW_MS)`. It makes a `Task`, connects its signals with `Qt.QueuedConnection` to the owner (the signals are already emitted from the worker and received on the window thread), starts a one-shot timer for the loading view, and returns a handle with `cancel()`, `running`. At most one loading job per window at a time (a second request while one runs is refused with the existing "Bir iş sürüyor; bitince açın." line); thumbnails and Değerler side renders are not loading jobs.
+- `ui/loading.py` (new, small): `LoadingCard` = `ProgressCard` moved here from `yukle_parts.py` (Yükle keeps importing it; one component, restyled once) plus `show_loading(title, name)`, `show_progress(done, total)`, `close()`. `MainWindow` owns one instance over the tab body.
+- Job open becomes: window thread asks `run_background(work=lambda p: (store.load(id), template_store.list(...), store.batch_files(job)))`; `on_done` builds `JobController`, `ThumbnailService`, `KontrolScreen` (all widget work stays on the window thread) and swaps screens. The old job stays open and usable until `on_done` runs; a failure or cancel leaves it exactly as it was.
+- The first-read OCR probe moves into the worker of `read_values` / `read_examples` (`engine.available()` is called in `work` and its text comes back as the failed reason, as the screens show it today); `default_engine()` is also warmed once in a worker after start-up so the first "Oku" has the answer cached.
+- Delete job runs `JobStore.delete` inside the worker, under `PDFIUM_LOCK` (as `_delete_job` does now), and the job list updates in `on_done`.
+
+Thread-safety rules (go into the module docstring and are tested):
+1. A worker function receives plain data only (paths, ids, dicts, `Job` copies); it never touches a `QWidget`, `QPixmap`, `QAction`, the model or the controller. Results travel back as signals and are applied on the window thread. `QImage` and `PIL.Image` may be made in a worker; `QPixmap` only on the window thread.
+2. Every PDFium call, in any thread, runs under `PDFIUM_LOCK` and holds it for one page at a time (as `analyze_pdf` does), so the window thread never waits longer than one page.
+3. The worker reports progress with `progress(done, total)` at most about 10 times a second (the window thread throttles with `REPORT_EVERY` as `yukle._progress` does) and checks for cancel at the same place.
+4. A worker never starts another `Task` and never calls `processEvents`.
+5. Nothing is written to a job file from two threads: one writer (step 5's saver, else the window thread).
+6. A result that arrives after the owner is closed or the job was switched is dropped (check the job id and a run number in `on_done`).
+
+What is disabled while the loading view shows: opening or creating another job, Ctrl+O / Ctrl+N, the job switcher, "Dışa aktar" (Ctrl+E), the read buttons, and tab switches that would show the job that is still loading (the tabs stay for the old job; the Yükle tab stays for the job list). Each disabled command gets the existing reason "Bir iş sürüyor; bitince açın." (tooltip and status). Window close during a loading job: the loading job is cancelled first, then the existing close path runs. Undo, Ctrl+S and editing in the old job keep working.
+
+**6. Tests.** `tests/ui/test_workers.py` (new, fake slow work with `threading.Event`, no sleeps over 0.3 s): (a) the window keeps processing events: a `QTimer` counter ticks every 20 ms while a patched `JobStore.load` blocks for 1.5 s; at least 50 ticks, and none of them more than 100 ms apart (measures the longest gap between ticks, the real "window not blocked" check); (b) loading view absent for work under 300 ms, visible after 300 ms, hidden at least 400 ms after it appeared (use a monkeypatched clock); (c) cancel with Ctrl+. and the button: old job still open, no new controller, nothing saved, status says "İptal edildi; hiçbir şey değişmedi."; (d) error: `JobFileError` and `OSError` surface as the Turkish error line and toast, loading view closes, old job intact; (e) a second open while loading is refused with the reason; (f) closing the window during a load: no crash, no signal into a dead widget; (g) result arrives for a switched job: dropped; (h) a source-level check that no module-level worker function used with `run_background` imports or names `QWidget` (cheap guard for rule 1) and a runtime guard `assert_window_thread()` called in `LoadingCard` methods, tested by calling them from a thread (must raise); (i) `engine.available()` is not called on the window thread (patch it to record `threading.current_thread()`). Existing tests that open a job synchronously (`yukle.open_job` then reads state) get a `qtbot.waitUntil(lambda: window.controller() is not None)`; a test-only `run_background(..., inline=True)` is not allowed because it would hide the very bug. Perf: `perf-profile` 800-page runs before/after (fake and `--real`) must not be slower; new case in `perf_kontrol.py` or the test (a): longest event-loop gap during open under 100 ms. Failure to catch: a loading view that stays after an error or cancel; a result applied to the wrong job.
+**7. Risks.** Two sources of truth while loading (old job open, new job coming): all UI that reads `controller()` keeps the old one until the swap, so the swap is one function and tested for a half-built state. Background write-behind (step 5) can lose the last edits on a crash or power cut: it flushes on close, on Ctrl+S, before export and before a job switch, shows "Kaydediliyor…" while the queue is not empty, and "Kaydedilemedi" with the retry exactly as today; if the owner prefers no write-behind, the step is dropped and saves stay synchronous. Cancel is only offered where the work can stop (open, delete of many files cannot); non-cancellable work shows no "İptal et" and no "iptal" note. Qt `QThreadPool.globalInstance()` is shared with reads and exports, whose own screens already refuse a second job; the loading job is single so it cannot starve them.
+
+**Shortcut contract rows it adds:** none. It reuses `yukle.iptal` (Ctrl+.): the row's "when" column adds "a job is opening"; and `app.yeni_is`, `app.dosya_ekle`, `app.disa_aktar` get the disabled reason above while a loading job runs.
+**Rules it must meet:** HIG-CTL-07 (show activity for actions that do not finish instantly), HIG-MOT-03 (the person is never made to wait for motion; cancel), DEC-MOT-02 (no animation added except the standard bar; reduced motion honoured), Never silent, Keyboard-first (cancel by key).
+**Performance cost (800 pages):** one timer and one signal per progress step (about 10 per second); the open itself does the same work, only the disk part moves off the window thread; the window-thread part stays about 86 ms. Cache and thumbnails unchanged.
 
 | String | Where | Meaning in English | Status |
 |---|---|---|---|
-| (none) | | | |
+| İş açılıyor | loading card title (job open) | Opening the job | draft |
+| Kaydediliyor… | status item while queued saves are written (step 5) | Saving… | draft |
+| Okuma motoru denetleniyor | loading card title, first "Oku" before the engine answers | Checking the reading engine | draft |
+| İş siliniyor | loading card title (delete job) | Deleting the job | draft |
+| İş açılamadı: {neden} | error line and toast | Could not open the job: {reason} | draft |
+| İptal edildi; hiçbir şey değişmedi. | status after cancel | Cancelled; nothing changed | existing (`yukle.py:984`) |
+| Bir iş sürüyor; bitince açın. | disabled reason | A job is running; open it when it finishes | existing (`yukle.py:226`) |
+| İptal ediliyor… | card title while cancelling | Cancelling… | existing |
+| İptal ederseniz hiçbir şey değişmez. | card note | If you cancel, nothing changes | existing |
+| İptal et | card button | Cancel | existing |
+| Yaklaşık {n} sn kaldı | card line | About {n} s left | existing |
+
+Turkish wording: "açılıyor", "siliniyor", "denetleniyor" are the present-progressive forms the app already uses ("Dosyalar inceleniyor", "İptal ediliyor…", "Önizleme hazırlanıyor…" in `research/turkish-terms.md`); the sector check for the new three is left to the run that settles Turkish wording (T3).
 
 **Owner decisions needed.**
-1. Decided in the reconcile (engineering): only above a measured page count. `motion.wait_cursor` is shared: disa-aktar I-38 uses it for the 800-row print preview.
-**Build steps.** (1) measure with `perf-profile`, list the blocks over 1 s; (2) `wait_cursor` + tests; (3) wrap the named blocks; (4) re-run perf.
+1. Write-behind saving (step 5): after an edit the job file is written by a background saver so a slow network folder never stalls typing. Options: (a) yes, with "Kaydediliyor…" and a flush on close, Ctrl+S, export and job switch, (b) no, keep saving on the window thread (a slow share can then freeze each edit). Recommended: (a) only if the owner's jobs live on network folders; if they are on a local disk (0.6 ms measured) choose (b). This is the one choice the measurement cannot make: it depends where the owner's staff keep jobs.
+2. Decided in the reconcile and by the owner's direction (engineering): the wait cursor is dropped; `motion.wait_cursor` is not built; D's I-38 print preview uses this loading card (or the preview's own "Önizleme hazırlanıyor…" band) instead. Loading card appears after 300 ms; one shared helper.
+
+**Build steps.** (1) `loading.py` (move `ProgressCard`, assertion helper) + `run_background` + tests (a), (b), (h); (2) job open and start-up "last job" and job list in a worker, swap function, tests (c)-(g); (3) OCR probe in the worker and the start-up warm-up, test (i); (4) delete job in a worker; (5) write-behind saver, only if the owner chooses (a); (6) disabled reasons and contract-row text; (7) re-run `perf-profile` (fake and `--real`), screenshot matrix for the loading card at 100 % and 150 %, themes light, dark, hc.
 
 ---
 

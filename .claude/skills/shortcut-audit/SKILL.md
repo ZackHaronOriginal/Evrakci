@@ -125,6 +125,30 @@ so `audit_shortcuts.py` can match tests by id instead of by text search.
 5. Update `docs/ui-goal/shortcuts.md` (map, page-specific notes) in the same change as the
    registry. Lint: `ruff check .`.
 
+## Mouse paths: no action only on a key
+
+Rule: no command is reachable only through a shortcut. Every action also has a visible mouse path:
+the menu bar, a button (command bar, side panel or inspector, card) or a context menu. The command
+palette is a keyboard path and does not count. Only pure navigation keys (arrows, Home/End,
+PgUp/PgDn, Tab, F6, Esc in a field) may be exempt, each with a one-line reason in `EXEMPT` or
+`LOCAL_KEYS` in `audit_shortcuts.py`; an operation (cut, merge, delete, rotate, move a box,
+refresh...) never is.
+
+```bash
+QT_QPA_PLATFORM=offscreen python .claude/skills/shortcut-audit/audit_shortcuts.py --paths          # writes docs/ui-goal/action-paths.tsv
+QT_QPA_PLATFORM=offscreen python .claude/skills/shortcut-audit/audit_shortcuts.py --paths --check  # exit 1 on a key-only row or a stale file
+QT_QPA_PLATFORM=offscreen python -m pytest -q tests/test_action_paths.py
+```
+
+It starts the real window with the demo job, walks every menu of the menu bar, the command-bar and
+panel buttons and each tab's context-menu builders, and writes one row per tab, key and action
+(status `ok`, `key-only` or `exempt:<reason>`). When you add an action: put it in `MENU_LAYOUT`
+(and in a context menu if it acts on an object), then rerun `--paths` and commit the TSV. A button
+that calls a slot instead of a QAction goes into the `BUTTONS` table (the tool fails if an entry
+matches no button). A key still key-only gets a strict xfail in `tests/test_action_paths.py`
+(`KEY_ONLY`) until fixed; a fix that needs a new label or a look change becomes a line in
+`docs/ui-goal/audit/<tab>-proposals.md`.
+
 ## Report format
 
 Per tab: the table, then three lists: conflicts (with the two actions), gaps (command without

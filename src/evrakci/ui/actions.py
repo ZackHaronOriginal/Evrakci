@@ -203,7 +203,8 @@ SPECS: tuple[ActionSpec, ...] = (
     _a("app.tam_ekran", "&Tam ekran", "maximize-2", "F11", menu="gorunum", checkable=True),
     _a("app.yan_panel", "Yan &paneli gizle", "panel-right", "F9", menu="gorunum",
        tip="Ayrıntı panelini gizle", kw="ayrıntı kaynak panel denetçi"),
-    _a("app.yenile", "Yenile", "refresh-cw", "F5", tip="Listeyi ve önizlemeyi yenile"),
+    _a("app.yenile", "Y&enile", "refresh-cw", "F5", menu="gorunum",
+       tip="Listeyi ve önizlemeyi yenile"),
     # Araçlar ve Yardım
     _a("app.ayarlar", "&Ayarlar…", "settings", "Ctrl+,", menu="araclar",
        kw="tercih tema yazı boyutu yoğunluk saklama"),
@@ -358,7 +359,7 @@ MENU_LAYOUT: dict[str, tuple[str | None, ...]] = {
     "gorunum": ("app.yakinlastir", "app.uzaklastir", "app.sigdir", SEPARATOR,
                 "kontrol.onizle", "degerler.tum_sayfa", "sablonlar.okumalari_goster",
                 SEPARATOR, "app.yan_panel", "app.yazi_buyut", "app.yazi_kucult",
-                "app.tam_ekran"),
+                "app.tam_ekran", "app.yenile"),
     "git": (*(f"app.sekme.{tab}" for tab in TABS), "app.sonraki_sekme", "app.onceki_sekme",
             SEPARATOR, "app.git", SEPARATOR,
             "kontrol.sonraki_kontrol", "kontrol.onceki_kontrol",

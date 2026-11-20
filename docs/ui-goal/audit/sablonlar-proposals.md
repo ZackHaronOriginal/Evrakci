@@ -15,3 +15,10 @@ Phase 4 Görev B. Nothing here is changed in `src/`. Reasons are measured in `sa
 - F-sablonlar-35: the toast of "Bütün örneklerde dene" is cut: shared Toaster width; wrapping was fixed globally in 4e5d62e, re-measure first.
 - F-sablonlar-39 to 44: accessibility events, box browsing keys (new shortcuts), variant origin display, rename/copy/delete of templates, per-template undo, 10 mm nudge.
 - F-sablonlar-23 (rule scope), 24 (tool artefact).
+
+## Action paths: keys with no mouse path (2026-11-20, `audit_shortcuts.py --paths`)
+Four Şablonlar commands are reachable only by key. Each needs a new label or a new control, so none is changed in `src/`:
+- `sablonlar.kaydir` (arrows) and `sablonlar.kaydir_1mm` (Shift+arrows): nudge the selected box by 0,25 mm / 1 mm. The registry label has no direction, so one menu entry cannot say which way to move. Options: (a) four menu entries per size ("Kutuyu sola kaydır"...), new Turkish text; (b) a "Konum" group of four arrow buttons in the box inspector, a look change; (c) the box's X/Y fields in the inspector already set a position exactly: owner decides whether that counts as the mouse path for fine moves.
+- `local.kutu_boyutu` (Ctrl+arrows, `sablon_canvas.py`): resize the selected box by 0,25 mm / 1 mm; same options, plus the inspector's W/H fields.
+- `local.kutu_yerlestir` (Enter while "Kutu çiz" is on): places a 40 x 10 mm box. Needs a visible "Kutu yerleştir" command or a click on the sheet that does the same, i.e. new text or a behaviour change.
+The matching strict xfails in `tests/test_action_paths.py` (`KEY_ONLY`) stay until the owner picks an option.

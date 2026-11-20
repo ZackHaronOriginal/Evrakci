@@ -31,6 +31,8 @@ jobs:
         run: python .claude/skills/shortcut-audit/audit_shortcuts.py --check
       - name: Shortcut contract (docs/ui-goal/shortcut-contract.tsv matches the registry)
         run: python .claude/skills/shortcut-audit/audit_shortcuts.py --contract docs/ui-goal/shortcut-contract.tsv
+      - name: Action paths (every action reachable by mouse, docs/ui-goal/action-paths.tsv is current)
+        run: python .claude/skills/shortcut-audit/audit_shortcuts.py --paths --check
       - name: UI measure (rules in docs/ui-goal/rules.json; fails only for rules marked enforced)
         run: python tools/ui_measure.py --out ui-measure.tsv --enforce
       - name: Upload the UI measurements

@@ -46,7 +46,7 @@ Updated after every accepted step. A new session or a compacted one reads this f
   replace, flush before close / Ctrl+S / export / job switch / delete. Evidence: tests/ui/test_saver.py,
   tests/test_store.py; tests/ui 1823 passed / 203 xfailed; core 737 passed / 6 skipped; ruff, audits clean;
   Kapı G clean. Fixed on the way: B-088. CI fix c1275eb. Lesson: never `git stash` while an agent edits.
-  Next: Then I-21, I-19, I-17, I-23, I-22, I-28, then A,
+  IN PROGRESS: I-21 (task spec .claude/gorevler/2026-11-20-i21-carry-document.md; Sonnet implementing). Then I-19, I-17 (specs written), I-19, I-17, I-23, I-22, I-28, then A,
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,

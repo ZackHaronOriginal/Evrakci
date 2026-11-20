@@ -344,8 +344,12 @@ def test_late_close_of_a_finished_card_does_not_hit_the_next_job(qtbot, owner, m
     "İptal et" must still be there after A's close time has passed."""
     monkeypatch.setattr(workers, "LOADING_MIN_MS", 150)
     first: list = []
-    run_background(owner, lambda _p: 1, title="İş açılıyor", on_done=first.append,
-                   show_after_ms=0)
+    shown = threading.Event()  # A ends only once its card is up, also on a slow machine
+    run_background(owner, lambda _p: shown.wait(5) and 1, title="İş açılıyor",
+                   on_done=first.append, show_after_ms=0)
+    qtbot.waitUntil(lambda: getattr(owner, "loading_card", None) is not None
+                    and owner.loading_card.isVisible(), timeout=3000)
+    shown.set()
     qtbot.waitUntil(lambda: first == [1], timeout=3000)
     card = owner.loading_card
     assert card.isVisible()  # A is over, its card waits out the minimum

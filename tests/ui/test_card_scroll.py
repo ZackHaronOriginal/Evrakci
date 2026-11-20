@@ -296,3 +296,22 @@ def test_a_step_uses_the_cards_as_they_are_now(panel):
         assert _partial_cards(area) == []
         assert area.verticalScrollBar().value() in scroller.stops()
         scroller._timer.stop()
+
+
+def test_the_event_filter_ignores_events_after_its_attributes_are_cleared(qapp):
+    """Windows CI: the cycle collector cleared a CardScroll's attributes while Qt still sent
+    events to its filter (AttributeError 'area' in the event loop)."""
+    from PySide6.QtCore import QEvent
+    from PySide6.QtWidgets import QScrollArea, QWidget
+
+    from evrakci.ui.card_scroll import CardScroll
+
+    area = QScrollArea()
+    area.setWidget(QWidget())
+    scroll = CardScroll(area)
+    del scroll.__dict__["area"]  # tp_clear on a collected cycle removes the attributes
+    try:
+        assert scroll.eventFilter(area, QEvent(QEvent.Type.Resize)) is False
+    finally:
+        scroll.area = area  # the rest of this synthetic object still needs it at teardown
+    area.deleteLater()

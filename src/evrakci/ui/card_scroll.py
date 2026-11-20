@@ -352,6 +352,10 @@ class CardScroll(QObject):
             self.reveal(widget)
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if "area" not in self.__dict__:
+            # the Python side is being torn down (the cycle collector clears attributes
+            # first) while Qt still delivers events to the filter: ignore them
+            return False
         kind = event.type()
         if kind == QEvent.Type.Wheel and obj is self.area.viewport():
             if not self.scrollable():

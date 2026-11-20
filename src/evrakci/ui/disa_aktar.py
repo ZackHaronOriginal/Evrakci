@@ -897,6 +897,7 @@ class DisaAktarScreen(QWidget):
         menu = QMenu(self.results)
         copy = menu.addAction("Dosya adını kopyala")
         copy.setShortcut(QKeySequence.StandardKey.Copy)
+        copy.setProperty("action_id", "local.dosya_adi_kopyala")
         copy.triggered.connect(self.copy_names)
         if self.model.mode == "written":
             show = menu.addAction("Dosya Gezgini'nde göster")

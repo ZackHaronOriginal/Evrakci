@@ -425,6 +425,7 @@ class Loupe(QWidget):
         self.close_button.setToolTip(f"Kapat ({actions.key_text('Esc')})")
         self.close_button.setAccessibleName("Önizlemeyi kapat")
         self.close_button.clicked.connect(self.close_loupe)
+        self.close_button.setProperty("action_id", "local.lupa_kapat")
         bar.addWidget(self.close_button)
         col.addWidget(self.head)
 

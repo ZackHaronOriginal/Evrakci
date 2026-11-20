@@ -125,7 +125,9 @@ class OutcomeBanner(QFrame):
         buttons.setSpacing(m.size("s2"))
         self.folder_button = PartsButton("Klasörü aç", "folder-open", primary=True)
         self.index_button = PartsButton("index.xlsx'i aç", "table")
+        self.index_button.setProperty("action_id", "disa_aktar.index_ac")
         self.reveal_button = PartsButton("Dosya Gezgini'nde göster", "folder-open")
+        self.reveal_button.setProperty("action_id", "disa_aktar.gezginde_goster")
         for button, signal in ((self.folder_button, self.open_folder),
                                (self.index_button, self.open_index),
                                (self.reveal_button, self.reveal)):

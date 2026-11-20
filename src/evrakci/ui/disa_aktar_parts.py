@@ -407,6 +407,7 @@ class EmptyPane(QWidget):
         col.addWidget(self.text)
         col.addSpacing(m.size("s6"))
         self.go = PartsButton("Yükle'ye git", "upload", "Ctrl+1", primary=True, large=True)
+        self.go.setProperty("action_id", "app.sekme.yukle")
         col.addWidget(self.go, 0, Qt.AlignmentFlag.AlignHCenter)
         col.addStretch(1)
         self.setAccessibleName("Dışa aktarılacak belge yok")

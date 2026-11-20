@@ -286,6 +286,7 @@ class InspectorPanel(QWidget):
         self.save.setProperty("variant", "primary")
         self.save.setProperty("sizeVariant", "lg")
         self.save.setAccessibleName("Şablonu kaydet")
+        self.save.setProperty("action_id", "app.kaydet")
         self.save.setToolTip("Şablonu kaydet (Ctrl+S)")
         self.save.clicked.connect(self.save_clicked)
         outer.addWidget(self.save)

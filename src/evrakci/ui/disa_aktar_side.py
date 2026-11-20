@@ -174,6 +174,7 @@ class SidePanel(QWidget):
         self.export_button = PartsButton("Dışa aktar", "download", "Ctrl+E", primary=True,
                                          large=True)
         self.export_button.setToolTip("Dışa aktar (Ctrl+E)")
+        self.export_button.setProperty("action_id", "app.disa_aktar")
         self.again_button = PartsButton("Yeniden dışa aktar…", "refresh-cw",
                                         accessible="Yeniden dışa aktar")
         self.again_button.setToolTip("Başka bir klasöre yeniden dışa aktar")

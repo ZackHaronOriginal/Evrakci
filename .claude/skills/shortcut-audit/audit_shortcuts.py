@@ -28,15 +28,18 @@ window offscreen with the synthetic demo job (tools/screenshots.py build) and is
 --paths: every command must also have a mouse path, never only a key. For each tab it collects,
 per registry action and per contract row, where the action can be reached without its key:
 menu bar (every QMenuBar menu walked, submenus too), buttons (command bar, side panels,
-"Diğer" menus; a QAction identity, or the BUTTONS table below for buttons that call a slot) and
+"Diğer" menus; a button is tied to its action by its QAction, or by the dynamic property
+`action_id` set where the button is created in src/evrakci/ui; no matching by text) and
 context menus (each tab's builders run on a representative target with QMenu.popup/exec patched
 to capture the menu). The command palette is listed but does not count: it is a keyboard path.
-Status: ok, key-only (a key, no mouse path), palette-only (no key and no mouse path), or
-exempt:<reason> from EXEMPT / LOCAL_KEYS (pure navigation keys; every entry has a reason).
---paths --check fails on key-only / palette-only rows (except PROPOSED ones, which wait for the
-owner in docs/ui-goal/audit/<tab>-proposals.md), on BUTTONS entries that match no button
-(the table cannot rot), on contract rows the output does not cover, and on a committed TSV whose
-statuses differ from the live window.
+A path marked [state-dependent] exists but is hidden or disabled in the audited state (no
+selection, no read running...). Status: ok, key-only (a key, no mouse path), palette-only (no
+key and no mouse path), inert (a key on a tab with no handler for it), or exempt:<reason> from
+EXEMPT / LOCAL_KEYS (pure navigation keys; every entry has a reason). DIRECT lists box edits that
+are done by dragging or by the inspector's spin boxes; the tool checks the code still has them.
+--paths --check fails on key-only / palette-only / inert rows, on DIRECT evidence that is gone, on
+context-menu builders that fail, on contract rows the output does not cover, and on a committed
+TSV whose statuses differ from the live window.
 """
 
 from __future__ import annotations
@@ -209,76 +212,43 @@ EXEMPT = {
     "degerler.sonraki_deger": "Tab/Shift+Tab move between table cells; a click picks a cell",
 }
 
-# Keys read in keyPressEvent overrides that are not in SPECS: (tab, key, id, label, reason).
-# `exempt` is a reason (universal navigation, never an operation); `via` is the text of a context
-# menu or button action that gives the same result with the mouse (checked against the live
-# window); with neither, the row is key-only.
+# Keys read in keyPressEvent overrides that are not in SPECS: (tab, key, id, label, exempt).
+# `exempt` is a reason (universal navigation, never an operation). A row whose id is tagged on a
+# button or context-menu action (property `action_id`) or listed in DIRECT is ok; with none of
+# these, the row is key-only.
 LOCAL_KEYS = (
-    ("sablonlar", "Ctrl+Arrows", "local.kutu_boyutu", "Resize the selected box (sablon_canvas.py)",
-     None, None),
+    ("sablonlar", "Ctrl+Arrows", "local.kutu_boyutu", "Resize the selected box "
+     "(sablon_canvas.py)", None),
     ("sablonlar", "Enter", "local.kutu_yerlestir", "Place a default box while drawing "
-     "(sablon_canvas.py)", None, None),
+     "(sablon_canvas.py)", None),
     ("sablonlar", "Esc", "local.cizimi_birak", "Leave drawing / deselect the box (sablon.py, "
      "sablon_canvas.py)", "Esc dismisses the current mode like Esc in a dialog; a click on the "
-     "empty sheet deselects", None),
+     "empty sheet deselects"),
     ("degerler", "Enter", "local.tablo_enter", "Enter in the values table (degerler_table.py)",
-     "Enter in a field or table confirms the cell; the Onayla button is the mouse path", None),
+     "Enter in a field or table confirms the cell; the Onayla button is the mouse path"),
     ("disa_aktar", "Ctrl+C", "local.dosya_adi_kopyala", "Copy the file names "
-     "(disa_aktar_table.py)", None, "Dosya adını kopyala"),
+     "(disa_aktar_table.py)", None),
     ("yukle", "Esc", "local.liste_kapat", "End the job search list (yukle.py, yukle_parts.py)",
-     "Esc clears or leaves a field", None),
-    ("kontrol", "Esc / Space", "local.lupa_kapat", "Close the loupe (loupe.py)", None, "Kapat"),
+     "Esc clears or leaves a field"),
+    ("kontrol", "Esc / Space", "local.lupa_kapat", "Close the loupe (loupe.py)", None),
     ("kontrol", "Arrows / Home / End / PgUp / PgDn", "local.lupa_gezin", "Page through the "
-     "loupe (loupe.py)", "arrow, Home/End and PgUp/PgDn navigation inside one view", None),
+     "loupe (loupe.py)", "arrow, Home/End and PgUp/PgDn navigation inside one view"),
 )
 
-# Key-only rows that need a new label or a look change, so they wait for the owner: the check
-# reports them but does not fail on them. Each names its proposal; remove the entry when fixed.
-PROPOSED = {
-    ("sablonlar", "sablonlar.kaydir"): "docs/ui-goal/audit/sablonlar-proposals.md",
-    ("sablonlar", "sablonlar.kaydir_1mm"): "docs/ui-goal/audit/sablonlar-proposals.md",
-    ("sablonlar", "local.kutu_boyutu"): "docs/ui-goal/audit/sablonlar-proposals.md",
-    ("sablonlar", "local.kutu_yerlestir"): "docs/ui-goal/audit/sablonlar-proposals.md",
+# Box geometry on the Şablonlar sheet is set by direct manipulation as well as by key: drag the
+# body or a handle, drag to draw, type X / Y / width / height in the inspector. Each entry is
+# (path text, [(source file under src/evrakci/ui, text that must still be in it)]); the tool
+# fails when the evidence is gone.
+_DIRECT_PATH = ("direct manipulation: drag body/handles, drag to draw, inspector spin boxes",
+                [("sablon_canvas.py", "HANDLE_HIT"), ("sablon_canvas.py", "box_drawn.emit"),
+                 ("sablon_inspector.py", "class MmSpin(QDoubleSpinBox)"),
+                 ("sablon_inspector.py", "Kutu X (mm)")])
+DIRECT = {
+    "sablonlar.kaydir": _DIRECT_PATH,
+    "sablonlar.kaydir_1mm": _DIRECT_PATH,
+    "local.kutu_boyutu": _DIRECT_PATH,
+    "local.kutu_yerlestir": _DIRECT_PATH,
 }
-
-# Buttons that call a slot instead of triggering a QAction, so no identity links them to the
-# action: (tab, action id, widget class name, text start of its text / tooltip / row label).
-# The tool fails when an entry matches no button on that tab, so the table cannot go stale.
-BUTTONS = (
-    ("yukle", "app.yeni_is", "QPushButton", "Yeni iş oluştur"),
-    ("yukle", "app.dosya_ekle", "QPushButton", "Dosya ekle"),
-    ("yukle", "app.sekme.kontrol", "GapButton", "Kontrol'e geç"),
-    ("yukle", "app.isi_kapat", "GapButton", "İşi kapat"),
-    ("kontrol", "kontrol.onayla", "GapButton", "Belgeyi onayla"),
-    ("kontrol", "kontrol.degerlerde_ac", "GapButton", "Değerlerde aç"),
-    ("kontrol", "kontrol.sablon", "ActionRow", "Şablon uygula"),
-    ("kontrol", "kontrol.filtre", "ActionRow", "Filtre uygula"),
-    ("sablonlar", "app.kaydet", "QPushButton", "Şablonu kaydet"),
-    ("sablonlar", "sablonlar.degisken_ekle", "QToolButton", "Değişken ekle"),
-    ("sablonlar", "app.sekme.yukle", "QPushButton", "Yükle'ye git"),
-    ("sablonlar", "app.sekme.rehber", "QPushButton", "Rehber'i aç"),
-    ("degerler", "degerler.durdur", "QPushButton", "Okumayı durdur"),
-    ("degerler", "degerler.oku", "QPushButton", "Değerleri oku"),
-    ("degerler", "degerler.eksikleri_oku", "QPushButton", "Yalnızca eksikleri oku"),
-    ("degerler", "app.uzaklastir", "QToolButton", "Uzaklaştır"),
-    ("degerler", "app.yakinlastir", "QToolButton", "Yakınlaştır"),
-    ("degerler", "degerler.tum_sayfa", "QToolButton", "Sayfanın tamamı"),
-    ("degerler", "degerler.onayla", "_OnceButton", "Onayla ve sonrakine geç"),
-    ("degerler", "degerler.elle_yaz", "_OnceButton", "Elle yaz"),
-    ("degerler", "degerler.varyant", "_OnceButton", "Yeni kutu çiz"),
-    ("degerler", "app.sekme.yukle", "QPushButton", "Yükle'ye git"),
-    ("disa_aktar", "app.disa_aktar", "PartsButton", "Dışa aktar"),
-    ("disa_aktar", "disa_aktar.index_ac", "PartsButton", "index.xlsx'i aç"),
-    ("disa_aktar", "disa_aktar.gezginde_goster", "PartsButton", "Dosya Gezgini'nde göster"),
-    ("disa_aktar", "app.sekme.degerler", "QPushButton", "Değerler'e git"),
-    ("disa_aktar", "app.sekme.yukle", "PartsButton", "Yükle'ye git"),
-    ("rehber", "app.onceki_sonuc", "QToolButton", "Önceki sonuç"),
-    ("rehber", "app.sonraki_sonuc", "QToolButton", "Sonraki sonuç"),
-    ("rehber", "rehber.yazdir", "PartsButton", "Yazdır"),
-    ("rehber", "rehber.aramayi_temizle", "QToolButton", "Aramayı temizle"),
-    ("rehber", "app.bul", "QToolButton", "Ara"),
-    ("rehber", "app.kisayollar", "PartsButton", "Kısayolları göster"),
-)
 
 
 def _build_window():
@@ -301,8 +271,25 @@ def _build_window():
     return app, window
 
 
+def _state(item_or_widget) -> str:
+    """'' when the entry is visible and enabled in the audited state, else a marker."""
+    return "" if item_or_widget.isVisible() and item_or_widget.isEnabled() else \
+        " [state-dependent]"
+
+
+def _action_id(item) -> str | None:
+    """A registry action's id, or the `action_id` property of a tagged non-registry action."""
+    from evrakci.ui import actions as reg
+
+    if item.objectName() in reg._BY_ID:
+        return item.objectName()
+    tag = item.property("action_id")
+    return tag if isinstance(tag, str) and tag else None
+
+
 def _walk_menu(menu, trail, found, emit=True):
-    """Registry action ids in `menu` (submenus too) -> list of 'A > B > label' trails."""
+    """Action id -> {'A > B > label [state-dependent]'} for every tagged action in `menu`
+    (submenus too)."""
     from evrakci.ui import actions as reg
 
     if emit:
@@ -312,49 +299,40 @@ def _walk_menu(menu, trail, found, emit=True):
     for item in menu.actions():
         if item.menu() is not None:
             _walk_menu(item.menu(), here, found, emit)
-        elif item.objectName() in reg._BY_ID:
-            found.setdefault(item.objectName(), set()).add(
-                " > ".join([*here, reg.plain_text(item.text()).split("\t")[0].rstrip("…")]))
-        elif item.text() and not item.isSeparator():
-            found.setdefault("text:" + reg.plain_text(item.text()).split("\t")[0], set()).add(
-                " > ".join(here))
+            continue
+        action_id = _action_id(item)
+        if action_id:
+            label = reg.plain_text(item.text()).split("\t")[0].rstrip("…")
+            found.setdefault(action_id, set()).add(" > ".join([*here, label]) + _state(item))
     return found
 
 
-def _button_texts(button) -> list[str]:
-    texts = [button.text().strip(), button.toolTip().strip(), button.accessibleName().strip()]
-    label = getattr(button, "label", None)
-    if label is not None and hasattr(label, "text"):
-        texts.append(label.text().strip())
-    return [t for t in texts if t]
-
-
 def _capture_menus(call):
-    """Run `call()` (a context-menu builder) and return the registry actions of every menu it
-    shows (popup or a blocking exec: a timer reads and closes the popup) or returns, as a list
-    of `_walk_menu` results."""
-    from PySide6.QtCore import QTimer
-    from PySide6.QtWidgets import QApplication, QMenu
+    """Run `call()`, a context-menu builder, and return the `_walk_menu` result of every menu
+    it shows or returns. QMenu is swapped in the app's modules for a subclass whose popup() and
+    exec() record the menu instead of showing it, so nothing can block."""
+    import sys
+
+    from PySide6.QtWidgets import QMenu
 
     caught: list[dict] = []
 
-    def grab() -> None:
-        popup = QApplication.activePopupWidget()
-        if isinstance(popup, QMenu):
-            caught.append(_walk_menu(popup, [], {}, emit=False))
-            popup.close()
+    class Capturing(QMenu):
+        def popup(self, *_args, **_kwargs):
+            caught.append(_walk_menu(self, [], {}))
 
-    timer = QTimer()
-    timer.setInterval(5)
-    timer.timeout.connect(grab)
-    timer.start()
+        def exec(self, *_args, **_kwargs):
+            caught.append(_walk_menu(self, [], {}))
+
+    patched = [m for name, m in list(sys.modules.items())
+               if name.startswith("evrakci.ui") and getattr(m, "QMenu", None) is QMenu]
+    for module in patched:
+        module.QMenu = Capturing
     try:
         result = call()
-        for _ in range(5):
-            QApplication.processEvents()
-            grab()
     finally:
-        timer.stop()
+        for module in patched:
+            module.QMenu = QMenu
     if isinstance(result, QMenu):
         caught.append(_walk_menu(result, [], {}))
     return caught
@@ -430,6 +408,19 @@ def collect_paths_in_new_window():
         window.close()
 
 
+def _button_paths(widget, window) -> tuple[str | None, str]:
+    """(action id, path text) of a tagged button: its own `action_id` property, or the one of
+    its QAction (a QAction button, or the auto-made tool button of a line-edit action)."""
+    tag = widget.property("action_id")
+    if not (isinstance(tag, str) and tag):
+        default = widget.defaultAction() if hasattr(widget, "defaultAction") else None
+        tag = _action_id(default) if default is not None else None
+    if not tag:
+        return None, ""
+    shown = widget.isVisibleTo(window) and widget.isEnabled()
+    return tag, type(widget).__name__ + ("" if shown else " [state-dependent]")
+
+
 def collect_paths(window=None, app=None):
     """-> (rows, problems). One row per tab x action x key (contract rows) plus the
     LOCAL_KEYS rows; see the module docstring for the columns."""
@@ -444,53 +435,39 @@ def collect_paths(window=None, app=None):
     menu_of: dict[str, dict[str, set[str]]] = {}
     button_of: dict[str, dict[str, set[str]]] = {}
     context_of: dict[str, dict[str, set[str]]] = {}
-    texts_in: dict[str, dict[str, set[str]]] = {}  # tab -> non-registry button/menu text -> where
     for tab in reg.TABS:
         window.show_tab(tab)
         app.processEvents()
-        menu, button, texts = {}, {}, {}
+        menu, button = {}, {}
         for item in window.menu_row.bar.actions():
             if item.menu() is not None:
                 _walk_menu(item.menu(), [], menu)
         bar = window.command_bar(tab)
         page = window.tabs.currentWidget()
-        for widget in bar.buttons():
-            if isinstance(widget, ActionButton):
-                button.setdefault(widget.action_.objectName(), set()).add("bar")
-            elif isinstance(widget, QToolButton) and widget.menu() is not None:
-                more = _walk_menu(widget.menu(), [], {})
-                for action_id, trails in more.items():
-                    button.setdefault(action_id, set()).add("bar Diğer komutlar")
-                    del trails
-        if tab == "kontrol" and window.kontrol is not None:
+        loupe = tab == "kontrol" and window.kontrol is not None
+        if loupe:
             window.kontrol.open_loupe(1)  # the loupe is built on first use; its buttons count
             app.processEvents()
-        buttons = page.findChildren(QAbstractButton)
-        if tab == "kontrol" and window.kontrol is not None:
-            window.kontrol.close_loupe()
-        for widget in buttons:
-            default = widget.defaultAction() if hasattr(widget, "defaultAction") else None
-            if default is not None and default.objectName() in reg._BY_ID:
-                button.setdefault(default.objectName(), set()).add("panel")
-            if isinstance(widget, QToolButton) and widget.menu() is not None:
-                more = _walk_menu(widget.menu(), [], {})
-                for action_id in more:
-                    button.setdefault(action_id, set()).add(
-                        "panel " + (widget.toolTip() or "Diğer"))
-            for text in _button_texts(widget):
-                texts.setdefault(text, set()).add(type(widget).__name__)
-        for btab, action_id, cls, start in BUTTONS:
-            if btab != tab:
-                continue
-            hits = [w for w in buttons if type(w).__name__ == cls
-                    and any(t.startswith(start) for t in _button_texts(w))]
-            if not hits:
-                problems.append(f"BUTTONS entry matches no button: {tab} {cls} '{start}' "
-                                f"({action_id})")
+        widgets = [*bar.buttons(), *page.findChildren(QAbstractButton)]
+        for widget in widgets:
+            if isinstance(widget, ActionButton):
+                shown = widget.isVisibleTo(window) and widget.isEnabled()
+                button.setdefault(widget.action_.objectName(), set()).add(
+                    "bar" + ("" if shown else " [state-dependent]"))
             else:
-                button.setdefault(action_id, set()).add(f"{cls} {start}")
-        menu_of[tab], button_of[tab], texts_in[tab] = menu, button, texts
-    context_texts: dict[str, set[str]] = {}
+                action_id, path = _button_paths(widget, window)
+                if action_id:
+                    button.setdefault(action_id, set()).add(path)
+            if isinstance(widget, QToolButton) and widget.menu() is not None:
+                where = "bar Diğer komutlar" if widget in bar.buttons() else (
+                    "panel " + (widget.toolTip() or "Diğer"))
+                for action_id, trails in _walk_menu(widget.menu(), [], {}).items():
+                    state = " [state-dependent]" if any(
+                        t.endswith("[state-dependent]") for t in trails) else ""
+                    button.setdefault(action_id, set()).add(where + state)
+        if loupe:
+            window.kontrol.close_loupe()
+        menu_of[tab], button_of[tab] = menu, button
     for tab, target, menus in _context_targets(window, app):
         context_of.setdefault(tab, {})
         if isinstance(menus, Exception):
@@ -499,11 +476,23 @@ def collect_paths(window=None, app=None):
         if not menus:
             problems.append(f"context menu builder gave no menu: {tab} {target}")
         for found in menus:
-            for action_id in found:
-                if action_id.startswith("text:"):
-                    context_texts.setdefault(tab, set()).add(action_id[5:])
-                else:
-                    context_of[tab].setdefault(action_id, set()).add(target)
+            for action_id, trails in found.items():
+                state = " [state-dependent]" if any(t.endswith("[state-dependent]")
+                                                     for t in trails) else ""
+                context_of[tab].setdefault(action_id, set()).add(target + state)
+
+    src = ROOT / "src" / "evrakci" / "ui"
+    for ids, (_text, evidence) in DIRECT.items():
+        for name, needle in evidence:
+            if needle not in (src / name).read_text(encoding="utf-8"):
+                problems.append(f"DIRECT evidence gone: {ids} needs '{needle}' in {name}")
+
+    def find(tab, ids):
+        paths = (sorted(menu_of[tab].get(ids, ())), sorted(button_of[tab].get(ids, ())),
+                 sorted(context_of.get(tab, {}).get(ids, ())))
+        if ids in DIRECT:
+            paths = (paths[0], [*paths[1], DIRECT[ids][0]], paths[2])
+        return paths
 
     table = []
     for tab in reg.TABS:
@@ -511,16 +500,14 @@ def collect_paths(window=None, app=None):
             if not reg._active(spec, tab):
                 continue
             ids = spec.id
-            menu_path = sorted(menu_of[tab].get(ids, ()))
-            buttons_p = sorted(button_of[tab].get(ids, ()))
-            context_p = sorted(context_of.get(tab, {}).get(ids, ()))
+            menu_path, buttons_p, context_p = find(tab, ids)
             keys = [portable(k) for k in spec.shortcuts] or [""]
             if menu_path or buttons_p or context_p:
                 status = "ok"
             elif ids in EXEMPT:
                 status = f"exempt:{EXEMPT[ids]}"
             elif not window.registry._handled(ids, tab):
-                status = "exempt:inert on this tab (no handler, the key does nothing)"
+                status = "inert"  # a key on a tab that has no handler for it
             elif spec.shortcuts:
                 status = "key-only"
             else:
@@ -529,17 +516,14 @@ def collect_paths(window=None, app=None):
                 table.append((tab, key, ids, reg.plain_text(spec.text), " | ".join(menu_path),
                               " | ".join(buttons_p), " | ".join(context_p),
                               "yes" if spec.palette else "no", status))
-    for tab, key, ids, label, exempt, via in LOCAL_KEYS:
-        mouse = ""
-        if via:
-            in_context = via in context_texts.get(tab, ())
-            in_button = any(t.startswith(via) for t in texts_in[tab])
-            mouse = "context menu" if in_context else "button" if in_button else ""
-            if not mouse:
-                problems.append(f"LOCAL_KEYS 'via' not found: {tab} {ids} '{via}'")
-        status = "ok" if mouse else f"exempt:{exempt}" if exempt else "key-only"
-        table.append((tab, key, ids, label, "", f"{via}" if mouse == "button" else "",
-                      f"{via}" if mouse == "context menu" else "", "no", status))
+    for tab, key, ids, label, exempt in LOCAL_KEYS:
+        menu_path, buttons_p, context_p = find(tab, ids)
+        if menu_path or buttons_p or context_p:
+            status = "ok"
+        else:
+            status = f"exempt:{exempt}" if exempt else "key-only"
+        table.append((tab, key, ids, label, " | ".join(menu_path), " | ".join(buttons_p),
+                      " | ".join(context_p), "no", status))
     return table, problems
 
 
@@ -558,7 +542,7 @@ def paths_problems(table, collected, out: Path, contract: Path = CONTRACT_TSV) -
     problems = list(collected)
     problems += [f"{t} {k or '(no key)'} {a}: {s} (no menu, button or context menu path)"
                  for t, k, a, _l, _m, _b, _c, _p, s in table
-                 if s in ("key-only", "palette-only") and (t, a) not in PROPOSED]
+                 if s in ("key-only", "palette-only", "inert")]
     have = {(r[0], _norm_key(r[1]), r[2]) for r in table}
     if contract.exists():
         with contract.open(encoding="utf-8", newline="") as fh:

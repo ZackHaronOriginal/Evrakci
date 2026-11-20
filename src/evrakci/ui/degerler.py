@@ -184,6 +184,7 @@ class DegerlerScreen(QWidget):
         self.progress_hint = QLabel("")
         self.progress_hint.setProperty("textRole", "secondary")
         self.cancel_button = QPushButton("Okumayı durdur")
+        self.cancel_button.setProperty("action_id", "degerler.durdur")
         self.cancel_button.setToolTip("Okumayı durdur (Ctrl+.)")
         self.cancel_button.setAccessibleName("Okumayı durdur (Ctrl+.)")
         self.cancel_button.clicked.connect(self.cancel)
@@ -202,8 +203,10 @@ class DegerlerScreen(QWidget):
         # The two read commands live in the command bar; these buttons carry their slots and
         # enabled state (the window mirrors them into degerler.oku / degerler.eksikleri_oku).
         self.read_button = QPushButton("Değerleri oku", self)
+        self.read_button.setProperty("action_id", "degerler.oku")
         self.read_button.clicked.connect(lambda: self.read_values(only_missing=False))
         self.missing_button = QPushButton("Yalnızca eksikleri oku", self)
+        self.missing_button.setProperty("action_id", "degerler.eksikleri_oku")
         self.missing_button.clicked.connect(lambda: self.read_values(only_missing=True))
         for button in (self.read_button, self.missing_button):
             button.hide()

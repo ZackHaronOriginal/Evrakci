@@ -205,6 +205,8 @@ class RehberScreen(QWidget):
             "chevron-up", f"Önceki sonuç ({actions.key_text('Shift+F3')})")
         self.next_button = self._small_button(
             "chevron-down", f"Sonraki sonuç ({actions.key_text('F3')})")
+        self.previous_button.setProperty("action_id", "app.onceki_sonuc")
+        self.next_button.setProperty("action_id", "app.sonraki_sonuc")
         row.addWidget(self.previous_button)
         row.addWidget(self.next_button)
         box.addLayout(row)
@@ -260,6 +262,7 @@ class RehberScreen(QWidget):
         self.print_button = PartsButton("Yazdır", "printer", key, primary=True, large=True,
                                         accessible=f"Ayıraç sayfasını yazdır ({key})")
         self.print_button.setToolTip(f"Ayıraç sayfasını yazdır ({key})")
+        self.print_button.setProperty("action_id", "rehber.yazdir")
         lay.addWidget(self.print_button)
         self._key_column = (self.count_label, paper_key)
         return card

@@ -629,6 +629,21 @@ def test_clearing_a_required_value_in_the_window_toasts_kontrol_with_undo(qtbot,
     assert _value(ctl, 0, sicil.key).value == "48197"
 
 
+def test_reemptying_an_empty_required_value_offers_no_undo(qtbot, window, monkeypatch):
+    """No new step was pushed, so a Geri al on this toast would undo an older step."""
+    win, sicil = window
+    screen = win.degerler
+    assert screen.model.setData(screen.cell(1, "Sicil_No"), "")
+    stack = win.controller().undo_stack
+    index = stack.index()
+    shown: list = []
+    monkeypatch.setattr(screen, "_toast", lambda text, ctl, expected, kind: shown.append(
+        (text, expected == stack.index())))  # True = the toast would offer Geri al
+    screen._apply_edit(screen.rows[0], sicil.key, "")
+    assert stack.index() == index  # nothing new to undo
+    assert all(not offers_undo for _text, offers_undo in shown)
+
+
 def test_old_toast_never_undoes_a_newer_step_after_ctrl_z(qtbot, window):
     """B-023 on Değerler: the toast's Geri al is bound to its own step (index and command), so
     after Ctrl+Z and a new edit at the same index it must not undo the new edit."""

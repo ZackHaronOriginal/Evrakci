@@ -1130,3 +1130,119 @@ def test_an_okunamadi_cell_paints_its_own_icon(qtbot, tmp_path):
     emin, _, bg_emin = _cell_image(screen, 0, sicil.key)
     start = min(_ink_columns(emin, bg_emin))
     assert any(x < start + 16 for x in _ink_columns(blank, bg))  # the mark is drawn
+
+
+# -- I-23: Okunana dön ------------------------------------------------------------------------
+def _correct(screen, number, key, text):
+    assert screen.model.setData(screen.model.value_index(number, key), text)
+    screen.refresh()
+
+
+def test_i23_r_puts_a_corrected_value_back_to_kontrol_with_the_reading(qtbot, window):
+    win, sicil = window
+    screen = win.degerler
+    ctl = win.controller()
+    _correct(screen, 1, sicil.key, "48190")
+    assert _value(ctl, 0, sicil.key).edited
+    screen.select_value(1, sicil.key)
+    screen.table.setFocus()
+    before = ctl.undo_stack.index()
+    QTest.keyClick(screen.table, Qt.Key.Key_R)
+    value = _value(ctl, 0, sicil.key)
+    assert value.flagged and not value.edited and value.value == ""
+    assert value.suggestion == "48197"  # the machine reading is the suggestion again
+    assert screen.current_value() == (1, sicil.key)  # selection stays
+    assert ctl.undo_stack.index() == before + 1 and ctl.undo_stack.undoText() == "Okunana dön"
+    assert win.toaster.current_text() == "Okunana dönüldü: Sicil No. Kontrol'e alındı."
+    win.registry.action("app.geri_al").trigger()  # one step restores the correction
+    value = _value(ctl, 0, sicil.key)
+    assert value.value == "48190" and value.edited and not value.flagged
+    assert ctl.undo_stack.index() == before
+
+
+def test_i23_confirmed_suggestion_can_be_reverted(qtbot, window):
+    win, sicil = window
+    screen = win.degerler
+    ctl = win.controller()
+    screen.select_value(2, sicil.key)
+    screen.accept_current()
+    assert _value(ctl, 1, sicil.key).edited
+    screen.select_value(2, sicil.key)
+    win.registry.action("degerler.okunana_don").trigger()
+    value = _value(ctl, 1, sicil.key)
+    assert value.flagged and value.suggestion == "48213" and len(value.readings) == 2
+
+
+def test_i23_disabled_with_a_reason_when_never_machine_read(qtbot, window):
+    win, sicil = window
+    screen = win.degerler
+    ctl = win.controller()
+    r = win.registry
+    action = r.action("degerler.okunana_don")
+    screen.select_value(1, sicil.key)
+    assert not r.is_enabled("degerler.okunana_don")  # not corrected: nothing to put back
+    first = ctl.documents()[0]
+    record_values(ctl.job, first, ctl.job.value_sources[first.page_ids[0]].template_id,
+                  {sicil.key: VariableValue("elle", 1.0, None, False, "", (), True)})
+    ctl.job_changed.emit()
+    screen.select_value(1, sicil.key)
+    screen.refresh()
+    assert not r.is_enabled("degerler.okunana_don")
+    assert action.toolTip() == "Bu değer elle yazıldı; okunmuş bir değer yok."
+    before = ctl.undo_stack.index()
+    screen.table.setFocus()
+    QTest.keyClick(screen.table, Qt.Key.Key_R)
+    assert ctl.undo_stack.index() == before
+    assert _value(ctl, 0, sicil.key).value == "elle"
+
+
+def test_i23_disabled_in_the_sample_view(qtbot, window):
+    win, sicil = window
+    screen = win.degerler
+    _correct(screen, 1, sicil.key, "48190")
+    screen.select_value(1, sicil.key)
+    assert win.registry.is_enabled("degerler.okunana_don")
+    screen.set_view("ornek")
+    screen.refresh()
+    assert not win.registry.is_enabled("degerler.okunana_don")
+    screen.revert_current()
+    assert _value(win.controller(), 0, sicil.key).edited  # nothing was reverted
+    screen.set_view("tumu")
+
+
+def test_i23_context_menu_lists_it_with_its_key(qtbot, window):
+    win, sicil = window
+    screen = win.degerler
+    _correct(screen, 1, sicil.key, "48190")
+    rect = screen.table.visualRect(screen.cell(1, "Sicil_No"))
+    menu = screen.context_menu(rect.center())
+    items = {a.text().replace("&", "").split("\t")[0]: a for a in menu.actions()}
+    assert "Okunana dön" in items and items["Okunana dön"].isEnabled()
+    assert "R" in items["Okunana dön"].text() or items["Okunana dön"].shortcut().toString() == "R"
+
+
+def test_i23_window_and_cli_leave_the_same_stored_value(qtbot, window, capsys, tmp_path):
+    from saving import wait_saved
+
+    from evrakci.cli import main
+    from evrakci.pipeline.cuts import compute_documents
+    from evrakci.pipeline.cuts import current_values as stored_values
+
+    win, sicil = window
+    screen = win.degerler
+    ctl = win.controller()
+    store = win.store
+    _correct(screen, 1, sicil.key, "48190")
+    screen.select_value(1, sicil.key)
+    win.registry.action("degerler.okunana_don").trigger()
+    from_window = _value(ctl, 0, sicil.key)
+    win.registry.action("app.geri_al").trigger()  # back to the start: corrected, not reverted
+    wait_saved(ctl)
+    assert _value(ctl, 0, sicil.key).edited
+    argv = ["--kok", str(store.root), "--sablon-kok", str(tmp_path / "tpl")]
+    assert main([*argv, "is", "deger", ctl.job.id, "1", "Sicil_No", "--geri-al"]) == 0
+    capsys.readouterr()
+    on_disk = store.load(ctl.job.id)
+    from_cli = stored_values(on_disk, compute_documents(on_disk)[0])[sicil.key]
+    assert from_cli == from_window
+

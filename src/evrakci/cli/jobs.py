@@ -467,7 +467,7 @@ def list_values(args: argparse.Namespace, store: JobStore) -> int:
 
 
 def fix_value(args: argparse.Namespace, store: JobStore) -> int:
-    from evrakci.pipeline.review import accept_suggestion, revert_value, set_value
+    from evrakci.pipeline.review import accept_suggestion, can_revert, revert_value, set_value
 
     job = load_job(store, args.id)
     found = {n: (d, t) for n, d, t in _templated_documents(args, job)}
@@ -484,6 +484,9 @@ def fix_value(args: argparse.Namespace, store: JobStore) -> int:
         if args.oneri:
             accept_suggestion(job, document, key)
         elif args.geri_al:
+            current = current_values(job, document)
+            if current is not None and key in current and not can_revert(current[key]):
+                raise UserError(f"{args.ad}: Bu değer elle yazıldı; okunmuş bir değer yok.")
             revert_value(job, document, key)
         else:
             if args.deger is None:

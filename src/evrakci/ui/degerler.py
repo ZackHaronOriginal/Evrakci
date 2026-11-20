@@ -34,10 +34,11 @@ from evrakci.pipeline.cuts import _template_of, document_template, record_read_e
 from evrakci.pipeline.job import Job, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.render import render_page
-from evrakci.pipeline.review import needs_reading, store_reading
+from evrakci.pipeline.review import can_revert, needs_reading, revert_value, store_reading
 from evrakci.pipeline.templates.model import Template, template_revision
 from evrakci.pipeline.templates.read import read_document
 from evrakci.ui import icons, theme
+from evrakci.ui.actions import tooltip_for
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.controller import JobController
 from evrakci.ui.degerler_model import (
@@ -343,7 +344,8 @@ class DegerlerScreen(QWidget):
         self._header_key = ""
         self.refresh()
 
-    CONTEXT = ("degerler.onayla", "degerler.elle_yaz", "degerler.varyant", None,
+    CONTEXT = ("degerler.onayla", "degerler.elle_yaz", "degerler.okunana_don",
+               "degerler.varyant", None,
                "degerler.secilenleri_onayla", "degerler.tumunu_sec", None,
                "degerler.tum_sayfa", "degerler.kontrolde_ac", "degerler.sonraki_kontrol")
 
@@ -1300,6 +1302,35 @@ class DegerlerScreen(QWidget):
         self.table.setFocus(Qt.FocusReason.ShortcutFocusReason)
         self.table.open_editor(index)
 
+    def revert_current(self, *_args) -> None:
+        """R: put the current value back to what the machine read (Kontrol, with the old
+        reading as the suggestion). One undo step, "Okunana dön"."""
+        controller = self.controller()
+        index = self.table.currentIndex()
+        row = self.model.row_at(index.row()) if index.isValid() else None
+        cell = self._cell_for(index)
+        if (controller is None or row is None or cell is None or cell.value is None
+                or self._view == "ornek" or self.table.is_editing()
+                or not can_revert(cell.value)):
+            return
+        if controller.run("Okunana dön", lambda job: revert_value(job, row.document, cell.key)):
+            self.refresh()
+            self._say(f"Okunana dönüldü: {cell.title}. Kontrol'e alındı.")
+
+    def _sync_revert(self, row, cell) -> None:
+        """Okunana dön: enabled for a corrected value that has a reading; the tooltip says why
+        not when the value was typed by hand."""
+        value = cell.value if cell is not None else None
+        enabled = (row is not None and value is not None and self._view != "ornek"
+                   and can_revert(value))
+        r = self.window_.registry
+        r.set_enabled("degerler.okunana_don", enabled)
+        action = r.action("degerler.okunana_don")
+        if enabled or value is None or not value.edited or self._view == "ornek":
+            action.setToolTip(tooltip_for(r.spec("degerler.okunana_don")))
+        else:
+            action.setToolTip("Bu değer elle yazıldı; okunmuş bir değer yok.")
+
     def _apply_edit(self, row: Row, key: str, text: str) -> None:
         """A value typed in the table (Enter, Tab, or leaving the editor)."""
         controller = self.controller()
@@ -1444,6 +1475,7 @@ class DegerlerScreen(QWidget):
         }
         for action_id, enabled in state.items():
             r.set_enabled(action_id, enabled)
+        self._sync_revert(row, cell)
 
     def _update_status(self) -> None:
         items = self._status_items

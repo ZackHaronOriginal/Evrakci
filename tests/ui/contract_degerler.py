@@ -188,6 +188,35 @@ def _feedback_editor_open(c: Ctx) -> None:
     assert editor.text() == "48190" and QApplication.focusWidget() is editor
 
 
+@helper("pre.degerler_corrected")
+def _pre_corrected(c: Ctx) -> None:
+    restore_job(c)
+    d = _d(c)
+    assert d.model.setData(d.model.index(0, 3), "99999")
+    d.refresh()
+    pick(c, 0, 3)
+
+
+@helper("effect.degerler_reverted")
+def _effect_reverted(c: Ctx) -> None:
+    d = _d(c)
+    value = d.model.cell_at(d.model.index(0, 3)).value
+    assert value.flagged and not value.edited and value.suggestion, value
+    assert _cur(c) == (0, 3), _cur(c)
+
+
+@helper("feedback.degerler_reverted")
+def _feedback_reverted(c: Ctx) -> None:
+    assert re.fullmatch(r"Okunana dönüldü: .+\. Kontrol'e alındı\.",
+                        c.win.toaster.current_text()), heard(c.win)
+    assert c.win.controller().undo_stack.undoText() == "Okunana dön"
+
+
+@helper("broken.degerler_uncorrected")
+def _broken_uncorrected(c: Ctx) -> None:
+    pick(c, 0, 3)
+
+
 @helper("pre.degerler_variant")
 def _pre_variant(c: Ctx) -> None:
     pick(c, 1, 4)
@@ -485,6 +514,10 @@ PLANS["degerler.elle_yaz"] = _plan(
     "pre.degerler_value", "effect.degerler_editor_open", "feedback.degerler_editor_open",
     na_pre="pre.none", na="na.says.degerler_pick_value",
     xfail={"na": _M41.format(why="no current value", text=P_PICK_VALUE)})
+PLANS["degerler.okunana_don"] = _plan(
+    "pre.degerler_corrected", "effect.degerler_reverted", "feedback.degerler_reverted",
+    na_pre="pre.none", na_window="job_degerler", broken="broken.degerler_uncorrected",
+    na="na.degerler_quiet")
 PLANS["degerler.varyant"] = _plan(
     "pre.degerler_variant", "effect.degerler_variant", "feedback.degerler_variant",
     na_pre="pre.none", na="na.says.degerler_pick_template",

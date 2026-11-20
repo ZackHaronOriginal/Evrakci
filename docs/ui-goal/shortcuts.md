@@ -56,6 +56,7 @@ the part between the two comments.
 - `Return`: page-specific: same as Enter (main keyboard row)
 - `Esc`: page-specific: dismiss without losing work (clear selection, Vazgeç, clear search)
 - `F2`: page-specific: edit the selected item's name or value by hand (Yeniden adlandır, Elle yaz)
+- `R`: page-specific: Sağa döndür on Kontrol, Okunana dön on Değerler
 - `K`: page-specific: Burada kes on Kontrol, Kontrol'de aç on Değerler
 - `N`: page-specific: next one to check (Sonraki kontrol on Kontrol and Değerler, Sonraki zayıf örnek on Şablonlar)
 - `Shift+N`: page-specific: previous one to check (Önceki kontrol on Kontrol and Değerler, Önceki zayıf örnek on Şablonlar)
@@ -168,6 +169,7 @@ list and the inspector fields.
 | Enter | Onayla ve sonrakine geç | Düzen | accepts the suggestion, marks it İncelendi, moves on; yazarken kapalı (the cell editor keeps its own Enter) |
 | Ctrl+Enter | Seçilenleri onayla | Düzen | acts on the current selection only |
 | F2 | Elle yaz | Düzen | |
+| R | Okunana dön | Düzen | puts a corrected or confirmed value back to what the machine read (Kontrol, with the reading as the suggestion); dimmed for a hand-typed value and in Örnek; undoable; yazarken kapalı |
 | V | Yeni varyant çiz | Düzen | yazarken kapalı |
 | Esc | Vazgeç | Düzen | drops the change; "Geri al" is only Ctrl+Z; yazarken kapalı (the editor keeps its own Esc) |
 | Ctrl+A | Tümünü seç | Düzen | |

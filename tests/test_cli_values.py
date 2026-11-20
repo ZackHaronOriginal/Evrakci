@@ -95,3 +95,26 @@ def test_cli_levels_match_the_window_levels(tmp_path, capsys):
     assert "Kayıt No: [okunamadı]" in out
     values = current_values(job, first)
     assert [value_level(values[unvan]), value_level(values[kayit])] == ["kontrol", "okunamadi"]
+
+
+def test_cli_revert_and_its_refusal(tmp_path, capsys):
+    from evrakci.pipeline.cuts import current_values
+
+    run, job_id = setup(tmp_path, capsys)
+    assert run("deger", job_id, "2", "Ünvan", "Yanlış") == 0
+    assert run("deger", job_id, "2", "Ünvan", "--geri-al") == 0
+    store = JobStore(tmp_path / "isler")
+    job = store.load(job_id)
+    second = compute_documents(job)[1]
+    template = TemplateStore(tmp_path / "sablonlar").list()[0]
+    unvan, kayit = (v.key for v in template.variables)
+    got = current_values(job, second)[unvan]
+    assert got == VariableValue("", 0.0, None, True, "Başka", (), False)  # suggestion kept
+    # a value typed by hand with no reading cannot be reverted
+    record_values(job, second, template.id, {
+        unvan: got, kayit: VariableValue("elle", 1.0, None, False, "", (), True)})
+    store.save(job)
+    capsys.readouterr()
+    assert run("deger", job_id, "2", "Kayıt No", "--geri-al") == 2
+    assert "Bu değer elle yazıldı; okunmuş bir değer yok." in capsys.readouterr().err
+    assert current_values(store.load(job_id), second)[kayit].value == "elle"  # untouched

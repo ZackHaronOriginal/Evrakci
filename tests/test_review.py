@@ -50,3 +50,33 @@ def test_store_reading_keeps_the_users_corrections():
     got = current_values(job, doc)
     assert got["k1"].value == "Elle yazıldı" and got["k1"].edited
     assert got["k2"].value == "777"
+
+
+def test_can_revert():
+    from evrakci.pipeline.review import can_revert
+    from evrakci.pipeline.templates.values import SectionReading
+
+    assert not can_revert(VariableValue("Örnek", 0.9, 0, False))  # never corrected
+    assert not can_revert(VariableValue("elle", 1.0, None, False, "", (), True))  # no reading
+    assert can_revert(VariableValue("elle", 1.0, None, False, "okunan", (), True))
+    assert can_revert(VariableValue("elle", 1.0, None, False, "", (SectionReading(0, "x", 0.5),),
+                                    True))
+
+
+def test_revert_after_set_value_and_after_accept_suggestion_keeps_the_reading():
+    from evrakci.pipeline.review import can_revert, revert_value
+
+    job = job_from_kinds({"a": "pp"})
+    job.apply_template(job.ordered_page_ids(), "t1")
+    [doc] = compute_documents(job)
+    record_values(job, doc, "t1", values())
+    set_value(job, doc, "k1", "Yanlış")
+    accept_suggestion(job, doc, "k2")
+    assert can_revert(current_values(job, doc)["k1"])
+    assert can_revert(current_values(job, doc)["k2"])
+    revert_value(job, doc, "k1")
+    revert_value(job, doc, "k2")
+    got = current_values(job, doc)
+    assert got["k1"] == VariableValue("", 0.0, None, True, "Örnek", (), False)
+    assert got["k2"] == VariableValue("", 0.0, None, True, "12345", (), False)
+    assert not can_revert(got["k1"])

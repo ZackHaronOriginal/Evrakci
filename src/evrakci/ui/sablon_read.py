@@ -16,10 +16,9 @@ from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.render import render_page
 from evrakci.pipeline.templates.model import Template
 from evrakci.pipeline.templates.read import read_document
-from evrakci.pipeline.templates.values import VariableValue
+from evrakci.pipeline.templates.values import EMIN_AT, VariableValue
 
 READ_DPI = 300
-EMIN_AT = 0.90  # at or above (and above the template's threshold): Emin; else Orta
 
 # level -> (Lucide icon, QLabel `state` property, word)
 LEVELS = {

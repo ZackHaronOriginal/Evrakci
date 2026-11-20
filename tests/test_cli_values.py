@@ -51,7 +51,7 @@ def test_cli_list_and_fix(tmp_path, capsys):
     run, job = setup(tmp_path, capsys)
     assert run("degerler", job) == 0
     out = capsys.readouterr().out
-    assert "1. belge (Deneme) sayfa 1" in out and "Kayıt No: [okunamadı, öneri: 77]" in out
+    assert "1. belge (Deneme) sayfa 1" in out and "Kayıt No: [kontrol, öneri: 77]" in out
     assert "2. belge (Deneme)" in out
     assert run("degerler", job, "--kontrol") == 0
     out = capsys.readouterr().out
@@ -71,3 +71,27 @@ def test_cli_errors(tmp_path, capsys):
     assert run("deger", job, "2", "Kayıt No", "--oneri") == 2
     err = capsys.readouterr().err
     assert "Belge yok: 9" in err and "Değişken yok: Yok" in err and "öneri yok" in err
+
+
+def test_cli_levels_match_the_window_levels(tmp_path, capsys):
+    from evrakci.pipeline.cuts import current_values
+    from evrakci.pipeline.templates.values import SectionReading, value_level
+
+    run, job_id = setup(tmp_path, capsys)
+    store = JobStore(tmp_path / "isler")
+    job = store.load(job_id)
+    first = compute_documents(job)[0]
+    template = TemplateStore(tmp_path / "sablonlar").list()[0]
+    unvan, kayit = (v.key for v in template.variables)
+    record_values(job, first, template.id, {
+        unvan: VariableValue("482I3", 0.5, 0, True, "482I3 Ltd.",
+                             (SectionReading(0, "482I3", 0.5),)),
+        kayit: VariableValue("", 0.0, None, True),
+    })
+    store.save(job)
+    assert run("degerler", job_id) == 0
+    out = capsys.readouterr().out
+    assert "Ünvan: 482I3 [kontrol, öneri: 482I3 Ltd.]" in out
+    assert "Kayıt No: [okunamadı]" in out
+    values = current_values(job, first)
+    assert [value_level(values[unvan]), value_level(values[kayit])] == ["kontrol", "okunamadi"]

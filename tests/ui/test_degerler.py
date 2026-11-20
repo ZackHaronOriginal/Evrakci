@@ -1070,3 +1070,63 @@ def test_i19_building_the_rows_opens_no_stray_window(qtbot, tmp_path):
     ReadingRow(ReadingItem("Bölüm 1", "48213", (), 55, True, "boş olabilir"))
     after = {id(w) for w in QApplication.topLevelWidgets() if w.isVisible()}
     assert after == before
+
+
+def _cell_image(screen, row, key, width=220):
+    from PySide6.QtCore import QRect
+    from PySide6.QtGui import QColor, QImage, QPainter
+    from PySide6.QtWidgets import QStyleOptionViewItem
+
+    table = screen.table
+    column = next(i for i, c in enumerate(screen.model.columns) if c.key == key)
+    index = screen.model.index(row, column)
+    background = QColor("#ffffff")
+    image = QImage(width, 40, QImage.Format.Format_ARGB32)
+    image.fill(background)
+    option = QStyleOptionViewItem()
+    option.rect = QRect(0, 0, width, 40)
+    painter = QPainter(image)
+    table.itemDelegate().paint(painter, option, index)
+    painter.end()
+    return image, index, image.pixelColor(width - 1, 20)  # the row fill (selected or not)
+
+
+def _ink_columns(image, background):
+    return {x for x in range(image.width()) for y in range(4, 34)
+            if image.pixelColor(x, y) != background}
+
+
+def test_a_kontrol_cell_paints_an_icon_left_of_its_text_and_an_emin_cell_none(qtbot, setup):
+    ctl, templates, _, sicil = setup
+    screen = _screen(qtbot, ctl, templates)
+    kontrol, index, bg = _cell_image(screen, 1, sicil.key)
+    emin, _, bg_emin = _cell_image(screen, 0, sicil.key)
+    left = _ink_columns(kontrol, bg)
+    left_emin = _ink_columns(emin, bg_emin)
+    start = min(left_emin)  # where text starts without a mark
+    assert min(left) == start and any(x < start + 16 for x in left)
+    assert not any(start + 18 <= x <= start + 21 for x in left)  # the gap after the icon
+    assert min(x for x in left if x >= start + 18) >= start + 22  # text moved right
+    tooltip = index.data(Qt.ItemDataRole.ToolTipRole)
+    assert tooltip.splitlines()[0] == "Bu değere bakın: okuma emin değil."
+    assert "Kontrol" in tooltip and "Öneri: 48213" in tooltip
+    assert "Kontrol" in index.data(Qt.ItemDataRole.AccessibleTextRole)
+    assert "Kontrol" not in (screen.model.index(0, index.column()).data(
+        Qt.ItemDataRole.ToolTipRole) or "")
+
+
+def test_an_okunamadi_cell_paints_its_own_icon(qtbot, tmp_path):
+    """I-17: a value nothing was read for gets the circle-x mark too (not only Kontrol)."""
+    store, job = _job(tmp_path)
+    ctl = JobController(store, job)
+    templates, template, sicil, firma = _template(tmp_path)
+    nothing = VariableValue("", 0.0, None, True)
+    _fill(ctl, template, sicil, firma, values=(GOOD, nothing, GOOD))
+    screen = _screen(qtbot, ctl, templates)
+    blank, index, bg = _cell_image(screen, 1, sicil.key)
+    assert index.data(Qt.ItemDataRole.ToolTipRole).splitlines()[0] != (
+        "Bu değere bakın: okuma emin değil.")  # that line is for Kontrol only
+    assert "Okunamadı" in index.data(Qt.ItemDataRole.ToolTipRole)
+    emin, _, bg_emin = _cell_image(screen, 0, sicil.key)
+    start = min(_ink_columns(emin, bg_emin))
+    assert any(x < start + 16 for x in _ink_columns(blank, bg))  # the mark is drawn

@@ -26,9 +26,8 @@ from evrakci.pipeline.cuts import (
 )
 from evrakci.pipeline.job import Job
 from evrakci.pipeline.templates.model import Template, Variable
-from evrakci.pipeline.templates.values import VariableValue
+from evrakci.pipeline.templates.values import VariableValue, value_level
 
-EMIN_AT = 0.90  # at or above: Emin; below (and not flagged): Orta
 SAMPLE_SIZE = 20  # Örnek kontrol: how many Emin values are checked by hand
 CONFUSABLE = "OoIlBSZG"  # letters OCR mixes up with digits (0, 1, 8, 5, 2, 6)
 
@@ -211,8 +210,8 @@ def make_cell(variable: Variable, value: VariableValue | None) -> Cell:
     if value is None:
         return Cell(variable.key, variable.name, variable.required, None, "", "okunmadi",
                     None, False)
+    level = value_level(value)
     if not value.flagged:
-        level = "emin" if value.edited or value.confidence >= EMIN_AT else "orta"
         # A value a person accepted or typed is "Emin, İncelendi" with no percentage: the
         # reader's score no longer applies, and a re-scored %100 next to the row's %90
         # would be two numbers for one fact.
@@ -220,13 +219,13 @@ def make_cell(variable: Variable, value: VariableValue | None) -> Cell:
         return Cell(variable.key, variable.name, variable.required, value, value.value, level,
                     percent, value.edited, source=value.section)
     text, source = _okunan(value)
-    if not text and not value.suggestion:
+    if level == "okunamadi":
         return Cell(variable.key, variable.name, variable.required, value, "", "okunamadi",
                     None, False)
     section, confidence = _suggestion_source(value)
     percent = round((confidence if confidence is not None else value.confidence) * 100)
     others = [r.text for r in value.readings] + [value.suggestion]
-    return Cell(variable.key, variable.name, variable.required, value, text, "kontrol",
+    return Cell(variable.key, variable.name, variable.required, value, text, level,
                 percent, False, uncertain_positions(text, others, True), value.suggestion,
                 changed_positions(text, value.suggestion),
                 section if section is not None else source)

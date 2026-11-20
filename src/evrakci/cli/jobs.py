@@ -29,6 +29,7 @@ from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsErr
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.model import Template, TemplateError, template_revision
 from evrakci.pipeline.templates.read import read_document
+from evrakci.pipeline.templates.values import value_level
 
 
 def load_job(store: JobStore, job_id: str) -> Job:
@@ -453,7 +454,12 @@ def list_values(args: argparse.Namespace, store: JobStore) -> int:
                 print(f"  {variable.name}: [okunmadı]")
             elif value.flagged:
                 hint = f", öneri: {value.suggestion}" if value.suggestion else ""
-                print(f"  {variable.name}: [okunamadı{hint}]")
+                if value_level(value) == "okunamadi":
+                    print(f"  {variable.name}: [okunamadı{hint}]")
+                else:
+                    read = value.value or next((r.text for r in sorted(
+                        value.readings, key=lambda r: r.section) if r.text), "")
+                    print(f"  {variable.name}: {read + ' ' if read else ''}[kontrol{hint}]")
             else:
                 mark = " [düzeltildi]" if value.edited else ""
                 print(f"  {variable.name}: {value.value}{mark}")

@@ -57,7 +57,13 @@ Updated after every accepted step. A new session or a compacted one reads this f
   The Alt+1..4 contract row waits on Q-23 (a name). Ledgered B-090.
   OPEN: CI Linux segfault at ~31 % still after 46dabfd; a Sonnet agent reproduces on Python 3.12 in worktree
   scratchpad/seg2. Windows saver read test fixed in 6c00e43.
-  Next: I-17 (task spec written), I-23 (task spec written), I-23, I-22, I-28, then A,
+  Step I-17 DONE (see git log): pipeline/templates/values.value_level + EMIN_AT (one rule for window, CLI,
+  sablon_read); CLI prints "[kontrol, öneri: …]" / "[okunamadı]" (O-7); Değerler cells that need a check show
+  their level icon, Kontrol tooltip "Bu değere bakın: okuma emin değil.". Evidence tests/test_values.py,
+  test_cli_values.py::test_cli_levels_match_the_window_levels, test_degerler.py icon tests; matrix 0 clipping.
+  OPEN: tests/ui/test_card_scroll.py::test_every_side_panel_at_1366_wide (Değerler) fails in full runs and on
+  Windows CI since I-19 (afe9ada), passes alone; being fixed next.
+  Next: I-23, I-22 (task specs written), I-28 (in a worktree), I-23, I-22, I-28, then A,
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,

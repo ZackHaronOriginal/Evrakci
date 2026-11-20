@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+EMIN_AT = 0.90  # at or above: Emin; below (and not flagged): Orta
+
 
 @dataclass(frozen=True)
 class SectionReading:
@@ -22,3 +24,14 @@ class VariableValue:
     suggestion: str = ""
     readings: tuple[SectionReading, ...] = ()
     edited: bool = False
+
+
+def value_level(value: VariableValue | None) -> str:
+    """Güven level of a value: "emin", "orta", "kontrol", "okunamadi" or "okunmadi" (None)."""
+    if value is None:
+        return "okunmadi"
+    if not value.flagged:
+        return "emin" if value.edited or value.confidence >= EMIN_AT else "orta"
+    if not value.suggestion and not value.value and not any(r.text for r in value.readings):
+        return "okunamadi"
+    return "kontrol"

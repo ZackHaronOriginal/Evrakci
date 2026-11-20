@@ -212,9 +212,12 @@ class ValuesModel(QAbstractTableModel):
             return self._spoken(row, sampled, column, index)
         if role == Qt.ItemDataRole.ToolTipRole and column.kind in VALUE_KINDS:
             cell = self.cell_at(index)
-            if cell is not None and cell.needs_check and cell.suggestion:
-                return f"Öneri: {cell.suggestion}"
             text = self._text(row, sampled, column)
+            if cell is not None and cell.needs_check:
+                lines = ["Bu değere bakın: okuma emin değil."] if cell.level == "kontrol" else []
+                lines.append(LEVELS[cell.level][2])
+                lines.append(f"Öneri: {cell.suggestion}" if cell.suggestion else text)
+                return "\n".join(line for line in lines if line)
             return text or None  # the whole value, also where a narrow column elides it
         return None
 
@@ -582,6 +585,12 @@ class ValuesDelegate(QStyledItemDelegate):
         m = theme.manager()
         if cell is None or cell.value is None:
             return
+        if cell.needs_check:  # I-17: the mark sits left of the value, the word is in the tooltip
+            name, role = LEVELS[cell.level][:2]
+            size = m.inline_icon(16)
+            icons.paint(painter, name, QRectF(rect.left(), rect.center().y() - size / 2, size,
+                                              size), m.hex(ink or role))
+            rect = rect.adjusted(size + 6, 0, 0, 0)
         if cell.level == "okunamadi" or not cell.text:
             self._text(painter, rect, "boş", self.fonts.body, m.color(ink or "text-2"),
                        column.right)

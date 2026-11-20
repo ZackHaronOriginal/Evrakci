@@ -16,7 +16,7 @@ Confirmed by the owner on 2026-11-12. These override the research files where th
 | D10 | **Contrast.** Body and table text ≥ 7:1; secondary text ≥ 4.5:1; component edges, icons and focus ≥ 3:1. Unit-tested per token pair, per theme. |
 | D11 | **Focus.** Fluent ring: 2 px outer + 1 px inner, painted by a QProxyStyle/overlay on every focusable widget, never hidden. |
 | D12 | **Stopped redesign.** The 4 uncommitted screen files (`kontrol.py`, `sablon.py`, `timeline.py`, `yukle.py`) were discarded with `git checkout --`; work starts from HEAD `6fd57a0`. |
-| D13 | **Core.** No changes to `src/evrakci/pipeline/` or the CLI unless a UI feature truly needs a core hook; any such hook is minimal and tested. |
+| D13 | **Core.** (Lifted 2026-11-20, see "Owner answers: Phase 5 build order and rules".) No changes to `src/evrakci/pipeline/` or the CLI unless a UI feature truly needs a core hook; any such hook is minimal and tested. |
 
 ## Execution notes
 
@@ -76,4 +76,4 @@ The owner will sign off once they have tried the build themselves: "Done after I
 - **Build first** (Q-06): Kontrol filters (I-03, I-04, I-06, I-08, I-09); small quick wins (I-17, I-19, I-21, I-22, I-23, I-28, I-47); QR content and saved filters (I-01, I-07); Dışa Aktar (I-35, I-38, I-39, I-40). Other rows stay unranked; I-50..I-55 are later.
 - **New Turkish text:** the run writes it, after checking how Turkish software in the sector words the same things, and lists the new strings in each spec.
 - **Specs:** each feature's one-page spec needs the owner's approval before it is built.
-- **Core hooks (D13):** a minimal, tested core change is allowed without asking when a feature truly needs it; each one is listed in the feature report.
+- **D13 is lifted** (owner, 2026-11-20): features may change the core (`src/evrakci/pipeline/`) and the CLI when they need to. Every core change comes with core tests, a check that older job files still open, a check that the CLI and the window still give the same output, and the usual agent review. Each feature report lists its core changes. The window and the CLI keep sharing one core.

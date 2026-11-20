@@ -362,6 +362,56 @@ def _feedback_templated(c: Ctx) -> None:
     assert c.win.controller().undo_stack.undoText() == "Şablon uygula"
 
 
+# -- Shift+F, Shift+T -------------------------------------------------------------------------
+@helper("pre.kontrol_filter_applied")
+def _pre_filter_applied(c: Ctx) -> None:
+    _restore_stack(c)
+    assert c.win.controller().apply_filter(_pids(c, [4, 5, 6, 7, 8, 9, 10]), 3)
+    settle()
+    pick(c, [4, 5, 6, 7, 8, 9, 10])
+
+
+@helper("effect.kontrol_filter_removed")
+def _effect_filter_removed(c: Ctx) -> None:
+    job = c.win.controller().job
+    assert len(job.filters) == c.snap["filters"] - 1
+    assert _docs(c) == c.snap["docs"] - 2  # the 7 pages (3 + 3 + 1) are one document again
+
+
+@helper("feedback.kontrol_filter_removed")
+def _feedback_filter_removed(c: Ctx) -> None:
+    assert c.win.toaster.current_text() == "Filtre kaldırıldı, 7 sayfa."
+    assert _toast_undo(c)
+    assert _history(c)[0] == "Filtre kaldırıldı, sayfa 5–11", _history(c)
+    assert c.win.controller().undo_stack.undoText() == "Filtreyi kaldır"
+    assert _k(c).side.filter_button.value.text() == "Filtre yok"
+
+
+@helper("pre.kontrol_template_applied")
+def _pre_template_applied(c: Ctx) -> None:
+    _restore_stack(c)
+    template = next(i for i, t in _k(c).templates().items() if t.name == "Kapasite Raporu")
+    assert c.win.controller().apply_template(_pids(c, [0, 1, 2]), template)
+    settle()
+    pick(c, [0, 1, 2])
+
+
+@helper("effect.kontrol_template_removed")
+def _effect_template_removed(c: Ctx) -> None:
+    job = c.win.controller().job
+    assert len(job.templates) == c.snap["templates"] + 1
+    last = job.templates[-1]
+    assert last.template_id == "" and set(last.page_ids) == set(_pids(c, [0, 1, 2]))
+
+
+@helper("feedback.kontrol_template_removed")
+def _feedback_template_removed(c: Ctx) -> None:
+    assert c.win.toaster.current_text() == "Şablon kaldırıldı, 3 sayfa."
+    assert _toast_undo(c)
+    assert _history(c)[0] == "Şablon kaldırıldı, sayfa 1–3", _history(c)
+    assert c.win.controller().undo_stack.undoText() == "Şablonu kaldır"
+
+
 # -- Space ------------------------------------------------------------------------------------
 @helper("pre.kontrol_loupe")
 def _pre_loupe(c: Ctx) -> None:
@@ -635,6 +685,14 @@ PLANS["kontrol.sablon"] = _plan(
     "pre.kontrol_template", "effect.kontrol_templated", "feedback.kontrol_templated",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_nothing_selected",
     na="na.says.pick_pages_and_template")
+PLANS["kontrol.filtre_kaldir"] = _plan(
+    "pre.kontrol_filter_applied", "effect.kontrol_filter_removed",
+    "feedback.kontrol_filter_removed", na_pre="pre.none", na_window="job",
+    broken="broken.kontrol_nothing_selected", na="na.kontrol_pick_pages_says")
+PLANS["kontrol.sablon_kaldir"] = _plan(
+    "pre.kontrol_template_applied", "effect.kontrol_template_removed",
+    "feedback.kontrol_template_removed", na_pre="pre.none", na_window="job",
+    broken="broken.kontrol_nothing_selected", na="na.kontrol_pick_pages_says")
 PLANS["kontrol.degerlerde_ac"] = _plan(
     "pre.kontrol_doc3", "effect.kontrol_values_at_doc3", "feedback.kontrol_values_at_doc3",
     na_pre="pre.none", na="na.kontrol_stays_on_tab")
@@ -743,7 +801,9 @@ NO_JOB_KEYS = (
     ("kontrol.secimi_kaldir", "Esc"), ("kontrol.kes", "K"), ("kontrol.birlestir", "M"),
     ("kontrol.saga_dondur", "R"), ("kontrol.sola_dondur", "Shift+R"), ("kontrol.sil", "Del"),
     ("kontrol.onayla", "Return"), ("kontrol.onayla", "Enter"), ("kontrol.filtre", "F"),
-    ("kontrol.sablon", "T"), ("kontrol.onizle", "Space"), ("kontrol.sonraki_kontrol", "N"),
+    ("kontrol.sablon", "T"), ("kontrol.filtre_kaldir", "Shift+F"),
+    ("kontrol.sablon_kaldir", "Shift+T"), ("kontrol.onizle", "Space"),
+    ("kontrol.sonraki_kontrol", "N"),
     ("kontrol.onceki_kontrol", "Shift+N"), ("kontrol.sonraki_incelenmemis", "U"),
     ("kontrol.sonraki_belge", "Ctrl+Right"), ("kontrol.onceki_belge", "Ctrl+Left"),
 )

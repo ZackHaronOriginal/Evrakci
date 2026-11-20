@@ -100,6 +100,14 @@ class Job:
         ids = frozenset(self._check(pid) for pid in page_ids)
         self.filters.append(FilterApplication(ids, every_n))
 
+    def remove_filter(self, page_ids: Iterable[str]) -> None:
+        """Take these pages out of every filter; applications left empty are dropped.
+
+        Only `filters` is rewritten (no new field), so an older program opens the result."""
+        ids = frozenset(self._check(pid) for pid in page_ids)
+        kept = [FilterApplication(f.page_ids - ids, f.every_n) for f in self.filters]
+        self.filters = [f for f in kept if f.page_ids]
+
     def apply_template(self, page_ids: Iterable[str], template_id: str) -> None:
         if not template_id:
             raise ValueError("template_id must not be empty (use remove_template)")

@@ -27,6 +27,7 @@ from PySide6.QtCore import QEvent, QItemSelectionModel, QPoint, QSize, Qt, QTime
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMenu, QSplitter, QVBoxLayout, QWidget
 
+from evrakci.pipeline.cuts import template_by_page
 from evrakci.pipeline.export import plan_export
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
@@ -329,6 +330,87 @@ class KontrolScreen(QWidget):
         if self.controller.apply_template(ids, template_id):
             self._remember("stamp", f"{templates[template_id].name} uygulandı, "
                                     f"{len(ids)} sayfa")
+
+    # -- remove filter / template, bring a blank page back ------------------------------------
+    def _filtered(self, ids: list[str]) -> list[str]:
+        filtered = {pid for f in self.controller.job.filters for pid in f.page_ids}
+        return [pid for pid in ids if pid in filtered]
+
+    def _templated(self, ids: list[str]) -> list[str]:
+        templated = template_by_page(self.controller.job)
+        return [pid for pid in ids if pid in templated]
+
+    def _dropped_blank(self, ids: list[str]) -> list[str]:
+        job = self.controller.job
+        if not job.drop_empty:
+            return []
+        return [pid for pid in ids if job.pages[pid].is_empty and pid not in job.restored
+                and pid not in job.deleted]
+
+    def can_remove_filter(self) -> bool:
+        return bool(self._filtered(self._pages(self.selected_ids())))
+
+    def can_remove_template(self) -> bool:
+        return bool(self._templated(self._pages(self.selected_ids())))
+
+    def can_show_restore_empty(self) -> bool:
+        return self.controller.job.drop_empty
+
+    def can_restore_empty(self) -> bool:
+        return bool(self._dropped_blank(self.selected_ids()))
+
+    def sync_availability(self) -> None:
+        """"Boş sayfayı geri getir" is listed in the menu only while the job drops blank pages.
+        It stays enabled while listed: with no dropped page in the selection it says so."""
+        registry = getattr(self, "registry", None)
+        if registry is None:
+            return
+        try:
+            registry.set_hidden("kontrol.bos_geri_getir", not self.can_show_restore_empty())
+        except RuntimeError:  # the window is being torn down
+            pass
+
+    def remove_filter(self) -> None:
+        """Shift+F, Filtreyi kaldır: the selected pages leave their filters (one undo step)."""
+        ids = self._pages(self.selected_ids())
+        if not ids:
+            self.controller.status.emit("Önce sayfaları seçin.")
+            return
+        targets = self._filtered(ids)
+        if not targets:
+            self.controller.status.emit("Bu sayfalarda filtre yok.")
+            return
+        if self.controller.remove_filter(targets):
+            self._remember("funnel", f"Filtre kaldırıldı, {self._span(targets)}")
+            self._toast(f"Filtre kaldırıldı, {len(targets)} sayfa.")
+
+    def remove_template(self) -> None:
+        """Shift+T, Şablonu kaldır: the selected pages lose their template (one undo step)."""
+        ids = self._pages(self.selected_ids())
+        if not ids:
+            self.controller.status.emit("Önce sayfaları seçin.")
+            return
+        targets = self._templated(ids)
+        if not targets:
+            self.controller.status.emit("Bu sayfalarda şablon yok.")
+            return
+        if self.controller.remove_template(targets):
+            self._remember("stamp", f"Şablon kaldırıldı, {self._span(targets)}")
+            self._toast(f"Şablon kaldırıldı, {len(targets)} sayfa.")
+
+    def restore_empty(self) -> None:
+        """Boş sayfayı geri getir (menus only): dropped blank pages in the selection come back."""
+        ids = self.selected_ids()
+        if not ids:
+            self.controller.status.emit("Önce sayfaları seçin.")
+            return
+        targets = self._dropped_blank(ids)
+        if not targets:
+            self.controller.status.emit("Silinen boş sayfa yok.")
+            return
+        if self.controller.restore_empty(targets):
+            self._remember("undo-2", f"Boş sayfa geri getirildi, {self._span(targets)}")
+            self._toast("Boş sayfa geri getirildi.")
 
     def toggle_cut(self) -> None:
         """K: cut before the current page, or remove the cut that is there."""
@@ -736,14 +818,23 @@ class KontrolScreen(QWidget):
         if chosen:
             self.side.show_selection(SelectionInfo(
                 len(chosen), chosen[0] + 1, chosen[-1] + 1,
-                self._template_name(self._template_for_selection()), self._every_n))
+                self._template_name(self._template_for_selection()),
+                self._applied_every_n(ids)))
         else:
             self.side.show_selection(None)
         job = self.controller.job
         pages = self._pages(ids)
         restore = bool(pages) and all(pid in job.deleted for pid in pages)
         label_delete(self.registry, len(pages), restore)
+        self.sync_availability()
         self._update_status()
+
+    def _applied_every_n(self, ids: list[str]) -> int:
+        """N of the filter on the selected pages (the last application wins); 0 when none."""
+        for application in reversed(self.controller.job.filters):
+            if any(pid in application.page_ids for pid in ids):
+                return application.every_n
+        return 0
 
     def _template_name(self, template_id: str | None) -> str:
         template = self.templates().get(template_id) if template_id else None

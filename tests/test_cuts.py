@@ -104,3 +104,37 @@ def test_cut_kinds_first_document_after_a_leading_qr_page_is_qr():
     from evrakci.pipeline.cuts import cut_kinds
 
     assert cut_kinds(job_from_kinds({"a": "qpp"})) == {"a/1": "qr"}
+
+
+def test_documents_after_a_filter_is_removed():
+    job = job_from_kinds({"a": "pppppppqpp"})
+    before = ids(compute_documents(job))
+    job.apply_filter(job.ordered_page_ids(), 2)
+    assert ids(compute_documents(job)) != before
+    job.remove_filter(job.ordered_page_ids())
+    assert ids(compute_documents(job)) == before  # everything between two cuts again
+
+
+def test_removing_the_middle_of_a_filter_leaves_two_partial_ranges():
+    job = job_from_kinds({"a": "pppppppp"})
+    pids = job.ordered_page_ids()
+    job.apply_filter(pids, 3)
+    job.remove_filter(pids[3:5])
+    docs = compute_documents(job)
+    assert ids(docs) == [pids[:3], pids[3:5], pids[5:]]
+    assert [d.flags for d in docs] == [set(), set(), set()]
+    job.remove_filter(pids[:1] + pids[7:])  # the edges of the ranges: short groups are flagged
+    assert any("leftover" in d.flags for d in compute_documents(job))
+
+
+def test_a_template_removed_makes_the_unread_values_check_go_away():
+    from test_export import make_template
+
+    from evrakci.pipeline.export import plan_export
+
+    job = job_from_kinds({"a": "pp"})
+    job.apply_template(["a/0", "a/1"], "t1")
+    templates = {"t1": make_template()}
+    assert plan_export(job, templates)[0].checks == ["değerler okunmadı"]
+    job.remove_template(["a/0", "a/1"])
+    assert plan_export(job, templates)[0].checks == []

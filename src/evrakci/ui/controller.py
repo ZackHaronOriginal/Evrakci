@@ -150,8 +150,15 @@ class JobController(QObject):
 
         return self._edit("Boş sayfaları at", apply)
 
-    def set_value(self, document: Document, key: str, text: str) -> bool:
-        return self._edit("Değeri düzelt", lambda j: review.set_value(j, document, key, text))
+    def set_value(self, document: Document, key: str, text: str, required: bool = False) -> bool:
+        """True when the value was stored as typed; False when it did not land, or a required
+        value was emptied (it waits in Kontrol instead)."""
+        stored: list[bool] = []
+
+        def apply(job: Job) -> None:
+            stored.append(review.set_value(job, document, key, text, required))
+
+        return self._edit("Değeri düzelt", apply) and all(stored)
 
     def accept_suggestion(self, document: Document, key: str) -> bool:
         return self._edit("Öneriyi kabul et", lambda j: review.accept_suggestion(j, document, key))

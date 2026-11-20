@@ -117,9 +117,13 @@ class SourceView(QWidget):
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setFixedHeight(well_height())
+        self.trim = 0  # px given back to a header line that wraps (the card keeps its height)
+        self.fit()
         images.ready.connect(lambda *_: self.update())
-        theme.follow(self, lambda: self.setFixedHeight(well_height()), "degerler-well")
+        theme.follow(self, self.fit, "degerler-well")
+
+    def fit(self) -> None:
+        self.setFixedHeight(max(well_height() // 2, well_height() - self.trim))
 
     def set_crop(self, crop: Crop | None, description: str = "") -> None:
         self.crop = crop
@@ -451,9 +455,28 @@ class SourceCard(QFrame):
             widget.hide()
         self.blank.show()
 
+    def fit_well(self) -> None:
+        """The meta line may wrap (e.g. "· zorunlu" at 150 % text): the well gives back that
+        height, so the card keeps the height the whole-card rule was checked with."""
+        width = self.meta.width()
+        text = self.meta.text()
+        trim = 0
+        if width > 40 and text:
+            metrics = self.meta.fontMetrics()
+            box = metrics.boundingRect(0, 0, width, 10_000, Qt.TextFlag.TextWordWrap, text)
+            trim = max(0, round(box.height() / metrics.lineSpacing()) - 1) * metrics.lineSpacing()
+        if trim != self.view.trim:
+            self.view.trim = trim
+            self.view.fit()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.fit_well()
+
     def show_crop(self, title: str, meta: str, crop: Crop | None, description: str) -> None:
         self.title.setText(title)
         self.meta.setText(meta)
+        self.fit_well()
         self.blank.hide()
         for widget in (self.zoom_out, self.zoom_in, self.whole, self.view):
             widget.show()

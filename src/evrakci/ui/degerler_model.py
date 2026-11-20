@@ -172,6 +172,9 @@ class Cell:
         """The inspector's one line under the value."""
         if self.value is None:
             return "Bu değer henüz okunmadı. Değerleri oku ile okunur."
+        if self.required and not self.value.value and (
+                self.level == "okunamadi" or not self.value.flagged):
+            return "Zorunlu değer boş: dosya adı için bir değer yazın."
         if self.level == "okunamadi":
             return "Kutuda okunacak yazı bulunamadı: değeri elle yazın ya da yeni bir kutu çizin."
         if self.value.flagged and self.suggestion:

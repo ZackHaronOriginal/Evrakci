@@ -22,8 +22,15 @@ def _clean(text: str) -> str:
     return " ".join(unicodedata.normalize("NFC", text).split())
 
 
-def set_value(job: Job, document: Document, key: str, text: str) -> None:
+REQUIRED_EMPTY = "Zorunlu değer boş bırakılamaz; Kontrol'e alındı."
+
+
+def set_value(job: Job, document: Document, key: str, text: str, required: bool = False) -> bool:
     """The user's own value: confident, no longer flagged, kept on re-reading.
+
+    A required variable with an empty text is not stored as reviewed: it waits for a check
+    again, with what was read as the suggestion (the state `revert_value` makes), and the
+    result is False. Anything else returns True.
 
     The key may be new: a variable added to the template after the document was read.
     What was read stays in `readings`, so the correction can be undone.
@@ -32,7 +39,12 @@ def set_value(job: Job, document: Document, key: str, text: str) -> None:
     old = values.get(key)
     readings = old.readings if old is not None else ()
     suggestion = (old.suggestion or (old.value if not old.edited else "")) if old else ""
-    values[key] = VariableValue(_clean(text), 1.0, None, False, suggestion, readings, True)
+    cleaned = _clean(text)
+    if required and not cleaned:
+        values[key] = VariableValue("", 0.0, None, True, suggestion, readings, False)
+        return False
+    values[key] = VariableValue(cleaned, 1.0, None, False, suggestion, readings, True)
+    return True
 
 
 def accept_suggestion(job: Job, document: Document, key: str) -> None:

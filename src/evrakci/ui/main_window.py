@@ -442,6 +442,7 @@ class MainWindow(QMainWindow):
         self.sablon = SablonScreen(self.template_store, self.controller)
         self.degerler = DegerlerScreen(self.controller, self.template_map)
         self.degerler.draw_variant.connect(self._draw_variant)
+        self.degerler.open_kontrol.connect(self._open_in_kontrol)
         self.disa_aktar = DisaAktarScreen(self.controller, self.template_map, self.settings_path)
         self.disa_aktar.job_deleted.connect(self._job_deleted)
         self.rehber = RehberScreen()
@@ -734,6 +735,7 @@ class MainWindow(QMainWindow):
         r.connect("degerler.varyant", lambda: self.degerler.side.variant_button.click())
         # a lambda: triggered(checked) would arrive as next_check's `step` (0 = from the top)
         r.connect("degerler.sonraki_kontrol", lambda: self.degerler.next_check(1))
+        r.connect("degerler.kontrolde_ac", self.degerler.open_in_kontrol)
         r.connect("degerler.durdur", self._stop_on_degerler)
         # The screen's two (hidden) read buttons hold the enabled state; the bar's commands
         # click them.
@@ -1355,7 +1357,7 @@ class MainWindow(QMainWindow):
         self.thumbnails = ThumbnailService(
             job_renderer(job, lambda: self.store.batch_files(job)), height=110, parent=self)
         kontrol = KontrolScreen(controller, self.thumbnails, self.template_map)
-        kontrol.open_values.connect(lambda _n: self.show_tab("degerler"))
+        kontrol.open_values.connect(self._open_in_degerler)
         self._set_kontrol_page(kontrol)
         self._track_splitters(kontrol)
         self._wire_controller(controller)
@@ -1541,6 +1543,24 @@ class MainWindow(QMainWindow):
             self.degerler.refresh()
         elif tab == "disa_aktar":
             self.disa_aktar.refresh()
+
+    def _open_in_degerler(self, number: int) -> None:
+        """Kontrol's "Değerlerde aç": Değerler with that document selected, focus in its table."""
+        if not self.degerler.has_document(number):
+            return
+        self.show_tab("degerler")
+        self.degerler.select_document(number)
+        self.focus_work_area()
+
+    def _open_in_kontrol(self, number: int) -> None:
+        """Değerler's "Kontrol'de aç": Kontrol with that document current, focus in its timeline."""
+        if self.kontrol is None:
+            return
+        self.show_tab("kontrol")
+        self.kontrol.go_to_document(number)
+        self.focus_work_area()
+        if self.kontrol.current_document() == number:
+            self.controller().status.emit(f"Belge {number} seçildi.")
 
     def _draw_variant(self, document: int, variable: str) -> None:
         self.show_tab("sablonlar")

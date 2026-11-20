@@ -93,6 +93,7 @@ from contract_helpers import (  # noqa: E402
 # action: kontrol.onceki_kontrol, kontrol.sonraki_incelenmemis, kontrol.sonraki_belge
 # action: kontrol.onceki_belge, kontrol.sayfa, kontrol.ilk_son, kontrol.ekran
 # action: kontrol.secimi_genislet, sablonlar.kutu_ciz, sablonlar.izgara
+# action: kontrol.degerlerde_ac, degerler.kontrolde_ac
 # action: sablonlar.dene, sablonlar.kutu_sil, sablonlar.kutu_cogalt
 # action: sablonlar.degisken_ekle, sablonlar.yukari, sablonlar.asagi, sablonlar.kaydir
 # action: sablonlar.kaydir_1mm, sablonlar.el, degerler.onayla

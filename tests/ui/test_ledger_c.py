@@ -142,8 +142,6 @@ def test_b011_values_read_before_an_unexpected_error_are_kept(qtbot, tmp_path):
 
 
 # -- B-012 ------------------------------------------------------------------------------------
-@pytest.mark.xfail(strict=True, reason="B-012: main_window drops the document number "
-                   "(lambda _n: show_tab) so Değerler selects its own first value")
 def test_b012_values_button_in_kontrol_selects_that_document(qtbot, tmp_path):
     win, store, job, templates = _window(qtbot, tmp_path, prefs=False)
     template, sicil, firma = _template(templates, "Kapasite Raporu")

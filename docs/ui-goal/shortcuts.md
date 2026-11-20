@@ -56,6 +56,7 @@ the part between the two comments.
 - `Return`: page-specific: same as Enter (main keyboard row)
 - `Esc`: page-specific: dismiss without losing work (clear selection, Vazgeç, clear search)
 - `F2`: page-specific: edit the selected item's name or value by hand (Yeniden adlandır, Elle yaz)
+- `K`: page-specific: Burada kes on Kontrol, Kontrol'de aç on Değerler
 - `Left`: page-specific: local key of the focused view (previous page on Kontrol, nudge box on Şablonlar)
 - `Right`: page-specific: local key of the focused view (next page on Kontrol, nudge box on Şablonlar)
 - `Shift+Left`: page-specific: local key of the focused view (extend selection, 1 mm nudge)
@@ -121,7 +122,7 @@ the part between the two comments.
 | Esc | Seçimi kaldır | Düzen | also closes the preview; yazarken kapalı |
 | F | Filtre uygula… | Araçlar | yazarken kapalı |
 | T | Şablonu uygula | Araçlar | yazarken kapalı |
-| — | Değerlerde aç | Araçlar | Ctrl+4 stays the tab key |
+| D | Değerlerde aç | Araçlar | opens Değerler on this document, status 'Belge N seçildi.'; yazarken kapalı |
 | Space | Önizle | Görünüm | the loupe; yazarken kapalı |
 | N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | yazarken kapalı |
 | U | Sonraki incelenmemiş | Git | yazarken kapalı |
@@ -169,6 +170,7 @@ list and the inspector fields.
 | Space | Tüm sayfayı göster | Görünüm | the same key as the Kontrol loupe; yazarken kapalı |
 | N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | yazarken kapalı |
 | — | Tümünü incele, Örnek kontrol | Araçlar | checkable |
+| K | Kontrol'de aç | Araçlar | opens Kontrol on this document, status 'Belge N seçildi.'; yazarken kapalı |
 | Ctrl+. | Okumayı durdur | Araçlar | |
 | — | Değerleri oku / Yalnızca eksikleri oku | Araçlar | A's labelled scan-text and list-filter command-bar buttons |
 | Tab / Shift+Tab | Sonraki / önceki değer | — | yerel (table); Tab on the last value leaves the table, F6 moves to the next region |
@@ -195,7 +197,7 @@ list and the inspector fields.
   sonrakine geç, Tüm sayfayı göster) are unbound, exactly as typing keys are while a text field
   has focus (`Registry.set_on_button`).
 - **Ayarlar > Kısayollar > "Tek tuşlu kısayollar"** (default on, WCAG 2.1.4): off unbinds every
-  shortcut that is one character key (K, M, R, N, U, T, F, B, G, V, ?). Enter, Space, Del, the
+  shortcut that is one character key (K, M, R, N, U, T, F, D, B, G, V, ?). Enter, Space, Del, the
   arrows and every Ctrl/Alt/F-key shortcut keep working.
 - **Ctrl+1…6 and Ctrl+Tab** put focus in the tab's main view (timeline, table, canvas, guide), so
   arrows work at once. A click on a tab leaves focus where it is.

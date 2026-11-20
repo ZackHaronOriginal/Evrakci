@@ -267,6 +267,29 @@ def _feedback_all_rows(c: Ctx) -> None:
     assert QApplication.focusWidget() is d.table
 
 
+@helper("pre.degerler_row2")
+def _pre_row2(c: Ctx) -> None:
+    pick(c, 1, 3)
+    c.undo.append(lambda: c.win.show_tab("degerler"))
+
+
+@helper("effect.degerler_kontrol_at_doc2")
+def _effect_kontrol_at_doc2(c: Ctx) -> None:
+    assert c.win.current_tab() == "kontrol"
+    assert c.win.kontrol.current_document() == 2
+
+
+@helper("feedback.degerler_kontrol_at_doc2")
+def _feedback_kontrol_at_doc2(c: Ctx) -> None:
+    assert said(c.win, "Belge 2 seçildi."), f"nothing said: {heard(c.win)!r}"
+    assert QApplication.focusWidget() is c.win.kontrol.timeline, "focus is not in the timeline"
+
+
+@helper("na.degerler_stays_on_tab")
+def _na_stays_on_tab(c: Ctx) -> None:
+    assert c.win.current_tab() == "degerler"
+
+
 @helper("pre.degerler_page_view")
 def _pre_page_view(c: Ctx) -> None:
     pick(c, 1, 3)
@@ -473,6 +496,9 @@ PLANS["degerler.vazgec"] = _plan(
 PLANS["degerler.tumunu_sec"] = _plan(
     "pre.degerler_one_row_selected", "effect.degerler_all_rows", "feedback.degerler_all_rows",
     na_pre="pre.none", na="na.says_no_job")
+PLANS["degerler.kontrolde_ac"] = _plan(
+    "pre.degerler_row2", "effect.degerler_kontrol_at_doc2", "feedback.degerler_kontrol_at_doc2",
+    na_pre="pre.none", na="na.degerler_stays_on_tab")
 PLANS["degerler.tum_sayfa"] = _plan(
     "pre.degerler_page_view", "effect.degerler_page_view_open",
     "feedback.degerler_page_view_open", na_pre="pre.none", na="na.says.degerler_pick_value",

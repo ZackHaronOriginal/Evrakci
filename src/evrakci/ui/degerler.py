@@ -126,6 +126,7 @@ class DegerlerScreen(QWidget):
     status = Signal(str)
     finished = Signal()
     go_tab = Signal(str)
+    open_kontrol = Signal(int)  # document number
 
     def __init__(
         self,
@@ -339,7 +340,7 @@ class DegerlerScreen(QWidget):
 
     CONTEXT = ("degerler.onayla", "degerler.elle_yaz", "degerler.varyant", None,
                "degerler.secilenleri_onayla", "degerler.tumunu_sec", None,
-               "degerler.tum_sayfa", "degerler.sonraki_kontrol")
+               "degerler.tum_sayfa", "degerler.kontrolde_ac", "degerler.sonraki_kontrol")
 
     def context_menu(self, pos):
         """The right-click menu of a row: its commands with their keys (from the registry)."""
@@ -952,6 +953,43 @@ class DegerlerScreen(QWidget):
         self.table.scrollTo(index)
         return True
 
+    def has_document(self, number: int) -> bool:
+        """Whether document `number` is a row here; if not, the status line says why."""
+        controller = self.controller()
+        documents = controller.documents() if controller is not None else []
+        if 0 < number <= len(documents):
+            first = documents[number - 1].page_ids[0]
+            if first in _template_of(controller.job):
+                return True
+        if controller is not None:
+            controller.status.emit("Bu belgenin şablonu yok; Değerler'de görünmez.")
+        return False
+
+    def select_document(self, number: int) -> bool:
+        """Select document `number` (its first value to check), whatever template, view or
+        search is shown; a view that hides it becomes Tümü. Says which document it is."""
+        row = next((r for r in self.rows if r.number == number), None)
+        if row is None:
+            return False
+        if row.template_id != self.template_combo.currentData():
+            self.template_combo.setCurrentIndex(self.template_combo.findData(row.template_id))
+        if self.model.row_of(number) < 0 and any(r.read for r in self.rows):
+            self.set_view("tumu")
+            if self.model.row_of(number) < 0 and self.search.text():
+                self.search.clear()
+        key = next((c.key for c in row.cells if c.needs_check),
+                   row.cells[0].key if row.cells else "")
+        if not self.select_value(number, key):
+            return False
+        self.controller().status.emit(f"Belge {number} seçildi.")  # the status line
+        return True
+
+    def open_in_kontrol(self, *_args) -> None:
+        # The row, not the cell: a row whose template is gone has no cells but is a document.
+        row = self.model.row_at(self.table.currentIndex().row())
+        if row is not None:
+            self.open_kontrol.emit(row.number)
+
     def _select_first(self) -> None:
         """Start on the first value to check (or to review), else the first row."""
         target = self._find(-1, -1, 1, self._target_test())
@@ -1359,6 +1397,7 @@ class DegerlerScreen(QWidget):
             "degerler.vazgec": has_rows,
             "degerler.tumunu_sec": has_rows or not has_job,  # no job: it says so (L6)
             "degerler.tum_sayfa": row is not None,
+            "degerler.kontrolde_ac": row is not None,
             "degerler.sonraki_kontrol": counts.kontrol > 0,
             "degerler.onceki_kontrol": counts.kontrol > 0,
             "degerler.tumunu_incele": read_any,

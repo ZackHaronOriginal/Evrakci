@@ -103,7 +103,7 @@ kontrol	Return	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton |
 kontrol	Enter	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton | bar Diğer komutlar		yes	ok
 kontrol	F	kontrol.filtre	Filtre uygula…	Araçlar > Filtre uygula	ActionRow | bar	page	yes	ok
 kontrol	T	kontrol.sablon	Şablonu uygula	Araçlar > Şablonu uygula	ActionRow | bar		yes	ok
-kontrol		kontrol.degerlerde_ac	Değerlerde aç	Araçlar > Değerlerde aç	GapButton | bar Diğer komutlar	page	yes	ok
+kontrol	D	kontrol.degerlerde_ac	Değerlerde aç	Araçlar > Değerlerde aç	GapButton | bar Diğer komutlar	page	yes	ok
 kontrol	Space	kontrol.onizle	Önizle	Görünüm > Önizle	bar	page	yes	ok
 kontrol	N	kontrol.sonraki_kontrol	Sonraki kontrol	Git > Sonraki kontrol	bar		yes	ok
 kontrol	Shift+N	kontrol.onceki_kontrol	Önceki kontrol	Git > Önceki kontrol	bar Diğer komutlar		yes	ok
@@ -236,6 +236,7 @@ degerler	Shift+N	degerler.onceki_kontrol	Önceki kontrol	Git > Önceki kontrol	b
 degerler		degerler.tumunu_incele	Tümünü incele	Araçlar > Tümünü incele	bar		yes	ok
 degerler		degerler.ornek_kontrol	Örnek kontrol	Araçlar > Örnek kontrol	bar		yes	ok
 degerler		degerler.oku	Değerleri oku	Araçlar > Değerleri oku	QPushButton [state-dependent] | bar		yes	ok
+degerler	K	degerler.kontrolde_ac	Kontrol'de aç	Araçlar > Kontrol'de aç	bar Diğer komutlar	value row	yes	ok
 degerler		degerler.eksikleri_oku	Yalnızca eksikleri oku	Araçlar > Yalnızca eksikleri oku	QPushButton [state-dependent] | bar		yes	ok
 degerler	Ctrl+.	degerler.durdur	Okumayı durdur	Araçlar > Okumayı durdur [state-dependent]	QPushButton [state-dependent] | bar Diğer komutlar [state-dependent]		yes	ok
 degerler	Tab	degerler.sonraki_deger	Sonraki / önceki değer				no	exempt:Tab/Shift+Tab move between table cells; a click picks a cell

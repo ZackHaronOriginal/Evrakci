@@ -387,6 +387,25 @@ def _feedback_loupe_open(c: Ctx) -> None:
     assert QApplication.focusWidget() is k.timeline, "closing did not return focus"
 
 
+# -- D ----------------------------------------------------------------------------------------
+@helper("effect.kontrol_values_at_doc3")
+def _effect_values_at_doc3(c: Ctx) -> None:
+    assert c.win.current_tab() == "degerler"
+    assert c.win.degerler.current_value()[0] == 3
+
+
+@helper("feedback.kontrol_values_at_doc3")
+def _feedback_values_at_doc3(c: Ctx) -> None:
+    assert said(c.win, "Belge 3 seçildi."), f"nothing said: {heard(c.win)!r}"
+    assert QApplication.focusWidget() is c.win.degerler.table, "focus is not in the table"
+
+
+@helper("na.kontrol_stays_on_tab")
+def _na_stays_on_tab(c: Ctx) -> None:
+    assert c.win.current_tab() == "kontrol"
+    assert not said(c.win, "Belge 3 seçildi.")
+
+
 # -- N, Shift+N, U, Ctrl+Right, Ctrl+Left ------------------------------------------------------
 def _at_document(c: Ctx, number: int) -> None:
     k = _k(c)
@@ -616,6 +635,9 @@ PLANS["kontrol.sablon"] = _plan(
     "pre.kontrol_template", "effect.kontrol_templated", "feedback.kontrol_templated",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_nothing_selected",
     na="na.says.pick_pages_and_template")
+PLANS["kontrol.degerlerde_ac"] = _plan(
+    "pre.kontrol_doc3", "effect.kontrol_values_at_doc3", "feedback.kontrol_values_at_doc3",
+    na_pre="pre.none", na="na.kontrol_stays_on_tab")
 PLANS["kontrol.onizle"] = _plan(
     "pre.kontrol_loupe", "effect.kontrol_loupe_open", "feedback.kontrol_loupe_open",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_no_current_page",

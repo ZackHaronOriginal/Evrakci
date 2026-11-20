@@ -2,7 +2,7 @@
 
 Status: proposal, waits for the owner's approval (decisions.md, "Owner answers: Phase 5 build order and rules"). D13 is lifted (owner, 2026-11-20): the core may change where the feature is better for it. All examples use invented data. Turkish strings are `draft`: wording follows Windows/Office Turkish terms as remembered ("Baskı önizleme", "Alt bilgi", "Panoya kopyala", "Özet"); I did not check them on the web in this run, so the owner or a Turkish reader should confirm.
 
-**Reconciled with A, B and C (2026-11-20).** Build order, shared pieces and the owner's decisions (O-15 to O-19 are this file's) are in `specs/README.md`. Changes here: the job format stays version 2 for all four specs (C5 is additive, old D-1 is no longer an owner question); dates use one Turkish format, "20.11.2026 14:32", in the sheet and on paper (old D-4 decided); the preview's busy cue uses `motion.wait_cursor` from quick-wins I-47; `pdfa_note` (I-40, B-003) is listed with the other `ExportItem` fields.
+**Reconciled with A, B and C (2026-11-20).** Build order, shared pieces and its decisions O-15 to O-19 (all decided by evidence on 2026-11-20, README §6) are in `specs/README.md`. Changes here: the job format stays version 2 for all four specs (C5 is additive, old D-1 is no longer an owner question); dates use one Turkish format, "20.11.2026 14:32", in the sheet and on paper (old D-4 decided); the preview is built off the window thread with `run_background` and its loading card from quick-wins I-47 (no busy cursor); `pdfa_note` (I-40, B-003) is listed with the other `ExportItem` fields.
 
 ## Shared core changes (one set, used by all four ideas)
 
@@ -69,7 +69,7 @@ Column order changes for people with macros on the sheet (decision D-2). Time is
 
 **Owner decisions needed**
 - D-1 Decided in the reconcile: store the export in the job file (C5), additive, format stays 2, so nothing is lost for older app versions.
-- D-2 (README O-15) Where does "Belge no" go? Recommended: first column. Alternative: last fixed column (before variables), which shifts fewer macros but hides the key.
+- D-2 (O-15) **Decided by evidence (T3, 2026-11-20; sources in README §6).** "Belge no" is the first column. Evidence: Excel's VLOOKUP needs the key in the first column ("The value you want to look up must be in the first column of the range", Microsoft); the number is the key to the file name. Release note: macros that read index.xlsx by column position must be updated.
 
 **Build steps:** (1) C5 job field (format stays 2) and old-file tests; (2) C4 column and `Özet` sheet; (3) pass one time from `export_job`; (4) printed "No" column; (5) update `test_index.py` and the UI print test.
 
@@ -111,7 +111,7 @@ Not tried on real printers (Obs. 15). Page break inside a row is possible with Q
 
 **Shortcut contract rows it adds:** none new; row `disa_aktar` Ctrl+P `disa_aktar.yazdir` changes "what happens" to "the print preview opens; Yazdır… prints", with the refusal text "Yazdırılacak bir dizin yok." (already PROPOSED in the contract).
 **Rules it must meet:** AUD-KBD-02, AUD-A11Y-01 (every dialog button named), AUD-HIT-02, AUD-TXT-01, AUD-WIN-01, DEC-FOC-01, DEC-LAY-03, DEC-THM-01, HIG-WIN-09 (ellipsis), HIG-WIN-16 (Esc closes).
-**Performance cost:** the HTML for 800 rows is built on the GUI thread (QTextDocument); layout estimate under 2 s, not measured. First build step measures it; if over 1 s, show "Önizleme hazırlanıyor…" with `motion.wait_cursor` (owned by quick-wins I-47; build I-47 first). Preview renders 3 to 20 pages, lazily.
+**Performance cost:** the HTML for 800 rows is built in a worker with `run_background` (quick-wins I-47; build I-47 first): the row data and HTML string are plain data, and the `QTextDocument` and the preview widget are made on the window thread in `on_done` (I-47 rule 1). Layout estimate under 2 s, not measured; the first build step measures it. While it runs the loading card shows "Önizleme hazırlanıyor…" after 300 ms, with "İptal et" (Ctrl+.), and the window stays usable. Preview renders 3 to 20 pages, lazily.
 
 **New Turkish text**
 
@@ -125,12 +125,12 @@ Not tried on real printers (Obs. 15). Page break inside a row is possible with Q
 | Sığdır | dialog button | fit | existing (`app.sigdir`) |
 | Dışa aktarma planı, henüz yazılmadı | printed sub title | export plan, not yet written | draft |
 | Dışa aktarıldı: {zaman} | printed sub title | exported at | draft |
-| Önizleme hazırlanıyor… | busy hint | preparing preview | draft |
+| Önizleme hazırlanıyor… | loading card title (I-47) | preparing preview | draft |
 
 **Check against the product:** Never silent: Pass (plan vs record is printed). No built-in kinds: Pass. Keyboard: Pass. Colour: Pass (no orange; Kontrol still icon + word in the table). Layout: Pass. Copy: Pass. Local-first: Pass (no new dependency).
 
 **Owner decisions needed**
-- D-3 (README O-16) Ctrl+P opens the preview first (one more step, Enter prints)? Recommended: yes. Alternative: keep Ctrl+P = print dialog and add the preview under another key.
+- D-3 (O-16) **Decided by evidence (T3, 2026-11-20; sources in README §6).** Ctrl+P opens the preview; Enter ("Yazdır…") prints. Evidence: Office prints and previews from one place, "File and then Print (or pressing CTRL+P)" (Microsoft, "Printing and print preview"); Ctrl+P stays Print in every source and the preview gets no second key such as Ctrl+Shift+P, which GNOME uses for Print Preview and the app uses for the palette (`research/shortcut-conventions.md` §5 rank 2).
 - D-4 Decided in the reconcile: "20.11.2026 14:32" (Turkish order) on paper and in the `Özet` sheet.
 
 **Build steps:** (1) `<thead>` plus "No" column and test the PDF header on page 2; (2) own page painter with footer and "Sayfa n / m"; (3) preview dialog with Turkish buttons; (4) Ctrl+P wiring and key tests; (5) plan/record subtitle; (6) measure 800 rows.
@@ -146,7 +146,7 @@ Not tried on real printers (Obs. 15). Page break inside a row is possible with Q
 Everyone exporting; before pressing Ctrl+E, at the pre-flight, in a long session.
 
 ### 3. Keyboard flow
-In the list: Ctrl+Shift+A toggles "Adları karşılaştır" (adds the Kaynak column); Ctrl+Shift+C copies the whole list (Kaynak, Yazılacak dosya adı, Not) as tab-separated text, ready for Excel; Ctrl+C keeps copying only the selected names (existing `copy_names`, `disa_aktar.py:886`). The filter button "Adı değişenler" (Tab to it, Space) shows only rows whose name differs from the pattern. The existing "Adları göster" jump (`show_changed_names`, `:865`) stays. Menus: Görünüm for the toggle, Düzen for copy.
+In the list: "Adları karşılaştır" (menu Görünüm and the command palette, no key; T3: Ctrl+Shift+A is GNOME's Deselect All, `research/shortcut-conventions.md` §5 rank 1) toggles the Kaynak column; Ctrl+Shift+C copies the whole list (Kaynak, Yazılacak dosya adı, Not) as tab-separated text, ready for Excel; Ctrl+C keeps copying only the selected names (existing `copy_names`, `disa_aktar.py:886`). The filter button "Adı değişenler" (Tab to it, Space) shows only rows whose name differs from the pattern. The existing "Adları göster" jump (`show_changed_names`, `:865`) stays. Menus: Görünüm for the toggle, Düzen for copy.
 
 ### 4. Screen sketch (list card, side panel open, 1366x768)
 ```
@@ -168,7 +168,7 @@ Core: `plan_names` marks a name cut by a long folder path, a clash suffix and a 
 ### 7. Risks and open questions
 "Old name" is the scan file, because a document has no earlier name (decision D-5). A name shortened by path length depends on the folder, so it changes as the folder is typed (live, cheap). Duplicate scan names in two batches are shown as is.
 
-**Shortcut contract rows it adds:** `disa_aktar` Ctrl+Shift+A `disa_aktar.adlari_karsilastir` "Adları karşılaştır" (checkable, Görünüm); `disa_aktar` Ctrl+Shift+C `disa_aktar.liste_kopyala` "Ad listesini kopyala" (Düzen); no clash on this tab in the contract, confirm with the audit script at build.
+**Shortcut contract rows it adds:** `disa_aktar` (no key) `disa_aktar.adlari_karsilastir` "Adları karşılaştır" (checkable, Görünüm, palette); `disa_aktar` Ctrl+Shift+C `disa_aktar.liste_kopyala` "Ad listesini kopyala" (Düzen); no clash on this tab in the contract, confirm with the audit script at build.
 **Rules it must meet:** AUD-KBD-01/02, AUD-A11Y-01 (column and buttons named), AUD-TXT-01, AUD-HIT-03, DEC-IDN-01 (orange only Kontrol), HIG-CON-03 (no meaning by colour alone), HIG-WIN-12 (key shown in the menu).
 **Performance cost:** `plan_names` on 800 documents: string work only, under 50 ms (not measured); `sources` removes the existing O(n²) `position_of` use for the new column only. Column adds no per-row widget (delegate paints).
 
@@ -189,7 +189,7 @@ Core: `plan_names` marks a name cut by a long folder path, a clash suffix and a 
 **Check against the product:** Never silent: Pass (shortening now visible before writing). No built-in kinds: Pass. Keyboard: Pass (two keys, filter by Tab). Colour: Pass. Layout: Needs check at 150 % (Şablon scrolls as today). Copy: Pass. Local-first: Pass.
 
 **Owner decisions needed**
-- D-5 (README O-17) What is the "old name"? Recommended: the scan file (Kaynak). Alternatives: the numbered `belge_NNN` name, or none.
+- D-5 (O-17) **Decided by evidence (T3, 2026-11-20; sources in README §6).** The "old name" is the scan file (Kaynak). Evidence: Windows' bulk renamer shows the name the file has on disk next to the new one (PowerRename preview columns "Original" and "Renamed", with a toggle to show only renamed files, like "Adı değişenler"); a document's only name on disk before export is its scan file, while `belge_NNN` is never a file the user saw.
 - D-6 Decided in the reconcile: toggle, default off (keeps the list narrow). Wording note for the Turkish terms check: list column "Kaynak" (scan file) sits next to the sheet's "Kaynak sayfalar" (page numbers).
 
 **Build steps:** (1) C1-C2 `sources` and `name_note` with core tests; (2) C3 `plan_names` and `export_job` switch with equality test; (3) `file_rows` uses core notes; (4) Kaynak column and toggle; (5) "Adı değişenler" filter; (6) copy list and key; (7) CLI `--onizle`.
@@ -205,7 +205,7 @@ Core: `plan_names` marks a name cut by a long folder path, a clash suffix and a 
 Supervisors and staff handing over a finished export; after every export with checks.
 
 ### 3. Keyboard flow
-No new key in the proposal: Ctrl+E exports, "index.xlsx'i aç" opens the file; the report is its second sheet. If the owner wants the report before exporting (D-8): Ctrl+Shift+R "Kontrol listesini kaydet…" (menu Dosya) writes `kontrol-listesi.xlsx` into a folder chosen by the file dialog.
+No new key: Ctrl+E exports, "index.xlsx'i aç" opens the file; the report is its second sheet. No separate save before exporting (O-19 decided: sheet only).
 
 ### 4. Screen sketch
 Sheet `Kontrol gerekenler` (after `Belgeler` and `Özet`; order: Belgeler, Kontrol gerekenler, Özet):
@@ -218,16 +218,16 @@ Sheet `Kontrol gerekenler` (after `Belgeler` and `Özet`; order: Belgeler, Kontr
 With no check: one row, "Kontrol gerektiren belge yok." (the sheet is always there, so a missing sheet never means "unchecked"). The outcome card and "index.xlsx'i aç" button are unchanged; the done toast adds nothing.
 
 ### 5. Data and core changes
-C4: `write_index` writes the second sheet from `item.checks`, so it is the same list as the "Kontrol gerekli" column and `ExportResult.needing_check` (`exporting.py:41`). The window's Kontrol count must match it: this depends on bug B-003 (PDF/A failure is in `item.checks`, so it counts as Kontrol in the sheet and card but shows as Bilgi in the list). Recommended fix inside this build: keep the PDF/A note out of `checks` (`ExportItem.pdfa_note`), so list, card, `may_delete_after_export` and both sheets agree; the PDF/A column keeps "hayır". CLI: the last line adds "Kontrol listesi: index.xlsx, sayfa 'Kontrol gerekenler'." when needing_check > 0. Optional D-8: core `write_check_report(items, job, path)` shared by window and CLI (`--kontrol-listesi DOSYA` on `disa-aktar`).
+C4: `write_index` writes the second sheet from `item.checks`, so it is the same list as the "Kontrol gerekli" column and `ExportResult.needing_check` (`exporting.py:41`). The window's Kontrol count must match it: this depends on bug B-003 (PDF/A failure is in `item.checks`, so it counts as Kontrol in the sheet and card but shows as Bilgi in the list). Recommended fix inside this build: keep the PDF/A note out of `checks` (`ExportItem.pdfa_note`), so list, card, `may_delete_after_export` and both sheets agree; the PDF/A column keeps "hayır". CLI: the last line adds "Kontrol listesi: index.xlsx, sayfa 'Kontrol gerekenler'." when needing_check > 0. No `write_check_report` (O-19).
 
 ### 6. Tests
 Core: `tests/test_index.py`: sheet exists, rows equal the flagged items in order, the "no check" row, formula-like values stay text; `test_exporting.py`: `needing_check` equals the sheet rows, with a PDF/A-failed file (B-003 test `test_b003_pdfa_failure_is_one_rule_in_list_and_outcome_count` must pass); CLI: the output line and sheet appear. UI: list Kontrol count equals sheet rows. Failure caught: a flagged document missing from the report, or counted differently on screen.
 
 ### 7. Risks and open questions
-B-003 must be decided first, otherwise report and list disagree. Reasons are the core's Turkish check texts, shown as they are. A document approved in Kontrol (İncelendi) with an open check still counts as Kontrol here (B-034, Enter with open check); the report says so by listing it, never hides it.
+B-003 is decided (O-18: Bilgi); it must be fixed first, otherwise report and list disagree. Reasons are the core's Turkish check texts, shown as they are. A document approved in Kontrol (İncelendi) with an open check still counts as Kontrol here (B-034, Enter with open check); the report says so by listing it, never hides it.
 
-**Shortcut contract rows it adds:** none in the proposal; with D-8 yes: `disa_aktar` Ctrl+Shift+R `disa_aktar.kontrol_listesi` "Kontrol listesini kaydet…" (Dosya; disabled with no Kontrol rows, status line "Kontrol gerektiren belge yok.").
-**Rules it must meet:** DEC-IDN-01 (yellow check fill stays; Kontrol is also a word), AUD-KBD-02, AUD-A11Y-01; with D-8 AUD-HIT-02, HIG-WIN-09.
+**Shortcut contract rows it adds:** none.
+**Rules it must meet:** DEC-IDN-01 (yellow check fill stays; Kontrol is also a word), AUD-KBD-02, AUD-A11Y-01.
 **Performance cost:** at most 800 rows more in one sheet: under 20 ms.
 
 **New Turkish text**
@@ -238,18 +238,17 @@ B-003 must be decided first, otherwise report and list disagree. Reasons are the
 | Belge no, Dosya, Kaynak sayfalar, Kontrol nedenleri | sheet header | document no., file, source pages, reasons | existing (`index.py:16-23`) except Belge no (I-35) |
 | Kontrol gerektiren belge yok. | sheet row, status line | no document needs a check | draft |
 | Kontrol listesi: index.xlsx, sayfa 'Kontrol gerekenler'. | CLI line | where the report is | draft |
-| Kontrol listesini kaydet… | action (D-8 only) | save the check list | draft |
-| Kontrol listesi yazıldı | toast (D-8 only) | check list written | draft |
 
 **Check against the product:** Never silent: Pass once B-003 is settled (Needs change before). No built-in kinds: Pass. Keyboard: Pass. Colour: Pass. Layout: N/A. Copy: Pass ("Kontrol", not "Şüpheli"). Local-first: Pass.
 
 **Owner decisions needed**
-- D-7 (README O-18) B-003: PDF/A failure is Bilgi (not Kontrol) everywhere? Recommended: yes, fix it in this build (small core change above).
-- D-8 (README O-19) Also a command to save the report before exporting? Recommended: no for now (sheet only); the supervisor reads the finished export.
+**Decided by evidence (T3, 2026-11-20; sources in README §6).**
+- D-7 (O-18) A PDF/A failure is Bilgi everywhere; the PDF/A column still says "hayır"; fixed in this build (small core change above). Evidence: OCRmyPDF, the sector's open OCR-to-PDF/A tool, treats it as a usable result, exit code 10 "A valid PDF was created, PDF/A conversion failed. The file will be available."; D1 keeps orange and "Kontrol" for documents a person must check, and the column keeps it visible (Never silent).
+- D-8 (O-19) No separate save before exporting; the list is the "Kontrol gerekenler" sheet. Evidence: before export the same list is already on screen in the existing "Yalnızca kontrol gerekenler" filter of Dışa Aktar (`disa_aktar.py:190`) and in Değerler, so PRODUCT.md's "visible where the user works, and in index.xlsx" is met without a second file; it can be added later without a format change.
 
-**Build steps:** (1) decide and fix B-003 with its test; (2) `Kontrol gerekenler` sheet and tests; (3) CLI line; (4) UI count test; (5) only with D-8: `write_check_report`, command, key, CLI flag.
+**Build steps:** (1) fix B-003 (O-18 decided) with its test; (2) `Kontrol gerekenler` sheet and tests; (3) CLI line; (4) UI count test.
 
 ---
 
 ## Order and dependencies
-I-35 first (C4, C5, the new column), then I-40 (needs C4 and the B-003 decision), then I-39 (C1-C3, C6), then I-38 (UI only; uses C5 for the written time). Each idea can be built and tested alone after C4. Across specs: I-38 uses `motion.wait_cursor` from quick-wins I-47; nothing here depends on A or C. Full order: `specs/README.md`.
+I-35 first (C4, C5, the new column), then I-40 (needs C4 and the B-003 decision), then I-39 (C1-C3, C6), then I-38 (UI only; uses C5 for the written time). Each idea can be built and tested alone after C4. Across specs: I-38 uses `run_background` and the loading card from quick-wins I-47; nothing here depends on A or C. Full order: `specs/README.md`.

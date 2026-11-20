@@ -3,7 +3,7 @@
 Status: draft for owner approval. Written 2026-11-20. No code is changed by this file.
 D13 is lifted (owner, 2026-11-20): core and CLI changes below are by design, not minimal hooks.
 
-**Reconciled with A, B and D (2026-11-20).** Build order, shared pieces, the Kontrol key table and the owner's decisions (O-11 to O-14 are this file's) are in `specs/README.md`. A owns `pipeline/select.py` (`Criterion`, `evaluate`, `combine`), the "Sayfaları seç" dialog and the CLI command `is sec`; this file adds the kind `qr`, `select_pages` (AND of saved filters), `--kes`, `--sablon` and `--filtre`. Job files stay version 2 (additive fields only).
+**Reconciled with A, B and D (2026-11-20).** Build order, shared pieces, the Kontrol key table and its decisions O-11 to O-14 are in `specs/README.md` (O-12's keys Shift+K and Ctrl+Shift+F, O-13 and O-14 decided by evidence on 2026-11-20; O-11 and the Q key wait with I-01, which is on hold). A owns `pipeline/select.py` (`Criterion`, `evaluate`, `combine`), the "Sayfaları seç" dialog and the CLI command `is sec`; this file adds the kind `qr`, `select_pages` (AND of saved filters), `--kes`, `--sablon` and `--filtre`. Job files stay version 2 (additive fields only).
 Sources: `ideas-ranking.md` rows I-01 and I-07, `research/findings-splitting.md`, `research/findings-filtering.md`, `decisions.md` (D1, D13, "Phase 5 build order and rules"), `shortcut-contract.tsv`, the code cited below.
 
 ## Dependency on group A (selection model)
@@ -28,7 +28,7 @@ Staff of chambers that use numbered forms, once per job, in Kontrol after loadin
 
 ## 3. Keyboard flow
 1. Ctrl+2 to Kontrol. Press `Q` (action `kontrol.qr_sec`, "QR içeriğine göre seç…", menu Araçlar): it opens A's "Sayfaları seç" dialog with the row "QR içeriği" chosen (S, then the row, reaches the same place).
-2. Parameter pane of that row: field "QR metni", mode list "ile başlar / içerir / kalıp (* ve ?)", live line "12 sayfa eşleşti, 3 farklı değer". Up/Down changes mode, Enter = "Seç" (A's primary button), Esc = "Vazgeç". A's "Seçimi değiştir / Seçime ekle / Seçimin içinde ara" apply as for every row.
+2. Parameter pane of that row: field "QR metni", mode list "ile başlar / içerir / joker karakterli (* ve ?)", live line "12 sayfa eşleşti, 3 farklı değer". Up/Down changes mode, Enter = "Seç" (A's primary button), Esc = "Vazgeç". A's "Seçimi değiştir / Seçime ekle / Seçimin içinde ara" apply as for every row.
 3. The matching pages become the selection; the timeline scrolls to the first one; status line says "12 sayfa seçildi (QR: KAP-*)". Focus returns to the timeline.
 4. `K` today cuts only at the current page (K-14). New action `kontrol.kes_secili` ("Seçili sayfaların önünde kes", Shift+K): one undoable step, "Kesim ekle, 12 sayfa". Pages that already cut, deleted pages and the first kept page are skipped and counted in the toast ("2 sayfada zaten kesim var").
 5. Ctrl+Z undoes the whole cut step.
@@ -36,7 +36,7 @@ Mouse: Araçlar menu, inspector card "Seçim", context menu. Without the dialog:
 
 ## 4. Screen sketch (1366x768, 100 %)
 ```
-Kontrol command bar:  [Kes] [Birleştir] [Filtre uygula…] [Seç…]  <- A's icon button; its dialog gains the row "QR içeriği"
+Kontrol command bar:  [Kes] [Birleştir] [Filtre uygula…] [Ölçüte göre seç…]  <- A's icon button; its dialog gains the row "QR içeriği"
 +-------------------------+     Inspector card "Seçim: 12 sayfa (QR: KAP-*)"
 | [page thumbnail]        |       Şablon uygula        >
 |  ▣ QR · KAP-0412        |       Filtre uygula        >
@@ -90,7 +90,7 @@ Analysis: none extra. Job file: about 800 short strings at most. Select: one pas
 | QR metni | dialog field | QR text | draft |
 | ile başlar | dialog mode | starts with | draft |
 | içerir | dialog mode | contains | draft |
-| kalıp (* ve ?) | dialog mode | pattern (* and ?) | draft |
+| joker karakterli (* ve ?) | dialog mode | pattern (* and ?) | draft (O-20: was "kalıp"; LibreOffice Turkish "Joker Karakterleri") |
 | Örnek: KAP-04?? | dialog hint | example mask | draft |
 | {n} sayfa eşleşti, {m} farklı değer | dialog live line | n pages matched, m distinct values | draft |
 | Sayfaları seç | dialog title (owned by kontrol-filters §0; primary button there is "Seç") | Select pages | draft |
@@ -118,7 +118,7 @@ Sector check: Turkish scanner manuals (Canon, Xerox, Brother pages found by sear
 1. Settled in the reconcile (engineering): yes, A's `Criterion` in `pipeline/select.py`.
 2. Decided in the reconcile: old jobs get the "QR metnini yeniden oku" command (`JobStore.reread_qr`), on demand.
 3. (README O-11) Word "QR" or "karekod" in the UI. Recommended: "QR" (matches "QR ayıraç").
-4. (README O-12, with Q and Ctrl+Shift+F) Shift+K as its own cut-selection key, or let `K` cut every selected page when several are selected (changes K-14). Recommended: Shift+K, K unchanged.
+4. O-12, the non-QR part. **Decided by evidence (T3, 2026-11-20; sources in README §6).** Shift+K is its own key and K is unchanged; Ctrl+Shift+F is "Kayıtlı filtreler". Evidence: neither K nor Shift+K has a convention, K-14 (`kontrol.kes`, cut at the current page) is a contract row with tests, so the additive key breaks nothing; Ctrl+Shift+F has no Windows meaning and its only clash is KDE's second full-screen key, while Evrakçı's full screen is F11 (`research/shortcut-conventions.md` §4.2). The QR part (Q) waits with I-01.
 
 ## Build steps
 1. Core C-1: `PageInfo.qr_texts`, job round trip, old file test. 2. Kind `qr` in A's `pipeline/select.py` (after A step 1) and `Job.add_cuts` with tests. 3. `JobStore.reread_qr` and CLI `is sec qr` / `qr-oku` with tests. 4. QR row in A's dialog and `kontrol.qr_sec` registry action, contract row, key test. 5. `kontrol.kes_secili` (one undo step, skip counts). 6. QR badge in `kontrol_paint.py` and the matrix shot.
@@ -213,8 +213,9 @@ Sector check: "kayıtlı filtre" is the usual Turkish wording for saved views an
 - Local-first: Pass (a field in the local template file; no dependency).
 
 ## Owner decisions needed
-1. (README O-13) Are chips stored with the template only (as I-07 says), or also an "Bu iş için" list in the job? Recommended: template only.
-2. (README O-14) Which template's chips show when the selection mixes templates or none is chosen? Recommended: the template shown in the inspector; with none, a menu "Şablon seçin" in the row.
+**Decided by evidence (T3, 2026-11-20; sources in README §6).**
+1. O-13: chips are stored with the template only; no per-job list. Evidence: Paperless-ngx keeps saved views as reusable objects managed once and shown on the dashboard or sidebar for every later document, not per upload (Paperless-ngx `docs/usage.md`); this matches "set up once per document kind" (PRODUCT.md, Users).
+2. O-14: the row shows the chips of the template in the inspector; with none, "Şablon seçin". Evidence: follows from O-13 (a chip belongs to one template) and from the existing inspector rule `_template_for_selection` (`kontrol.py:663`); one source avoids showing filters whose criteria do not apply to the selected pages.
 3. Decided in the reconcile: a chip's params are fixed in v1; changing means delete and save again.
 4. Decided in the reconcile: chips only select; actions stay K, T, F (and Shift+K).
 

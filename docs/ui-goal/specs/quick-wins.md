@@ -4,7 +4,7 @@ Seven small ideas from `ideas-ranking.md`: I-17, I-19, I-21, I-22, I-23, I-28, I
 
 Turkish wording: checked against terms already in the UI (reused where one exists). Sector check: ABBYY's Turkish help calls OCR output "tanınan metin" ([ABBYY Sprint, tr-tr](https://help.abbyy.com/tr-tr/finereader_sprint/12/text_formats)); we keep our own "Okunan" for the same thing. No Turkish page on "revert one field" or "required field empty" was found, so those strings stay "draft". Free keys were taken from `docs/ui-goal/shortcut-contract.tsv` and `audit_shortcuts.py --check` (0 problems). Keys on Kontrol (I-21) must be reserved against group A (A also adds Kontrol keys).
 
-**Reconciled with A, C and D (2026-11-20).** Build order, shared pieces, the key table and the owner's decisions (O-6 to O-10 are this file's) are in `specs/README.md`. This file owns `value_level` (I-17, in `pipeline/templates/values.py`, reused by A's I-06) and `motion.wait_cursor` (I-47, reused by D's I-38). D on Kontrol is I-21's; A's I-04 jumps became menu-only. New single keys whose label differs on another tab (K, R, N, Shift+N) each need a page-specific line in `shortcuts.md` at build, or `audit_shortcuts.py --check` fails.
+**Reconciled with A, C and D (2026-11-20).** Build order, shared pieces, the key table and its decisions O-6 to O-10 and O-22 (all decided by evidence on 2026-11-20, README §6) are in `specs/README.md`. This file owns `value_level` (I-17, in `pipeline/templates/values.py`, reused by A's I-06) and the shared `run_background` helper with its `LoadingCard` (I-47, reused by D's I-38); there is no busy cursor. D on Kontrol is I-21's; A's I-04 jumps became menu-only. New single keys whose label differs on another tab (K, R, N, Shift+N) each need a page-specific line in `shortcuts.md` at build, or `audit_shortcuts.py --check` fails.
 
 Shared note: single-letter keys are switched off by Ayarlar > "Tek tuşlu kısayollar" (WCAG 2.1.4); every such command also has a menu item and a button or context-menu entry.
 
@@ -36,9 +36,9 @@ A 16 px icon sits left of the value in a cell that needs a check: `triangle-aler
 | Okunamadı | cell tooltip | Not readable | existing |
 | Bu değere bakın: okuma emin değil. | tooltip, first line of a Kontrol cell | Please look at this value: the reading is not sure | draft |
 
-**Owner decisions needed.**
-1. (README O-6) In-cell word: icon only, word in tooltip and in the row's Güven (recommended), or icon + word "Kontrol" inside the cell where it fits (wider columns, more noise).
-2. (README O-7) CLI wording `[okunamadı…]` -> `[kontrol…]` for a flagged value with a reading (recommended: yes, one vocabulary).
+**Decided by evidence (T3, 2026-11-20; sources in README §6).**
+1. O-6: icon in the cell; the word is in the tooltip and in the row's Güven column. Evidence: Excel marks a problem cell with a small indicator in the cell and gives the words on selecting it (Microsoft, "What are those buttons and triangles in my cells?"); HIG-CON-03 is met by the icon shape plus the word in Güven.
+2. O-7: the CLI prints "[kontrol, öneri: …]" when something was read and "[okunamadı]" only when nothing was. Evidence: decisions.md "One status vocabulary" (Emin / Orta / Kontrol / Okunamadı) applies to every surface.
 **Build steps.** (1) `value_level` + core tests; (2) `make_cell` uses it; (3) CLI uses it + test update; (4) delegate icon + tooltip; (5) UI test and matrix shot.
 
 ---
@@ -75,7 +75,7 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 
 **Owner decisions needed.**
 1. Decided in the reconcile: always shown for 2+ readings.
-2. (README O-8) Alt+1..4 / click picks a reading: yes (recommended, one undo step) or list is read-only.
+2. O-8 **Decided by evidence (T3, 2026-11-20; sources in README §6).** Click or Alt+1 … Alt+4 in the editor takes a reading, one undo step. Evidence: Office's checker offers its candidates as a list to pick from ("Right-click the underlined word, and then choose the suggestion you want", Microsoft Word help). Alt+digit: the Win32 guide's "no Alt+alphanumeric" rule protects menu access keys, which in Evrakçı are letters only (Alt+D/E/G/T/A/Y), and Ctrl+1..6 are the tabs; the keys work only inside the editor (`research/shortcut-conventions.md` §4.2).
 3. Decided in the reconcile (layout): cap at 4 rows.
 **Build steps.** (1) list widget in `ValueCard`, read-only; (2) cap and 150 % check; (3) click-to-pick; (4) Alt+N keys and tests.
 
@@ -104,7 +104,7 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 | Tümü | view name after the switch | All | existing |
 
 **Owner decisions needed.**
-1. (README O-10, with R and the Şablonlar keys) Keys D (Kontrol) and K (Değerler): yes (recommended) or menu only.
+1. O-10 **Decided by evidence (T3, 2026-11-20; sources in README §6).** D on Kontrol and K on Değerler are taken. Evidence: neither has a convention (`research/shortcut-conventions.md` §4.2: single letters), both are free in the contract, and each is the first letter of the tab it opens.
 2. Decided in the reconcile: no button in the Değerler side panel (full at 150 %); menu, context menu and key.
 **Build steps.** (1) fix B-012 with the existing `select_value`; (2) reverse direction + signal; (3) edge cases and status; (4) keys, registry rows, tests.
 
@@ -131,7 +131,7 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 | Zorunlu değer boş bırakılamaz; Kontrol'e alındı. | toast, CLI line | A required value cannot stay empty; it is now Kontrol | draft |
 
 **Owner decisions needed.**
-1. (README O-9) Empty required value: store as Kontrol with the reason (recommended) or refuse the edit and keep the editor open.
+1. O-9 **Decided by evidence (T3, 2026-11-20; sources in README §6).** Stored as Kontrol with the reason, plus the toast. Evidence: ABBYY FlexiCapture flags a field that breaks a rule (yellow or red flag) and keeps the document for later checking instead of blocking input (FlexiCapture "Verification of recognized data"); PRODUCT.md "Never silent": N and index.xlsx find it again, nothing typed is lost.
 2. Decided in the reconcile: "*" in the header (matches Şablonlar' "* zorunlu" legend).
 **Build steps.** (1) core `set_value(required=)` + core tests; (2) controller and `_apply_edit`; (3) CLI + test; (4) header mark, card meta, reason line, toast; (5) UI tests and shot.
 
@@ -159,8 +159,8 @@ Reuses `ValueCard` (inside the card, same `_caption` and `MarkedText` widgets, o
 | Okunan | root word | Read | existing |
 
 **Owner decisions needed.**
-1. (README O-10) Key R or menu only (recommended: R).
-2. Wording: left to the Turkish terms check (`research/turkish-terms.md`) and the owner's string review; draft "Okunana dön".
+1. O-10 **Decided by evidence (T3, 2026-11-20; sources in README §6).** R is taken (no convention for "revert one field"; free on Değerler; page-specific line in `shortcuts.md` because R rotates on Kontrol).
+2. Wording: the Turkish terms check found no sector term for "revert one field" and kept "Okunana dön" (`research/turkish-terms.md`, B table).
 **Build steps.** (1) `can_revert` + core tests; (2) action, menu, handler; (3) CLI message + test; (4) enabled state, status, UI tests.
 
 ---
@@ -197,7 +197,7 @@ Reuses the QMenu-style popup of the job switcher and the triangle-alert icon + w
 | kontrol | row word | check | existing |
 
 **Owner decisions needed.**
-1. (README O-10) Keys: N / Shift+N and Ctrl+L (recommended) or the list only.
+1. O-10 **Decided by evidence (T3, 2026-11-20; sources in README §6).** N / Shift+N and Ctrl+L are taken. Evidence: N already means "next one to check" (decisions.md); the Win32 keyboard guide lists Ctrl+L among the keys to use for frequent app-specific commands; GNOME's "location" meaning has no counterpart on Şablonlar (`research/shortcut-conventions.md` §4.2).
 2. Decided in the reconcile (engineering): `flagged_count` moves into the core.
 **Build steps.** (1) core `weakest_examples` + tests; (2) list popup; (3) N / Shift+N and status; (4) registry rows, key tests, shot.
 
@@ -265,7 +265,7 @@ Thread-safety rules (go into the module docstring and are tested):
 What is disabled while the loading view shows: opening or creating another job, Ctrl+O / Ctrl+N, the job switcher, "Dışa aktar" (Ctrl+E), the read buttons, and tab switches that would show the job that is still loading (the tabs stay for the old job; the Yükle tab stays for the job list). Each disabled command gets the existing reason "Bir iş sürüyor; bitince açın." (tooltip and status). Window close during a loading job: the loading job is cancelled first, then the existing close path runs. Undo, Ctrl+S and editing in the old job keep working.
 
 **6. Tests.** `tests/ui/test_workers.py` (new, fake slow work with `threading.Event`, no sleeps over 0.3 s): (a) the window keeps processing events: a `QTimer` counter ticks every 20 ms while a patched `JobStore.load` blocks for 1.5 s; at least 50 ticks, and none of them more than 100 ms apart (measures the longest gap between ticks, the real "window not blocked" check); (b) loading view absent for work under 300 ms, visible after 300 ms, hidden at least 400 ms after it appeared (use a monkeypatched clock); (c) cancel with Ctrl+. and the button: old job still open, no new controller, nothing saved, status says "İptal edildi; hiçbir şey değişmedi."; (d) error: `JobFileError` and `OSError` surface as the Turkish error line and toast, loading view closes, old job intact; (e) a second open while loading is refused with the reason; (f) closing the window during a load: no crash, no signal into a dead widget; (g) result arrives for a switched job: dropped; (h) a source-level check that no module-level worker function used with `run_background` imports or names `QWidget` (cheap guard for rule 1) and a runtime guard `assert_window_thread()` called in `LoadingCard` methods, tested by calling them from a thread (must raise); (i) `engine.available()` is not called on the window thread (patch it to record `threading.current_thread()`). Existing tests that open a job synchronously (`yukle.open_job` then reads state) get a `qtbot.waitUntil(lambda: window.controller() is not None)`; a test-only `run_background(..., inline=True)` is not allowed because it would hide the very bug. Perf: `perf-profile` 800-page runs before/after (fake and `--real`) must not be slower; new case in `perf_kontrol.py` or the test (a): longest event-loop gap during open under 100 ms. Failure to catch: a loading view that stays after an error or cancel; a result applied to the wrong job.
-**7. Risks.** Two sources of truth while loading (old job open, new job coming): all UI that reads `controller()` keeps the old one until the swap, so the swap is one function and tested for a half-built state. Background write-behind (step 5) can lose the last edits on a crash or power cut: it flushes on close, on Ctrl+S, before export and before a job switch, shows "Kaydediliyor…" while the queue is not empty, and "Kaydedilemedi" with the retry exactly as today; if the owner prefers no write-behind, the step is dropped and saves stay synchronous. Cancel is only offered where the work can stop (open, delete of many files cannot); non-cancellable work shows no "İptal et" and no "iptal" note. Qt `QThreadPool.globalInstance()` is shared with reads and exports, whose own screens already refuse a second job; the loading job is single so it cannot starve them.
+**7. Risks.** Two sources of truth while loading (old job open, new job coming): all UI that reads `controller()` keeps the old one until the swap, so the swap is one function and tested for a half-built state. Background write-behind (step 5) can lose the last edits on a crash or power cut: it flushes on close, on Ctrl+S, before export and before a job switch, shows "Kaydediliyor…" while the queue is not empty, and "Kaydedilemedi" with the retry exactly as today; O-22 chose write-behind (decided by evidence, README §6). Cancel is only offered where the work can stop (open, delete of many files cannot); non-cancellable work shows no "İptal et" and no "iptal" note. Qt `QThreadPool.globalInstance()` is shared with reads and exports, whose own screens already refuse a second job; the loading job is single so it cannot starve them.
 
 **Shortcut contract rows it adds:** none. It reuses `yukle.iptal` (Ctrl+.): the row's "when" column adds "a job is opening"; and `app.yeni_is`, `app.dosya_ekle`, `app.disa_aktar` get the disabled reason above while a loading job runs.
 **Rules it must meet:** HIG-CTL-07 (show activity for actions that do not finish instantly), HIG-MOT-03 (the person is never made to wait for motion; cancel), DEC-MOT-02 (no animation added except the standard bar; reduced motion honoured), Never silent, Keyboard-first (cancel by key).
@@ -285,13 +285,13 @@ What is disabled while the loading view shows: opening or creating another job, 
 | İptal et | card button | Cancel | existing |
 | Yaklaşık {n} sn kaldı | card line | About {n} s left | existing |
 
-Turkish wording: "açılıyor", "siliniyor", "denetleniyor" are the present-progressive forms the app already uses ("Dosyalar inceleniyor", "İptal ediliyor…", "Önizleme hazırlanıyor…" in `research/turkish-terms.md`); the sector check for the new three is left to the run that settles Turkish wording (T3).
+Turkish wording: "açılıyor", "siliniyor", "denetleniyor" are the present-progressive forms the app already uses ("Dosyalar inceleniyor", "İptal ediliyor…", "Önizleme hazırlanıyor…" in `research/turkish-terms.md`). Sector check (T3): LibreOffice Turkish (`source/tr/svx/messages.po`) says "Belge yükleniyor..." for "Loading document..." and "Belgeler Kaydediliyor" for "Documents Are Being Saved", the same form; "İş açılıyor" is kept over "yükleniyor" because "Yükle" is already the name of a tab.
 
-**Owner decisions needed.**
-1. Write-behind saving (step 5): after an edit the job file is written by a background saver so a slow network folder never stalls typing. Options: (a) yes, with "Kaydediliyor…" and a flush on close, Ctrl+S, export and job switch, (b) no, keep saving on the window thread (a slow share can then freeze each edit). Recommended: (a) only if the owner's jobs live on network folders; if they are on a local disk (0.6 ms measured) choose (b). This is the one choice the measurement cannot make: it depends where the owner's staff keep jobs.
-2. Decided in the reconcile and by the owner's direction (engineering): the wait cursor is dropped; `motion.wait_cursor` is not built; D's I-38 print preview uses this loading card (or the preview's own "Önizleme hazırlanıyor…" band) instead. Loading card appears after 300 ms; one shared helper.
+**Decided by evidence (T3, 2026-11-20; sources in README §6).**
+1. O-22 write-behind saving (step 5): **(a) yes**, with "Kaydediliyor…" and a flush on close, Ctrl+S, export and job switch. Evidence: the owner's direction for I-47 (above: the window thread is never blocked by file work); Word saves in the background so that "users can continue to type and to choose commands" (`Options.BackgroundSave`, the "Allow background saves" option). Where jobs live does not change it: the default job folder is local (`store.py:default_root`, platformdirs' non-roaming `AppData\Local`), so the saver is cheap there and protects the cases `EVRAKCI_KOK` or `--kok` point at a share. Step 5 is built last; its flush tests are part of (c) and (f).
+2. Decided in the reconcile and by the owner's direction (engineering): the wait cursor is dropped; `motion.wait_cursor` is not built; D's I-38 builds its print preview through `run_background`, with the loading card titled "Önizleme hazırlanıyor…". Loading card appears after 300 ms; one shared helper.
 
-**Build steps.** (1) `loading.py` (move `ProgressCard`, assertion helper) + `run_background` + tests (a), (b), (h); (2) job open and start-up "last job" and job list in a worker, swap function, tests (c)-(g); (3) OCR probe in the worker and the start-up warm-up, test (i); (4) delete job in a worker; (5) write-behind saver, only if the owner chooses (a); (6) disabled reasons and contract-row text; (7) re-run `perf-profile` (fake and `--real`), screenshot matrix for the loading card at 100 % and 150 %, themes light, dark, hc.
+**Build steps.** (1) `loading.py` (move `ProgressCard`, assertion helper) + `run_background` + tests (a), (b), (h); (2) job open and start-up "last job" and job list in a worker, swap function, tests (c)-(g); (3) OCR probe in the worker and the start-up warm-up, test (i); (4) delete job in a worker; (5) write-behind saver (O-22 decided: yes); (6) disabled reasons and contract-row text; (7) re-run `perf-profile` (fake and `--real`), screenshot matrix for the loading card at 100 % and 150 %, themes light, dark, hc.
 
 ---
 
@@ -301,10 +301,10 @@ Turkish wording: "açılıyor", "siliniyor", "denetleniyor" are the present-prog
 |---|---|---|---|---|---|---|---|
 | Never silent | Pass | Pass | Pass (status names the target) | Pass (empty required is Kontrol, in index.xlsx) | Pass | Pass | Pass |
 | No built-in kinds or fields | Pass | Pass | Pass | Pass | Pass | Pass | N/A |
-| Keyboard (key, focus, order) | Pass | Needs owner yes (Alt+N) | Pass | Pass | Pass | Pass | N/A |
-| Colour (orange = Kontrol, icon + word) | Needs owner yes (word only in tooltip and Güven) | Pass | N/A | Pass | Pass | Pass | N/A |
-| Layout 1366x768, 100 % and 150 % | Pass | Needs change if over 4 rows (cap) | Pass | Pass | Pass | Pass | N/A |
-| Copy (Turkish, project words) | Pass | Pass | Pass | Pass | Pass | Pass | N/A |
+| Keyboard (key, focus, order) | Pass | Pass (Alt+1..4 decided, O-8) | Pass | Pass | Pass | Pass | Pass (Ctrl+. cancels; focus to "İptal et" and back) |
+| Colour (orange = Kontrol, icon + word) | Pass (O-6: icon in cell, word in tooltip and Güven) | Pass | N/A | Pass | Pass | Pass | Pass (token colours, no orange) |
+| Layout 1366x768, 100 % and 150 % | Pass | Needs change if over 4 rows (cap) | Pass | Pass | Pass | Pass | Pass (card in the tab body; matrix shots at 100 % and 150 %) |
+| Copy (Turkish, project words) | Pass | Pass | Pass | Pass | Pass | Pass | Pass (existing words reused; three new progressive titles) |
 | Local-first, no new dependency | Pass | Pass | Pass | Pass | Pass | Pass | Pass |
 
 **Core changes in this file:** `templates/values.value_level` (I-17, shared with A's I-06), `review.set_value(required=)` (I-22), `review.can_revert` (I-23), `templates/read.py:weakest_examples` (I-28); CLI wording changes in `is degerler` (I-17), `is deger` (I-22, I-23). No job-file field is added; older job files open unchanged.

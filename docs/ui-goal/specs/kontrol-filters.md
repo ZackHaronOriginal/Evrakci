@@ -2,16 +2,16 @@
 
 Status: proposal, nothing built. The owner approves each idea before it is built. Checked at HEAD on 2026-11-20. Idea rows: `docs/ui-goal/ideas-ranking.md`. Evidence: `research/findings-filtering.md`, `findings-selection.md`, `findings-splitting.md`, `findings-page-operations.md`, `findings-review-qc.md`, `inventory-kontrol.md`. D13 is lifted (decisions.md, 2026-11-20): core changes below are named, each with core tests, an old-job-file check and a CLI/window parity check.
 
-**Reconciled with B, C and D (2026-11-20).** Build order, shared pieces, the Kontrol key table and the owner's decisions (O-1 to O-5 are this spec's) are in `specs/README.md`. This spec owns `pipeline/select.py`, the "Sayfaları seç" dialog and the CLI command `is sec`; C adds to them. `value_level` is owned by quick-wins I-17. The I-04 jumps lost the key D to I-21 and are menu-only. Job files stay version 2 for every spec (new fields are additive).
+**Reconciled with B, C and D (2026-11-20).** Build order, shared pieces, the Kontrol key table and its decisions O-1 to O-5 (all decided by evidence on 2026-11-20, README §6) are in `specs/README.md`. This spec owns `pipeline/select.py`, the "Sayfaları seç" dialog and the CLI command `is sec`; C adds to them. `value_level` is owned by quick-wins I-17. The I-04 jumps lost the key D to I-21 and are menu-only. Job files stay version 2 for every spec (new fields are additive).
 
-## 0. The shared part: one "Seç…" entry point and one selection model
+## 0. The shared part: one "Ölçüte göre seç…" entry point and one selection model
 
 **Problem.** Today F = "Filtre uygula…" only cuts the selected pages every N pages (`ui/kontrol.py:apply_filter` L300, `ui/kontrol_dialogs.py:FilterDialog` L39). Everything the five ideas add is a different thing: it chooses pages, and does nothing else. If each got its own key and dialog, Kontrol would gain five dialogs and the word "filtre" would mean two things.
 
 **Decision in this spec.**
 - F stays exactly as it is (every N pages, K-21 to K-30). Nothing in it changes except the new "Filtreyi kaldır" (I-08).
-- New command **"Seç…"** (key **S**, menu Araçlar, context menu, command-bar icon `list-checks`) opens one dialog, `SelectDialog`, next to `FilterDialog` in `ui/kontrol_dialogs.py`. Its result is only a set of page ids that becomes the timeline selection. It never edits the job, so it has no undo step; the user then presses Del, F, T, R, K as today. The word "Filtre" is kept for the cut kind; the new word is "Seç".
-- The dialog is a list of criteria (one radio row each, with its live count in the row) and, on the right, the parameters of the chosen row, then "Seçimi değiştir / Seçime ekle / Seçimin içinde ara" and the primary button "Seç". Group C (`qr-saved-filters.md`) adds the row "QR içeriği" to this dialog, and its key Q opens this same dialog with that row chosen: there is no second dialog. Saved filters (C, I-07) are a chip row above the timeline, owned by C; the chips call the same core functions.
+- New command **"Ölçüte göre seç…"** (key **S**, menu Araçlar, context menu, command-bar icon `list-checks`) opens one dialog, `SelectDialog`, next to `FilterDialog` in `ui/kontrol_dialogs.py`. Its result is only a set of page ids that becomes the timeline selection. It never edits the job, so it has no undo step; the user then presses Del, F, T, R, K as today. The word "Filtre" is kept for the cut kind; the new word is "Seç" (menu text "Ölçüte göre seç…" after O-20: GIMP Turkish "Seçim ölçütü", `research/turkish-terms.md`).
+- The dialog is a list of criteria (one radio row each, with its live count in the row) and, on the right, the parameters of the chosen row, then "Seçimi değiştir / Seçime ekle / Seçimle kesiştir" and the primary button "Seç". Group C (`qr-saved-filters.md`) adds the row "QR içeriği" to this dialog, and its key Q opens this same dialog with that row chosen: there is no second dialog. Saved filters (C, I-07) are a chip row above the timeline, owned by C; the chips call the same core functions.
 
 **Core: new module `src/evrakci/pipeline/select.py`** (pure, no Qt, no imaging; same functions for window and CLI).
 - `Criterion(kind: str, params: dict)` with `to_dict()` / `from_dict()`. Kinds in this group: `belge`, `tek`, `cift`, `bos`, `farkli`, `guven`. Group C stores `Criterion.to_dict()` next to a template and adds kinds (`qr`); a saved filter is one named criterion (kind + params); several turned-on chips are AND-combined with `combine(..., "within")` through C's `select_pages`.
@@ -25,12 +25,12 @@ Status: proposal, nothing built. The owner approves each idea before it is built
 
 | String | Where | Meaning in English | Status |
 |---|---|---|---|
-| Seç… | menu Araçlar, context menu, command bar tooltip | Select by… | draft |
+| Ölçüte göre seç… | menu Araçlar, context menu, command bar tooltip | Select by… | draft (O-20: was "Seç…") |
 | Sayfaları seç | dialog title and accessible name | Select pages | draft |
 | Ölçüt | label above the criteria list | Criterion | draft |
 | Seçimi değiştir | radio in dialog | Replace the selection | draft |
 | Seçime ekle | radio in dialog | Add to the selection | draft |
-| Seçimin içinde ara | radio in dialog | Keep only matches inside the current selection | draft |
+| Seçimle kesiştir | radio in dialog | Keep only matches inside the current selection | draft |
 | Seç | primary button | Select | draft |
 | Hiç yok | grey count in a row with no match | None | draft |
 | {n} sayfa seçildi. / {n} sayfa seçildi ({ölçüt}). | status line / toast after Seç; the second form names the criterion (C uses it as "(QR: KAP-*)") | n pages selected | draft |
@@ -50,7 +50,7 @@ Status: proposal, nothing built. The owner approves each idea before it is built
 - **B** = "Bu belgeyi seç": selects every page of the current document (not separators, not deleted pages). Registry `kontrol.belgeyi_sec`, menu Düzen, context menu.
 - **Ctrl+Space** = "Sayfayı seçime ekle / çıkar": toggles the focused page, keeps the others. Registry `kontrol.sayfa_sec`, local key (like Shift+arrows), menu Düzen.
 - **Alt+Left / Alt+Right** = "Seçimi bozmadan git": move the focus ring one page without touching the selection (Ctrl+arrows are document jumps, so Qt's own way is taken). Registry `kontrol.git_secimsiz`, local.
-- **S**, then "Tek sayfalar" or "Çift sayfalar", then Seç: odd or even pages counted from the first page of each document (1st, 3rd, 5th ...), because that is what duplex backs follow. With "Seçimin içinde ara" the odd/even is counted inside the current selection's documents only.
+- **S**, then "Tek sayfalar" or "Çift sayfalar", then Seç: odd or even pages counted from the first page of each document (1st, 3rd, 5th ...), because that is what duplex backs follow. With "Seçimle kesiştir" the odd/even is counted inside the current selection's documents only.
 - Mouse: context menu "Bu belgeyi seç"; click on the document's guide tab also selects the document (see decision 2).
 
 **4. Screen sketch** (1366x768, 100 %). No new region. The dialog:
@@ -62,7 +62,7 @@ Status: proposal, nothing built. The owner approves each idea before it is built
 | ( ) Çift sayfalar      (208)  |                        |
 | ( ) Boş sayfalar        (14)  | (o) Seçimi değiştir    |
 | ( ) Farklı ...           (5)  | ( ) Seçime ekle        |
-| ( ) Kontrol gerekenler  (9)   | ( ) Seçimin içinde ara |
+| ( ) Kontrol gerekenler  (9)   | ( ) Seçimle kesiştir   |
 |                       [Vazgeç] [Seç]                    |
 +----------------------------------------------------------+
 ```
@@ -76,7 +76,7 @@ Reuses `QDialog` with the `FilterDialog` margins (s6), `QRadioButton`, `kind="gr
 
 **Shortcut contract rows it adds:** `kontrol B kontrol.belgeyi_sec`, `kontrol Ctrl+Space kontrol.sayfa_sec`, `kontrol Alt+Left` and `Alt+Right kontrol.git_secimsiz` (with precondition, effect, feedback, undo "n/a: selection only", test columns), `kontrol S kontrol.sec`. Registry and `docs/ui-goal/shortcuts.md` updated together.
 
-**Rules it must meet.** AUD-KBD-01, AUD-KBD-02 (everything by keyboard), AUD-A11Y-01 (accessible names on radios and counts), DEC-FOC-01, HIG-WIN-09 ("Seç…" ends with an ellipsis), HIG-WIN-12 (key shown in the menu), HIG-CTL-03 (primary "Seç" answers Enter), HIG-WIN-16 (Esc cancels), AUD-TXT-01 (150 %), AUD-WIN-01.
+**Rules it must meet.** AUD-KBD-01, AUD-KBD-02 (everything by keyboard), AUD-A11Y-01 (accessible names on radios and counts), DEC-FOC-01, HIG-WIN-09 ("Ölçüte göre seç…" ends with an ellipsis), HIG-WIN-12 (key shown in the menu), HIG-CTL-03 (primary "Seç" answers Enter), HIG-WIN-16 (Esc cancels), AUD-TXT-01 (150 %), AUD-WIN-01.
 
 **Performance cost (800 pages).** Counting: under 5 ms. Setting a selection of up to 800 rows uses one `QItemSelection` of merged ranges (as `TimelineView.select_rows` does), one repaint. None on scroll.
 
@@ -95,10 +95,10 @@ Reuses `QDialog` with the `FilterDialog` margins (s6), `QRadioButton`, `kind="gr
 | Önce bir sayfa seçin. | status when no current page | Select a page first | existing |
 | Bu belgede seçilecek sayfa yok. | status when all pages are deleted | No page to select in this document | draft |
 
-**Owner decisions needed.**
-1. (README O-1) Odd/even counted from each document's start (recommended: duplex fronts and backs follow the document) or by job page number.
-2. (README O-2) Should a click on a document's guide tab select the whole document? Recommended: no, keep it as it is (it moves focus); B and the context menu are enough and avoid changing a click the staff know.
-3. ~~Alt+Left/Right~~ Merged into README O-5 (the Kontrol keys of this spec).
+**Decided by evidence (T3, 2026-11-20; sources in README §6).**
+1. O-1: odd/even is counted from each document's first page. Evidence: Word's "Only Print Odd Pages" / even pages and Acrobat's "Odd/Even Pages Only" count the page numbers of the document being printed, and every Evrakçı document becomes its own PDF; the dialog hint names the basis.
+2. O-2: a click on the guide tab stays as it is (moves to the document). Evidence: no opened source documents a "click a group header selects the group" convention on Windows (Explorer's behaviour is undocumented; Excel's header click is a grid rule), and the approved behaviour changes only by a separate proposal (decisions.md, round 3 rule). B and the context menu select the document.
+3. Alt+Left/Right: part of O-5 (keys), below in I-08.
 
 **Build steps.** (1) `select.py` with `belge`, `tek`, `cift` and tests. (2) `Ctrl+Space` and Alt+arrows in `TimelineView` with key-press tests. (3) Registry ids, contract rows, `shortcuts.md`. (4) `SelectDialog` shell with these three rows and the entry key S. (5) CLI `is sec`.
 
@@ -144,10 +144,11 @@ Reuses spin box, secondary caption, `QLabel[state="orta"]`-free plain text. The 
 | en boş {a} %, en dolu {b} % | live count detail | emptiest and fullest blank page | draft |
 | {n} boş sayfa seçildi. Silmek için Del. | status after Seç | n blank pages selected; press Del to delete | draft |
 | Boş | caption of a dropped page | Blank | existing |
+| Boş sayfaları at | menu Araçlar, checkable (O-4) | Drop blank pages (job setting) | existing (undo name, `controller.py:106`; CLI "Boş sayfaları atma") |
 
 **Owner decisions needed.**
 1. Decided in the reconcile (not the owner's): keep 0,3 %, the value the CLI and the guide use; the user changes it in the dialog.
-2. (README O-4) Add a switch for the global "drop blank pages" (B-006)? Recommended: no. Selecting then Del is visible and undoable; a hidden global switch would hide pages again.
+2. O-4 **Decided by evidence (T3, 2026-11-20; sources in README §6).** **(b): add the job switch.** Menu Araçlar gets the checkable "Boş sayfaları at" (registry `kontrol.bos_at`, no key, contract row with an empty key). It calls the existing `JobController.set_drop_empty` (`ui/controller.py:102`, undo step "Boş sayfaları at", existing), so it is one undoable step and the window matches the CLI's `is bos-sayfalar ac`. Dropped pages stay visible in the timeline ("boş sayfa, dışa aktarılmaz", existing `timeline.py:229`), so nothing is hidden; this fixes B-006 (the guide `tarama-rehberi.md` promises the setting). Selecting with "Boş sayfalar" then Del stays for one-off cases. Evidence: scan tools offer blank-page dropping as a setting (NAPS2 profile "Exclude blank pages", "Automatically skip blank pages when scanning"); the earlier "a hidden switch would hide pages" reason does not hold because dropped pages are drawn. Test: toggling on and off is one undo step each, the page count in Dışa Aktar changes, the timeline still shows the page.
 
 **Build steps.** (1) `select` kind `bos` with tests. (2) Criterion row and live count in `SelectDialog`. (3) Status line text and `is sec bos`. (4) Screenshot.
 
@@ -204,8 +205,8 @@ Mark = a 14 px Lucide icon (`ruler` for size, `rectangle-horizontal` for Yatay) 
 | Farklı sayfa yok. | toast / status | No different page | draft |
 | Farklı görünenleri işaretle | menu Görünüm, checkable | Mark pages that look different | draft |
 
-**Owner decisions needed.**
-1. (README O-3) Marks on by default (recommended: yes, Never silent; one click off in Görünüm) or off until the user opens "Seç…".
+**Decided by evidence (T3, 2026-11-20; sources in README §6).**
+1. O-3: marks are on by default, one click off in Görünüm. Evidence: PRODUCT.md principle 1 "Never silent" (every odd split is visible where the user works); Excel's error indicator is likewise shown in the cell without being asked for.
 2. Decided in the reconcile (the dialog offers both): reference = whole job by default.
 3. Decided in the reconcile (engineering): tolerance 3 %.
 
@@ -311,15 +312,15 @@ Every reason keeps its existing icon plus word (`degerler_model.LEVELS`: `triang
 | Boş sayfa geri getirildi. | toast | Blank page restored | draft |
 | Bu sayfalarda filtre yok. | status line | No filter on these pages | draft |
 | Bu sayfalarda şablon yok. | status line | No template on these pages | draft |
-| Atılmış boş sayfa yok. | status line | No dropped blank page | draft |
+| Silinen boş sayfa yok. | status line | No dropped blank page | draft (O-20: was "Atılmış boş sayfa yok."; ABBYY Turkish "Silinen ... boş sayfa") |
 | Filtre yok | inspector row value | No filter | draft |
 | Filtreyi kaldır (undo name), Şablonu kaldır, Boş sayfayı geri getir | undo stack | undo step names | draft |
 | Şablon yok | inspector row value | No template | existing |
 | Önce sayfaları seçin. | status line | Select pages first | existing |
 
-**Owner decisions needed.**
-1. (README O-5, with the other Kontrol keys) Keys Shift+F and Shift+T (recommended) or menu-only.
-2. (README O-4) Restore-blank only appears when the job has `drop_empty` on (set in the CLI): fine (recommended), or add the global switch (see I-03 decision 2).
+**Decided by evidence (T3, 2026-11-20; sources in README §6).**
+1. O-5: the keys S, B, Ctrl+Space, Alt+Left / Alt+Right, Shift+F, Shift+T are taken. Evidence (`research/shortcut-conventions.md` §4.2, §5 rank 7): Ctrl+Space matches the Windows "select multiple individual items" pattern; S, B, Shift+F, Shift+T have no convention and are free; Alt+Left / Alt+Right mean Back / Forward elsewhere, but Evrakçı has no history, and the conventional "move without selecting" key (Ctrl+arrow) is already the contract's previous / next document, so changing it would break existing rows and tests. AUD-KBD-02 needs a keyboard path for scattered pages. All single letters obey "Tek tuşlu kısayollar".
+2. O-4: the switch is added (I-03 decision 2), so "Boş sayfayı geri getir" appears whenever "Boş sayfaları at" is on.
 
 **Build steps.** (1) `Job.remove_filter` with tests. (2) Controller methods with undo names. (3) Menu, context menu, registry, contract rows. (4) Messages and inspector rows. (5) CLI `filtre-kaldir`.
 
@@ -337,4 +338,4 @@ Every reason keeps its existing icon plus word (`degerler_model.LEVELS`: `triang
 
 ## Owner decisions, summary
 
-Before the reconcile: 12. After: 5, numbered O-1 to O-5 in `specs/README.md` (odd/even basis, guide-tab click, marks on by default, blank-page switch, the Kontrol keys). The other 7 were decided in the reconcile and are marked above.
+Before the reconcile: 12. After: 5 (O-1 to O-5), and on 2026-11-20 all 5 were decided by evidence (README §6): per-document odd/even, guide-tab click unchanged, marks on by default, the "Boş sayfaları at" switch added, the keys taken. None is left for the owner beyond approving the spec.

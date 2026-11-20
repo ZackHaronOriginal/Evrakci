@@ -93,6 +93,19 @@ No idea rows. Rehber items found by research are bugs (B-006, B-007, B-018 fix i
 | I-48 | Pre-filled forms from the office's own data: import Excel sheets or pasted tables (member lists, registry exports), map their columns to the user's own variables (header detection, no built-in field list), merge rows of the same company or person across sheets, then print or export a chosen form already filled for each record; staff only check and correct | Forms are handed out blank and missing fields are later typed in by hand from data the office already has | Staff preparing forms and mailings; members who get a pre-filled form | Owner idea (2026-11-19), shown with a local search tool that merges several Excel exports | L | High: personal data (KVKK): local only, nothing leaves the PC; wrong merge of two companies; needs a form layout designer or reuse of templates | Low | New module / App-wide | no (new module next to the pipeline; one core for window and CLI) | later (owner 2026-11-19: idea to grow, not now) |
 | I-49 | Check or fill read values against the office's own data: after Değerler reads a key (e.g. a registry number), look it up in imported sheets and show matching fields (address, NACE code) as a suggestion beside the read value; human confirms | Read values with low confidence or missing fields are re-typed although the office already has them | Reviewers in Değerler | Same owner idea (2026-11-19); relates to I-15 template suggestion and the review-qc findings | M | Medium: personal data stays local; suggestions must never overwrite silently (never silent); stale imports | Low | Değerler | minimal hook D13 (a lookup source for values) | later (owner 2026-11-19: idea to grow, not now) |
 
+## New owner ideas (2026-11-20): later, need thinking and planning first
+
+Logged as given; not specced or built now. Several extend rows above (noted).
+
+| ID | Idea | Relates to | Your rank |
+|---|---|---|---|
+| I-50 | Şablon review step: after a template is applied, check every applied template; each value shows its 3 best candidate readings and a quick way to pick or change one | I-19, I-24, I-26 | later |
+| I-51 | Smarter reading per variable: declare its kind beforehand (number, text, date, ...) and let the reader use it | I-27, I-31 | later |
+| I-52 | Check all drawn boxes of one variable together (across documents) and build the value list from that view | I-20 | later |
+| I-53 | Variables learn from earlier confirmed answers: check that the reader looks at the right place and that new values look like past correct ones | I-26, I-30 | later |
+| I-54 | Rule-based filters and checks on values: length, number vs text, known formats (e.g. bank account number / IBAN), and check-digit or other calculations to verify a value | I-31, I-32 | later |
+| I-55 | Connect variables to a future CRM-like app: fetch and send data | I-48, I-49 | later |
+
 ## Already deferred: later (already decided)
 
 Decided 2026-11-13 (decisions.md, "Owner answers before close"); they start as "later" and need no ranking unless you want to move one.

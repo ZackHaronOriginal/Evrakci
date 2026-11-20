@@ -70,3 +70,10 @@ Option **b**: at 150 % text the title-band tabs keep their icon and name, and an
 ## Owner sign-off (2026-11-14)
 
 The owner will sign off once they have tried the build themselves: "Done after I try it". The candidate is the Windows installer artifact `Evrakci-Kurulum` from commit `e1e3276` (CI run 43505690241).
+
+## Owner answers: Phase 5 build order and rules (2026-11-20)
+
+- **Build first** (Q-06): Kontrol filters (I-03, I-04, I-06, I-08, I-09); small quick wins (I-17, I-19, I-21, I-22, I-23, I-28, I-47); QR content and saved filters (I-01, I-07); Dışa Aktar (I-35, I-38, I-39, I-40). Other rows stay unranked; I-50..I-55 are later.
+- **New Turkish text:** the run writes it, after checking how Turkish software in the sector words the same things, and lists the new strings in each spec.
+- **Specs:** each feature's one-page spec needs the owner's approval before it is built.
+- **Core hooks (D13):** a minimal, tested core change is allowed without asking when a feature truly needs it; each one is listed in the feature report.

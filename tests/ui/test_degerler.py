@@ -10,6 +10,7 @@ from PySide6.QtCore import QByteArray, QEvent, QPointF, Qt
 from PySide6.QtGui import QFontMetrics, QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QAbstractButton, QApplication, QComboBox, QLabel, QLineEdit, QWidget
+from saving import wait_saved
 
 from evrakci.pipeline.cuts import current_values, record_values
 from evrakci.pipeline.ocr.engine import Reading
@@ -106,7 +107,7 @@ def test_the_first_kontrol_value_is_current_and_described(qtbot, setup):
     assert "1 karakter belirsiz" in card.level.accessibleName()
     assert card.why.text() == "Varyant 2 ile okundu: I yerine 1."
     assert screen.side.source.title.text() == "Sicil No"
-    assert screen.side.source.meta.text() == "Belge 2, sayfa 2"
+    assert screen.side.source.meta.text() == "Belge 2, sayfa 2 · zorunlu"
 
 
 def test_search_filters_and_its_empty_state_clears_it(qtbot, setup):
@@ -253,6 +254,67 @@ def test_editing_a_cell_stores_an_edited_value(qtbot, setup):
     assert screen.model.setData(index, "48190")
     value = _value(ctl, 0, sicil.key)
     assert value.value == "48190" and value.edited
+
+
+def test_clearing_a_required_cell_stores_kontrol_and_the_header_and_card_say_zorunlu(qtbot, setup):
+    ctl, templates, _, sicil = setup
+    screen = _screen(qtbot, ctl, templates)
+    headers = {c.title: c for c in screen.model.columns if c.kind == "var"}
+    assert headers["Sicil No"].label == "Sicil No *"
+    assert headers["Firma"].label == "Firma"
+    col = screen.column_of("Sicil_No")
+    header = screen.model.headerData(col, Qt.Orientation.Horizontal)
+    assert header == "Sicil No *"
+    for role in (Qt.ItemDataRole.AccessibleTextRole, Qt.ItemDataRole.ToolTipRole):
+        assert screen.model.headerData(col, Qt.Orientation.Horizontal, role) == "Sicil No, zorunlu"
+    index = screen.cell(1, "Sicil_No")
+    screen.table.setCurrentIndex(index)
+    assert "· zorunlu" in screen.side.source.meta.text()
+    assert screen.model.setData(index, "  ")  # stored, but not as typed
+    value = _value(ctl, 0, sicil.key)
+    assert value.flagged and not value.edited and value.value == ""
+    assert value.suggestion == "48197"  # the old reading is kept
+    screen.refresh()
+    cell = screen.model.row_at(screen.model.row_of(1)).cell(sicil.key)
+    assert cell.level == "kontrol" and cell.needs_check
+    assert cell.why() != "Zorunlu değer boş: dosya adı için bir değer yazın."  # has a reading
+    # a variable that is not required: no mark, stored as typed
+    firma = screen.cell(1, "Firma")
+    screen.table.setCurrentIndex(firma)
+    assert "zorunlu" not in screen.side.source.meta.text()
+    assert screen.model.setData(firma, "")
+    assert _value(ctl, 0, next(k for k in current_values(ctl.job, ctl.documents()[0])
+                               if k != sicil.key)).edited
+
+
+def test_a_required_value_with_nothing_read_says_why_it_is_empty(qtbot, setup):
+    ctl, templates, _, sicil = setup
+    current_values(ctl.job, ctl.documents()[0])[sicil.key] = VariableValue("", 1.0, None, False,
+                                                                          "", (), True)
+    screen = _screen(qtbot, ctl, templates)
+    cell = screen.model.row_at(0).cell(sicil.key)
+    assert cell.why() == "Zorunlu değer boş: dosya adı için bir değer yazın."
+
+
+def test_window_and_cli_store_the_same_for_an_emptied_required_value(qtbot, tmp_path, capsys):
+    from evrakci.cli import main
+
+    store, job = _job(tmp_path)
+    ctl = JobController(store, job)
+    templates, template, sicil, firma = _template(tmp_path)
+    _fill(ctl, template, sicil, firma)
+    ctl.save_now()
+    wait_saved(ctl)
+    screen = _screen(qtbot, ctl, templates)
+    screen.model.setData(screen.cell(1, "Sicil_No"), "")
+    shown = _value(ctl, 0, sicil.key)
+    wait_saved(ctl)  # the write-behind saver must not overwrite what the CLI stores
+    capsys.readouterr()
+    assert main(["--kok", str(tmp_path / "jobs"), "--sablon-kok", str(tmp_path / "tpl"),
+                 "is", "deger", job.id, "1", "Sicil_No", ""]) == 0
+    assert "Zorunlu değer boş bırakılamaz; Kontrol'e alındı." in capsys.readouterr().out
+    stored = JobStore(tmp_path / "jobs").load(job.id)
+    assert current_values(stored, ctl.documents()[0])[sicil.key] == shown
 
 
 def test_okunamadi_opens_the_editor_instead_of_accepting(qtbot, tmp_path):
@@ -552,6 +614,34 @@ def test_bulk_accept_shows_a_toast_with_undo(qtbot, window):
     undo.click()
     assert current_values(win.controller().job, win.controller().documents()[1])[
         sicil.key].flagged
+
+
+def test_clearing_a_required_value_in_the_window_toasts_kontrol_with_undo(qtbot, window):
+    win, sicil = window
+    screen = win.degerler
+    ctl = win.controller()
+    assert screen.model.setData(screen.cell(1, "Sicil_No"), "")
+    assert win.toaster.current_text() == "Zorunlu değer boş bırakılamaz; Kontrol'e alındı."
+    assert _value(ctl, 0, sicil.key).flagged
+    toast = win.toaster._current
+    undo = next(b for b in toast.findChildren(QAbstractButton) if b.text() == "Geri al")
+    undo.click()
+    assert _value(ctl, 0, sicil.key).value == "48197"
+
+
+def test_reemptying_an_empty_required_value_offers_no_undo(qtbot, window, monkeypatch):
+    """No new step was pushed, so a Geri al on this toast would undo an older step."""
+    win, sicil = window
+    screen = win.degerler
+    assert screen.model.setData(screen.cell(1, "Sicil_No"), "")
+    stack = win.controller().undo_stack
+    index = stack.index()
+    shown: list = []
+    monkeypatch.setattr(screen, "_toast", lambda text, ctl, expected, kind: shown.append(
+        (text, expected == stack.index())))  # True = the toast would offer Geri al
+    screen._apply_edit(screen.rows[0], sicil.key, "")
+    assert stack.index() == index  # nothing new to undo
+    assert all(not offers_undo for _text, offers_undo in shown)
 
 
 def test_old_toast_never_undoes_a_newer_step_after_ctrl_z(qtbot, window):

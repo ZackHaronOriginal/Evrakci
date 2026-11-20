@@ -64,19 +64,29 @@ class Column:
     title: str
     key: str = ""  # the variable key of a "var" column
     style: str = "text"  # var / value: number, date, code, text
+    required: bool = False  # a required variable: "Firma *", spoken "Firma, zorunlu"
+
+    @property
+    def label(self) -> str:
+        """The header text: the title, with the template's "*" for a required variable."""
+        return f"{self.title} *" if self.required else self.title
+
+    @property
+    def spoken(self) -> str:
+        return f"{self.title}, zorunlu" if self.required else self.title
 
     @property
     def right(self) -> bool:
         return self.kind == "doc" or (self.kind == "var" and self.style == "number")
 
 
-def main_columns(rows: list[Row], variables: list[tuple[str, str]]) -> list[Column]:
+def main_columns(rows: list[Row], variables: list[tuple[str, str, bool]]) -> list[Column]:
     """✓, Belge, Sayfa, the template's variables, Güven."""
     columns = [Column("review", ""), Column("doc", "Belge"), Column("pages", "Sayfa")]
-    for key, name in variables:
+    for key, name, required in variables:
         texts = [c.suggestion if c.needs_check else c.text  # what it should read
                  for r in rows for c in r.cells if c.key == key]
-        columns.append(Column("var", display_name(name), key, column_kind(texts)))
+        columns.append(Column("var", display_name(name), key, column_kind(texts), required))
     columns.append(Column("guven", "Güven"))
     return columns
 
@@ -164,9 +174,9 @@ class ValuesModel(QAbstractTableModel):
             return None
         column = self.columns[section]
         if role == Qt.ItemDataRole.DisplayRole:
-            return column.title
+            return column.label
         if role in (Qt.ItemDataRole.ToolTipRole, Qt.ItemDataRole.AccessibleTextRole):
-            return "İnceleme" if column.kind == "review" else column.title
+            return "İnceleme" if column.kind == "review" else column.spoken
         if role == KIND_ROLE:
             return column
         return None
@@ -688,7 +698,7 @@ class ValuesHeader(QHeaderView):
         chevron = 16 if sorted_here else 0
         if column.right:  # a narrow number column may use its left padding (A: "Belge ^")
             inner.setLeft(rect.left() + 4)
-        text = metrics.elidedText(column.title, Qt.TextElideMode.ElideRight,
+        text = metrics.elidedText(column.label, Qt.TextElideMode.ElideRight,
                                   inner.width() - chevron)
         width = metrics.horizontalAdvance(text) + chevron
         left = inner.right() - width if column.right else inner.left()

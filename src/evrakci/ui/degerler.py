@@ -34,7 +34,13 @@ from evrakci.pipeline.cuts import _template_of, document_template, record_read_e
 from evrakci.pipeline.job import Job, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.render import render_page
-from evrakci.pipeline.review import can_revert, needs_reading, revert_value, store_reading
+from evrakci.pipeline.review import (
+    REQUIRED_EMPTY,
+    can_revert,
+    needs_reading,
+    revert_value,
+    store_reading,
+)
 from evrakci.pipeline.templates.model import Template, template_revision
 from evrakci.pipeline.templates.read import read_document
 from evrakci.ui import icons, theme
@@ -518,7 +524,8 @@ class DegerlerScreen(QWidget):
             nothing_read = not any(r.read for r in self.rows)
             items = [] if nothing_read else [(r, None) for r in self.template_rows
                                              if in_view(r, self._view) and matches(r, query)]
-            variables = [(v.key, v.name) for v in template.variables] if template else []
+            variables = ([(v.key, v.name, v.required) for v in template.variables]
+                         if template else [])
             columns = main_columns(self.template_rows, variables)
         self.model.set_content(columns, items, self._view == "ornek")
         self._restore_header(template_id)
@@ -635,7 +642,7 @@ class DegerlerScreen(QWidget):
         header.blockSignals(True)
         for c, column in enumerate(self.model.columns):
             width = 44 if column.kind == "review" else (
-                metrics.horizontalAdvance(column.title) + 2 * m.size("s3") + m.size("s4"))
+                metrics.horizontalAdvance(column.label) + 2 * m.size("s3") + m.size("s4"))
             header.resizeSection(c, width)
         header.blockSignals(False)
         self._fit_columns(empty=True)
@@ -1097,8 +1104,9 @@ class DegerlerScreen(QWidget):
                            if s.first_page == row.document.page_ids[0] and s.key == cell.key), 0)
             meta += f", örnek {number} / {len(sample)}"
         crop = self._crop(row, cell, pid)
-        side.source.show_crop(cell.title, meta, crop,
-                              f"Kaynak kesiti: {cell.title}, {meta.lower()}")
+        shown = meta + " · zorunlu" if cell.required else meta
+        side.source.show_crop(cell.title, shown, crop,
+                              f"Kaynak kesiti: {cell.title}, {shown.lower()}")
         card = side.value
         if cell.value is None:
             card.show_value("okunmadı", "text-2")
@@ -1350,7 +1358,13 @@ class DegerlerScreen(QWidget):
             controller.run("Öneriyi kabul et" if cell.value.flagged else UNDO_TEXT,
                            lambda job: confirm(job, row.document, key))
             return
-        controller.set_value(row.document, key, text)
+        required = cell is not None and cell.required
+        before = controller.undo_stack.index()
+        if not controller.set_value(row.document, key, text, required):
+            if required and not controller.frozen:  # emptied: stored as Kontrol, say so
+                # Geri al only when this edit pushed a step (re-emptying an empty value adds
+                # none, and the button must never undo an older, unrelated step)
+                self._toast(REQUIRED_EMPTY, controller, before + 1, "kontrol")
 
     def _sample_error(self, controller: JobController, row: Row, key: str, text: str) -> None:
         """An error found in the sample: correct it and send the variable's other values that

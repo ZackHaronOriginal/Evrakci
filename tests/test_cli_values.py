@@ -125,3 +125,22 @@ def test_cli_revert_and_its_refusal(tmp_path, capsys):
     capsys.readouterr()
     run("deger", job_id, "2", "Kayıt No", "--geri-al")
     assert "elle yazıldı" not in capsys.readouterr().err
+
+
+def test_cli_empty_required_value_goes_to_kontrol_and_says_so(tmp_path, capsys):
+    from evrakci.pipeline.cuts import current_values
+
+    run, job_id = setup(tmp_path, capsys)
+    capsys.readouterr()
+    assert run("deger", job_id, "2", "Ünvan", "") == 0  # Ünvan is required
+    assert capsys.readouterr().out.strip() == "Zorunlu değer boş bırakılamaz; Kontrol'e alındı."
+    store = JobStore(tmp_path / "isler")
+    job = store.load(job_id)
+    second = compute_documents(job)[1]
+    unvan, kayit = (v.key for v in TemplateStore(tmp_path / "sablonlar").list()[0].variables)
+    stored = current_values(job, second)[unvan]
+    assert stored == VariableValue("", 0.0, None, True, "Başka", (), False)
+    # Kayıt No is not required: stored as before, no sentence
+    assert run("deger", job_id, "2", "Kayıt No", "") == 0
+    assert "Kontrol" not in capsys.readouterr().out
+    assert current_values(store.load(job_id), second)[kayit].edited

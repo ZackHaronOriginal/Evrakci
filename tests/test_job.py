@@ -75,3 +75,21 @@ def test_add_cut_refuses_where_a_cut_already_is():
     job.add_cut("a/2")
     with pytest.raises(ValueError):
         job.add_cut("a/2")  # manual cut already there
+
+
+def test_required_empty_state_needs_no_new_field_and_old_files_load():
+    from evrakci.pipeline.templates.values import VariableValue
+
+    job = job_from_kinds({"a": "pp"})
+    job.values["a/0"] = {
+        "k": VariableValue("", 0.0, None, True, "48213"),  # what an emptied required value is
+        "old": VariableValue("", 1.0, None, False, "", (), True),  # an old emptied edit
+    }
+    data = job_to_dict(job)
+    assert set(data["values"]["a/0"]["k"]) == {
+        "value", "confidence", "section", "flagged", "suggestion", "edited", "readings"}
+    assert job_from_dict(json.loads(json.dumps(data))) == job
+    for value in data["values"]["a/0"].values():  # a file from before: only the old keys
+        value.pop("suggestion"), value.pop("readings"), value.pop("edited")
+    loaded = job_from_dict(data)
+    assert loaded.values["a/0"]["old"].value == "" and loaded.values["a/0"]["old"].flagged is False

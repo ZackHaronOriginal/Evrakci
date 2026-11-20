@@ -467,7 +467,13 @@ def list_values(args: argparse.Namespace, store: JobStore) -> int:
 
 
 def fix_value(args: argparse.Namespace, store: JobStore) -> int:
-    from evrakci.pipeline.review import accept_suggestion, can_revert, revert_value, set_value
+    from evrakci.pipeline.review import (
+        REQUIRED_EMPTY,
+        accept_suggestion,
+        can_revert,
+        revert_value,
+        set_value,
+    )
 
     job = load_job(store, args.id)
     found = {n: (d, t) for n, d, t in _templated_documents(args, job)}
@@ -494,7 +500,11 @@ def fix_value(args: argparse.Namespace, store: JobStore) -> int:
         else:
             if args.deger is None:
                 raise UserError("Yeni değeri yazın, ya da --oneri veya --geri-al kullanın.")
-            set_value(job, document, key, args.deger)
+            variable = template.variable(args.ad)
+            if not set_value(job, document, key, args.deger, variable.required):
+                store.save(job)
+                print(REQUIRED_EMPTY)
+                return 0
     except KeyError:
         raise UserError(f"{args.belge}. belgenin değerleri okunmadı (is oku).") from None
     except ValueError:

@@ -20,6 +20,8 @@ A few words used below:
 
 ---
 
+**Rule for every new action (owner, 2026-11-20):** no action is shortcut-only. Each new action in A-D also gets a mouse path (menu bar, a button, or the right-click menu of the thing it acts on); the command palette does not count. The automatic check (`audit_shortcuts.py --paths --check`) runs in tests and CI and fails the build otherwise.
+
 ## 1. Build order
 
 Smallest and safest first. Each step is built and tested on its own. A step marked "needs" waits

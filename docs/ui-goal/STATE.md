@@ -2,7 +2,7 @@
 
 Updated after every accepted step. A new session or a compacted one reads this first.
 
-## Where we are (2026-11-19, evening)
+## Where we are (2026-11-20)
 
 - Phase 0: done except the exit's owner part: Q-01 (B-005, last open S1 besides B-032 which is
   Phase 2's fix by plan order). Evidence complete: suite.txt (2 runs), perf-before.json v2
@@ -40,6 +40,10 @@ Updated after every accepted step. A new session or a compacted one reads this f
   modal-dialog guard (d732b83), Windows test step timeout (8a26648), thumbnail service teardown
   crash B-077 S1 (9dd95d6), delete-after-export on Windows B-078 and inspector width B-079
   (1d392bc), Şablonlar wide fonts and the Explorer contract (c00a2cb).
+  Later: B-080 S2 (Şablonlar name field overwritten while typing; Windows CI flake) fixed in 5635f34.
+  CI GREEN again at ac9a004 on Linux and Windows (runs 44663802628 CI, 44663802631 and 44663796505
+  Linux build, 44663802564 and 44663796548 Windows installer); full suite locally 2226 passed /
+  6 skipped / 203 xfailed / 0 failed. CLA still fails (Q-21).
   Phase 6 exit now waits only on the owner: Q-18 real scans, Q-19 clean Windows install, Q-20
   signing/version/publish/sign-off, Q-21 CLA, plus the blocking answers listed in OWNER-QUEUE.md.
 

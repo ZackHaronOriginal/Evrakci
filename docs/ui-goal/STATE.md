@@ -31,13 +31,17 @@ Updated after every accepted step. A new session or a compacted one reads this f
   xfailed / 0 failed, keywalk clean, clipping 0. Review .claude/gorevler/p4-phase-review.md.
   Open S1 waiting on the owner: B-005 (Q-01), B-056 (Q-12). Owner Q-10..Q-17. Report sent.
 - Phase 5: 5a-5d done; 5e (specs and building) waits on Q-06 (ranking). Nothing to build first.
-- Phase 6: everything that does not need the owner is DONE. Perf check 2 (936bfc6), real-scan
-  tool + owner checklist (efe2ccf), CI gates + docs (61c0878), final review
-  (.claude/gorevler/p6-phase-review.md) must-fix fixed (79e4837), hygiene (227ed32). Full suite
-  at 79e4837: 2214 passed, 6 skipped, 203 xfailed, 0 failed; ruff clean.
-  Draft PR to main: https://github.com/ZackHaronOriginal/Evrakci/pull/6 (CI builds the installer
-  for the owner's checks). Phase 6 exit (CI green on both systems, owner checks answered, sign-off)
-  waits on the owner: see OWNER-QUEUE.md. The run stops here until the owner answers.
+- Phase 6: everything that does not need the owner is DONE.
+  CI on PR #6 (https://github.com/ZackHaronOriginal/Evrakci/pull/6) is GREEN on Linux and Windows at
+  c00a2cb: test (Linux), build (Linux and Windows workflows: tests, freeze, packaging), clean-system
+  installs on debian:12 and ubuntu:24.04 all succeeded (runs 44652072306, 44652072513, 44652072282,
+  44652066358, 44652066251). Only the CLA check fails: it waits on the owner (Q-21).
+  Fixes found by CI after the PR opened: card stepping (d732b83), Windows memory reading and the
+  modal-dialog guard (d732b83), Windows test step timeout (8a26648), thumbnail service teardown
+  crash B-077 S1 (9dd95d6), delete-after-export on Windows B-078 and inspector width B-079
+  (1d392bc), Şablonlar wide fonts and the Explorer contract (c00a2cb).
+  Phase 6 exit now waits only on the owner: Q-18 real scans, Q-19 clean Windows install, Q-20
+  signing/version/publish/sign-off, Q-21 CLA, plus the blocking answers listed in OWNER-QUEUE.md.
 
 - Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
 - Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.

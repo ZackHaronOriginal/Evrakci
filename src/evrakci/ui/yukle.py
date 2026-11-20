@@ -94,6 +94,11 @@ def _heading_row() -> tuple[QWidget, QLabel, QLabel]:
     return bar, title, hint
 
 
+def select_in_explorer(target: Path) -> None:
+    """Windows: Explorer with `target` selected. The one place Yükle starts Explorer."""
+    subprocess.Popen(["explorer", "/select,", str(target)])  # noqa: S603, S607
+
+
 class _Dropline(QWidget):
     """A .dropline: a hairline, then the sentence about dropping files (caption, text-2)."""
 
@@ -603,7 +608,7 @@ class YukleScreen(QWidget):
         folder = self.store.batch_file(controller.job, controller.job.batches[0]).parent \
             if controller.job.batches else self.store._job_dir(controller.job.id)
         if target is not None and target.is_file() and os.name == "nt":
-            subprocess.Popen(["explorer", "/select,", str(target)])  # noqa: S603, S607
+            select_in_explorer(target)
         elif folder.is_dir():
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
         else:

@@ -44,6 +44,7 @@ from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after
 from evrakci.pipeline.job import job_from_dict, job_to_dict
 from evrakci.pipeline.naming import safe_filename
 from evrakci.pipeline.ocr.engine import EngineUnavailable
+from evrakci.pipeline.pdfium_lock import PDFIUM_LOCK
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, SettingsError, load_settings
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
@@ -1036,10 +1037,10 @@ class DisaAktarScreen(QWidget):
         count = len(result.paths)
         kept = "İş listede kalır; Yükle'den yeniden açabilirsiniz."
         if retention == DELETE_AFTER_EXPORT and may_delete_after_export(result):
-            controller.store.delete(job.id)
-            kept = "İş silindi (saklama ayarı)."
-            self._job_gone = True
-            self.job_deleted.emit()
+            if self._delete_job(controller, job.id):
+                kept = "İş silindi (saklama ayarı)."
+                self._job_gone = True
+                self.job_deleted.emit()
         elif retention == DELETE_AFTER_EXPORT and result.paths and not result.with_layer:
             kept = "İş saklandı: metin katmanı eklenmedi."
         check = ""
@@ -1052,6 +1053,20 @@ class DisaAktarScreen(QWidget):
             "check": check, "folder": True, "index": result.index_written, "reveal": True,
         }
         self._finish(f"{count} belge yazıldı", "kontrol" if result.needing_check else "success")
+
+    @staticmethod
+    def _delete_job(controller, job_id: str) -> bool:
+        """Delete the job folder; False (the job stays, listed and open) when that fails.
+
+        Windows refuses to delete a file that is open. Every PDFium document of this process is
+        opened and closed under PDFIUM_LOCK (thumbnails, loupe, Değerler crops, Şablon), so
+        holding the lock makes sure no render has a job PDF open while the folder goes."""
+        try:
+            with PDFIUM_LOCK:
+                controller.store.delete(job_id)
+        except (OSError, KeyError):
+            return False
+        return True
 
     def _failed(self, message: str) -> None:
         exists = self.out_dir is not None and self.out_dir.exists()

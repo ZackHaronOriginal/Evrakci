@@ -58,7 +58,9 @@ def test_unmatched_brace_in_the_pattern_is_an_engel_not_an_exception(qtbot, tmp_
 def test_b008_a_deleted_job_is_closed_and_not_written_back(qtbot, tmp_path):
     window, _screen_ = _window(qtbot, tmp_path)
     job_id = window.controller().job.id
-    window.store.delete(job_id)
+    # The screen's own delete step: it holds PDFium's lock, so no thumbnail render still has the
+    # job's PDF open (Windows refuses to delete an open file).
+    assert window.disa_aktar._delete_job(window.controller(), job_id)
     window.disa_aktar.job_deleted.emit()
     assert window.controller() is None
     assert not window.store._job_file(job_id).exists()
@@ -161,3 +163,101 @@ def test_b008_the_outcome_card_stays_after_the_deleted_job_closes(qtbot, tmp_pat
     assert screen._outcome is not None and "yazıldı" in screen._outcome["title"]
     assert screen.outcome.isVisible()
     assert "İş silindi" in screen._outcome["message"]
+
+
+def _full_export_window(qtbot, tmp_path, monkeypatch):
+    from fakes import make_pdf, text_page
+    from test_ledger_b import _window as ledger_window
+
+    from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, save_settings
+    window = ledger_window(qtbot, tmp_path)
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page("A"), text_page("B")])
+    job = window.store.create_job("İş", [pdf])
+    save_settings(Settings(DELETE_AFTER_EXPORT), tmp_path / "ayar.json")
+    window.yukle.open_job(window.store.load(job.id))
+    window.show_tab("disa_aktar")
+    screen = window.disa_aktar
+    real = module.export_job
+    monkeypatch.setattr(module, "export_job", lambda *a, **k: dataclasses.replace(
+        real(*a, **k), with_layer=True))
+    screen.folder.setText(str(tmp_path / "out"))
+    return window, screen, job
+
+
+def _open_paths_under(folder) -> list[str]:
+    import os
+    root = os.path.realpath(folder)
+    found = []
+    for fd in os.listdir("/proc/self/fd"):
+        try:
+            target = os.readlink(f"/proc/self/fd/{fd}")
+        except OSError:
+            continue
+        if target.startswith(root):
+            found.append(target)
+    return found
+
+
+def test_b008_no_file_of_the_job_is_open_and_pdfium_is_locked_when_the_delete_runs(
+        qtbot, tmp_path, monkeypatch):
+    """A thumbnail render may be inside PDFium, with the job's PDF open, when the export ends.
+    The delete must wait for it (the lock), and nothing of the job may be open then."""
+    import os
+    import threading
+
+    import pytest
+
+    from evrakci.pipeline.pdfium_lock import PDFIUM_LOCK
+    if not os.path.isdir("/proc/self/fd"):
+        pytest.skip("no /proc: open files cannot be listed here")
+    window, screen, job = _full_export_window(qtbot, tmp_path, monkeypatch)
+    folder = window.store._job_dir(job.id)
+    seen = {}
+    real_delete = window.store.delete
+
+    def checking_delete(job_id):
+        seen["locked"] = PDFIUM_LOCK._is_owned()
+        seen["open"] = _open_paths_under(folder)
+        real_delete(job_id)
+
+    monkeypatch.setattr(window.store, "delete", checking_delete)
+    # A render that has the PDF open, started before the export ends.
+    import pypdfium2 as pdfium
+    held, release = threading.Event(), threading.Event()
+    path = next(iter(window.store.batch_files(job).values()))
+
+    def render_slowly():
+        with PDFIUM_LOCK:
+            pdf = pdfium.PdfDocument(str(path))
+            held.set()
+            release.wait(10)
+            pdf.close()
+
+    worker = threading.Thread(target=render_slowly)
+    worker.start()
+    held.wait(10)
+    qtbot.wait(50)
+    threading.Timer(0.5, release.set).start()
+    screen.layer.setChecked(False)
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    worker.join(10)
+    assert seen["locked"] is True
+    assert seen["open"] == []
+    assert window.controller() is None
+
+
+def test_b008_a_job_that_cannot_be_deleted_stays_open_and_listed(qtbot, tmp_path, monkeypatch):
+    window, screen, job = _full_export_window(qtbot, tmp_path, monkeypatch)
+
+    def refuse(_job_id):
+        raise PermissionError("[WinError 32] in use")
+
+    monkeypatch.setattr(window.store, "delete", refuse)
+    screen.layer.setChecked(False)
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    assert window.controller() is not None  # not closed as if it was deleted
+    assert job.id in {j.id for j in window.store.list_jobs()}
+    assert screen._outcome["kind"] == "done"
+    assert "İş listede kalır" in screen._outcome["message"]

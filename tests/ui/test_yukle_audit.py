@@ -366,6 +366,30 @@ def test_the_inspector_cannot_be_dragged_narrower_than_its_content(
     assert side.scroll.widget().width() <= side.scroll.viewport().width()
 
 
+def test_the_inspector_minimum_follows_content_that_grows_without_a_resize(
+    qtbot, tmp_path, pdfs, look
+):
+    """Windows (wider fonts, wide scroll bar): the content got wider than the viewport after the
+    minimum was taken (316 > 307 at 150 %), and nothing resized the panel to take it again. A
+    widget that makes the content wider stands in for the font difference."""
+    from PySide6.QtWidgets import QLabel
+
+    look.set_text_scale(150)
+    screen = _screen(qtbot, tmp_path, pdfs)
+    screen.resize(1366, 700)
+    screen.show()
+    qtbot.wait(50)
+    side = screen.side
+    screen.splitter.setSizes([1366 - 100, 100])
+    qtbot.wait(80)
+    wide = QLabel("x")
+    wide.setMinimumWidth(side.width() + 60)
+    side.scroll.widget().layout().addWidget(wide)
+    qtbot.wait(150)
+    assert side.minimumWidth() >= wide.minimumWidth()
+    assert side.scroll.widget().width() <= side.scroll.viewport().width()
+
+
 def test_no_action_slot_of_yukle_takes_the_checked_flag():
     """QAction.triggered passes `checked`: a slot with a default parameter would receive it
     (B-047, F-degerler-01 pattern). Every slot Yükle connects to a registry action has none."""

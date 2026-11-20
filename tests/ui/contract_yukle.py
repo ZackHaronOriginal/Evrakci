@@ -2,6 +2,7 @@
 `contract_helpers.HELPERS` and `contract_helpers.PLANS` (see the docstring there)."""
 from __future__ import annotations
 
+from pathlib import Path
 from unittest import mock
 
 from contract_helpers import (
@@ -199,6 +200,14 @@ def _pre_yukle_show(c: Ctx) -> None:
                                 staticmethod(lambda url: opened.append(url) or True))
     patcher.start()
     c.undo.append(patcher.stop)
+    # Windows selects the batch file in Explorer instead of opening the folder: the same
+    # outcome (the file's folder is shown), through the one function the code uses there.
+    from evrakci.ui import yukle as yukle_module
+    selector = mock.patch.object(
+        yukle_module, "select_in_explorer",
+        lambda target: opened.append(QUrl.fromLocalFile(str(Path(target).parent))))
+    selector.start()
+    c.undo.append(selector.stop)
     c.data["opened"] = opened
     c.win.yukle.table.select_batch("b1")
     _focus_table(c)

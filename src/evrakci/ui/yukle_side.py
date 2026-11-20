@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QRect, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QIcon, QPalette
 from PySide6.QtWidgets import (
     QFrame,
@@ -223,6 +223,8 @@ class Inspector(QWidget):
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(m.size("s3"))
         self.scroll.setWidget(body)
+        self.scroll.viewport().installEventFilter(self)
+        body.installEventFilter(self)
 
         head = QWidget()
         head_col = QVBoxLayout(head)
@@ -334,9 +336,28 @@ class Inspector(QWidget):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
+        self._fit()
+
+    def _fit(self) -> None:
+        """Keep the minimum width at what the content needs. The content can grow without the
+        panel being resized (wider fonts, a vertical scroll bar appearing and taking room from
+        the viewport: Windows), so this also runs on those, and a measured shortage of the
+        viewport counts too."""
         wanted = self.least_width()
+        if self.isVisible():
+            short = self.scroll.widget().minimumSizeHint().width() \
+                - self.scroll.viewport().width()
+            if short > 0:
+                wanted = max(wanted, self.width() + short)
         if wanted != self.minimumWidth():
             self.setMinimumWidth(wanted)
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        kind = event.type()
+        if (watched is self.scroll.viewport() and kind == QEvent.Type.Resize) \
+                or (watched is self.scroll.widget() and kind == QEvent.Type.LayoutRequest):
+            QTimer.singleShot(0, self._fit)
+        return super().eventFilter(watched, event)
 
     # -- content -------------------------------------------------------------------------
     def show_job(self, info: JobSummary, profile: ScanProfile | None) -> None:

@@ -2,6 +2,8 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")  # window tests run without a screen
 
+import gc
+
 import pytest
 
 from evrakci.pipeline.ocr.tesseract import TesseractEngine
@@ -53,6 +55,22 @@ def _app_look_stays_in_its_module():
     saved = _snapshot(manager, app)
     yield
     _restore(manager, app, saved)
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _gc_state_stays_in_its_module():
+    """The first job, task or configure_application of a run turns the cycle collector off and
+    starts the window-thread timer (ui/gc_guard.py). Put the state of the module's start back at
+    its end, so no test depends on which module ran before it."""
+    from evrakci.ui import gc_guard
+
+    was_enabled = gc.isenabled()
+    was_installed = gc_guard.installed()
+    yield
+    if not was_installed and gc_guard.installed():
+        gc_guard.uninstall(enable=was_enabled)
+    elif not was_installed and gc.isenabled() != was_enabled:
+        gc.enable() if was_enabled else gc.disable()
 
 
 @pytest.fixture

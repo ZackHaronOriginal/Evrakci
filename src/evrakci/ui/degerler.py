@@ -1361,9 +1361,9 @@ class DegerlerScreen(QWidget):
         required = cell is not None and cell.required
         before = controller.undo_stack.index()
         if not controller.set_value(row.document, key, text, required):
-            if required and not controller.frozen:  # emptied: stored as Kontrol, say so
-                # Geri al only when this edit pushed a step (re-emptying an empty value adds
-                # none, and the button must never undo an older, unrelated step)
+            if required and not controller.frozen and not " ".join(text.split()):
+                # emptied: stored as Kontrol, say so. Geri al only when this edit pushed a step
+                # (re-emptying an empty value adds none, and it must never undo an older one)
                 self._toast(REQUIRED_EMPTY, controller, before + 1, "kontrol")
 
     def _sample_error(self, controller: JobController, row: Row, key: str, text: str) -> None:

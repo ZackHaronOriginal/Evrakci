@@ -1337,3 +1337,12 @@ def test_i23_window_and_cli_leave_the_same_stored_value(qtbot, window, capsys, t
     from_cli = stored_values(on_disk, compute_documents(on_disk)[0])[sicil.key]
     assert from_cli == from_window
 
+
+
+def test_a_failed_typed_edit_does_not_claim_the_value_went_to_kontrol(qtbot, window, monkeypatch):
+    """R-B-4: the required-empty toast belongs to an emptied text only."""
+    win, sicil = window
+    screen = win.degerler
+    monkeypatch.setattr(win.controller(), "set_value", lambda *args: False)
+    screen.model.setData(screen.cell(1, "Sicil_No"), "48200")
+    assert win.toaster.current_text() != "Zorunlu değer boş bırakılamaz; Kontrol'e alındı."

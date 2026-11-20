@@ -399,3 +399,50 @@ def test_esc_stops_trying_every_example(qtbot, screen):
     qtbot.waitUntil(lambda: screen._all_task is None, timeout=15000)
     assert screen.example_values.get(3) is None  # it stopped before the last example
     assert screen._escape() is False  # nothing running: Esc is left to the canvas
+
+
+def test_try_all_results_after_a_job_switch_are_dropped(qtbot, screen):
+    import threading
+
+    gate = threading.Event()
+
+    class Gated:
+        name = "kapili"
+
+        def available(self):
+            return None
+
+        def read_region(self, image):
+            if screen._all_task is not None:
+                gate.wait(10)
+            return Reading("48213", 0.95)
+
+    screen.engine = Gated
+    screen.set_example(1)
+    screen.add_box((10.0, 20.0, 60.0, 30.0))
+    qtbot.waitUntil(lambda: screen._read_task is None, timeout=15000)
+    screen.read_all_examples()
+    assert screen._all_task is not None
+    screen.job_id = "baska-is"  # another job opened while the reads run
+    gate.set()
+    qtbot.waitUntil(lambda: screen._all_task is None, timeout=15000)
+    assert screen.tried_all is False and 3 not in screen.example_values
+
+
+def test_level_of_is_the_cores_value_level_with_the_templates_threshold():
+    """R-B-7: one vocabulary; the threshold behaviour of the template minimum is unchanged."""
+    from evrakci.pipeline.templates.values import EMIN_AT, VariableValue, value_level
+    from evrakci.ui.sablon_read import level_of
+
+    for minimum in (0.5, 0.7, 0.9, 0.99):
+        for text in ("", "x"):
+            for confidence in (0.0, 0.5, 0.69, 0.7, 0.89, 0.9, 0.95, 1.0):
+                if not text:
+                    old = "okunamadi"
+                elif confidence < minimum:
+                    old = "kontrol"
+                else:
+                    old = "emin" if confidence >= max(EMIN_AT, minimum) else "orta"
+                flagged = not text or confidence < minimum
+                core = value_level(VariableValue(text, confidence, None, flagged))
+                assert level_of(text, confidence, minimum) == old == core

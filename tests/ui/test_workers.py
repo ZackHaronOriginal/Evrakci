@@ -717,3 +717,31 @@ def test_loading_card_note_fits_at_150_percent(qtbot, owner):
         assert label.fontMetrics().horizontalAdvance(label.text()) <= label.width()
     finally:
         theme.manager().set_text_scale(100)
+
+
+def test_a_finished_run_frees_what_its_callbacks_held(qtbot, owner, tmp_path):
+    """R-B-3: the handle stays as the owner's last one, but a deleted job's controller (held by
+    its done callback) is not kept in memory with it."""
+    import gc
+    import weakref
+
+    from fakes import job_from_kinds
+
+    from evrakci.ui.controller import JobController
+
+    store = JobStore(tmp_path / "jobs")
+    job = job_from_kinds({"b1": "ppp"})
+    store.save(job)
+    controller = JobController(store, job)
+    ref = weakref.ref(controller)
+    done: list = []
+
+    def finished(result, held=controller):
+        done.append(held is not None and result)
+
+    handle = run_background(owner, lambda _p: "bitti", title="İş açılıyor", on_done=finished)
+    del controller, job, finished
+    qtbot.waitUntil(lambda: done == ["bitti"] and not handle.running, timeout=3000)
+    QApplication.processEvents()
+    gc.collect()
+    assert ref() is None

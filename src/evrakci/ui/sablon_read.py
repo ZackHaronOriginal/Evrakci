@@ -16,7 +16,7 @@ from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.render import render_page
 from evrakci.pipeline.templates.model import Template
 from evrakci.pipeline.templates.read import read_document, tried
-from evrakci.pipeline.templates.values import EMIN_AT, VariableValue
+from evrakci.pipeline.templates.values import VariableValue, value_level
 
 READ_DPI = 300
 
@@ -33,11 +33,8 @@ NEEDS_CHECK = ("kontrol", "okunamadi")
 
 def level_of(text: str, confidence: float, minimum: float) -> str:
     """Okunamadı without text; Kontrol below the template's threshold; Emin from 90 %."""
-    if not text:
-        return "okunamadi"
-    if confidence < minimum:
-        return "kontrol"
-    return "emin" if confidence >= max(EMIN_AT, minimum) else "orta"
+    flagged = not text or confidence < minimum
+    return value_level(VariableValue(text, confidence, None, flagged))
 
 
 @dataclass(frozen=True)

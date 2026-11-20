@@ -92,6 +92,25 @@ def install() -> bool:
     return True
 
 
+def uninstall(*, enable: bool) -> None:
+    """Put the collector back as it was before `install` (the tests call it, so one module's
+    jobs do not decide how the next module's garbage is collected)."""
+    global _timer, _frozen, _young
+    timer, _timer = _timer, None
+    if timer is not None and shiboken6.isValid(timer):
+        timer.stop()
+        timer.deleteLater()
+    if _frozen:
+        gc.unfreeze()
+    _frozen, _young = False, 0
+    for name in stats:
+        stats[name] = 0
+    if enable:
+        gc.enable()
+    else:
+        gc.disable()
+
+
 def tick() -> None:
     """One step of the window-thread collector (the timer calls it)."""
     global _young

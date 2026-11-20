@@ -135,9 +135,22 @@ class LiveReads:
         self._read_template = job.template
         task = Task(lambda progress: reading.read_examples(job, numbers, progress))
         task.signals.progress.connect(self._all_progress)
-        task.signals.done.connect(self._all_done)
-        task.signals.failed.connect(self._all_failed)
-        task.signals.cancelled.connect(self._all_cancelled)
+        key = (self.job_id, self.template.id if self.template is not None else None)
+
+        def current(handler):
+            # a result of another job / template than the one now open is dropped
+            def call(*args):
+                if task is not self._all_task:
+                    return
+                if key != (self.job_id, self.template.id if self.template is not None else None):
+                    self._all_stopped()
+                    return
+                handler(*args)
+            return call
+
+        task.signals.done.connect(current(self._all_done))
+        task.signals.failed.connect(current(self._all_failed))
+        task.signals.cancelled.connect(current(self._all_cancelled))
         self._all_task = task
         self._all_progress(0, len(numbers))
         self._sync_actions()

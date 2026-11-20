@@ -172,6 +172,12 @@ class Background(QObject):
         else:
             self._close_card()
 
+    def _release(self) -> None:
+        """Done: drop the task and callbacks, so what they hold (a deleted job's controller
+        and undo history) is freed while this small handle stays as the owner's last one."""
+        self.task = None
+        self._on_done = self._on_failed = self._on_cancelled = None
+
     def _close_card(self) -> None:
         """Hide the card, unless a newer job has taken it over (its card must stay)."""
         if shiboken6.isValid(self._owner) and _current(self._owner) is self:
@@ -192,6 +198,7 @@ class Background(QObject):
             else:
                 self._on_done(result)
         finally:
+            self._release()
             self.finished.emit()
 
     def _failed(self, message: str) -> None:
@@ -206,6 +213,7 @@ class Background(QObject):
             elif not stale and self._on_failed is not None:
                 self._on_failed(message)
         finally:
+            self._release()
             self.finished.emit()
 
     def _stopped(self) -> None:
@@ -214,6 +222,7 @@ class Background(QObject):
             if not self._dropped():
                 self._call(self._on_cancelled)
         finally:
+            self._release()
             self.finished.emit()
 
     @staticmethod

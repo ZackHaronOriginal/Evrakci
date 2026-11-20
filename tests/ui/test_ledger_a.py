@@ -195,12 +195,13 @@ def test_b029_failed_autosave_is_reported_not_raised(qtbot, tmp_path, monkeypatc
     messages = []
     ctl.status.connect(messages.append)
 
-    def fail(job):
+    def fail(job_id, data):
         raise OSError("disk dolu")
 
-    monkeypatch.setattr(ctl.store, "save", fail)
+    monkeypatch.setattr(ctl.store, "save_dict", fail)
     ctl.add_cut("a/2")  # must not raise
-    assert messages
+    qtbot.waitUntil(lambda: bool(messages), timeout=3000)  # the write fails behind the edit
+    assert messages == ["Kaydedilemedi: disk dolu"]
 
 
 def test_b029_failed_autosave_shows_the_failed_state_until_a_save_works(qtbot, tmp_path,
@@ -208,18 +209,18 @@ def test_b029_failed_autosave_shows_the_failed_state_until_a_save_works(qtbot, t
     window = _window(qtbot, tmp_path, {"a": "pppp"})
     ctl = window.controller()
     band = window.job_switch.save_state
-    real_save = ctl.store.save
+    real_save = ctl.store.save_dict
 
-    def fail(job):
+    def fail(job_id, data):
         raise OSError("disk dolu")
 
-    monkeypatch.setattr(ctl.store, "save", fail)
+    monkeypatch.setattr(ctl.store, "save_dict", fail)
     assert ctl.add_cut("a/2")  # the edit stays applied
-    assert band.state() == "failed"
+    qtbot.waitUntil(lambda: band.state() == "failed", timeout=3000)
     assert "a/2" in ctl.job.manual_cuts
-    monkeypatch.setattr(ctl.store, "save", real_save)
+    monkeypatch.setattr(ctl.store, "save_dict", real_save)
     ctl.add_cut("a/3")
-    assert band.state() == "saved"
+    qtbot.waitUntil(lambda: band.state() == "saved", timeout=3000)
 
 
 @pytest.mark.xfail(strict=True, reason="B-030: an error toast shows the info icon")

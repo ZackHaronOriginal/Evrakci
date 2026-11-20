@@ -530,7 +530,9 @@ def _pre_saveable(c: Ctx) -> None:
 
 @helper("effect.written_now")
 def _effect_written_now(c: Ctx) -> None:
-    assert c.data["path"].stat().st_mtime_ns > c.data["old"], "the file was not written"
+    # the job file is written by the saver behind the key press: let the event loop run
+    assert wait_until(lambda: c.data["path"].stat().st_mtime_ns > c.data["old"]), \
+        "the file was not written"
 
 
 @helper("feedback.saved_said")
@@ -541,6 +543,7 @@ def _feedback_saved_said(c: Ctx) -> None:
         texts = slot_texts(win, "sablonlar")
         assert any(re.fullmatch(r"Şablon kaydedildi \d\d:\d\d", t) for t in texts), texts
     else:
+        wait_until(lambda: "İş kaydedildi" in win.toaster.current_text())  # after the write
         assert re.search(r"İş kaydedildi \d\d:\d\d\. Değişiklikler zaten kendiliğinden "
                          r"kaydedilir\.", win.toaster.current_text()), heard(win)
         assert win.job_switch.save_state.state() == "saved"

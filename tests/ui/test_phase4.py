@@ -162,7 +162,7 @@ def test_settings_and_sheet_give_focus_back(demo):
 
 
 # -- Ctrl+S, Ctrl+E and Ctrl+F: one owner per action, a route on every tab --------------------
-def test_kaydet_belongs_to_the_tab_and_a_template_sync_elsewhere_does_not_enable_it(demo):
+def test_kaydet_belongs_to_the_tab_and_a_template_sync_elsewhere_does_not_enable_it(demo, qtbot):
     demo.show_tab("rehber")
     _settle()
     assert not demo.registry.is_enabled("app.kaydet")  # nothing to save on Rehber
@@ -172,7 +172,7 @@ def test_kaydet_belongs_to_the_tab_and_a_template_sync_elsewhere_does_not_enable
     _settle()
     assert demo.registry.is_enabled("app.kaydet")
     demo.registry.action("app.kaydet").trigger()
-    assert demo.toaster.current_text().startswith("İş kaydedildi")
+    qtbot.waitUntil(lambda: demo.toaster.current_text().startswith("İş kaydedildi"), timeout=3000)
 
 
 def test_export_action_has_one_owner(demo):

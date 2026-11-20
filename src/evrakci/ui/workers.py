@@ -10,7 +10,7 @@ at least LOADING_MIN_MS once shown. Thread-safety rules, kept by every worker fu
 2. Every PDFium call, in any thread, runs under PDFIUM_LOCK and holds it for one page at a time.
 3. A worker reports progress at most about 10 times a second and checks for cancel there.
 4. A worker never starts another Task and never calls processEvents.
-5. A job file is written from one thread only (the window thread, or the later saver).
+5. A job file is written from one thread only: the JobSaver's writer (ui/saver.py).
 6. A result that arrives after the owner is closed, or after a newer run started, is dropped
    (the caller's on_done also checks its own job id).
 """

@@ -96,29 +96,31 @@ def test_kontrol_without_a_job_offers_the_way_to_yukle(qtbot, tmp_path):
 
 
 def _failed_save_window(qtbot, tmp_path, monkeypatch):
-    """A window whose job folder became read-only: the automatic save fails (B-035)."""
+    """A window whose job folder became read-only: the automatic save fails (B-035). The write
+    is the saver's (behind the edit), so the failure arrives from the event loop."""
     window = _window(qtbot, tmp_path)
     pdf = make_pdf(tmp_path / "t.pdf", [text_page(), qr_page(), text_page()])
     with qtbot.waitSignal(window.yukle.job_opened, timeout=20000):
         window.yukle.create_job([pdf], "Kasım")
     controller = window.controller()
-    real = controller.store.save
+    real = controller.store.save_dict
     state = {"fail": True}
 
-    def save(job):
+    def save_dict(job_id, data):
         if state["fail"]:
             raise OSError("salt okunur")
-        return real(job)
+        return real(job_id, data)
 
-    monkeypatch.setattr(controller.store, "save", save)
+    monkeypatch.setattr(controller.store, "save_dict", save_dict)
     controller._changed()
-    assert window.job_switch.save_state.state() == "failed"
+    qtbot.waitUntil(lambda: window.job_switch.save_state.state() == "failed", timeout=3000)
     return window, state
 
 
 def test_close_after_failed_save_is_blocked_with_the_status(qtbot, tmp_path, monkeypatch):
     window, _state = _failed_save_window(qtbot, tmp_path, monkeypatch)
     assert window.close() is False  # first attempt: retried, still failing, blocked
+    qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
     assert window.message.text() == "Kaydedilemedi: salt okunur"
     assert window.controller() is not None
     assert window.close() is True  # second attempt goes ahead
@@ -127,41 +129,52 @@ def test_close_after_failed_save_is_blocked_with_the_status(qtbot, tmp_path, mon
 def test_close_retries_the_save_and_closes_when_it_works(qtbot, tmp_path, monkeypatch):
     window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
     state["fail"] = False
-    assert window.close() is True
+    assert window.close() is False  # the retry runs first ...
+    qtbot.waitUntil(lambda: window._closed, timeout=3000)  # ... then it closes
     assert window.job_switch.save_state.state() == "saved"
 
 
 def test_quit_shortcut_blocks_once_then_goes_ahead(qtbot, tmp_path, monkeypatch):
     window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
     window.registry.action("app.cikis").trigger()
+    qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
     assert window.isVisible() or window.controller() is not None
     assert window.message.text().startswith("Kaydedilemedi")
-    assert window._close_warned
     window.registry.action("app.cikis").trigger()  # second attempt: not blocked
     assert window.message.text().startswith("Kaydedilemedi")
-    assert window._unsaved_refusal() is None
+    assert not window._unsaved_pending()
 
 
 def test_closing_or_switching_the_job_after_failed_save(qtbot, tmp_path, monkeypatch):
     window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
     window.close_job()
+    qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
     assert window.controller() is not None
     assert window.message.text() == "Kaydedilemedi: salt okunur"
-    assert window.yukle.can_switch() is None  # second attempt (job switch) goes ahead
+    assert window.yukle.can_switch() is None  # a job switch is not blocked again ...
+    assert not window._unsaved_pending()  # ... the second attempt goes ahead
     window.close_job()
     assert window.controller() is None
 
 
 def test_a_success_or_new_failed_edit_resets_the_warning(qtbot, tmp_path, monkeypatch):
     window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
-    assert window._unsaved_refusal() is not None
-    assert window._unsaved_refusal() is None
+    assert window._unsaved_pending()  # the last write failed and nobody was warned yet
+    window.close_job()
+    qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
+    assert not window._unsaved_pending()
     window.controller()._changed()  # a new edit that fails again
-    assert window._unsaved_refusal() is not None  # warns again
+    qtbot.waitUntil(lambda: not window._close_warned, timeout=3000)
+    assert window._unsaved_pending()  # warns again
+    window.close_job()  # ... and the next close is refused again with the message
+    qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
+    assert window.message.text() == "Kaydedilemedi: salt okunur"
+    assert window.controller() is not None
     state["fail"] = False
     window.save_job()
-    assert window.job_switch.save_state.state() == "saved"
+    qtbot.waitUntil(lambda: window.job_switch.save_state.state() == "saved", timeout=3000)
     assert not window._close_warned
     state["fail"] = True
     window.controller()._changed()
-    assert window._unsaved_refusal() is not None
+    qtbot.waitUntil(lambda: window.job_switch.save_state.state() == "failed", timeout=3000)
+    assert window._unsaved_pending()

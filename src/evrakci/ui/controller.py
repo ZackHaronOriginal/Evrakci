@@ -11,6 +11,7 @@ from evrakci.pipeline import review
 from evrakci.pipeline.cuts import Document, compute_documents, cut_kinds
 from evrakci.pipeline.job import Job, job_from_dict, job_to_dict
 from evrakci.pipeline.store import JobStore
+from evrakci.ui.saver import JobSaver
 
 
 def _turkish(error: Exception) -> str:
@@ -84,13 +85,21 @@ class _GuardedStack(QUndoStack):
 class JobController(QObject):
     job_changed = Signal()
     status = Signal(str)
-    save_failed = Signal(str)  # the automatic save raised OSError; the edit stays in memory
+    save_failed = Signal(str)  # the write failed; the edit stays in memory
+    saving = Signal()  # a write is pending long enough to say "Kaydediliyor…"
+    saved = Signal()  # nothing is pending and the file on disk is the job
 
     def __init__(self, store: JobStore, job: Job, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self.store = store
         self.job = job
         self.frozen = False  # while the job's folder is deleted: no edit, no save (rule 5)
+        # Write-behind: edits hand a snapshot to the saver, the one writer of the job file.
+        # It has no parent: its writer thread may outlive the controller by one write.
+        self.saver = JobSaver(store)
+        self.saver.saving.connect(self.saving)
+        self.saver.saved.connect(self.saved)
+        self.saver.failed.connect(self._write_failed)
         self.undo_stack = _GuardedStack(self)
         self._documents: list[Document] | None = None
         self._kinds: dict[str, str] | None = None
@@ -153,13 +162,22 @@ class JobController(QObject):
         self.undo_stack.redo()
 
     # Internals
+    def save_now(self) -> None:
+        """Hand the job as it is now to the saver, even if nothing changed (Ctrl+S, before an
+        export: the write also marks the job as in use). `saver.when_idle` tells when it is on
+        disk."""
+        if not self.frozen:
+            self.saver.submit(self.job.id, job_to_dict(self.job))
+
     def freeze(self) -> None:
         """Stop edits and saves (the job is being deleted in a worker)."""
         self.frozen = True
+        self.saver.frozen = True
         self.undo_stack.indexChanged.emit(self.undo_stack.index())  # menus re-read canUndo
 
     def unfreeze(self) -> None:
         self.frozen = False
+        self.saver.frozen = False
         self.undo_stack.indexChanged.emit(self.undo_stack.index())
 
     def _edit(self, text: str, change: Callable[[Job], None]) -> bool:
@@ -177,25 +195,27 @@ class JobController(QObject):
         if after == before:
             return True
         self.undo_stack.push(_Snapshot(self, text, before, after))
-        self._changed()
+        self._changed(after)
         return True
 
     def _restore(self, data: dict, notify: bool = True) -> None:
         restored = job_from_dict(data)
         self.job.__dict__.update(restored.__dict__)  # views keep the same Job object
         if notify:
-            self._changed()
+            self._changed(data)
 
-    def _changed(self) -> None:
+    def _changed(self, snapshot: dict | None = None) -> None:
+        """The job changed: views refresh and a snapshot goes to the saver (never written here).
+        `snapshot` is the job as a dict that nobody changes afterwards (the undo stack's own
+        copy); without one it is made now."""
         self._documents = None
         self._kinds = None
-        failure = None
-        try:
-            if not self.frozen:
-                self.store.save(self.job)
-        except OSError as error:
-            failure = error
-        self.job_changed.emit()  # views refresh; listeners that mark "saved" run before ...
-        if failure is not None:  # ... so the failure is reported last and stays shown
-            self.status.emit(f"Kaydedilemedi: {failure}")
-            self.save_failed.emit(str(failure))
+        if not self.frozen:
+            self.saver.submit(self.job.id, snapshot if snapshot is not None
+                              else job_to_dict(self.job))
+        self.job_changed.emit()
+
+    def _write_failed(self, message: str) -> None:
+        """The saver could not write (reported after the views refreshed, so it stays shown)."""
+        self.status.emit(f"Kaydedilemedi: {message}")
+        self.save_failed.emit(message)

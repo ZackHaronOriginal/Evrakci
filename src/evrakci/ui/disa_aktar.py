@@ -124,6 +124,8 @@ class DisaAktarScreen(QWidget):
         self.settings_path = settings_path
         self.window_ = None
         self.task: Task | None = None
+        self._flushing = False  # an export waits for the job's last write
+        self._flushed = None  # the controller whose write just ended (export() goes on)
         self.out_dir: Path | None = None
         self._exporting: tuple[JobController, object] | None = None
         self._written = False  # the table shows what was written, not the preview
@@ -915,7 +917,7 @@ class DisaAktarScreen(QWidget):
     # -- export ---------------------------------------------------------------------------
     def export(self) -> None:
         controller = self.controller()
-        if controller is None or self.task is not None:
+        if controller is None or self.task is not None or self._flushing:
             return
         window = self.window_
         others = [s for s in window._busy_screens() if s is not self] if window else []
@@ -946,7 +948,13 @@ class DisaAktarScreen(QWidget):
             announce(self.side.folder_hint, "Bir hedef klasör seçin.")
             return
         out_dir = Path(text)
-        controller.store.save(controller.job)  # marks the job as in use for the day limit
+        if self._flushed is not controller:
+            # The job's changes are written first (the write also marks the job as in use for
+            # the day limit); the export then starts from the event loop, with the file equal to
+            # the job, and checks everything above again.
+            self._flush_then_export(controller)
+            return
+        self._flushed = None
         # The worker gets its own copy: the live job can still be edited meanwhile.
         job = job_from_dict(job_to_dict(controller.job))
         files = controller.store.batch_files(job)
@@ -989,6 +997,29 @@ class DisaAktarScreen(QWidget):
         if taskbar is not None:
             taskbar.indeterminate()
         start(self.task)
+
+    def _flush_then_export(self, controller) -> None:
+        window = self.window_
+        self._flushing = True
+        controller.save_now()
+
+        def written(ok: bool, error: str) -> None:
+            self._flushing = False
+            if not shiboken6.isValid(self) or getattr(window, "_closed", False) \
+                    or self.controller() is not controller:
+                return  # the window closed or another job opened while the write ran
+            if not ok:  # the title band shows "Kaydedilemedi" with its retry; no export starts
+                toaster = self._toaster()
+                if toaster is not None:
+                    toaster.show(f"İş kaydedilemedi: {error}", kind="error")
+                return
+            self._flushed = controller
+            try:
+                self.export()  # no event between the write and the job copy it takes
+            finally:
+                self._flushed = None
+
+        controller.saver.when_idle(written)
 
     def _progress(self, done: int, total: int) -> None:
         stage = self._stage
@@ -1059,6 +1090,7 @@ class DisaAktarScreen(QWidget):
             kept = "İş listede kalır; Yükle'den yeniden açabilirsiniz."
             if not deleted:
                 controller.unfreeze()
+                controller.save_now()  # the failed delete may have removed job.json: write it again
             if deleted:
                 kept = "İş silindi (saklama ayarı)."
                 self._job_gone = True
@@ -1068,7 +1100,15 @@ class DisaAktarScreen(QWidget):
         def failed(_message: str) -> None:
             done(False)
 
-        work = lambda _progress: self._delete_job_files(store, job_id)  # noqa: E731
+        saver = controller.saver
+
+        def work(_progress) -> bool:
+            # A write in flight ends first (none can start: frozen); a write that hangs on a dead
+            # share keeps the job (nothing is deleted under it).
+            if not saver.wait_idle(saver.stall_seconds):
+                return False
+            return self._delete_job_files(store, job_id)
+
         options = {"title": "İş siliniyor", "name": job.name, "on_done": done,
                    "on_failed": failed, "on_cancelled": lambda: done(False),
                    "cancellable": False}

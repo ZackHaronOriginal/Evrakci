@@ -4,6 +4,7 @@ status bar, wired to the action registry. The six screens are hosted unchanged."
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from datetime import datetime
 from functools import partial
 from pathlib import Path
@@ -383,6 +384,7 @@ class MainWindow(QMainWindow):
         self.about_dialog: AboutDialog | None = None
         self._closing = False
         self._close_warned = False  # a failed save already blocked one close (B-035)
+        self._save_waiting = False  # Ctrl+S is waiting for its write (one answer, not a pile)
         self._restoring = True
         self._zoom: dict[str, tuple[ZoomController, str]] = {}
         self._zoom_hidden: set[str] = set()
@@ -436,6 +438,7 @@ class MainWindow(QMainWindow):
         self.yukle = YukleScreen(self.store)
         self.yukle.job_opened.connect(self._job_opened)
         self.yukle.can_switch = self._switch_refusal
+        self.yukle.settle = self._settle_job
         self.sablon = SablonScreen(self.template_store, self.controller)
         self.degerler = DegerlerScreen(self.controller, self.template_map)
         self.degerler.draw_variant.connect(self._draw_variant)
@@ -811,23 +814,31 @@ class MainWindow(QMainWindow):
 
     def save_job(self) -> None:
         """Ctrl+S on a job tab: write the job now and confirm it (edits are saved as they
-        happen, so this only reassures)."""
+        happen, so this only reassures). The write is the saver's; the title band says
+        "Kaydediliyor…" until it is on disk, then "Kaydedildi"."""
         controller = self.controller()
         if controller is None:
             self.say_no_job()
             return
         if controller.frozen:  # the job is being deleted: nothing is written
             return
-        try:
-            controller.store.save(controller.job)
-        except OSError as error:
-            self.job_switch.save_state.set_failed(f"Kaydedilemedi: {error}", self.save_job)
-            self.toaster.show(f"İş kaydedilemedi: {error}", kind="error")
+        controller.save_now()
+        if self._save_waiting:  # a press is already waiting: it answers for both
             return
-        now = datetime.now()
-        self._saved(now)
-        self.toaster.show(f"İş kaydedildi {now:%H:%M}. Değişiklikler zaten kendiliğinden "
-                          "kaydedilir.", kind="success")
+        self._save_waiting = True
+
+        def written(ok: bool, error: str) -> None:
+            self._save_waiting = False
+            if not shiboken6.isValid(self) or self._closed or self.controller() is not controller:
+                return
+            if ok:
+                now = datetime.now()
+                self.toaster.show(f"İş kaydedildi {now:%H:%M}. Değişiklikler zaten kendiliğinden "
+                                  "kaydedilir.", kind="success")
+            else:  # the title band already shows "Kaydedilemedi" and its retry
+                self.toaster.show(f"İş kaydedilemedi: {error}", kind="error")
+
+        controller.saver.when_idle(written)
 
     def _show_tab_slot(self, tab: str, *_args) -> None:
         self.show_tab(tab)
@@ -1363,7 +1374,8 @@ class MainWindow(QMainWindow):
         self._wired = controller
         controller.status.connect(self.message.setText, unique)
         controller.job_changed.connect(self._update_counts, unique)
-        controller.job_changed.connect(self._saved_now, unique)
+        controller.saving.connect(self._saving, unique)
+        controller.saved.connect(self._saved_now, unique)
         controller.save_failed.connect(self._save_failed, unique)
         controller.undo_stack.indexChanged.connect(self._sync_undo, unique)
         controller.undo_stack.indexChanged.connect(self._job_stack_changed, unique)
@@ -1384,7 +1396,8 @@ class MainWindow(QMainWindow):
             return
         for signal, slot in ((old.status, self.message.setText),
                              (old.job_changed, self._update_counts),
-                             (old.job_changed, self._saved_now),
+                             (old.saving, self._saving),
+                             (old.saved, self._saved_now),
                              (old.save_failed, self._save_failed),
                              (old.undo_stack.indexChanged, self._sync_undo),
                              (old.undo_stack.indexChanged, self._job_stack_changed)):
@@ -1420,7 +1433,12 @@ class MainWindow(QMainWindow):
         if reason:
             self.message.setText(reason)
             return
-        self._close_open_job()
+
+        def leave(ok: bool) -> None:  # the job's changes are on disk (or the failure is shown)
+            if ok and self.controller() is controller:
+                self._close_open_job()
+
+        self._settle_job(leave)
 
     def _close_open_job(self) -> None:
         self._close_warned = False
@@ -1450,6 +1468,10 @@ class MainWindow(QMainWindow):
 
     def _saved_now(self, *_args) -> None:
         self._saved()
+
+    def _saving(self) -> None:
+        """A write is pending (the saver's queue is not empty): "Kaydediliyor…"."""
+        self.job_switch.save_state.set_saving()
 
     def set_status_counts(self, tab: str, visible: bool) -> None:
         """Show or hide the window's own job counts at the start of `tab`'s status line
@@ -1606,29 +1628,47 @@ class MainWindow(QMainWindow):
 
     # -- closing --------------------------------------------------------------------------
     def _switch_refusal(self) -> str | None:
-        if self.loading():
+        if self.loading() or self.yukle.swapping:
             return BUSY_REASON
         if self._busy_screens():
             return "Dışa aktarma ya da okuma sürüyor; bitince başka bir iş açın."
-        return self._unsaved_refusal()
-
-    def _unsaved_refusal(self) -> str | None:
-        """After a failed save, closing or leaving the job first retries the save; if it still
-        fails the close is blocked with the existing "Kaydedilemedi: ..." status (B-035)."""
-        controller = self.controller()
-        if controller is None or controller.frozen \
-                or self.job_switch.save_state.state() != "failed":
-            return None
-        if self._close_warned:  # the second attempt goes ahead, the edits stay unsaved
-            return None
-        try:
-            controller.store.save(controller.job)
-        except OSError as error:
-            self.job_switch.save_state.set_failed(f"Kaydedilemedi: {error}", self.save_job)
-            self._close_warned = True
-            return f"Kaydedilemedi: {error}"
-        self._saved()
         return None
+
+    def _unsaved_pending(self) -> bool:
+        """Whether leaving the job (close, Ctrl+W, a job switch) must first wait for the saver:
+        something is queued, or the last write failed and has not been warned about (B-035: the
+        second attempt goes ahead, the edits stay unsaved; also when the write hangs, `stalled`)."""
+        controller = self.controller()
+        if controller is None or controller.frozen or controller.saver.clean:
+            return False
+        saver = controller.saver
+        return not (self._close_warned and (saver.idle or saver.stalled))
+
+    def _settle_job(self, then: Callable[[bool], None]) -> None:
+        """Make the file on disk equal the open job, then call `then(True)`; at once when it is
+        already so. After a failed write the save is tried again first; when that fails too (or
+        the write we waited for failed) the status says "Kaydedilemedi: ..." (B-035), the next
+        attempt goes ahead, and `then(False)` is called: the job stays open. The window thread
+        never blocks: the call comes back from the event loop."""
+        controller = self.controller()
+        if controller is None or not self._unsaved_pending():
+            then(True)
+            return
+        saver = controller.saver
+        if saver.idle:  # the last write failed: write the job again now
+            controller.save_now()
+
+        def written(ok: bool, error: str) -> None:
+            if not shiboken6.isValid(self):
+                return
+            if ok:
+                then(True)
+                return
+            self._close_warned = True  # after the saver's own signal reset it
+            self.message.setText(f"Kaydedilemedi: {error}")
+            then(False)
+
+        saver.when_idle(written)
 
     def _busy_screens(self) -> list:
         return [s for s in (self.disa_aktar, self.yukle, self.degerler) if s.busy()]
@@ -1650,10 +1690,14 @@ class MainWindow(QMainWindow):
             self.message.setText("Durduruluyor… Pencere iş durunca kapanır.")
             event.ignore()
             return
-        refusal = self._unsaved_refusal()
-        if refusal:
-            self._closing = False  # the close is refused: later edits and tasks go on as usual
-            self.message.setText(refusal)
+        if self._unsaved_pending():  # write what is queued first, then close from the event loop
+            def written(ok: bool) -> None:
+                if ok:
+                    QTimer.singleShot(0, self.close)
+                else:  # the close is refused: later edits and tasks go on as usual
+                    self._closing = False
+
+            self._settle_job(written)
             event.ignore()
             return
         self.cancel_loading()  # the close goes ahead: the loading job first, its late result drops

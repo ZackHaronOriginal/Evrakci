@@ -127,13 +127,26 @@ class JobStore:
         return batch
 
     def save(self, job: Job) -> None:
-        target = self._job_file(job.id)
+        self.save_dict(job.id, job_to_dict(job))
+
+    def save_dict(self, job_id: str, data: dict) -> None:
+        """Write a snapshot made by `job_to_dict` (atomic: a .json.tmp, then os.replace).
+
+        The snapshot is plain data, so a thread other than the one that edits the job can
+        write it (the window's saver). The file format is the same as `save`.
+        """
+        target = self._job_file(job_id)
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_suffix(".json.tmp")
-        temporary.write_text(
-            json.dumps(job_to_dict(job), ensure_ascii=False, indent=1), encoding="utf-8"
-        )
-        os.replace(temporary, target)
+        temporary.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+        for attempt in (1, 2, 3):  # on Windows a reader (antivirus, indexer) can hold the file
+            try:
+                os.replace(temporary, target)
+                return
+            except PermissionError:
+                if attempt == 3:
+                    raise
+                time.sleep(0.05 * attempt)
 
     def load(self, job_id: str) -> Job:
         path = self._job_file(job_id)

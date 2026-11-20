@@ -225,6 +225,9 @@ class YukleScreen(QWidget):
         self._own: dict[str, ActionButton] = {}
         # Returns a Turkish reason when another job must not be opened now.
         self.can_switch = lambda: BUSY_REASON if self.task or self.loading() else None
+        # Write the open job's changes first, then call back `then(ok)`; the window supplies it.
+        self.settle: Callable[[Callable[[bool], None]], None] = lambda then: then(True)
+        self.swapping = False  # waiting for the old job's last write before the swap
 
         m = theme.manager()
         root = QVBoxLayout(self)
@@ -401,12 +404,24 @@ class YukleScreen(QWidget):
         if first and not self.table.selected_batch():
             self.table.select_batch(first)
 
-    def _swap_job(self, job: Job) -> None:
+    def _swap_job(self, job: Job, settled: bool = False) -> None:
         """The one place that replaces the open job, on the window thread, once its data is
-        here (a new job after its read, or an opened one after its load)."""
+        here (a new job after its read, or an opened one after its load). The old job's last
+        write goes first (`settle`); when that fails the old job stays open and the failure
+        stays shown."""
         reason = self.can_switch() if self._controller is not None else None
         if reason:
             self.refused.emit(reason)
+            return
+        if self._controller is not None and not settled:
+            self.swapping = True  # a second open waits for this one (can_switch says so)
+
+            def written(ok: bool) -> None:
+                self.swapping = False
+                if ok and shiboken6.isValid(self):
+                    self._swap_job(job, settled=True)
+
+            self.settle(written)
             return
         if self._controller is not None:
             try:

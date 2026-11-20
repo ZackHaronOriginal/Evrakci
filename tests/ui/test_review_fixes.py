@@ -10,6 +10,7 @@ from PIL import Image
 from PySide6.QtCore import QItemSelectionModel
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QLineEdit, QMessageBox
+from saving import wait_saved
 
 from evrakci.pipeline.cuts import current_values, record_values
 from evrakci.pipeline.exporting import export_job
@@ -57,6 +58,7 @@ def test_export_result_is_applied_to_the_exported_job_not_the_open_one(qtbot, tm
     screen.layer.setChecked(False)
     with qtbot.waitSignal(screen.finished, timeout=30000):
         screen.export_button.click()
+        qtbot.waitUntil(screen.busy, timeout=5000)  # the job's last write goes first, then it runs
         current["c"] = JobController(store, job_b)  # the user opens job B meanwhile
         gate.set()
     assert not screen.busy()
@@ -379,6 +381,7 @@ def test_adding_a_batch_keeps_edits_made_while_it_was_analysed(qtbot, tmp_path, 
     live = screen.controller.job
     assert len(live.batches) == 2
     assert live.rotations == {}
+    wait_saved(screen.controller)  # the automatic save is behind the edit
     saved = store.load(live.id)
     assert len(saved.batches) == 2 and saved.rotations == {}
 

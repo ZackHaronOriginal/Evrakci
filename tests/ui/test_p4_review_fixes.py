@@ -20,9 +20,9 @@ def test_refused_close_clears_closing(qtbot, tmp_path, monkeypatch):
     assert window._closing
     window.disa_aktar.task = None
     window._work_stopped()
-    qtbot.wait(50)  # the close is retried, the save still fails: refused
-    assert window.controller() is not None
-    assert not window._closing
+    qtbot.waitUntil(lambda: window._close_warned, timeout=3000)  # the close retries the save
+    assert window.controller() is not None  # it still fails: refused
+    qtbot.waitUntil(lambda: not window._closing, timeout=3000)
     # Dışa Aktar follows undo again
     window.show_tab("disa_aktar")
     calls = []

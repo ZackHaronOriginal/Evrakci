@@ -2,6 +2,7 @@ import json
 
 import pytest
 from fakes import job_from_kinds
+from saving import wait_saved
 
 from evrakci.pipeline.cuts import compute_documents, record_values
 from evrakci.pipeline.job import job_to_dict
@@ -19,6 +20,7 @@ def ctl(qapp, tmp_path):
 
 
 def _saved(ctl):
+    wait_saved(ctl)  # the write is behind the edit (write-behind saver)
     return json.loads((ctl.store.root / ctl.job.id / "job.json").read_text(encoding="utf-8"))
 
 

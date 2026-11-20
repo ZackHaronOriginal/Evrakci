@@ -9,6 +9,7 @@ from PySide6.QtCore import QEvent, QPointF, Qt
 from PySide6.QtGui import QMouseEvent
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QFileDialog, QLabel
+from saving import wait_saved
 
 from evrakci.pipeline.job import job_to_dict
 from evrakci.pipeline.store import JobStore
@@ -75,6 +76,7 @@ def test_undo_of_removing_an_edited_batch_restores_job_data_and_the_batch_file(
     assert job_to_dict(controller.job) == before
     assert batch_file.exists()
     # and what is on disk (the automatic save) is the restored job too
+    wait_saved(controller)
     assert job_to_dict(screen.store.load(controller.job.id)) == before
 
 

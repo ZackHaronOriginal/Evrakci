@@ -221,6 +221,12 @@ def via(win: MainWindow, tab: str, action_id: str, key: str | None = None) -> No
 # -- the window ------------------------------------------------------------------------------
 def reset(win: MainWindow, tab: str) -> None:
     """Back to a known state between two tests that share a window."""
+    for _ in range(5):  # a popup a key opened (Ctrl+L's list) grabs the keyboard: close it
+        popup = QApplication.activePopupWidget()
+        if popup is None:
+            break
+        popup.close()
+        settle(2)
     for dialog in (win.shortcut_sheet, win.command_palette, win.settings_dialog,
                    win.about_dialog):
         if dialog is not None and dialog.isVisible():

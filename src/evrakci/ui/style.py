@@ -169,6 +169,9 @@ def focus_radius(widget: QWidget | None) -> int:
     return m.size("r-control")
 
 
+SCROLLING_MENU = "zayifOrnekler"  # objectName of the one menu that scrolls past its cap
+
+
 class EvrakciStyle(QProxyStyle):
     """Fusion with the D11 ring, A's title tabs and the spec's metrics."""
 
@@ -197,6 +200,9 @@ class EvrakciStyle(QProxyStyle):
             return int(self._underlines)
         if hint == QStyle.StyleHint.SH_Widget_Animation_Duration and motion.reduced_motion():
             return 0
+        if (hint == QStyle.StyleHint.SH_Menu_Scrollable and isinstance(widget, QMenu)
+                and widget.objectName() == SCROLLING_MENU):  # a capped list scrolls (I-28)
+            return 1
         return super().styleHint(hint, option, widget, data)
 
     def pixelMetric(self, metric, option=None, widget=None):  # noqa: N802

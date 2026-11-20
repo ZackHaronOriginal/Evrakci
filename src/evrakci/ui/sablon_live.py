@@ -11,6 +11,7 @@ from __future__ import annotations
 from PySide6.QtCore import QTimer
 
 from evrakci.pipeline.templates.model import template_from_dict, template_to_dict
+from evrakci.pipeline.templates.read import flagged_count
 from evrakci.ui import sablon_read as reading
 from evrakci.ui.workers import BUSY_REASON, Task, start
 
@@ -167,12 +168,13 @@ class LiveReads:
 
     def _all_done(self, results: dict) -> None:
         self.example_values = results
+        self.tried_all = True
         self.values = results.get(self.example, self.values)
         self.read_lines = reading.lines(self._read_template, self.values)
         self._all_stopped()
         self._mark_example_checks()
         self._push_readings()
-        flagged = sum(reading.flagged_count(v) for v in results.values())
+        flagged = sum(flagged_count(v) for v in results.values())
         total = len(results)
         window = self.window()
         if window is not None and not window.isActiveWindow():  # QOL 19: the reads ended

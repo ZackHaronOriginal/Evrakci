@@ -180,3 +180,23 @@ def test_break_marks_are_display_only(qtbot):  # F-sablonlar-01 round 1
     assert QApplication.clipboard().text() == text
     label.setText("Okunuyor…")
     assert label.accessibleName() == "Okunuyor…"
+
+
+def test_a_refresh_does_not_overwrite_the_name_being_typed(qtbot):
+    """A read finishing or the busy timer re-shows the same variable while the user types."""
+    state = InspectorState(mode="variable", top="Değişken 1 / 1", title="Sicil_No",
+                           name="Sicil_No")
+    panel = _panel(qtbot, state)
+    panel.name.setFocus()
+    qtbot.waitUntil(panel.name.hasFocus)
+    panel.name.setText("abc")
+    panel.name.setCursorPosition(1)
+    panel.show_state(InspectorState(mode="variable", top="Değişken 1 / 1", title="Sicil_No",
+                                    name="Sicil_No", busy=True))
+    panel._fit()
+    qtbot.wait(30)
+    assert panel.name.text() == "abc"
+    assert panel.name.cursorPosition() == 1
+    # another variable shown is a real change and does replace the text
+    panel.show_state(InspectorState(mode="variable", title="Firma", name="Firma"))
+    assert panel.name.text() == "Firma"

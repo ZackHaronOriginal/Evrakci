@@ -523,6 +523,9 @@ class InspectorPanel(QWidget):
 
     # -- showing a state --------------------------------------------------------------------
     def show_state(self, state: InspectorState) -> None:
+        # A refresh (a read finishing, a canvas signal) that leaves the variable's name as it was
+        # must not overwrite what the user is typing in the focused field.
+        keep_typing = self.name.hasFocus() and state.name == self._state.name
         self._state = state
         box_mode, has = state.mode == "box", state.mode != "none"
         self.top.setText(state.top)
@@ -532,7 +535,8 @@ class InspectorPanel(QWidget):
         fields = (self.name, self.required, self.page, *self.spins)
         for widget in fields:
             widget.blockSignals(True)
-        self.name.setText(state.name)
+        if not keep_typing:
+            self.name.setText(state.name)
         self.required.setChecked(state.required)
         self.page.setValue(state.page)
         self._set_geometry(state)

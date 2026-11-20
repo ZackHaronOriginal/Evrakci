@@ -207,3 +207,43 @@ def test_save_gives_up_after_three_blocked_replaces(tmp_path, monkeypatch):
     with pytest.raises(PermissionError):
         store.save(job)
     assert len(calls) == 3
+
+
+def test_load_retries_a_read_that_a_replace_blocks(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    store = JobStore(tmp_path / "jobs")
+    src = make_pdf(tmp_path / "t.pdf", [text_page()])
+    job = store.create_job("x", [src])
+    real, sleeps, calls = Path.read_text, [], []
+
+    def read_text(self, *args, **kwargs):
+        calls.append(1)
+        if len(calls) <= 2:
+            raise PermissionError("Permission denied")
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    monkeypatch.setattr("evrakci.pipeline.store.time.sleep", sleeps.append)
+    assert store.load(job.id).name == "x"
+    assert len(calls) == 3 and sleeps == pytest.approx([0.05, 0.1])
+
+
+def test_load_gives_up_after_three_blocked_reads(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    store = JobStore(tmp_path / "jobs")
+    src = make_pdf(tmp_path / "t.pdf", [text_page()])
+    job = store.create_job("x", [src])
+    calls = []
+
+    def read_text(self, *args, **kwargs):
+        calls.append(1)
+        raise PermissionError("Permission denied")
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    monkeypatch.setattr("evrakci.pipeline.store.time.sleep", lambda _s: None)
+    with pytest.raises(JobFileError) as info:
+        store.load(job.id)
+    assert isinstance(info.value.__cause__, PermissionError)
+    assert len(calls) == 3

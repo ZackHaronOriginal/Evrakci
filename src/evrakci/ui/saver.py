@@ -26,8 +26,10 @@ Orderings this keeps:
 from __future__ import annotations
 
 import errno
+import itertools
 import os
 import threading
+import weakref
 from collections.abc import Callable
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
@@ -38,11 +40,74 @@ SAVING_SHOW_MS = 200  # no "Kaydediliyor…" for a write that finishes sooner
 STALL_MS = 10_000  # a write that takes longer than this is reported as failed (a hung share)
 
 
+class _Relay(QObject):
+    """The one door from writer threads to the window thread. It lives for the whole process
+    (created on the window thread by the first saver), so a writer thread never owns the last
+    reference to a QObject: Qt objects must be destroyed on their own thread, and a saver that
+    was dropped while a write was in flight used to be destroyed by the writer thread (killTimer
+    from another thread, then a crash in the next `processEvents`)."""
+
+    result = Signal(int, int, str)  # (saver token, sequence number, error or "")
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.result.connect(self._deliver, Qt.ConnectionType.QueuedConnection)
+
+    def _deliver(self, token: int, seq: int, error: str) -> None:
+        saver = _SAVERS.get(token)
+        if saver is not None:  # a saver that is gone has nobody to tell
+            saver._on_result(seq, error)
+
+
+_SAVERS: weakref.WeakValueDictionary[int, JobSaver] = weakref.WeakValueDictionary()
+_TOKENS = itertools.count(1)
+_relay: _Relay | None = None
+
+
+class _Core:
+    """What the writer thread shares with its saver, under one lock. Plain Python: the thread
+    holds this and the relay, never the saver (a QObject)."""
+
+    def __init__(self, store: JobStore, token: int, relay: _Relay) -> None:
+        self.store = store
+        self.token = token
+        self.relay = relay
+        self.lock = threading.Condition()
+        self.pending: tuple[int, str, dict] | None = None
+        self.running = False
+
+    def run(self) -> None:
+        ended = False  # the loop set `running` False itself, under the lock
+        try:
+            while True:
+                with self.lock:
+                    item, self.pending = self.pending, None
+                    if item is None:
+                        self.running = False
+                        ended = True
+                        self.lock.notify_all()
+                        return
+                seq, job_id, data = item
+                try:
+                    self.store.save_dict(job_id, data)
+                    error = ""
+                except Exception as exc:  # reported; the thread must not die silently
+                    error = str(exc) or type(exc).__name__
+                try:
+                    self.relay.result.emit(self.token, seq, error)  # results stay in order
+                except RuntimeError:  # the relay's C++ object is gone (the process is ending)
+                    pass
+        finally:
+            if not ended:  # an escape (not an Exception): never leave the saver "running"
+                with self.lock:
+                    self.running = False
+                    self.lock.notify_all()
+
+
 class JobSaver(QObject):
     saving = Signal()  # the queue is not empty and someone should see it ("Kaydediliyor…")
     saved = Signal()  # the queue is empty and the last write worked
     failed = Signal(str)  # the queue is empty and the last write raised (message for the person)
-    _result = Signal(int, str)  # from the writer thread: (sequence number, error or "")
 
     def __init__(self, store: JobStore, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -58,17 +123,24 @@ class JobSaver(QObject):
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._announce)
-        # Writer-thread state, under the lock.
-        self._lock = threading.Condition()
-        self._pending: tuple[int, str, dict] | None = None
-        self._running = False
-        self._result.connect(self._on_result, Qt.ConnectionType.QueuedConnection)
+        # Writer-thread state (a plain object, never this QObject: see `_Relay`).
+        global _relay
+        if _relay is None:
+            _relay = _Relay()
+        self._token = next(_TOKENS)
+        _SAVERS[self._token] = self
+        self._core = _Core(store, self._token, _relay)
 
     # -- state (window thread) ------------------------------------------------------------
     @property
     def idle(self) -> bool:
         """Nothing is queued or being written."""
         return self._settled >= self._submitted
+
+    @property
+    def _running(self) -> bool:
+        """A writer thread is alive (it holds the lock-protected state in `_core`)."""
+        return self._core.running
 
     @property
     def error(self) -> str:
@@ -88,21 +160,23 @@ class JobSaver(QObject):
         was_idle = self.idle
         self._submitted += 1
         failure: tuple[int, str] | None = None
-        with self._lock:
-            self._pending = (self._submitted, job_id, data)
-            if not self._running:
-                self._running = True
+        core = self._core
+        with core.lock:
+            core.pending = (self._submitted, job_id, data)
+            if not core.running:
+                core.running = True
                 # A daemon: every close path waits for the saver to be idle first (the write is
                 # atomic, tmp + replace), so a write hung on a dead share cannot keep the process
                 # alive after the window is gone.
                 try:
-                    threading.Thread(target=self._run, name="evrakci-saver", daemon=True).start()
+                    threading.Thread(target=core.run, name="evrakci-saver", daemon=True).start()
                 except Exception as exc:  # e.g. "can't start new thread": report it, not hang
-                    self._running = False
-                    self._pending = None
+                    core.running = False
+                    core.pending = None
                     failure = (self._submitted, str(exc) or type(exc).__name__)
         if failure is not None:
-            self._result.emit(*failure)  # queued: the window thread settles it as a failed write
+            # queued: the window thread settles it as a failed write
+            core.relay.result.emit(self._token, *failure)
         if was_idle:
             self._announced = False
             self._timer.start(SAVING_SHOW_MS)
@@ -139,37 +213,9 @@ class JobSaver(QObject):
     def wait_idle(self, timeout: float | None = None) -> bool:
         """For a worker thread (never the window thread): block until the writer has nothing
         queued and is not writing. Pair it with `frozen` so nothing new can arrive."""
-        with self._lock:
-            return self._lock.wait_for(lambda: self._pending is None and not self._running,
-                                       timeout)
-
-    # -- the writer thread ----------------------------------------------------------------
-    def _run(self) -> None:
-        ended = False  # the loop set `_running` False itself, under the lock
-        try:
-            while True:
-                with self._lock:
-                    item, self._pending = self._pending, None
-                    if item is None:
-                        self._running = False
-                        ended = True
-                        self._lock.notify_all()
-                        return
-                seq, job_id, data = item
-                try:
-                    self.store.save_dict(job_id, data)
-                    error = ""
-                except Exception as exc:  # reported; the thread must not die silently
-                    error = str(exc) or type(exc).__name__
-                try:
-                    self._result.emit(seq, error)  # before the thread ends: results stay in order
-                except RuntimeError:  # the saver's C++ object is gone (the window was torn down)
-                    pass
-        finally:
-            if not ended:  # an escape (not an Exception): never leave the saver "running"
-                with self._lock:
-                    self._running = False
-                    self._lock.notify_all()
+        core = self._core
+        with core.lock:
+            return core.lock.wait_for(lambda: core.pending is None and not core.running, timeout)
 
     # -- results (window thread) ----------------------------------------------------------
     def _announce(self) -> None:

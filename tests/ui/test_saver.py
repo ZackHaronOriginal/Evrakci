@@ -20,6 +20,7 @@ from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.store import TemplateStore
 from evrakci.ui.controller import JobController
 from evrakci.ui.main_window import MainWindow
+from evrakci.ui.saver import JobSaver
 
 
 def _store_with_jobs(tmp_path, names=("A", "B")):
@@ -661,3 +662,42 @@ def test_a_writer_that_dies_hard_does_not_leave_the_saver_running(qtbot, tmp_pat
         QApplication.processEvents()
         time.sleep(0.001)  # a new writer thread started and wrote
     assert store.load(job.id).name == "Ölen"
+
+
+def test_a_controller_deleted_while_its_write_is_in_flight_is_freed_on_the_window_thread(
+        qtbot, tmp_path, disk):
+    """The writer thread must not hold the last reference to the saver: a QObject destroyed on
+    the writer thread (killTimer from another thread) crashed the process in a later
+    `processEvents` (the CI segfault). Dropping the controller mid-write frees it here."""
+    import gc
+
+    store, (job,) = _store_with_jobs(tmp_path, ("A",))
+    freed_on: list[threading.Thread] = []
+
+    class Watched(JobController):
+        def __del__(self):
+            freed_on.append(threading.current_thread())
+
+    class WatchedSaver(JobSaver):
+        def __del__(self):
+            freed_on.append(threading.current_thread())
+
+    for _ in range(20):
+        disk.hold()
+        controller = Watched(store, store.load(job.id))
+        controller.saver = saver = WatchedSaver(store)  # the saver that is really in use
+        saver.submit(job.id, job_to_dict(controller.job))
+        assert disk.started.wait(3)
+        del controller, saver
+        gc.collect()  # the controller and its saver are gone while the write is held
+        disk.release()
+        deadline = time.monotonic() + 3
+        while any(t.name == "evrakci-saver" for t in threading.enumerate()):
+            assert time.monotonic() < deadline
+            time.sleep(0.001)  # the writer thread has ended
+        for _ in range(5):
+            QApplication.processEvents()  # the late result finds nobody and must not crash
+            time.sleep(0.001)
+    gc.collect()
+    assert freed_on, "the objects were never freed"
+    assert all(thread is threading.main_thread() for thread in freed_on)

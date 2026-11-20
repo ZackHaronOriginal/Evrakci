@@ -30,7 +30,12 @@ Updated after every accepted step. A new session or a compacted one reads this f
   fails vs 234), quick perf all targets, full suite at 7f14c61: 2205 passed / 6 skipped / 203
   xfailed / 0 failed, keywalk clean, clipping 0. Review .claude/gorevler/p4-phase-review.md.
   Open S1 waiting on the owner: B-005 (Q-01), B-056 (Q-12). Owner Q-10..Q-17. Report sent.
-- Phase 5: 5a-5d done; 5e (specs and building) waits on Q-06 (ranking). Nothing to build first.
+- Phase 5: 5a-5d done. Q-06 answered 2026-11-20 (decisions.md "Owner answers: Phase 5 build order
+  and rules"). 5e step 1 running: four spec groups (A Kontrol filters, B quick wins, C QR + saved
+  filters, D Dışa Aktar) in docs/ui-goal/specs/, task .claude/gorevler/2026-11-20-p5e-specs.md; then
+  a Turkish sector-terminology check of the new strings; then the owner approves each spec; then build.
+  Branch history was re-authored to the owner's account on 2026-11-20 (CLA fixed); older commit ids
+  quoted in this file no longer exist on the remote.
 - Phase 6: everything that does not need the owner is DONE.
   CI on PR #6 (https://github.com/ZackHaronOriginal/Evrakci/pull/6) is GREEN on Linux and Windows at
   c00a2cb: test (Linux), build (Linux and Windows workflows: tests, freeze, packaging), clean-system

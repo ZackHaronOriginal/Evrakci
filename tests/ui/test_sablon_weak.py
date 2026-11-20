@@ -1,9 +1,10 @@
 """I-28: the weakest examples first on Şablonlar (N / Shift+N, Ctrl+L, the status item)."""
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMenu, QStyle
+from shiboken6 import isValid
 from test_sablon_window import _window
 
 from evrakci.pipeline.templates.values import SectionReading, VariableValue
@@ -53,7 +54,8 @@ def test_the_list_is_in_weakest_first_order(qtbot, screen):
     rows = [a.text() for a in menu.actions() if a.data() is not None]
     assert rows == ["Belge 3  2 kontrol  en düşük %45", "Belge 2  1 kontrol  en düşük %38",
                     "Belge 1  1 kontrol  en düşük %61"]
-    assert [a.text() for a in menu.actions() if a.isSeparator()] == ["Zayıf örnekler"]
+    header = menu.actions()[0]  # the title the sketch shows at the top: shown, never chosen
+    assert header.text() == "Zayıf örnekler" and not header.isEnabled()
     menu.close()
 
 
@@ -103,7 +105,10 @@ def test_a_long_list_shows_eight_rows_then_scrolls(qtbot, screen):
     item = theme.manager().menu_item_height()
     assert menu.height() <= item * (sablon_weak.POPUP_ROWS + 1) + theme.manager().size("s2")
     assert menu.height() < item * 20  # 20 rows do not all fit: the rest scrolls
-    assert EvrakciStyle().styleHint(QStyle.StyleHint.SH_Menu_Scrollable)  # the app's menus scroll
+    hint = EvrakciStyle().styleHint
+    assert hint(QStyle.StyleHint.SH_Menu_Scrollable, None, menu)  # this list scrolls
+    assert not hint(QStyle.StyleHint.SH_Menu_Scrollable, None, QMenu())  # no other menu changes
+    assert not hint(QStyle.StyleHint.SH_Menu_Scrollable)
     menu.close()
 
 
@@ -117,23 +122,71 @@ def test_with_nothing_weak_the_list_says_so(qtbot, screen):
     assert screen.message.text() == "Zayıf örnek yok: hiçbir okuma kontrol gerektirmiyor."
 
 
-def test_the_commands_are_off_until_a_try_all_has_run(qtbot, screen):
-    registry = screen.window_.registry
+def test_the_keys_before_a_try_all_say_why_in_the_status_line(qtbot, screen):
+    window = screen.window_
+    registry = window.registry
     ids = ("sablonlar.sonraki_zayif", "sablonlar.onceki_zayif", "sablonlar.zayif_ornekler")
     for action_id in ids:
-        assert not registry.is_enabled(action_id)
+        assert registry.is_enabled(action_id)  # on, so the key answers instead of staying silent
         assert registry.action(action_id).toolTip().startswith(NEEDS_TRY)
-    screen.jump_weak(1)
-    assert screen.message.text() == NEEDS_TRY
+    window.focus_work_area()
+    presses = ((Qt.Key.Key_N, Qt.KeyboardModifier.NoModifier),
+               (Qt.Key.Key_N, Qt.KeyboardModifier.ShiftModifier),
+               (Qt.Key.Key_L, Qt.KeyboardModifier.ControlModifier))
+    for key, modifier in presses:
+        screen.message.setText("")
+        QTest.keyClick(QApplication.focusWidget(), key, modifier)
+        assert screen.message.text() == NEEDS_TRY, key
+    assert screen.example == 1
     _tried(screen, RESULTS)
     for action_id in ids:
         assert registry.is_enabled(action_id), action_id
+        assert not registry.action(action_id).toolTip().startswith(NEEDS_TRY)
+
+
+def _live_menus(screen):
+    return [m for m in screen.findChildren(QMenu) if m.objectName() == "zayifOrnekler"]
+
+
+def test_the_list_is_deleted_on_close_and_does_not_pile_up(qtbot, screen):
+    _tried(screen, RESULTS)
+    for _ in range(5):
+        screen.show_weak_list()
+        QTest.keyClick(screen._weak_menu, Qt.Key.Key_Escape)
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert _live_menus(screen) == []
+    screen.show_weak_list()
+    screen.show_weak_list()  # a second Ctrl+L replaces the open one
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert len(_live_menus(screen)) == 1
+    screen.close_weak_list()
+
+
+def test_the_open_list_closes_when_the_template_or_job_changes(qtbot, screen):
+    _tried(screen, RESULTS)
+    screen.show_weak_list()
+    menu = screen._weak_menu
+    assert menu.isVisible()
+    screen.open_template(screen.template.id)
+    assert not isValid(menu) or not menu.isVisible()
+    _tried(screen, RESULTS)
+    screen.show_weak_list()
+    menu = screen._weak_menu
+    screen.job_id = "another"
+    screen._refresh_examples()
+    assert not isValid(menu) or not menu.isVisible()
+    _tried(screen, RESULTS)
+    screen.show_weak_list()
+    menu = screen._weak_menu
+    screen.window_.tabs.setCurrentIndex(0)
+    assert not isValid(menu) or not menu.isVisible()
 
 
 def test_a_single_example_read_is_not_a_try_all(qtbot, screen):
     screen.example_values = {1: {"a": _weak(0.3)}}  # what a live read of one example leaves
     screen._sync_all()
-    assert not screen.window_.registry.is_enabled("sablonlar.sonraki_zayif")
+    tip = screen.window_.registry.action("sablonlar.sonraki_zayif").toolTip()
+    assert tip.startswith(NEEDS_TRY)  # still "not tried": the key answers with the status line
     assert screen.weak_examples() == []
 
 
@@ -142,7 +195,8 @@ def test_the_list_empties_when_the_template_or_job_changes(qtbot, screen):
     assert screen.weak_examples()
     screen.open_template(screen.template.id)
     assert screen.weak_examples() == []
-    assert not screen.window_.registry.is_enabled("sablonlar.zayif_ornekler")
+    assert screen.window_.registry.action("sablonlar.zayif_ornekler").toolTip().startswith(
+        NEEDS_TRY)
     _tried(screen, RESULTS)
     screen.job_id = "another"
     screen._refresh_examples()

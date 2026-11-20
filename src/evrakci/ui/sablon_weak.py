@@ -12,13 +12,16 @@ from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, QPoint, Qt
 from PySide6.QtWidgets import QMenu
+from shiboken6 import isValid
 
 from evrakci.pipeline.templates.read import ExampleWeakness, weakest_examples
 from evrakci.ui import actions, theme
 from evrakci.ui.chrome import make_icon
+from evrakci.ui.style import SCROLLING_MENU
 
 POPUP_ROWS = 8  # more rows than this scroll
 NEEDS_TRY = "Önce Ctrl+T ile örnekleri deneyin."
+TITLE = "Zayıf örnekler"
 NONE_WEAK = "Zayıf örnek yok: hiçbir okuma kontrol gerektirmiyor."
 ONLY_ONE = "Kontrol gereken tek belge bu."  # the wording Kontrol uses when N lands on itself
 
@@ -58,13 +61,20 @@ class WeakExamples:
         self._weak_click = _Click(self._status["check"], self.show_weak_list)
 
     def _sync_weak_actions(self, registry, usable: bool) -> None:
-        """Off (with the reason as the tip) until "Bütün örneklerde dene" has run."""
+        """On while a page is there: before a try-all the key still answers, with the status line
+        (never silent); the tip says why nothing happens yet."""
         for action_id in ("sablonlar.sonraki_zayif", "sablonlar.onceki_zayif",
                           "sablonlar.zayif_ornekler"):
-            ready = usable and self.tried_all
-            registry.set_enabled(action_id, ready)
+            registry.set_enabled(action_id, usable)
             tip = actions.tooltip_for(registry.spec(action_id))  # "Sonraki zayıf örnek (N)"
-            registry.action(action_id).setToolTip(tip if ready else f"{NEEDS_TRY} ({tip})")
+            registry.action(action_id).setToolTip(tip if self.tried_all else f"{NEEDS_TRY} ({tip})")
+
+    def close_weak_list(self) -> None:
+        """The list is about one template and one job: drop it when either changes."""
+        menu = getattr(self, "_weak_menu", None)
+        self._weak_menu = None
+        if menu is not None and isValid(menu):
+            menu.close()
 
     def jump_weak(self, step: int) -> None:
         """N / Shift+N: the next / previous example in weakest-first order (wraps round)."""
@@ -89,9 +99,12 @@ class WeakExamples:
             self.message.setText(NEEDS_TRY)
             return
         weak = self.weak_examples()
+        self.close_weak_list()
         menu = QMenu(self)
-        menu.setAccessibleName("Zayıf örnekler")
-        menu.addSection("Zayıf örnekler")
+        menu.setObjectName(SCROLLING_MENU)
+        menu.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        menu.setAccessibleName(TITLE)
+        menu.addAction(TITLE).setEnabled(False)  # the header: shown, never chosen
         if not weak:
             menu.addAction(NONE_WEAK).setEnabled(False)
         icon = make_icon("triangle-alert", "check-text", theme.manager().size("icon-sm"))

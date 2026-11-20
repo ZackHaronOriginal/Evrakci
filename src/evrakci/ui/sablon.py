@@ -411,6 +411,7 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
         self.section_index = None
         self.values, self.example_values = {}, {}
         self.tried_all = False
+        self.close_weak_list()
         self.pattern.setText(self.template.filename_pattern)
         self.message.setText("")
         self._show_variables()
@@ -641,6 +642,7 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
             self.job_id, self.example, self.page_number = job_id, 0, 1
             self.values, self.example_values = {}, {}
             self.tried_all = False
+            self.close_weak_list()
         self._docs = list(controller.documents()) if controller is not None else []
         self.examples.blockSignals(True)
         self.examples.clear()
@@ -1050,6 +1052,7 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
             self._toast("Şablon kaydedildi.", kind="success")
 
     def hideEvent(self, event) -> None:  # noqa: N802
+        self.close_weak_list()
         self.flush_save()
         super().hideEvent(event)
 

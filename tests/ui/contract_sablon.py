@@ -234,9 +234,7 @@ def _pre_weak(c: Ctx) -> None:
     s.read_example = lambda: None
 
     def undo() -> None:
-        weak = getattr(s, "_weak_menu", None)
-        if weak is not None and weak.isVisible():
-            weak.close()
+        s.close_weak_list()  # the list deletes itself on close
         _forget_try(c)
         s.set_example(1)
         if keep is None:
@@ -290,14 +288,16 @@ def _effect_weak_list(c: Ctx) -> None:
 def _feedback_weak_list(c: Ctx) -> None:
     menu = _s(c)._weak_menu
     assert menu.accessibleName() == "Zayıf örnekler"
-    assert any(a.isSeparator() and a.text() == "Zayıf örnekler" for a in menu.actions())
+    header = menu.actions()[0]
+    assert header.text() == "Zayıf örnekler" and not header.isEnabled()
 
 
 @helper("na.sablon_weak_off")
 def _na_weak_off(c: Ctx) -> None:
     action = c.win.registry.action(c.action_id)
-    assert not action.isEnabled(), "the key is on before a try-all"
+    assert action.isEnabled(), "the key is off before a try-all: it would be silent"
     assert action.toolTip().startswith(NEEDS_TRY), action.toolTip()
+    assert said(c.win, NEEDS_TRY), heard(c.win)
     assert _s(c).example == 1
 
 

@@ -592,3 +592,39 @@ def test_no_part_of_the_screen_flashes_up_as_its_own_window(qtbot, tmp_path):
     shown = [w for w in QApplication.topLevelWidgets()
              if isinstance(w, QWidget) and w.isVisible() and w is not window]
     assert shown == []
+
+
+def test_the_export_time_reaches_the_job_file_and_matches_the_index(qtbot, tmp_path):
+    from datetime import datetime
+
+    import openpyxl
+    from saving import wait_saved
+
+    screen, ctl, _t = _screen(qtbot, tmp_path)
+    store = ctl.store
+    out = tmp_path / "out"
+    screen.folder.setText(str(out))
+    screen.layer.setChecked(False)
+    depth = ctl.undo_stack.count()
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    wait_saved(ctl)
+    saved = store.load(ctl.job.id).last_export
+    assert saved is not None and saved == ctl.job.last_export
+    assert ctl.undo_stack.count() == depth  # not an edit the user undoes
+    summary = {r[0].value: r[1].value
+               for r in openpyxl.load_workbook(out / "index.xlsx")["Özet"].iter_rows()}
+    assert summary["Dışa aktarma zamanı"] == datetime.fromisoformat(saved.at).strftime(
+        "%d.%m.%Y %H:%M")
+
+
+def test_a_job_deleted_after_export_is_not_written_back(qtbot, tmp_path, monkeypatch):
+
+    from test_p4_disa_rehber import _full_export_window
+
+    window, screen, job = _full_export_window(qtbot, tmp_path, monkeypatch)
+    folder = window.store._job_dir(job.id)
+    screen.layer.setChecked(False)
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    assert window.controller() is None and not folder.exists()

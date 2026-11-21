@@ -294,6 +294,7 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
     finally:
         if with_layer:
             print(file=sys.stderr)
+    store.save(job)  # the export time (job.last_export) reaches the job file
     items, paths = result.items, result.paths
     notes = {path: _layer_note(pdfa, note) for path, (pdfa, note) in result.notes.items()}
     for path, item in zip(paths, items, strict=True):

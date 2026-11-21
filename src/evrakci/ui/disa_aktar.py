@@ -1069,11 +1069,19 @@ class DisaAktarScreen(QWidget):
         except SettingsError:
             retention = ""  # a broken settings file never deletes a job
         kept = "İş listede kalır; Yükle'den yeniden açabilirsiniz."
+        # The export time goes into the open job, then to the file through the saver; not an edit
+        # (no undo step). A job that is about to be deleted is not written (the failed delete
+        # path writes it again).
+        controller.job.last_export = job.last_export
         if retention == DELETE_AFTER_EXPORT and may_delete_after_export(result):
             if self._delete_in_worker(controller, job, result):
                 return  # the outcome is written when the delete is done
+            controller.save_now()
         elif retention == DELETE_AFTER_EXPORT and result.paths and not result.with_layer:
             kept = "İş saklandı: metin katmanı eklenmedi."
+            controller.save_now()
+        else:
+            controller.save_now()
         self._write_outcome(result, kept)
 
     def _delete_in_worker(self, controller, job, result) -> bool:

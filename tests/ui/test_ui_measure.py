@@ -38,8 +38,6 @@ def light_100(qapp):
     # reason in the full suite), so they run without it and it is restored afterwards.
     sheet, font, palette = qapp.styleSheet(), qapp.font(), qapp.palette()
     qapp.setStyleSheet("")
-    # the same holds for the palette (placeholder colour, B-092): start from the style's own
-    qapp.setPalette(qapp.style().standardPalette())
     yield qapp
     qapp.setStyleSheet(sheet)
     qapp.setFont(font)
@@ -92,14 +90,6 @@ def _results(qapp: QApplication, root: QWidget) -> dict[tuple[str, str], str]:
     ctx.window_checks = False
     rows = um.measure_tree(qapp, ctx, rules, "probe")
     return {(row[4], row[6]): row[9] for row in rows}
-
-
-def _row(qapp: QApplication, root: QWidget, widget: str, rule: str):
-    rules = um.load_rules()
-    ctx = um.make_ctx(root, "light", 100, (420, 160), rules)
-    ctx.window_checks = False
-    rows = um.measure_tree(qapp, ctx, rules, "probe")
-    return [r for r in rows if r[4] == widget and r[6] == rule]
 
 
 def test_broken_widget_is_flagged_on_all_four_defects(light_100):
@@ -185,6 +175,9 @@ def _extras(qapp: QApplication) -> QWidget:
     field = QLineEdit()
     field.setObjectName("probeField")
     field.setPlaceholderText("Ara")
+    # read-only: no blinking text cursor, which the pixel colour reading can take for the text
+    # colour when the grab catches it (B-092: failed in CI only, by the blink phase)
+    field.setReadOnly(True)
     ink = QPalette(field.palette())
     ink.setColor(QPalette.ColorRole.PlaceholderText, QColor("#707070"))  # about 5:1 on white
     field.setPalette(ink)
@@ -218,12 +211,7 @@ def test_stacked_page_pill_placeholder_and_caption_button(light_100):
     assert found[("probeBox", "DEC-LAY-02")] == "fail"
     assert found[("probePill", "DEC-LAY-03")] == "pass"  # radius = half the side
     assert found[("probeCorner", "DEC-LAY-03")] == "fail"  # 5 px on a 40 px box
-    # B-092: in the full CI run only this probe fails; the message names the measured value
-    assert found[("probeField", "DEC-CON-02")] == "pass", (  # placeholder: secondary tier, 4.5:1
-        _row(light_100, root, "probeField", "DEC-CON-02"),
-        light_100.palette().color(QPalette.ColorRole.PlaceholderText).name(),
-        light_100.palette().color(QPalette.ColorRole.Base).name(),
-        light_100.styleSheet()[:200])
+    assert found[("probeField", "DEC-CON-02")] == "pass"  # placeholder: secondary tier, 4.5:1
     assert ("probeField", "DEC-CON-01") not in found
     assert found[("probeGrey", "DEC-CON-01")] == "fail"  # same colour as body text: 7:1
     assert found[("probeCaption", "AUD-KBD-01")] == "skip"  # exempt: Alt+Space window menu

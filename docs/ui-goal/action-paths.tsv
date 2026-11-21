@@ -94,6 +94,8 @@ kontrol	Ctrl+Shift+P	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
 kontrol		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	ok
 kontrol	Ctrl+A	kontrol.tumunu_sec	Tümünü seç	Düzen > Tümünü seç	bar Diğer komutlar		yes	ok
 kontrol	Esc	kontrol.secimi_kaldir	Seçimi kaldır	Düzen > Seçimi kaldır	bar Diğer komutlar		yes	ok
+kontrol	B	kontrol.belgeyi_sec	Bu belgeyi seç	Düzen > Bu belgeyi seç	bar Diğer komutlar	page	yes	ok
+kontrol	Ctrl+Space	kontrol.sayfa_sec	Sayfayı seçime ekle / çıkar	Düzen > Sayfayı seçime ekle / çıkar	bar Diğer komutlar		no	ok
 kontrol	K	kontrol.kes	Burada kes	Düzen > Burada kes	bar	page	yes	ok
 kontrol	M	kontrol.birlestir	Önceki belgeyle birleştir	Düzen > Önceki belgeyle birleştir	bar | panel Diğer	page	yes	ok
 kontrol	R	kontrol.saga_dondur	Sağa döndür	Düzen > Sağa döndür	bar	page	yes	ok
@@ -101,6 +103,7 @@ kontrol	Shift+R	kontrol.sola_dondur	Sola döndür	Düzen > Sola döndür	bar Di�
 kontrol	Del	kontrol.sil	Sayfayı sil	Düzen > Sayfayı sil	bar	page	yes	ok
 kontrol	Return	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton | bar Diğer komutlar		yes	ok
 kontrol	Enter	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton | bar Diğer komutlar		yes	ok
+kontrol	S	kontrol.sec	Ölçüte göre seç…	Araçlar > Ölçüte göre seç	bar		yes	ok
 kontrol	F	kontrol.filtre	Filtre uygula…	Araçlar > Filtre uygula	ActionRow | bar	page	yes	ok
 kontrol	T	kontrol.sablon	Şablonu uygula	Araçlar > Şablonu uygula	ActionRow | bar		yes	ok
 kontrol	Shift+F	kontrol.filtre_kaldir	Filtreyi kaldır	Araçlar > Filtreyi kaldır	bar Diğer komutlar	page [state-dependent]	yes	ok
@@ -113,6 +116,8 @@ kontrol	Shift+N	kontrol.onceki_kontrol	Önceki kontrol	Git > Önceki kontrol	bar
 kontrol	U	kontrol.sonraki_incelenmemis	Sonraki incelenmemiş	Git > Sonraki incelenmemiş	bar | panel Diğer		yes	ok
 kontrol	Ctrl+Right	kontrol.sonraki_belge	Sonraki belge	Git > Sonraki belge	bar Diğer komutlar | panel Diğer		yes	ok
 kontrol	Ctrl+Left	kontrol.onceki_belge	Önceki belge	Git > Önceki belge	bar Diğer komutlar | panel Diğer		yes	ok
+kontrol	Alt+Right	kontrol.git_secimsiz	Seçimi bozmadan git	Git > Seçimi bozmadan git	bar Diğer komutlar		no	ok
+kontrol	Alt+Left	kontrol.git_secimsiz_sol	Seçimi bozmadan git	Git > Seçimi bozmadan git	bar Diğer komutlar		no	ok
 kontrol	Left	kontrol.sayfa	Önceki / sonraki sayfa				no	exempt:Left/Right arrows step through the page list; a click picks a page
 kontrol	Right	kontrol.sayfa	Önceki / sonraki sayfa				no	exempt:Left/Right arrows step through the page list; a click picks a page
 kontrol	Home	kontrol.ilk_son	İlk / son sayfa				no	exempt:Home/End jump inside the page list; the scroll bar and a click do it

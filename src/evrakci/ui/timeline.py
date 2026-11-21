@@ -31,6 +31,7 @@ from PySide6.QtCore import (
     QSize,
     Qt,
     QTimer,
+    Signal,
 )
 from PySide6.QtGui import QColor, QFontMetrics, QImage, QPainter, QPen, QRegion
 from PySide6.QtWidgets import (
@@ -432,7 +433,12 @@ class TimelineDelegate(QStyledItemDelegate):
 # -- view ---------------------------------------------------------------------------------------
 class TimelineView(QListView):
     """The working timeline: A's flow layout, page selection (click, Shift/Ctrl, rubber band),
-    arrow keys, Home/End and PgUp/PgDn; Ctrl+wheel zooms through the screen's ZoomController."""
+    arrow keys, Home/End and PgUp/PgDn; Ctrl+wheel zooms through the screen's ZoomController.
+    Ctrl+Space asks to toggle the current page (`toggle_requested`) and Alt+Left / Alt+Right to
+    move the focus ring one page without touching the selection (`focus_requested(-1 / +1)`)."""
+
+    toggle_requested = Signal()
+    focus_requested = Signal(int)
 
     def __init__(self, thumbnails: ThumbnailService | None = None, parent=None) -> None:
         self.zoom = 100
@@ -608,6 +614,18 @@ class TimelineView(QListView):
         elif bottom > bar.value() + height:
             bar.setValue(min(top, bottom - height))
         self.viewport().update()
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        key, mods = event.key(), event.modifiers()
+        if key == Qt.Key.Key_Space and mods == Qt.KeyboardModifier.ControlModifier:
+            event.accept()
+            self.toggle_requested.emit()
+            return
+        if mods == Qt.KeyboardModifier.AltModifier and key in (Qt.Key.Key_Left, Qt.Key.Key_Right):
+            event.accept()
+            self.focus_requested.emit(-1 if key == Qt.Key.Key_Left else 1)
+            return
+        super().keyPressEvent(event)
 
     def moveCursor(self, action, modifiers) -> QModelIndex:  # noqa: N802
         model = self.model()
@@ -806,6 +824,23 @@ class TimelineView(QListView):
         self.selectionModel().select(selection, flags.ClearAndSelect)
         if current is not None:
             self.selectionModel().setCurrentIndex(model.index(current, 0), flags.NoUpdate)
+
+    def select_row_set(self, rows) -> None:
+        """Select exactly these rows (one selection of merged ranges, one repaint); the current
+        page stays where it is."""
+        model = self.model()
+        selection = QItemSelection()
+        first = last = None
+        for row in sorted(set(rows)):
+            if first is not None and row == last + 1:
+                last = row
+                continue
+            if first is not None:
+                selection.select(model.index(first, 0), model.index(last, 0))
+            first = last = row
+        if first is not None:
+            selection.select(model.index(first, 0), model.index(last, 0))
+        self.selectionModel().select(selection, QItemSelectionModel.SelectionFlag.ClearAndSelect)
 
     # -- thumbnails ---------------------------------------------------------------------------
     def prefetch_rows(self) -> tuple[list[int], list[int]]:

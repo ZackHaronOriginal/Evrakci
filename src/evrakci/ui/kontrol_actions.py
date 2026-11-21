@@ -7,7 +7,8 @@ the current tab (`Registry.connect_tab`).
 
 `context_menu()` is A's page menu (final-a/kontrol.html): "3 sayfa seçili", Burada kes,
 Önceki belgeyle birleştir | Sağa / Sola döndür | Şablon uygula ›, Şablonu kaldır, Filtre uygula…,
-Filtreyi kaldır, Boş sayfayı geri getir (only with Boş sayfaları at on) | Önizle,
+Filtreyi kaldır, Boş sayfayı geri getir (only with Boş sayfaları at on) | Bu belgeyi seç,
+Ölçüte göre seç… | Önizle,
 Değerlerde aç | "3 sayfayı sil". Every item is the registry action, so it shows its key.
 
 `KontrolStatus` fills the window's Kontrol status slot as A draws it: Belge 16 / 96,
@@ -39,6 +40,9 @@ SCREEN_SLOTS: dict[str, tuple] = {
     "kontrol.sonraki_kontrol": ("jump_to_check", 1),
     "kontrol.onceki_kontrol": ("jump_to_check", -1),
     "kontrol.tumunu_sec": ("select_all",),
+    "kontrol.sec": ("select_by",), "kontrol.belgeyi_sec": ("select_document",),
+    "kontrol.sayfa_sec": ("toggle_current",), "kontrol.git_secimsiz": ("move_focus", 1),
+    "kontrol.git_secimsiz_sol": ("move_focus", -1),
     "kontrol.secimi_kaldir": ("escape",),
     "kontrol.onayla": ("approve_document",),
     "kontrol.degerlerde_ac": ("open_in_values",),
@@ -174,6 +178,9 @@ def context_menu(screen, action: Callable[[str], QAction], parent: QWidget) -> Q
     menu.addAction(_dimmed(screen, "kontrol.sablon_kaldir", menu, screen.can_remove_template()))
     menu.addAction(action("kontrol.filtre"))
     menu.addAction(_dimmed(screen, "kontrol.filtre_kaldir", menu, screen.can_remove_filter()))
+    menu.addSeparator()
+    menu.addAction(action("kontrol.belgeyi_sec"))
+    menu.addAction(_without_access_key(screen, action("kontrol.sec"), menu))  # S is Sayfayı sil
     if screen.can_show_restore_empty():
         menu.addAction(_dimmed(screen, "kontrol.bos_geri_getir", menu,
                                screen.can_restore_empty()))
@@ -185,6 +192,16 @@ def context_menu(screen, action: Callable[[str], QAction], parent: QWidget) -> Q
     menu.addAction(delete)
     mark_danger(menu, delete)  # A's red "3 sayfayı sil"
     return menu
+
+
+def _without_access_key(screen, source: QAction, parent: QWidget) -> QAction:
+    """A copy of the registry command whose label has no & (its letter belongs to another
+    item of the same menu)."""
+    item = QAction(source.text().replace("&", ""), parent)
+    item.setIcon(source.icon())
+    item.setToolTip(source.toolTip())
+    item.triggered.connect(lambda *_: screen.select_by())
+    return item
 
 
 def _dimmed(screen, action_id: str, parent: QWidget, enabled: bool) -> QAction:

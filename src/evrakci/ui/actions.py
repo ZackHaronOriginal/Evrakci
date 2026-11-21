@@ -232,6 +232,10 @@ SPECS: tuple[ActionSpec, ...] = (
        menu="duzen"),
     _a("kontrol.secimi_kaldir", "Seçimi &kaldır", "x", "Esc", ctx="kontrol", menu="duzen",
        tip="Seçimi kaldır ya da önizlemeyi kapat"),
+    _a("kontrol.belgeyi_sec", "Bu belgeyi seç", "list-checks", "B", ctx="kontrol",
+       menu="duzen", kw="belge tümü"),
+    _a("kontrol.sayfa_sec", "Sayfayı seçime ekle / çıka&r", None, "Ctrl+Space", ctx="kontrol",
+       local=True, menu="duzen", palette=False, kw="seçim ekle çıkar tek tek"),
     _a("kontrol.kes", "Burada k&es", "scissors", "K", ctx="kontrol", menu="duzen",
        tip="Burada kes / kesimi kaldır", kw="ayır böl kesim"),
     _a("kontrol.birlestir", "Önceki belgeyle &birleştir", "merge", "M", ctx="kontrol",
@@ -245,6 +249,8 @@ SPECS: tuple[ActionSpec, ...] = (
     _a("kontrol.onayla", "Belgeyi on&ayla", "circle-check", ("Return", "Enter"),
        ctx="kontrol", menu="duzen", tip="Belgeyi onayla ve sonrakine geç",
        kw="incelendi işaretle"),
+    _a("kontrol.sec", "Ölçüte göre &seç…", "list-checks", "S", ctx="kontrol", menu="araclar",
+       kw="tek çift belge ölçüt"),
     _a("kontrol.filtre", "&Filtre uygula…", "funnel", "F", ctx="kontrol", menu="araclar"),
     _a("kontrol.sablon", "Şablonu &uygula", "layout-template", "T", ctx="kontrol",
        menu="araclar"),
@@ -268,6 +274,10 @@ SPECS: tuple[ActionSpec, ...] = (
        ctx="kontrol", menu="git"),
     _a("kontrol.onceki_belge", "Önceki be&lge", "chevron-left", "Ctrl+Left", ctx="kontrol",
        menu="git"),
+    _a("kontrol.git_secimsiz", "Seçimi bo&zmadan git", None, "Alt+Right",
+       ctx="kontrol", local=True, menu="git", palette=False, kw="odak seçim"),
+    _a("kontrol.git_secimsiz_sol", "Seçimi bozmadan git", None, "Alt+Left",
+       ctx="kontrol", local=True, menu="git", palette=False, kw="odak seçim"),
     _a("kontrol.sayfa", "Önceki / sonraki sayfa", None, ("Left", "Right"), ctx="kontrol",
        local=True, palette=False),
     _a("kontrol.ilk_son", "İlk / son sayfa", None, ("Home", "End"), ctx="kontrol",
@@ -363,7 +373,8 @@ MENU_LAYOUT: dict[str, tuple[str | None, ...]] = {
               "rehber.yazdir", "rehber.pdf_ac", "disa_aktar.yazdir", SEPARATOR, "app.isi_kapat",
               "app.cikis"),
     "duzen": ("app.geri_al", "app.yinele", SEPARATOR, "kontrol.tumunu_sec",
-              "kontrol.secimi_kaldir", "degerler.tumunu_sec", SEPARATOR,
+              "kontrol.secimi_kaldir", "kontrol.belgeyi_sec", "kontrol.sayfa_sec",
+              "degerler.tumunu_sec", SEPARATOR,
               "kontrol.onayla", "kontrol.kes", "kontrol.birlestir", "kontrol.saga_dondur",
               "kontrol.sola_dondur", "kontrol.sil",
               "degerler.onayla", "degerler.secilenleri_onayla", "degerler.elle_yaz",
@@ -380,9 +391,10 @@ MENU_LAYOUT: dict[str, tuple[str | None, ...]] = {
             SEPARATOR, "app.git", SEPARATOR,
             "kontrol.sonraki_kontrol", "kontrol.onceki_kontrol",
             "kontrol.sonraki_incelenmemis", "kontrol.sonraki_belge", "kontrol.onceki_belge",
+            "kontrol.git_secimsiz", "kontrol.git_secimsiz_sol",
             "degerler.sonraki_kontrol", "degerler.onceki_kontrol",
             "sablonlar.sonraki_zayif", "sablonlar.onceki_zayif", "sablonlar.zayif_ornekler"),
-    "araclar": ("kontrol.filtre", "kontrol.filtre_kaldir", "kontrol.sablon",
+    "araclar": ("kontrol.sec", "kontrol.filtre", "kontrol.filtre_kaldir", "kontrol.sablon",
                 "kontrol.sablon_kaldir", "kontrol.bos_geri_getir", "kontrol.degerlerde_ac",
                 "sablonlar.kutu_ciz", "sablonlar.izgara", "sablonlar.dene",
                 "degerler.oku", "degerler.kontrolde_ac", "degerler.eksikleri_oku",
@@ -545,10 +557,11 @@ def _validate_menus(specs: tuple[ActionSpec, ...]) -> list[str]:
             letters = []
             for item in filter(None, items):
                 letter = access_key(by_id[item].text) if item in by_id else None
-                if letter is None or not ("A" <= letter <= "Z") or letter == "I":
+                if letter is not None and (not ("A" <= letter <= "Z") or letter == "I"):
                     errors.append(f"{tab} {plain_text(title)}: {item} needs an ASCII access "
                                   "key other than I")
-                letters.append(letter)
+                if letter is not None:  # an item with no free letter has none
+                    letters.append(letter)
             for letter in {x for x in letters if letters.count(x) > 1}:
                 errors.append(f"{tab} {plain_text(title)}: access key {letter} repeats")
     for title in MENUS.values():
@@ -581,7 +594,10 @@ class Registry(QObject):
         self._on_button = False
         self._character_keys = True
         for s in specs:
-            action = QAction(plain_text(s.text) if not s.menu else s.text, window)
+            text = plain_text(s.text) if not s.menu else s.text
+            if s.local and s.menu and s.shortcuts:  # the menu names its unbound key
+                text += "\t" + key_text(s.shortcuts[0])
+            action = QAction(text, window)
             action.setObjectName(s.id)
             action.setToolTip(tooltip_for(s))
             action.setCheckable(s.checkable)

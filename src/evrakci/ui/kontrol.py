@@ -29,6 +29,7 @@ from PySide6.QtWidgets import QMenu, QSplitter, QVBoxLayout, QWidget
 
 from evrakci.pipeline.cuts import template_by_page
 from evrakci.pipeline.export import plan_export
+from evrakci.pipeline.select import Criterion, combine, evaluate
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
 from evrakci.ui.controller import JobController
@@ -40,7 +41,7 @@ from evrakci.ui.kontrol_actions import (
     fallback_action,
     label_delete,
 )
-from evrakci.ui.kontrol_dialogs import FilterDialog, GoToDialog
+from evrakci.ui.kontrol_dialogs import FilterDialog, GoToDialog, SelectDialog
 from evrakci.ui.kontrol_inspector import Change, DocumentInfo, Inspector, SelectionInfo
 from evrakci.ui.kontrol_overview import OverviewStrip
 from evrakci.ui.kontrol_paint import CUT_ICONS, CUT_WORDS
@@ -115,6 +116,8 @@ class KontrolScreen(QWidget):
         self.timeline.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.timeline.customContextMenuRequested.connect(self._context_menu)
         self.timeline.doubleClicked.connect(lambda index: self.open_loupe(index.row()))
+        self.timeline.toggle_requested.connect(self.toggle_current)
+        self.timeline.focus_requested.connect(self.move_focus)
         area.addWidget(self.timeline)
         column.addWidget(self.work_area, 1)
         self.side = Inspector(self._fill_more)
@@ -602,6 +605,83 @@ class KontrolScreen(QWidget):
 
     def select_all(self) -> None:
         self.timeline.selectAll()
+
+    # -- selecting ----------------------------------------------------------------------------
+    def _chosen_ids(self) -> list[str]:
+        """The pages drawn selected (not the current page that commands act on when none is)."""
+        rows = sorted(i.row() for i in self.timeline.selectionModel().selectedIndexes())
+        return [self.model.page_id(r) for r in rows]
+
+    def _select_ids(self, ids) -> None:
+        rows = [self.model.row_of(pid) for pid in ids]
+        self.timeline.select_row_set(rows)
+        self.timeline.setFocus()
+
+    def _page_order(self) -> list[str]:
+        return [self.model.page_id(r) for r in range(self.model.rowCount())]
+
+    def select_by(self, kind: str = "belge") -> None:
+        """S, Ölçüte göre seç…: the dialog; Seç only changes the selection (no undo step)."""
+        chosen = self._chosen_ids()
+        dialog = SelectDialog(self.controller.job, self.current_document(), chosen, kind, self)
+        if not dialog.exec():
+            self.timeline.setFocus()
+            return
+        self.select_matching(dialog.criterion(), dialog.mode())
+
+    def select_matching(self, criterion: Criterion, mode: str = "replace") -> int:
+        """Select the pages that meet `criterion`, joined with the selection by `mode`
+        (replace, add, within). Returns how many pages are selected now."""
+        chosen = self._chosen_ids()
+        match = evaluate(self.controller.job, criterion, templates=self.templates(),
+                         selection=chosen)
+        ids = combine(chosen, match, mode, order=self._page_order())
+        if not match.page_ids or not ids:
+            self.controller.status.emit("Eşleşen sayfa yok.")
+            self.timeline.setFocus()
+            return 0
+        self._select_ids(ids)
+        self._toast(f"{len(ids)} sayfa seçildi.", undo=False)
+        return len(ids)
+
+    def select_document(self) -> None:
+        """B, Bu belgeyi seç: every page of the current document."""
+        if self.current_row() < 0:
+            self.controller.status.emit("Önce bir sayfa seçin.")
+            return
+        number = self.current_document()
+        match = evaluate(self.controller.job, Criterion("belge", {"number": number})) \
+            if number else None
+        if match is None or not match.page_ids:
+            self.controller.status.emit("Bu belgede seçilecek sayfa yok.")
+            return
+        self._select_ids(match.page_ids)
+        self._toast(f"{match.count()} sayfa seçildi.", undo=False)
+
+    def toggle_current(self) -> None:
+        """Ctrl+Space: add the current page to the selection, or take it out; the others stay."""
+        index = self.timeline.currentIndex()
+        if not index.isValid():
+            self.controller.status.emit("Önce bir sayfa seçin.")
+            return
+        self.timeline.selectionModel().select(
+            index, QItemSelectionModel.SelectionFlag.Toggle)
+
+    def move_focus(self, step: int) -> None:
+        """Alt+Left / Alt+Right: the focus ring moves one page, the selection stays."""
+        index = self.timeline.currentIndex()
+        if not index.isValid():
+            self.controller.status.emit("Önce bir sayfa seçin.")
+            return
+        row = max(0, min(self.model.rowCount() - 1, index.row() + step))
+        if row == index.row():
+            return
+        target = self.model.index(row)
+        self.timeline.selectionModel().setCurrentIndex(
+            target, QItemSelectionModel.SelectionFlag.NoUpdate)
+        self.timeline.scrollTo(target, TimelineView.ScrollHint.EnsureVisible)
+        if self._loupe is not None and self._loupe.is_open():
+            self._loupe.set_index(row)
 
     def escape(self) -> None:
         """Esc: close the loupe if it is open, else clear the selection."""

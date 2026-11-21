@@ -2,7 +2,7 @@ import pytest
 from fakes import make_pdf, qr_page, text_page
 
 from evrakci.pipeline.analyze import BatchError
-from evrakci.pipeline.store import JobFileError, JobStore
+from evrakci.pipeline.store import BUSY_TRIES, JobFileError, JobStore
 
 
 def test_create_save_load(tmp_path):
@@ -192,7 +192,7 @@ def test_save_retries_a_replace_that_a_reader_blocks(tmp_path, monkeypatch):
     assert store.load(job.id).name == "yeni ad"
 
 
-def test_save_gives_up_after_three_blocked_replaces(tmp_path, monkeypatch):
+def test_save_gives_up_after_busy_tries_blocked_replaces(tmp_path, monkeypatch):
     store = JobStore(tmp_path / "jobs")
     src = make_pdf(tmp_path / "t.pdf", [text_page()])
     job = store.create_job("x", [src])
@@ -206,7 +206,7 @@ def test_save_gives_up_after_three_blocked_replaces(tmp_path, monkeypatch):
     monkeypatch.setattr("evrakci.pipeline.store.time.sleep", lambda _s: None)
     with pytest.raises(PermissionError):
         store.save(job)
-    assert len(calls) == 3
+    assert len(calls) == BUSY_TRIES == 8
 
 
 def test_load_retries_a_read_that_a_replace_blocks(tmp_path, monkeypatch):
@@ -229,7 +229,7 @@ def test_load_retries_a_read_that_a_replace_blocks(tmp_path, monkeypatch):
     assert len(calls) == 3 and sleeps == pytest.approx([0.05, 0.1])
 
 
-def test_load_gives_up_after_three_blocked_reads(tmp_path, monkeypatch):
+def test_load_gives_up_after_busy_tries_blocked_reads(tmp_path, monkeypatch):
     from pathlib import Path
 
     store = JobStore(tmp_path / "jobs")
@@ -246,4 +246,4 @@ def test_load_gives_up_after_three_blocked_reads(tmp_path, monkeypatch):
     with pytest.raises(JobFileError) as info:
         store.load(job.id)
     assert isinstance(info.value.__cause__, PermissionError)
-    assert len(calls) == 3
+    assert len(calls) == BUSY_TRIES == 8

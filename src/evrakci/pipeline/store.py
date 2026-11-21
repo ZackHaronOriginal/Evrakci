@@ -39,6 +39,10 @@ class PreparedBatch:
     pages: list[PageInfo]
 
 
+# A file another program holds (Windows: antivirus, indexer, a second reader) is tried again
+# this many times, pausing 0.05 s, 0.1 s, ... in between (about 1.4 s in all).
+BUSY_TRIES = 8
+
 class JobStore:
     def __init__(self, root: Path) -> None:
         self.root = Path(root)
@@ -139,12 +143,12 @@ class JobStore:
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_suffix(".json.tmp")
         temporary.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
-        for attempt in (1, 2, 3):  # on Windows a reader (antivirus, indexer) can hold the file
-            try:
+        for attempt in range(1, BUSY_TRIES + 1):  # on Windows a reader (antivirus, indexer)
+            try:                                  # can hold the file for a moment
                 os.replace(temporary, target)
                 return
             except PermissionError:
-                if attempt == 3:
+                if attempt == BUSY_TRIES:
                     raise
                 time.sleep(0.05 * attempt)
 
@@ -152,11 +156,11 @@ class JobStore:
     def _read_text(path: Path) -> str:
         """Read a job file; on Windows a read that meets the saver's os.replace gets
         PermissionError for a moment, so it is tried again (as `save_dict` does)."""
-        for attempt in (1, 2, 3):
+        for attempt in range(1, BUSY_TRIES + 1):
             try:
                 return path.read_text(encoding="utf-8")
             except PermissionError:
-                if attempt == 3:
+                if attempt == BUSY_TRIES:
                     raise
                 time.sleep(0.05 * attempt)
         raise AssertionError("unreachable")

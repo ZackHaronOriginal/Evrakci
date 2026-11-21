@@ -84,6 +84,7 @@ def write_index(items: Sequence[ExportItem], job: Job, path: Path,
             if item.checks:
                 cell.fill = _CHECK_FILL
 
+    _write_check_sheet(book, items, job)
     _write_summary(book, items, job, exported_at or datetime.now())
 
     for column in range(1, len(_FIXED) + len(variables) + 1):
@@ -101,6 +102,31 @@ def write_index(items: Sequence[ExportItem], job: Job, path: Path,
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     book.save(path)
+
+
+def _write_check_sheet(book: Workbook, items: Sequence[ExportItem], job: Job) -> None:
+    """Problems only: the same flagged items, in order, as the "Kontrol gerekli" column."""
+    sheet = book.create_sheet("Kontrol gerekenler")
+    titles = ["Belge no", "Dosya", "Kaynak sayfalar", "Kontrol nedenleri"]
+    for column, title in enumerate(titles, start=1):
+        cell = sheet.cell(row=1, column=column)
+        _set_text(cell, title)
+        cell.font = Font(bold=True)
+    sheet.freeze_panes = "A2"
+    flagged = [item for item in items if item.checks]
+    if not flagged:
+        _set_text(sheet.cell(row=2, column=1), "Kontrol gerektiren belge yok.")
+    for row, item in enumerate(flagged, start=2):
+        positions = ", ".join(str(job.position_of(pid)) for pid in item.document.page_ids)
+        texts = [str(item.number), f"{item.name}.pdf", positions, "\n".join(item.checks)]
+        for column, text in enumerate(texts, start=1):
+            cell = sheet.cell(row=row, column=column)
+            _set_text(cell, text)
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            cell.fill = _CHECK_FILL
+    widths = [10, 24, 18, 50]
+    for column, width in enumerate(widths, start=1):
+        sheet.column_dimensions[get_column_letter(column)].width = width
 
 
 def _write_summary(book: Workbook, items: Sequence[ExportItem], job: Job,

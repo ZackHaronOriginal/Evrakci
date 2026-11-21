@@ -1238,9 +1238,10 @@ class DisaAktarScreen(QWidget):
 
         rows = self.model._all
         head = "".join(f"<th align='left'>{escape(t)}</th>"
-                       for t in ("Durum", "Dosya adı", "Sayfalar", "Şablon", "Not"))
+                       for t in ("Durum", "No", "Dosya adı", "Sayfalar", "Şablon", "Not"))
         body = "".join(
-            f"<tr><td>{escape(self.model.word(r))}</td><td>{escape(r.name)}</td>"
+            f"<tr><td>{escape(self.model.word(r))}</td><td align='right'>{r.number}</td>"
+            f"<td>{escape(r.name)}</td>"
             f"<td align='right'>{escape(r.pages)}</td><td>{escape(r.template or 'Şablon yok')}"
             f"</td><td>{escape(r.why)}</td></tr>" for r in rows)
         return (f"<h2>{escape(self._job_name or 'Dışa aktarma')}</h2>"

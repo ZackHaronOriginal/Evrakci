@@ -230,8 +230,8 @@ def test_cli_export_with_template_names(tmp_path, capsys):
     import openpyxl
 
     sheet = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")["Belgeler"]
-    assert sheet.cell(row=2, column=1).value == "Örnek Şirketi.pdf"
-    assert sheet.cell(row=2, column=8).value == "Örnek Şirketi"
+    assert sheet.cell(row=2, column=2).value == "Örnek Şirketi.pdf"
+    assert sheet.cell(row=2, column=9).value == "Örnek Şirketi"
 
 
 def test_remove_filter_range_and_errors(tmp_path, capsys):

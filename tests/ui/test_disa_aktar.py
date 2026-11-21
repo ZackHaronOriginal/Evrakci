@@ -394,6 +394,8 @@ def test_copy_names_and_the_printable_index(qtbot, tmp_path):
     assert QGuiApplication.clipboard().text() == screen.results.model().row_at(0).name
     html = screen.index_html()
     assert "Kasım 2026" in html and "belge_002.pdf" in html and "Kontrol" in html
+    assert "<th align='left'>No</th>" in html
+    assert "<td align='right'>2</td><td>belge_002.pdf</td>" in html
     printer = QPrinter()
     printer.setOutputFileName(str(tmp_path / "dizin.pdf"))
     screen.print_index(printer)

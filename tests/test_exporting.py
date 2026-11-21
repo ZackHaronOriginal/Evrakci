@@ -85,5 +85,22 @@ def test_pdfa_failure_is_a_note_not_a_check(tmp_path):
     assert result.needing_check == 0
     assert may_delete_after_export(result)
     sheet = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")["Belgeler"]
-    assert [row[4].value for row in sheet.iter_rows(min_row=2)] == ["hayır", "hayır"]
     assert [row[5].value for row in sheet.iter_rows(min_row=2)] == ["hayır", "hayır"]
+    assert [row[6].value for row in sheet.iter_rows(min_row=2)] == ["hayır", "hayır"]
+
+
+def test_one_time_goes_to_the_sheet_and_the_job(tmp_path):
+    from datetime import datetime
+
+    store, job = _job(tmp_path)
+    result = export_job(job, store.batch_files(job), {}, tmp_path / "out", with_layer=False)
+    assert job.last_export is not None
+    assert job.last_export.documents == len(result.items)
+    assert job.last_export.needing_check == result.needing_check
+    assert job.last_export.folder == str(tmp_path / "out")
+    moment = datetime.fromisoformat(job.last_export.at)
+    book = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")
+    summary = {r[0].value: r[1].value for r in book["Özet"].iter_rows()}
+    assert summary["Dışa aktarma zamanı"] == moment.strftime("%d.%m.%Y %H:%M")
+    assert summary["İş adı"] == "İş"
+    assert summary["Belge sayısı"] == str(len(result.items))

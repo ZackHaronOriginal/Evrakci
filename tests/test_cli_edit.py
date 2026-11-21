@@ -230,8 +230,8 @@ def test_cli_export_with_template_names(tmp_path, capsys):
     import openpyxl
 
     sheet = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")["Belgeler"]
-    assert sheet.cell(row=2, column=1).value == "Örnek Şirketi.pdf"
-    assert sheet.cell(row=2, column=8).value == "Örnek Şirketi"
+    assert sheet.cell(row=2, column=2).value == "Örnek Şirketi.pdf"
+    assert sheet.cell(row=2, column=9).value == "Örnek Şirketi"
 
 
 def test_remove_filter_range_and_errors(tmp_path, capsys):
@@ -247,3 +247,14 @@ def test_remove_filter_range_and_errors(tmp_path, capsys):
     assert "1. belge: sayfa 1, 2, 3, 4" in capsys.readouterr().out
     assert run("is", "filtre-kaldir", job_id, "9-9") == 2
     assert run("is", "filtre-kaldir", job_id, "abc") == 2
+
+
+def test_export_stores_the_export_time_in_the_job_file(tmp_path, capsys):
+    from evrakci.pipeline.store import JobStore
+
+    run, job_id = setup_job(tmp_path, capsys, [text_page()] * 2)
+    assert JobStore(tmp_path / "kok").load(job_id).last_export is None
+    assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out"),
+               "--metin-katmani-yok") == 0
+    last = JobStore(tmp_path / "kok").load(job_id).last_export
+    assert last is not None and last.documents >= 1 and last.folder == str(tmp_path / "out")

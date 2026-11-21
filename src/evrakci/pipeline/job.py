@@ -56,6 +56,16 @@ class ValueSource:
     revision: str = ""  # template_revision() when read; "" for jobs saved before it existed
 
 
+@dataclass(frozen=True)
+class LastExport:
+    """The last export of the job (additive field: format stays 2, old files read as None)."""
+
+    at: str  # ISO text, local time
+    folder: str
+    documents: int
+    needing_check: int
+
+
 @dataclass
 class Job:
     id: str
@@ -74,6 +84,7 @@ class Job:
     values: dict[str, dict[str, VariableValue]] = field(default_factory=dict)
     read_errors: dict[str, str] = field(default_factory=dict)
     value_sources: dict[str, ValueSource] = field(default_factory=dict)
+    last_export: LastExport | None = None
 
     def ordered_page_ids(self) -> list[str]:
         return [
@@ -200,6 +211,15 @@ class Job:
 
 
 def job_to_dict(job: Job) -> dict:
+    data = _job_dict(job)
+    if job.last_export is not None:  # absent when never exported: the file stays as before
+        last = job.last_export
+        data["last_export"] = {"at": last.at, "folder": last.folder,
+                               "documents": last.documents, "needing_check": last.needing_check}
+    return data
+
+
+def _job_dict(job: Job) -> dict:
     return {
         "version": JOB_FORMAT_VERSION,
         "id": job.id,
@@ -296,4 +316,15 @@ def job_from_dict(data: dict) -> Job:
             pid: ValueSource(tuple(s["page_ids"]), s["template_id"], s.get("revision", ""))
             for pid, s in data.get("value_sources", {}).items()
         },
+        last_export=_last_export_from_dict(data.get("last_export")),
     )
+
+
+def _last_export_from_dict(data) -> LastExport | None:
+    if not isinstance(data, dict):
+        return None
+    try:
+        return LastExport(str(data["at"]), str(data["folder"]), int(data["documents"]),
+                          int(data["needing_check"]))
+    except (KeyError, TypeError, ValueError):
+        return None  # a damaged field never stops the job from opening

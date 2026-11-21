@@ -1,0 +1,11 @@
+# commit 876cd37; command: QT_QPA_PLATFORM=offscreen python tools/ui_measure.py; rows=27615 pass=26984 fail=220 skip=411; run 2 identical (cmp): yes; compare with measure-before.tsv (d8c0538: 234 fails)
+
+rule          before  after
+AUD-A11Y-01       18     18
+AUD-HIT-01        24     24
+AUD-HIT-02       120    120
+AUD-WIN-02        12     12
+DEC-CON-01        16     16
+DEC-CON-02        14      0
+DEC-FOC-01        18     18
+HIG-CTL-06        12     12

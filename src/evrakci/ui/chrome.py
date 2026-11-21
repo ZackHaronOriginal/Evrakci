@@ -401,6 +401,16 @@ def card(margins: int | None = None) -> QFrame:
     return frame
 
 
+def press_on_enter(button: QAbstractButton, event) -> bool:
+    """Enter presses a focused button like Space does (the window unbinds Enter while a button
+    has focus, so the button takes it: F-yukle-15). True when the key was used."""
+    if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not event.isAutoRepeat():
+        button.click()
+        event.accept()
+        return True
+    return False
+
+
 class RecentJobRow(QPushButton):
     """A .recent .act .r (Yükle and Kontrol empty pages): folder icon, the job's name
     (elided with its full name in the tooltip) and "640 sayfa, dün" at the right."""
@@ -437,6 +447,10 @@ class RecentJobRow(QPushButton):
         hint = self.layout().sizeHint()
         return QSize(hint.width(), max(hint.height(), theme.manager().size("row-h")))
 
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if not press_on_enter(self, event):
+            super().keyPressEvent(event)
+
 
 class ActionButton(QToolButton):
     """A command-bar button that mirrors a QAction (enabled, visible, checked, tooltip)."""
@@ -464,6 +478,15 @@ class ActionButton(QToolButton):
 
     def labelled(self) -> bool:
         return self.toolButtonStyle() != Qt.ToolButtonStyle.ToolButtonIconOnly
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if not press_on_enter(self, event):
+            super().keyPressEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
+        # the second click of a double click would act on what the screen shows next: "Partiyi
+        # çıkar" would take out the neighbour the user has not looked at (F-yukle-14)
+        event.accept()
 
     def label_font(self) -> QFont:
         """A's .cmd label: body size at weight 500 (measured and painted with this font)."""

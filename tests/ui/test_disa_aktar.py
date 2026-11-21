@@ -71,7 +71,8 @@ def _window(qtbot, tmp_path):
                         prefs=Prefs(tmp_path / "p.ini"))
     qtbot.addWidget(window)
     window.show()
-    window.yukle.open_job(store.load(ctl.job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(ctl.job.id))
     window.show_tab("disa_aktar")
     return window, window.disa_aktar
 
@@ -393,6 +394,8 @@ def test_copy_names_and_the_printable_index(qtbot, tmp_path):
     assert QGuiApplication.clipboard().text() == screen.results.model().row_at(0).name
     html = screen.index_html()
     assert "Kasım 2026" in html and "belge_002.pdf" in html and "Kontrol" in html
+    assert "<th align='left'>No</th>" in html
+    assert "<td align='right'>2</td><td>belge_002.pdf</td>" in html
     printer = QPrinter()
     printer.setOutputFileName(str(tmp_path / "dizin.pdf"))
     screen.print_index(printer)
@@ -533,7 +536,8 @@ def test_the_default_export_folder_of_ayarlar_is_offered(qtbot, tmp_path):
     window = MainWindow(store, templates, settings_path=tmp_path / "ayar.json", prefs=prefs)
     qtbot.addWidget(window)
     window.show()
-    window.yukle.open_job(store.load(ctl.job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(ctl.job.id))
     window.show_tab("disa_aktar")
     assert window.disa_aktar.folder.text() == str(tmp_path / "varsayilan")
     window.disa_aktar.folder.setText(str(tmp_path / "ben"))
@@ -588,3 +592,59 @@ def test_no_part_of_the_screen_flashes_up_as_its_own_window(qtbot, tmp_path):
     shown = [w for w in QApplication.topLevelWidgets()
              if isinstance(w, QWidget) and w.isVisible() and w is not window]
     assert shown == []
+
+
+def test_the_export_time_reaches_the_job_file_and_matches_the_index(qtbot, tmp_path):
+    from datetime import datetime
+
+    import openpyxl
+    from saving import wait_saved
+
+    screen, ctl, _t = _screen(qtbot, tmp_path)
+    store = ctl.store
+    out = tmp_path / "out"
+    screen.folder.setText(str(out))
+    screen.layer.setChecked(False)
+    depth = ctl.undo_stack.count()
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    wait_saved(ctl)
+    saved = store.load(ctl.job.id).last_export
+    assert saved is not None and saved == ctl.job.last_export
+    assert ctl.undo_stack.count() == depth  # not an edit the user undoes
+    summary = {r[0].value: r[1].value
+               for r in openpyxl.load_workbook(out / "index.xlsx")["Özet"].iter_rows()}
+    assert summary["Dışa aktarma zamanı"] == datetime.fromisoformat(saved.at).strftime(
+        "%d.%m.%Y %H:%M")
+
+
+def test_a_job_deleted_after_export_is_not_written_back(qtbot, tmp_path, monkeypatch):
+
+    from test_p4_disa_rehber import _full_export_window
+
+    window, screen, job = _full_export_window(qtbot, tmp_path, monkeypatch)
+    folder = window.store._job_dir(job.id)
+    screen.layer.setChecked(False)
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    assert window.controller() is None and not folder.exists()
+
+
+def test_list_kontrol_count_equals_the_check_sheet_rows(qtbot, tmp_path, monkeypatch):
+    import openpyxl
+
+    monkeypatch.setattr(module, "open_path", lambda path: None)
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    out = tmp_path / "out"
+    screen.folder.setText(str(out))
+    screen.layer.setChecked(False)
+    model = screen.results.model()
+    in_list = [model.row_at(i).name for i in range(model.rowCount())
+               if model.row_at(i).state == "kontrol"]
+    assert in_list
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    sheet = openpyxl.load_workbook(out / "index.xlsx")["Kontrol gerekenler"]
+    rows = [r[1].value for r in sheet.iter_rows(min_row=2)]
+    assert len(rows) == len(in_list)
+    assert [n.removesuffix(".pdf") for n in rows] == [n.removesuffix(".pdf") for n in in_list]

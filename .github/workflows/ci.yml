@@ -27,3 +27,18 @@ jobs:
         run: evrakci ocr-modelleri-indir
       - run: ruff check .
       - run: pytest -q
+      - name: Shortcut audit (registry rules, tests per key, page-specific notes)
+        run: python .claude/skills/shortcut-audit/audit_shortcuts.py --check
+      - name: Shortcut contract (docs/ui-goal/shortcut-contract.tsv matches the registry)
+        run: python .claude/skills/shortcut-audit/audit_shortcuts.py --contract docs/ui-goal/shortcut-contract.tsv
+      - name: Action paths (every action reachable by mouse, docs/ui-goal/action-paths.tsv is current)
+        run: python .claude/skills/shortcut-audit/audit_shortcuts.py --paths --check
+      - name: UI measure (rules in docs/ui-goal/rules.json; fails only for rules marked enforced)
+        run: python tools/ui_measure.py --out ui-measure.tsv --enforce
+      - name: Upload the UI measurements
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ui-measure
+          path: ui-measure.tsv
+          if-no-files-found: ignore

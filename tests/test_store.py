@@ -2,7 +2,7 @@ import pytest
 from fakes import make_pdf, qr_page, text_page
 
 from evrakci.pipeline.analyze import BatchError
-from evrakci.pipeline.store import JobFileError, JobStore
+from evrakci.pipeline.store import BUSY_TRIES, JobFileError, JobStore
 
 
 def test_create_save_load(tmp_path):
@@ -124,3 +124,126 @@ def test_prepare_batch_reports_progress_per_page(tmp_path):
     store.prepare_batch(job, make_pdf(tmp_path / "b.pdf", [text_page(), text_page()]),
                         lambda done, total: seen.append((done, total)))
     assert seen == [(1, 2), (2, 2)]
+
+
+def test_save_dict_writes_the_same_file_as_save_and_leaves_no_temporary(tmp_path):
+    from evrakci.pipeline.job import job_to_dict
+
+    src = make_pdf(tmp_path / "t.pdf", [text_page(), qr_page(), text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("Anlık", [src])
+    job.manual_cuts.add("b1/2")
+    store.save(job)
+    by_save = store._job_file(job.id).read_bytes()
+    snapshot = job_to_dict(job)
+    job.manual_cuts.clear()  # the snapshot is plain data: later edits do not reach it
+    store.save_dict(job.id, snapshot)
+    assert store._job_file(job.id).read_bytes() == by_save
+    assert store.load(job.id).manual_cuts == {"b1/2"}
+    assert not list(store._job_dir(job.id).glob("*.tmp"))
+
+
+def test_save_dict_refuses_an_id_that_is_not_a_folder_name(tmp_path):
+    store = JobStore(tmp_path / "jobs")
+    with pytest.raises(KeyError):
+        store.save_dict("../kacak", {"id": "x"})
+    assert not (tmp_path / "kacak").exists()
+
+
+def test_save_dict_that_fails_keeps_the_old_file(tmp_path, monkeypatch):
+    import os
+
+    from evrakci.pipeline.job import job_to_dict
+
+    src = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("Eski", [src])
+    before = store._job_file(job.id).read_bytes()
+
+    def broken(*_args):
+        raise OSError("yazılamadı")
+
+    monkeypatch.setattr(os, "replace", broken)
+    with pytest.raises(OSError):
+        store.save_dict(job.id, {**job_to_dict(job), "name": "Yeni"})
+    assert store._job_file(job.id).read_bytes() == before
+
+
+def test_save_retries_a_replace_that_a_reader_blocks(tmp_path, monkeypatch):
+    import os
+
+    store = JobStore(tmp_path / "jobs")
+    src = make_pdf(tmp_path / "t.pdf", [text_page()])
+    job = store.create_job("x", [src])
+    job.name = "yeni ad"
+    real, sleeps, calls = os.replace, [], []
+
+    def replace(source, target):
+        calls.append(1)
+        if len(calls) <= 2:
+            raise PermissionError("kullanımda")
+        return real(source, target)
+
+    monkeypatch.setattr("evrakci.pipeline.store.os.replace", replace)
+    monkeypatch.setattr("evrakci.pipeline.store.time.sleep", sleeps.append)
+    store.save(job)
+    assert len(calls) == 3 and sleeps == pytest.approx([0.05, 0.1])
+    monkeypatch.undo()
+    assert store.load(job.id).name == "yeni ad"
+
+
+def test_save_gives_up_after_busy_tries_blocked_replaces(tmp_path, monkeypatch):
+    store = JobStore(tmp_path / "jobs")
+    src = make_pdf(tmp_path / "t.pdf", [text_page()])
+    job = store.create_job("x", [src])
+    calls = []
+
+    def replace(source, target):
+        calls.append(1)
+        raise PermissionError("kullanımda")
+
+    monkeypatch.setattr("evrakci.pipeline.store.os.replace", replace)
+    monkeypatch.setattr("evrakci.pipeline.store.time.sleep", lambda _s: None)
+    with pytest.raises(PermissionError):
+        store.save(job)
+    assert len(calls) == BUSY_TRIES == 8
+
+
+def test_load_retries_a_read_that_a_replace_blocks(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    store = JobStore(tmp_path / "jobs")
+    src = make_pdf(tmp_path / "t.pdf", [text_page()])
+    job = store.create_job("x", [src])
+    real, sleeps, calls = Path.read_text, [], []
+
+    def read_text(self, *args, **kwargs):
+        calls.append(1)
+        if len(calls) <= 2:
+            raise PermissionError("Permission denied")
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    monkeypatch.setattr("evrakci.pipeline.store.time.sleep", sleeps.append)
+    assert store.load(job.id).name == "x"
+    assert len(calls) == 3 and sleeps == pytest.approx([0.05, 0.1])
+
+
+def test_load_gives_up_after_busy_tries_blocked_reads(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    store = JobStore(tmp_path / "jobs")
+    src = make_pdf(tmp_path / "t.pdf", [text_page()])
+    job = store.create_job("x", [src])
+    calls = []
+
+    def read_text(self, *args, **kwargs):
+        calls.append(1)
+        raise PermissionError("Permission denied")
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+    monkeypatch.setattr("evrakci.pipeline.store.time.sleep", lambda _s: None)
+    with pytest.raises(JobFileError) as info:
+        store.load(job.id)
+    assert isinstance(info.value.__cause__, PermissionError)
+    assert len(calls) == BUSY_TRIES == 8

@@ -43,11 +43,12 @@ from evrakci.pipeline.templates.model import (
     template_revision,
     template_to_dict,
 )
+from evrakci.pipeline.templates.read import flagged_count
 from evrakci.pipeline.templates.store import TemplateStore
-from evrakci.ui import sablon_read as reading
 from evrakci.ui import theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.controller import JobController
+from evrakci.ui.feedback import undo_last
 from evrakci.ui.sablon_canvas import CANVAS_DPI, BoxSpec, PageCanvas, pixels_to_mm
 from evrakci.ui.sablon_empty import EmptyState
 from evrakci.ui.sablon_inspector import InspectorPanel
@@ -56,6 +57,7 @@ from evrakci.ui.sablon_nav import USER, NavPane
 from evrakci.ui.sablon_parts import TemplateEdit
 from evrakci.ui.sablon_rulers import CanvasWell
 from evrakci.ui.sablon_sync import Syncing
+from evrakci.ui.sablon_weak import WeakExamples
 from evrakci.ui.widgets import StatusPart
 from evrakci.ui.workers import Task
 
@@ -81,7 +83,7 @@ def _widths() -> tuple[int, int]:
     return (360 if m.effective_density() == "comfortable" else 264, m.size("inspector-w"))
 
 
-class SablonScreen(LiveReads, Syncing, QWidget):
+class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
     drawing_changed = Signal(bool)
     snap_changed = Signal(bool)
 
@@ -108,6 +110,7 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         self.zoom = None
         self.values: dict = {}  # the live read of the example on the canvas
         self.example_values: dict[int, dict] = {}  # after "Bütün örneklerde dene"
+        self.tried_all = False  # example_values holds a try-all (I-28 lists need one)
         self._docs: list = []
         self._read_number = 0
         self.read_lines: list[str] = []
@@ -290,6 +293,7 @@ class SablonScreen(LiveReads, Syncing, QWidget):
             layout.addWidget(part)
             self._status[name] = part
         layout.addStretch(1)  # the items sit at the left, not centred in the widest tab's slot
+        self._connect_weak(r)
         self._make_zoom(getattr(window, "prefs", None))
         prefs = getattr(window, "prefs", None)
         if prefs is not None:
@@ -301,10 +305,11 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         return getattr(self.window_, "toaster", None)
 
     def _toast(self, text: str, action: str | None = None, slot=None, kind: str = "info",
-               timeout_ms: int = 6000) -> None:
+               timeout_ms: int = 6000, available=None) -> None:
         toaster = self._toaster()
         if toaster is not None:
-            toaster.show(text, action, slot, kind=kind, timeout_ms=timeout_ms)
+            toaster.show(text, action, slot, kind=kind, timeout_ms=timeout_ms,
+                         available=available)
 
     def _registry(self):
         return getattr(self.window_, "registry", None)
@@ -349,7 +354,8 @@ class SablonScreen(LiveReads, Syncing, QWidget):
     # -- templates -------------------------------------------------------------
     def refresh_templates(self) -> None:
         self.flush_save()
-        found = sorted(self.store.list(), key=lambda t: t.name)
+        damaged: list[str] = []
+        found = sorted(self.store.list(damaged.append), key=lambda t: t.name)
         self.templates.blockSignals(True)
         self.templates.clear()
         for template in found:
@@ -366,6 +372,8 @@ class SablonScreen(LiveReads, Syncing, QWidget):
             self._show_boxes()
         elif self.template is None:
             self.templates.setCurrentRow(0)  # opens the first template
+        if damaged:  # a file that cannot be read is named, not skipped in silence (B-017)
+            self.message.setText("Şablon dosyası okunamadı: " + ", ".join(sorted(damaged)))
         self._sync_all()
 
     def _ask_text(self, title: str, label: str, ok: str) -> str | None:
@@ -388,18 +396,41 @@ class SablonScreen(LiveReads, Syncing, QWidget):
 
     def open_template(self, template_id: str) -> None:
         self.flush_save()
-        self.template = self.store.load(template_id)
+        try:
+            loaded = self.store.load(template_id)
+        except (TemplateError, KeyError) as error:
+            # the file was damaged or deleted after the list was drawn (F-sablonlar-08)
+            self.message.setText(str(error) if isinstance(error, TemplateError)
+                                 else f"Şablon dosyası okunamadı: {template_id}")
+            self._restore_template_row()
+            return
+        self.template = loaded
         self.undo_stack.clear()
         self._dirty, self._save_error = False, ""
         self.variable_name = self.template.variables[0].name if self.template.variables else None
         self.section_index = None
         self.values, self.example_values = {}, {}
+        self.tried_all = False
+        self.close_weak_list()
         self.pattern.setText(self.template.filename_pattern)
         self.message.setText("")
         self._show_variables()
         self._show_boxes()
         self._sync_all()
         self.read_example()
+
+    def _restore_template_row(self) -> None:
+        """The highlight goes back to the template that is really open."""
+        self.templates.blockSignals(True)
+        try:
+            for row in range(self.templates.count()):
+                item = self.templates.item(row)
+                if self.template is not None and item.data(USER) == self.template.id:
+                    self.templates.setCurrentRow(row)
+                    return
+            self.templates.setCurrentRow(-1)
+        finally:
+            self.templates.blockSignals(False)
 
     def _refresh_template_row(self) -> None:
         if self.template is None:
@@ -610,6 +641,8 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         if job_id != self.job_id:  # another job: the old example number means nothing
             self.job_id, self.example, self.page_number = job_id, 0, 1
             self.values, self.example_values = {}, {}
+            self.tried_all = False
+            self.close_weak_list()
         self._docs = list(controller.documents()) if controller is not None else []
         self.examples.blockSignals(True)
         self.examples.clear()
@@ -638,7 +671,7 @@ class SablonScreen(LiveReads, Syncing, QWidget):
         triangle and its count in the picker (icon + word, never colour alone)."""
         warn = make_icon("triangle-alert", "check-text", theme.manager().size("icon-sm"))
         for row in range(self.examples.count()):
-            flagged = reading.flagged_count(self.example_values.get(self.examples.itemData(row),
+            flagged = flagged_count(self.example_values.get(self.examples.itemData(row),
                                                                     {}))
             base = self.examples.itemData(row, BASE)
             self.examples.setItemText(row, f"{base} · {flagged} kontrol" if flagged else base)
@@ -758,8 +791,33 @@ class SablonScreen(LiveReads, Syncing, QWidget):
     def _box_edited(self, box: tuple) -> None:
         """The inspector's X, Y, width or height changed."""
         if self.variable_name and self.section_index is not None:
+            box = self._fit_to_sheet(box)
             self.canvas.update_box(self.variable_name, self.section_index, box)
             self._set_box(self.variable_name, self.section_index, box)
+
+    def _fit_to_sheet(self, box: tuple) -> tuple:
+        """X, Y, width and height are typed one by one: keep X + width and Y + height on the
+        sheet (B-016). An edited position keeps the size; an edited size is cut at the edge."""
+        sheet = self.canvas.page_mm()
+        try:
+            old = self.template.variable(self.variable_name).sections[self.section_index].box_mm
+        except (TemplateError, IndexError):
+            old = box
+        lows, highs = [], []
+        for axis in (0, 1):
+            lo, hi, limit = box[axis], box[axis + 2], sheet[axis]
+            size = min(hi - lo, limit)
+            if abs(lo - old[axis]) > 1e-6:  # the position was edited: keep the size
+                lo = min(max(lo, 0.0), max(limit - size, 0.0))
+                hi = lo + size
+            else:
+                hi = min(hi, limit)
+            lows.append(lo)
+            highs.append(hi)
+        fitted = tuple(round(float(v), 2) for v in (*lows, *highs))
+        if fitted != tuple(round(float(v), 2) for v in box):
+            self.side.set_box(fitted)
+        return fitted
 
     def _set_box(self, name: str, index: int, box: tuple) -> None:
         box = tuple(round(float(v), 2) for v in box)
@@ -809,8 +867,9 @@ class SablonScreen(LiveReads, Syncing, QWidget):
                     self.select_section(name, min(index, left - 1))
                 else:
                     self.select_variable(name)
+                undo, available = undo_last(self.undo_stack)
                 self._toast(f"“{name}” değişkeninin {index + 1}. bölümü silindi.", "Geri al",
-                            self.undo_stack.undo, timeout_ms=10000)
+                            undo, timeout_ms=10000, available=available)
                 self.read_example()
             return
         count = len(self.template.variable(name).sections)
@@ -819,8 +878,9 @@ class SablonScreen(LiveReads, Syncing, QWidget):
             self._show_variables()
             self._apply_selection()
             detail = f" ({count} kutu)" if count else ""
-            self._toast(f"“{name}” değişkeni silindi{detail}.", "Geri al", self.undo_stack.undo,
-                        timeout_ms=10000)
+            undo, available = undo_last(self.undo_stack)
+            self._toast(f"“{name}” değişkeni silindi{detail}.", "Geri al", undo,
+                        timeout_ms=10000, available=available)
             self.read_example()
 
     # -- drawing, snapping, reads on the page ----------------------------------
@@ -992,6 +1052,7 @@ class SablonScreen(LiveReads, Syncing, QWidget):
             self._toast("Şablon kaydedildi.", kind="success")
 
     def hideEvent(self, event) -> None:  # noqa: N802
+        self.close_weak_list()
         self.flush_save()
         super().hideEvent(event)
 

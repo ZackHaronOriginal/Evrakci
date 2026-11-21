@@ -283,6 +283,30 @@ mouse click on a field shows only the accent bottom edge (Fluent). Never hidden 
 menus 180 ms enter, toasts 240 ms; nothing on repeated actions. Reduced motion (setting or OS)
 sets every duration and Qt's widget animations to 0.
 
+## Implementation notes (Phases 3 and 4)
+
+No design change; these record how the code now does what this file describes.
+
+- **Long text is elided, never clipped.** `chrome.ElidedLabel` is a one-line label that shrinks to
+  a minimum number of characters and ends with "…"; its tooltip is the full text (`full_text()`).
+  Long job names, file names, paths and values in cards and rows use it, so nothing is cut at a
+  panel edge at 100 to 150 % text.
+- **Buttons.** `chrome.press_on_enter` lets a focused button take Enter like Space (the window
+  unbinds Enter and Space actions while a button has focus, `Registry.set_on_button`). The command
+  bar buttons and the Kontrol and Değerler side panels' buttons ignore the second click of a double click
+  (`mouseDoubleClickEvent` accepts it), so one double click is one press and never acts on what the
+  screen shows next.
+- **Placeholder text** is the `text-2` token in all three themes (the input stylesheet sets
+  `placeholder-text-color`, and the palette's PlaceholderText role agrees), which meets the D10
+  4.5:1 secondary tier. Qt's default (the text colour at 50 % alpha) did not. Disabled inputs use
+  `text-disabled`.
+- **Qt's Turkish translation covers standard dialog buttons only.** `app.py` loads Qt's own
+  translation but keeps only the `QPlatformTheme` context; key
+  names such as Ctrl and Del stay as the registry prints them, so "Kontrol" never means a key.
+  A test checks that every tooltip and key text is unchanged.
+- **Measured against the rules.** `tools/ui_measure.py` checks the built window against
+  `docs/ui-goal/rules.json` (offscreen); `docs/ui-goal/ci-gates.md` says what CI enforces.
+
 ## Signatures (painted)
 
 - **Guide tab:** one `QPainterPath` in the logo's trapezoid (8 px slants, 3 px top corners),

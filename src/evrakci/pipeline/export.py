@@ -26,6 +26,7 @@ class ExportItem:
     values: dict[str, str] = field(default_factory=dict)  # by variable name, for the index
     checks: list[str] = field(default_factory=list)
     pdfa: bool | None = None
+    pdfa_note: str = ""  # why the file is not PDF/A; Bilgi, kept out of `checks` (B-003)
     keep: int = 0  # characters of `name` that must stay so required values survive
 
 

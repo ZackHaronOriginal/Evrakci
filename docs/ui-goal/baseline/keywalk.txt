@@ -1,0 +1,358 @@
+# Keywalk baseline
+date: 2026-11-19 | commit: 0a28b16 | command: QT_QPA_PLATFORM=offscreen python .claude/skills/ui-bug-hunt/keywalk.py --tab <id> [--theme dark --text 150]
+# Summary (run 1 output below; each tab run twice, both configs)
+yukle: default=OK (run2 match: yes) | dark150=OK (run2 match: yes)
+kontrol: default=OK (run2 match: yes) | dark150=OK (run2 match: yes)
+sablonlar: default=OK (run2 match: yes) | dark150=OK (run2 match: yes)
+degerler: default=OK (run2 match: yes) | dark150=OK (run2 match: yes)
+disa_aktar: default=OK (run2 match: yes) | dark150=OK (run2 match: yes)
+rehber: default=OK (run2 match: yes) | dark150=OK (run2 match: yes)
+problems found: none
+
+## yukle  exit=0
+
+== yukle
+  1 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  2 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  3 title band   QToolButton            menuButton             Menü (Alt)
+  4 command bar  ActionButton           -                      Geri al: Şablon uygula (Ctrl+Z)
+  5 command bar  ActionButton           -                      Dosya ekle (Ctrl+O)
+  6 command bar  ActionButton           -                      Klasör ekle
+  7 command bar  ActionButton           -                      Yeni iş oluştur (Ctrl+N)
+  8 command bar  ActionButton           -                      Partiyi çıkar (geri alınabilir) (Del)
+  9 command bar  ActionButton           -                      Dosya Gezgini'nde göster (Ctrl+Shift+O)
+ 10 command bar  ActionButton           -                      Kontrol sekmesine geç (Ctrl+2)
+ 11 command bar  ActionButton           -                      Ayrıntı panelini gizle (F9)
+ 12 command bar  QToolButton            moreButton             Diğer komutlar
+ 13 work area    BatchTable             -                      Partiler
+ 14 work area    QToolButton            -                      Diğer iş komutları
+ 15 work area    QPushButton            -                      Rehber'de tarama ayarları
+ 16 work area    GapButton              -                      Kontrol'e geç (Ctrl+2)
+ 17 work area    GapButton              -                      İşi kapat (Ctrl+W)
+ 18 back at the tabs
+OK
+
+## yukle --theme dark --text 150 exit=0
+
+== yukle
+  1 title band   QToolButton            tabOverflow            Diğer sekmeler
+  2 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  3 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  4 title band   QToolButton            menuButton             Menü (Alt)
+  5 command bar  ActionButton           -                      Geri al: Şablon uygula (Ctrl+Z)
+  6 command bar  ActionButton           -                      Dosya ekle (Ctrl+O)
+  7 command bar  ActionButton           -                      Klasör ekle
+  8 command bar  ActionButton           -                      Yeni iş oluştur (Ctrl+N)
+  9 command bar  ActionButton           -                      Partiyi çıkar (geri alınabilir) (Del)
+ 10 command bar  ActionButton           -                      Dosya Gezgini'nde göster (Ctrl+Shift+O)
+ 11 command bar  ActionButton           -                      Kontrol sekmesine geç (Ctrl+2)
+ 12 command bar  ActionButton           -                      Ayrıntı panelini gizle (F9)
+ 13 command bar  QToolButton            moreButton             Diğer komutlar
+ 14 work area    BatchTable             -                      Partiler
+ 15 work area    QToolButton            -                      Diğer iş komutları
+ 16 work area    QPushButton            -                      Rehber'de tarama ayarları
+ 17 work area    GapButton              -                      Kontrol'e geç (Ctrl+2)
+ 18 work area    GapButton              -                      İşi kapat (Ctrl+W)
+ 19 back at the tabs
+OK
+
+## kontrol  exit=0
+
+== kontrol
+  1 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  2 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  3 title band   QToolButton            menuButton             Menü (Alt)
+  4 command bar  ActionButton           -                      Geri al: Şablon uygula (Ctrl+Z)
+  5 command bar  ActionButton           -                      Burada kes / kesimi kaldır (K)
+  6 command bar  ActionButton           -                      Önceki belgeyle birleştir (M)
+  7 command bar  ActionButton           -                      Sağa döndür (R)
+  8 command bar  ActionButton           -                      Sayfayı sil (geri alınabilir) (Del)
+  9 command bar  ActionButton           -                      Şablonu uygula (T)
+ 10 command bar  ActionButton           -                      Filtre uygula (F)
+ 11 command bar  ActionButton           -                      Sonraki kontrol (N)
+ 12 command bar  ActionButton           -                      Sonraki incelenmemiş (U)
+ 13 command bar  ActionButton           -                      Belgeye veya sayfaya git (Ctrl+G)
+ 14 command bar  ActionButton           -                      Sayfayı büyük göster (Boşluk)
+ 15 command bar  ActionButton           -                      Ayrıntı panelini gizle (F9)
+ 16 command bar  QToolButton            moreButton             Diğer komutlar
+ 17 work area    TimelineView           timeline               Sayfalar
+ 18 work area    QToolButton            -                      Diğer belge komutları
+ 19 work area    GapButton              -                      Belge 1 onayla (Enter)
+ 20 work area    GapButton              -                      Belge 1 Değerlerde aç
+ 21 status bar   QToolButton            -                      Küçük resim boyutu uzaklaştır
+ 22 status bar   QSlider                -                      Küçük resim boyutu yakınlaştırma düzeyi
+ 23 status bar   QToolButton            -                      Küçük resim boyutu yakınlaştır
+ 24 back at the tabs
+OK
+
+## kontrol --theme dark --text 150 exit=0
+
+== kontrol
+  1 title band   QToolButton            tabOverflow            Diğer sekmeler
+  2 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  3 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  4 title band   QToolButton            menuButton             Menü (Alt)
+  5 command bar  ActionButton           -                      Geri al: Şablon uygula (Ctrl+Z)
+  6 command bar  ActionButton           -                      Burada kes / kesimi kaldır (K)
+  7 command bar  ActionButton           -                      Önceki belgeyle birleştir (M)
+  8 command bar  ActionButton           -                      Sağa döndür (R)
+  9 command bar  ActionButton           -                      Sayfayı sil (geri alınabilir) (Del)
+ 10 command bar  ActionButton           -                      Şablonu uygula (T)
+ 11 command bar  ActionButton           -                      Filtre uygula (F)
+ 12 command bar  ActionButton           -                      Sonraki kontrol (N)
+ 13 command bar  ActionButton           -                      Sonraki incelenmemiş (U)
+ 14 command bar  ActionButton           -                      Belgeye veya sayfaya git (Ctrl+G)
+ 15 command bar  ActionButton           -                      Sayfayı büyük göster (Boşluk)
+ 16 command bar  ActionButton           -                      Ayrıntı panelini gizle (F9)
+ 17 command bar  QToolButton            moreButton             Diğer komutlar
+ 18 work area    TimelineView           timeline               Sayfalar
+ 19 work area    QToolButton            -                      Diğer belge komutları
+ 20 work area    GapButton              -                      Belge 1 onayla (Enter)
+ 21 work area    GapButton              -                      Belge 1 Değerlerde aç
+ 22 status bar   QToolButton            -                      Küçük resim boyutu uzaklaştır
+ 23 status bar   QSlider                -                      Küçük resim boyutu yakınlaştırma düzeyi
+ 24 status bar   QToolButton            -                      Küçük resim boyutu yakınlaştır
+ 25 back at the tabs
+OK
+
+## sablonlar  exit=0
+
+== sablonlar
+  1 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  2 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  3 title band   QToolButton            menuButton             Menü (Alt)
+  4 command bar  ActionButton           -                      Kutu çiz (B)
+  5 command bar  ActionButton           -                      Izgaraya oturt (G)
+  6 command bar  ActionButton           -                      Kutuyu sil (geri alınabilir) (Del)
+  7 command bar  ActionButton           -                      Değişken ekle (Ctrl+Shift+N)
+  8 command bar  ActionButton           -                      Bütün örneklerde dene (Ctrl+T)
+  9 command bar  ActionButton           -                      Okumaları sayfada göster
+ 10 command bar  ActionButton           -                      Ayrıntı panelini gizle (F9)
+ 11 command bar  QToolButton            moreButton             Diğer komutlar
+ 12 work area    QToolButton            -                      Şablon ekle
+ 13 work area    TemplateList           -                      Şablonlar
+ 14 work area    QToolButton            -                      Değişken ekle
+ 15 work area    VariableTree           -                      Değişkenler ve bölümler
+ 16 work area    QComboBox              -                      Örnek belge
+ 17 work area    QComboBox              -                      Örnek sayfa
+ 18 work area    PageCanvas             -                      Örnek sayfa
+ 19 work area    QToolButton            -                      Kutu için diğer komutlar
+ 20 work area    QLineEdit              -                      Değişken adı
+ 21 work area    QCheckBox              -                      Zorunlu
+ 22 work area    QLineEdit              -                      Dosya adı kalıbı
+ 23 work area    QPushButton            -                      Şablonu kaydet
+ 24 status bar   QToolButton            -                      Sayfa uzaklaştır
+ 25 status bar   QSlider                -                      Sayfa yakınlaştırma düzeyi
+ 26 status bar   QToolButton            -                      Sayfa yakınlaştır
+ 27 back at the tabs
+OK
+
+## sablonlar --theme dark --text 150 exit=0
+
+== sablonlar
+  1 title band   QToolButton            tabOverflow            Diğer sekmeler
+  2 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  3 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  4 title band   QToolButton            menuButton             Menü (Alt)
+  5 command bar  ActionButton           -                      Kutu çiz (B)
+  6 command bar  ActionButton           -                      Izgaraya oturt (G)
+  7 command bar  ActionButton           -                      Kutuyu sil (geri alınabilir) (Del)
+  8 command bar  ActionButton           -                      Değişken ekle (Ctrl+Shift+N)
+  9 command bar  ActionButton           -                      Bütün örneklerde dene (Ctrl+T)
+ 10 command bar  ActionButton           -                      Okumaları sayfada göster
+ 11 command bar  ActionButton           -                      Ayrıntı panelini gizle (F9)
+ 12 command bar  QToolButton            moreButton             Diğer komutlar
+ 13 work area    QToolButton            -                      Şablon ekle
+ 14 work area    TemplateList           -                      Şablonlar
+ 15 work area    QToolButton            -                      Değişken ekle
+ 16 work area    VariableTree           -                      Değişkenler ve bölümler
+ 17 work area    QComboBox              -                      Örnek belge
+ 18 work area    QComboBox              -                      Örnek sayfa
+ 19 work area    PageCanvas             -                      Örnek sayfa
+ 20 work area    QToolButton            -                      Kutu için diğer komutlar
+ 21 work area    QLineEdit              -                      Değişken adı
+ 22 work area    QCheckBox              -                      Zorunlu
+ 23 work area    QPushButton            -                      Şablonu kaydet
+ 24 work area    QLineEdit              -                      Dosya adı kalıbı
+ 25 work area    QPushButton            -                      Şablonu kaydet
+ 26 status bar   QToolButton            -                      Sayfa uzaklaştır
+ 27 status bar   QSlider                -                      Sayfa yakınlaştırma düzeyi
+ 28 status bar   QToolButton            -                      Sayfa yakınlaştır
+ 29 back at the tabs
+OK
+
+## degerler  exit=0
+
+== degerler
+  1 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  2 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  3 title band   QToolButton            menuButton             Menü (Alt)
+  4 command bar  ActionButton           -                      Geri al: Şablon uygula (Ctrl+Z)
+  5 command bar  ActionButton           -                      Şablonu olan bütün belgeleri yeniden oku
+  6 command bar  ActionButton           -                      Yalnızca eksikleri oku
+  7 command bar  ActionButton           -                      Emin olanlar dahil her değeri sırayla göster
+  8 command bar  ActionButton           -                      Dışa aktarmadan önce rastgele 20 emin değere bak
+  9 command bar  ActionButton           -                      Önceki kontrol (Shift+N)
+ 10 command bar  ActionButton           -                      Sonraki kontrol (N)
+ 11 command bar  ActionButton           -                      Seçilenleri onayla (Ctrl+Enter)
+ 12 command bar  ActionButton           -                      Kaynak panelini gizle (F9)
+ 13 command bar  QToolButton            moreButton             Diğer komutlar
+ 14 work area    SelectorItem           -                      Tümü: 6 değer
+ 15 work area    QLineEdit              -                      Değerlerde ara
+ 16 work area    SlackComboBox          -                      Şablon
+ 17 work area    ValuesTable            -                      Değerler tablosu
+ 18 work area    ValuesTable            -                      Değerler tablosu
+ 19 work area    ValuesTable            -                      Değerler tablosu
+ 20 work area    ValuesTable            -                      Değerler tablosu
+ 21 work area    QToolButton            -                      Uzaklaştır (Ctrl+-)
+ 22 work area    QToolButton            -                      Yakınlaştır (Ctrl++)
+ 23 work area    QToolButton            -                      Sayfanın tamamı (Boşluk)
+ 24 work area    QPushButton            -                      Onayla ve sonrakine geç (Enter)
+ 25 work area    QPushButton            -                      Elle yaz (F2)
+ 26 work area    QPushButton            -                      Yeni kutu çiz (V)
+ 27 status bar   QToolButton            -                      Kaynak kesiti uzaklaştır
+ 28 status bar   QSlider                -                      Kaynak kesiti yakınlaştırma düzeyi
+ 29 status bar   QToolButton            -                      Kaynak kesiti yakınlaştır
+ 30 back at the tabs
+OK
+
+## degerler --theme dark --text 150 exit=0
+
+== degerler
+  1 title band   QToolButton            tabOverflow            Diğer sekmeler
+  2 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  3 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  4 title band   QToolButton            menuButton             Menü (Alt)
+  5 command bar  ActionButton           -                      Geri al: Şablon uygula (Ctrl+Z)
+  6 command bar  ActionButton           -                      Şablonu olan bütün belgeleri yeniden oku
+  7 command bar  ActionButton           -                      Yalnızca eksikleri oku
+  8 command bar  ActionButton           -                      Emin olanlar dahil her değeri sırayla göster
+  9 command bar  ActionButton           -                      Dışa aktarmadan önce rastgele 20 emin değere bak
+ 10 command bar  ActionButton           -                      Önceki kontrol (Shift+N)
+ 11 command bar  ActionButton           -                      Sonraki kontrol (N)
+ 12 command bar  ActionButton           -                      Seçilenleri onayla (Ctrl+Enter)
+ 13 command bar  ActionButton           -                      Kaynak panelini gizle (F9)
+ 14 command bar  QToolButton            moreButton             Diğer komutlar
+ 15 work area    SelectorItem           -                      Tümü: 6 değer
+ 16 work area    QLineEdit              -                      Değerlerde ara
+ 17 work area    SlackComboBox          -                      Şablon
+ 18 work area    ValuesTable            -                      Değerler tablosu
+ 19 work area    ValuesTable            -                      Değerler tablosu
+ 20 work area    ValuesTable            -                      Değerler tablosu
+ 21 work area    ValuesTable            -                      Değerler tablosu
+ 22 work area    QToolButton            -                      Uzaklaştır (Ctrl+-)
+ 23 work area    QToolButton            -                      Yakınlaştır (Ctrl++)
+ 24 work area    QToolButton            -                      Sayfanın tamamı (Boşluk)
+ 25 work area    QPushButton            -                      Onayla ve sonrakine geç (Enter)
+ 26 work area    QPushButton            -                      Elle yaz (F2)
+ 27 work area    QPushButton            -                      Yeni kutu çiz (V)
+ 28 status bar   QToolButton            -                      Kaynak kesiti uzaklaştır
+ 29 status bar   QSlider                -                      Kaynak kesiti yakınlaştırma düzeyi
+ 30 status bar   QToolButton            -                      Kaynak kesiti yakınlaştır
+ 31 back at the tabs
+OK
+
+## disa_aktar  exit=0
+
+== disa_aktar
+  1 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  2 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  3 title band   QToolButton            menuButton             Menü (Alt)
+  4 command bar  ActionButton           -                      Geri al: Şablon uygula (Ctrl+Z)
+  5 command bar  ActionButton           -                      Dışa aktar (Ctrl+E)
+  6 command bar  ActionButton           -                      Listeyi ve önizlemeyi yenile (F5)
+  7 command bar  ActionButton           -                      Dizini yazdır (Ctrl+P)
+  8 command bar  ActionButton           -                      Ayarlar panelini gizle (F9)
+  9 command bar  QToolButton            moreButton             Diğer komutlar
+ 10 work area    QPushButton            -                      Klasör seç: Hedef klasör seçilmedi.
+ 11 work area    QPushButton            -                      Sonraki kontrol: 1 belgede emin olunmayan değer var.
+ 12 work area    QPushButton            -                      Değerler'e git: Zorunlu değer eksik: Sicil_No.
+ 13 work area    PartsButton            -                      Yalnızca kontrol gerekenler (1)
+ 14 work area    FilesTable             -                      Dosya adları
+ 15 work area    QLineEdit              -                      Hedef klasör
+ 16 work area    QPushButton            -                      Klasör seç
+ 17 work area    QLineEdit              -                      Dosya adı kalıbı
+ 18 work area    PartsButton            -                      Değişken ekle
+ 19 work area    QCheckBox              -                      Metin katmanı ekle (OCR)
+ 20 work area    QCheckBox              -                      Geçersiz karakterleri değiştir
+ 21 work area    PartsButton            -                      Dışa aktar (Ctrl+E)
+ 22 back at the tabs
+OK
+
+## disa_aktar --theme dark --text 150 exit=0
+
+== disa_aktar
+  1 title band   QToolButton            tabOverflow            Diğer sekmeler
+  2 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  3 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  4 title band   QToolButton            menuButton             Menü (Alt)
+  5 command bar  ActionButton           -                      Geri al: Şablon uygula (Ctrl+Z)
+  6 command bar  ActionButton           -                      Dışa aktar (Ctrl+E)
+  7 command bar  ActionButton           -                      Listeyi ve önizlemeyi yenile (F5)
+  8 command bar  ActionButton           -                      Dizini yazdır (Ctrl+P)
+  9 command bar  ActionButton           -                      Ayarlar panelini gizle (F9)
+ 10 command bar  QToolButton            moreButton             Diğer komutlar
+ 11 work area    QPushButton            -                      Klasör seç: Hedef klasör seçilmedi.
+ 12 work area    QPushButton            -                      Sonraki kontrol: 1 belgede emin olunmayan değer var.
+ 13 work area    QPushButton            -                      Değerler'e git: Zorunlu değer eksik: Sicil_No.
+ 14 work area    PartsButton            -                      Yalnızca kontrol gerekenler (1)
+ 15 work area    FilesTable             -                      Dosya adları
+ 16 work area    QLineEdit              -                      Hedef klasör
+ 17 work area    QPushButton            -                      Klasör seç
+ 18 work area    QLineEdit              -                      Dosya adı kalıbı
+ 19 work area    PartsButton            -                      Değişken ekle
+ 20 work area    QCheckBox              -                      Metin katmanı ekle (OCR)
+ 21 work area    QCheckBox              -                      Geçersiz karakterleri değiştir
+ 22 work area    PartsButton            -                      Dışa aktar (Ctrl+E)
+ 23 back at the tabs
+OK
+
+## rehber  exit=0
+
+== rehber
+  1 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  2 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  3 title band   QToolButton            menuButton             Menü (Alt)
+  4 command bar  ActionButton           -                      Bul (Ctrl+F)
+  5 command bar  ActionButton           -                      Ayıraç sayfasını yazdır (Ctrl+P)
+  6 command bar  ActionButton           -                      PDF olarak aç
+  7 command bar  ActionButton           -                      Klavye kısayolları (Shift+F1)
+  8 command bar  ActionButton           -                      Yardım konuları (F1)
+  9 command bar  ActionButton           -                      Yan paneli gizle (F9)
+ 10 command bar  QToolButton            moreButton             Diğer komutlar
+ 11 work area    Reader                 -                      Tarama rehberi
+ 12 work area    SearchField            -                      Rehberde ara
+ 13 work area    TocList                -                      İçindekiler
+ 14 work area    QSpinBox               -                      Kaç adet ayıraç sayfası
+ 15 work area    PartsButton            -                      Ayıraç sayfasını yazdır (Ctrl+P)
+ 16 status bar   QToolButton            -                      Rehber yazısı uzaklaştır
+ 17 status bar   QSlider                -                      Rehber yazısı yakınlaştırma düzeyi
+ 18 status bar   QToolButton            -                      Rehber yazısı yakınlaştır
+ 19 back at the tabs
+OK
+
+## rehber --theme dark --text 150 exit=0
+
+== rehber
+  1 title band   QToolButton            tabOverflow            Diğer sekmeler
+  2 title band   JobSwitch              jobSwitch              Açık iş: Kasım 2026 kapasite raporları. İş değiştir
+  3 title band   SearchBox              searchBox              Ara (Ctrl+K)
+  4 title band   QToolButton            menuButton             Menü (Alt)
+  5 command bar  ActionButton           -                      Bul (Ctrl+F)
+  6 command bar  ActionButton           -                      Ayıraç sayfasını yazdır (Ctrl+P)
+  7 command bar  ActionButton           -                      PDF olarak aç
+  8 command bar  ActionButton           -                      Klavye kısayolları (Shift+F1)
+  9 command bar  ActionButton           -                      Yardım konuları (F1)
+ 10 command bar  ActionButton           -                      Yan paneli gizle (F9)
+ 11 command bar  QToolButton            moreButton             Diğer komutlar
+ 12 work area    Reader                 -                      Tarama rehberi
+ 13 work area    SearchField            -                      Rehberde ara
+ 14 work area    TocList                -                      İçindekiler
+ 15 work area    QSpinBox               -                      Kaç adet ayıraç sayfası
+ 16 work area    PartsButton            -                      Ayıraç sayfasını yazdır (Ctrl+P)
+ 17 status bar   QToolButton            -                      Rehber yazısı uzaklaştır
+ 18 status bar   QSlider                -                      Rehber yazısı yakınlaştırma düzeyi
+ 19 status bar   QToolButton            -                      Rehber yazısı yakınlaştır
+ 20 back at the tabs
+OK
+

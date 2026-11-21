@@ -51,7 +51,7 @@ def test_cli_list_and_fix(tmp_path, capsys):
     run, job = setup(tmp_path, capsys)
     assert run("degerler", job) == 0
     out = capsys.readouterr().out
-    assert "1. belge (Deneme) sayfa 1" in out and "Kayıt No: [okunamadı, öneri: 77]" in out
+    assert "1. belge (Deneme) sayfa 1" in out and "Kayıt No: [kontrol, öneri: 77]" in out
     assert "2. belge (Deneme)" in out
     assert run("degerler", job, "--kontrol") == 0
     out = capsys.readouterr().out
@@ -71,3 +71,76 @@ def test_cli_errors(tmp_path, capsys):
     assert run("deger", job, "2", "Kayıt No", "--oneri") == 2
     err = capsys.readouterr().err
     assert "Belge yok: 9" in err and "Değişken yok: Yok" in err and "öneri yok" in err
+
+
+def test_cli_levels_match_the_window_levels(tmp_path, capsys):
+    from evrakci.pipeline.cuts import current_values
+    from evrakci.pipeline.templates.values import SectionReading, value_level
+
+    run, job_id = setup(tmp_path, capsys)
+    store = JobStore(tmp_path / "isler")
+    job = store.load(job_id)
+    first = compute_documents(job)[0]
+    template = TemplateStore(tmp_path / "sablonlar").list()[0]
+    unvan, kayit = (v.key for v in template.variables)
+    record_values(job, first, template.id, {
+        unvan: VariableValue("482I3", 0.5, 0, True, "482I3 Ltd.",
+                             (SectionReading(0, "482I3", 0.5),)),
+        kayit: VariableValue("", 0.0, None, True),
+    })
+    store.save(job)
+    assert run("degerler", job_id) == 0
+    out = capsys.readouterr().out
+    assert "Ünvan: 482I3 [kontrol, öneri: 482I3 Ltd.]" in out
+    assert "Kayıt No: [okunamadı]" in out
+    values = current_values(job, first)
+    assert [value_level(values[unvan]), value_level(values[kayit])] == ["kontrol", "okunamadi"]
+
+
+def test_cli_revert_and_its_refusal(tmp_path, capsys):
+    from evrakci.pipeline.cuts import current_values
+
+    run, job_id = setup(tmp_path, capsys)
+    assert run("deger", job_id, "2", "Ünvan", "Yanlış") == 0
+    assert run("deger", job_id, "2", "Ünvan", "--geri-al") == 0
+    store = JobStore(tmp_path / "isler")
+    job = store.load(job_id)
+    second = compute_documents(job)[1]
+    template = TemplateStore(tmp_path / "sablonlar").list()[0]
+    unvan, kayit = (v.key for v in template.variables)
+    got = current_values(job, second)[unvan]
+    assert got == VariableValue("", 0.0, None, True, "Başka", (), False)  # suggestion kept
+    # a value typed by hand with no reading cannot be reverted
+    record_values(job, second, template.id, {
+        unvan: got, kayit: VariableValue("elle", 1.0, None, False, "", (), True)})
+    store.save(job)
+    capsys.readouterr()
+    assert run("deger", job_id, "2", "Kayıt No", "--geri-al") == 2
+    assert "Bu değer elle yazıldı; okunmuş bir değer yok." in capsys.readouterr().err
+    assert current_values(store.load(job_id), second)[kayit].value == "elle"  # untouched
+    # an unedited machine-read value is not "typed by hand": no such refusal for it
+    record_values(job, second, template.id, {
+        unvan: got, kayit: VariableValue("48213", 0.95, 0, False, "", (), False)})
+    store.save(job)
+    capsys.readouterr()
+    run("deger", job_id, "2", "Kayıt No", "--geri-al")
+    assert "elle yazıldı" not in capsys.readouterr().err
+
+
+def test_cli_empty_required_value_goes_to_kontrol_and_says_so(tmp_path, capsys):
+    from evrakci.pipeline.cuts import current_values
+
+    run, job_id = setup(tmp_path, capsys)
+    capsys.readouterr()
+    assert run("deger", job_id, "2", "Ünvan", "") == 0  # Ünvan is required
+    assert capsys.readouterr().out.strip() == "Zorunlu değer boş bırakılamaz; Kontrol'e alındı."
+    store = JobStore(tmp_path / "isler")
+    job = store.load(job_id)
+    second = compute_documents(job)[1]
+    unvan, kayit = (v.key for v in TemplateStore(tmp_path / "sablonlar").list()[0].variables)
+    stored = current_values(job, second)[unvan]
+    assert stored == VariableValue("", 0.0, None, True, "Başka", (), False)
+    # Kayıt No is not required: stored as before, no sentence
+    assert run("deger", job_id, "2", "Kayıt No", "") == 0
+    assert "Kontrol" not in capsys.readouterr().out
+    assert current_values(store.load(job_id), second)[kayit].edited

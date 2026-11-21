@@ -342,6 +342,7 @@ class NavPane(QScrollArea):
         self.variable_card = self._card(self.variables)
         self.add_template_button = self._plus("Şablon ekle")
         self.add_variable_button = self._plus("Değişken ekle")
+        self.add_variable_button.setProperty("action_id", "sablonlar.degisken_ekle")
         self._variable_tip = "Değişken ekle (Ctrl+Shift+N)"
         self.add_variable_button.setToolTip(self._variable_tip)
         col.addLayout(self._group("Şablonlar", self.add_template_button, self.template_card))

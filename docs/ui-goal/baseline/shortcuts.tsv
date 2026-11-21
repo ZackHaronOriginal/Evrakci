@@ -1,0 +1,384 @@
+| tab | key | action id | label | flags | tests |
+|---|---|---|---|---|---|
+| yukle | Ctrl+1 | app.sekme.yukle | Yükle | - | test_phase4.py, test_shell.py |
+| yukle | Ctrl+2 | app.sekme.kontrol | Kontrol | - | test_shell.py, test_yukle_a.py |
+| yukle | Ctrl+3 | app.sekme.sablonlar | Şablonlar | - | test_shell.py |
+| yukle | Ctrl+4 | app.sekme.degerler | Değerler | - | test_shell.py |
+| yukle | Ctrl+5 | app.sekme.disa_aktar | Dışa Aktar | - | test_shell.py |
+| yukle | Ctrl+6 | app.sekme.rehber | Rehber | - | test_shell.py |
+| yukle | Ctrl+Tab | app.sonraki_sekme | Sonraki sekme | - | test_degerler.py, test_phase4.py |
+| yukle | Ctrl+Shift+Tab | app.onceki_sekme | Önceki sekme | - | test_degerler.py, test_phase4.py |
+| yukle | Ctrl+Shift+Backtab | app.onceki_sekme | Önceki sekme | - | test_degerler.py |
+| yukle | F6 | app.sonraki_bolge | Sonraki bölge | - | test_actions.py, test_phase4.py |
+| yukle | Shift+F6 | app.onceki_bolge | Önceki bölge | - | test_phase4.py |
+| yukle | Ctrl+G | app.git | Belgeye veya sayfaya git… | - | test_sablon_window.py |
+| yukle | Ctrl+N | app.yeni_is | Yeni iş oluştur… | - | test_actions.py, test_degerler.py, test_kontrol_a.py, test_shell.py |
+| yukle | Ctrl+O | app.dosya_ekle | Dosya ekle… | - | NONE |
+| yukle | Ctrl+S | app.kaydet | Kaydet | - | test_phase4.py, test_sablon_window.py |
+| yukle | Ctrl+E | app.disa_aktar | Dışa aktar… | - | test_disa_aktar.py, test_phase4.py, test_shell.py |
+| yukle | Ctrl+Shift+O | yukle.gezginde_goster | Dosya Gezgini'nde göster | - | test_yukle_a.py |
+| yukle | Ctrl+W | app.isi_kapat | İşi kapat | - | test_shell.py |
+| yukle | Ctrl+Q | app.cikis | Çıkış | - | NONE |
+| yukle | Ctrl+Z | app.geri_al | Geri al | - | test_actions.py, test_degerler.py, test_integration.py, test_kontrol_a.py, test_main_window.py, test_sablon_window.py, test_shell.py |
+| yukle | Ctrl+Y | app.yinele | Yinele | - | test_integration.py, test_sablon_window.py |
+| yukle | Ctrl+Shift+Z | app.yinele | Yinele | - | test_integration.py, test_kontrol_a.py, test_sablon_window.py |
+| yukle | Ctrl+F | app.bul | Bul… | - | test_phase4.py, test_rehber.py |
+| yukle | F3 | app.sonraki_sonuc | Sonraki sonuç | - | test_rehber.py |
+| yukle | Shift+F3 | app.onceki_sonuc | Önceki sonuç | - | test_rehber.py |
+| yukle | Ctrl+Num++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| yukle | Ctrl++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| yukle | Ctrl+= | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| yukle | Ctrl+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| yukle | Ctrl+Num+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| yukle | Ctrl+0 | app.sigdir | Sığdır | - | test_integration.py, test_kontrol_a.py, test_loupe.py, test_rehber.py, test_sablon_window.py, test_shell.py, test_zoomview.py |
+| yukle | Ctrl+Shift+Num++ | app.yazi_buyut | Yazı boyutunu büyüt | - | NONE |
+| yukle | Ctrl+Shift+Num+- | app.yazi_kucult | Yazı boyutunu küçült | - | NONE |
+| yukle | F11 | app.tam_ekran | Tam ekran | checkable | NONE |
+| yukle | F9 | app.yan_panel | Yan paneli gizle | - | test_disa_aktar.py, test_rehber.py, test_sablon_window.py, test_shell.py |
+| yukle | F5 | app.yenile | Yenile | - | test_disa_aktar.py |
+| yukle | Ctrl+, | app.ayarlar | Ayarlar… | - | NONE |
+| yukle | F1 | app.yardim | Yardım konuları | - | test_actions.py, test_rehber.py, test_shell.py |
+| yukle | Shift+F1 | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| yukle | Ctrl+/ | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| yukle | ? | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| yukle | Ctrl+K | app.komut_ara | Komut ara… | - | test_actions.py, test_kontrol_a.py, test_shell.py |
+| yukle | Ctrl+Shift+P | app.komut_ara | Komut ara… | - | test_actions.py, test_rehber.py |
+| yukle | Alt+Up | yukle.yukari | Partiyi yukarı taşı | - | test_yukle_a.py |
+| yukle | Alt+Down | yukle.asagi | Partiyi aşağı taşı | - | test_kontrol_a.py, test_palette.py, test_sablon.py, test_sablon_canvas.py, test_sablon_window.py, test_yukle_a.py |
+| yukle | Del | yukle.cikar | Partiyi çıkar | typing | test_kontrol_a.py, test_sablon_window.py, test_yukle_a.py |
+| yukle | F2 | yukle.yeniden_adlandir | Yeniden adlandır | - | test_yukle_a.py |
+| yukle | Ctrl+. | yukle.iptal | İptal et | - | test_yukle_a.py |
+| kontrol | Ctrl+1 | app.sekme.yukle | Yükle | - | test_phase4.py, test_shell.py |
+| kontrol | Ctrl+2 | app.sekme.kontrol | Kontrol | - | test_shell.py, test_yukle_a.py |
+| kontrol | Ctrl+3 | app.sekme.sablonlar | Şablonlar | - | test_shell.py |
+| kontrol | Ctrl+4 | app.sekme.degerler | Değerler | - | test_shell.py |
+| kontrol | Ctrl+5 | app.sekme.disa_aktar | Dışa Aktar | - | test_shell.py |
+| kontrol | Ctrl+6 | app.sekme.rehber | Rehber | - | test_shell.py |
+| kontrol | Ctrl+Tab | app.sonraki_sekme | Sonraki sekme | - | test_degerler.py, test_phase4.py |
+| kontrol | Ctrl+Shift+Tab | app.onceki_sekme | Önceki sekme | - | test_degerler.py, test_phase4.py |
+| kontrol | Ctrl+Shift+Backtab | app.onceki_sekme | Önceki sekme | - | test_degerler.py |
+| kontrol | F6 | app.sonraki_bolge | Sonraki bölge | - | test_actions.py, test_phase4.py |
+| kontrol | Shift+F6 | app.onceki_bolge | Önceki bölge | - | test_phase4.py |
+| kontrol | Ctrl+G | app.git | Belgeye veya sayfaya git… | - | test_sablon_window.py |
+| kontrol | Ctrl+N | app.yeni_is | Yeni iş oluştur… | - | test_actions.py, test_degerler.py, test_kontrol_a.py, test_shell.py |
+| kontrol | Ctrl+O | app.dosya_ekle | Dosya ekle… | - | NONE |
+| kontrol | Ctrl+S | app.kaydet | Kaydet | - | test_phase4.py, test_sablon_window.py |
+| kontrol | Ctrl+E | app.disa_aktar | Dışa aktar… | - | test_disa_aktar.py, test_phase4.py, test_shell.py |
+| kontrol | Ctrl+W | app.isi_kapat | İşi kapat | - | test_shell.py |
+| kontrol | Ctrl+Q | app.cikis | Çıkış | - | NONE |
+| kontrol | Ctrl+Z | app.geri_al | Geri al | - | test_actions.py, test_degerler.py, test_integration.py, test_kontrol_a.py, test_main_window.py, test_sablon_window.py, test_shell.py |
+| kontrol | Ctrl+Y | app.yinele | Yinele | - | test_integration.py, test_sablon_window.py |
+| kontrol | Ctrl+Shift+Z | app.yinele | Yinele | - | test_integration.py, test_kontrol_a.py, test_sablon_window.py |
+| kontrol | Ctrl+F | app.bul | Bul… | - | test_phase4.py, test_rehber.py |
+| kontrol | F3 | app.sonraki_sonuc | Sonraki sonuç | - | test_rehber.py |
+| kontrol | Shift+F3 | app.onceki_sonuc | Önceki sonuç | - | test_rehber.py |
+| kontrol | Ctrl+Num++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| kontrol | Ctrl++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| kontrol | Ctrl+= | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| kontrol | Ctrl+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| kontrol | Ctrl+Num+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| kontrol | Ctrl+0 | app.sigdir | Sığdır | - | test_integration.py, test_kontrol_a.py, test_loupe.py, test_rehber.py, test_sablon_window.py, test_shell.py, test_zoomview.py |
+| kontrol | Ctrl+Shift+Num++ | app.yazi_buyut | Yazı boyutunu büyüt | - | NONE |
+| kontrol | Ctrl+Shift+Num+- | app.yazi_kucult | Yazı boyutunu küçült | - | NONE |
+| kontrol | F11 | app.tam_ekran | Tam ekran | checkable | NONE |
+| kontrol | F9 | app.yan_panel | Yan paneli gizle | - | test_disa_aktar.py, test_rehber.py, test_sablon_window.py, test_shell.py |
+| kontrol | F5 | app.yenile | Yenile | - | test_disa_aktar.py |
+| kontrol | Ctrl+, | app.ayarlar | Ayarlar… | - | NONE |
+| kontrol | F1 | app.yardim | Yardım konuları | - | test_actions.py, test_rehber.py, test_shell.py |
+| kontrol | Shift+F1 | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| kontrol | Ctrl+/ | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| kontrol | ? | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| kontrol | Ctrl+K | app.komut_ara | Komut ara… | - | test_actions.py, test_kontrol_a.py, test_shell.py |
+| kontrol | Ctrl+Shift+P | app.komut_ara | Komut ara… | - | test_actions.py, test_rehber.py |
+| kontrol | Ctrl+A | kontrol.tumunu_sec | Tümünü seç | - | test_kontrol_a.py |
+| kontrol | Esc | kontrol.secimi_kaldir | Seçimi kaldır | typing | test_degerler.py, test_feedback.py, test_kontrol_a.py, test_loupe.py, test_palette.py, test_rehber.py, test_sablon_canvas.py, test_shortcut_sheet.py, test_yukle_a.py |
+| kontrol | K | kontrol.kes | Burada kes | typing | test_actions.py, test_integration.py, test_kontrol_a.py, test_main_window.py, test_phase4.py, test_shell.py |
+| kontrol | M | kontrol.birlestir | Önceki belgeyle birleştir | typing | test_kontrol_a.py |
+| kontrol | R | kontrol.saga_dondur | Sağa döndür | typing | test_kontrol_a.py |
+| kontrol | Shift+R | kontrol.sola_dondur | Sola döndür | typing | test_kontrol_a.py |
+| kontrol | Del | kontrol.sil | Sayfayı sil | typing | test_actions.py, test_kontrol_a.py, test_sablon_window.py, test_yukle_a.py |
+| kontrol | Return | kontrol.onayla | Belgeyi onayla | typing | test_actions.py, test_degerler.py, test_kontrol_a.py, test_palette.py, test_phase4.py, test_rehber.py |
+| kontrol | Enter | kontrol.onayla | Belgeyi onayla | typing | test_actions.py, test_phase4.py |
+| kontrol | F | kontrol.filtre | Filtre uygula… | typing | test_rehber.py |
+| kontrol | T | kontrol.sablon | Şablonu uygula | typing | NONE |
+| kontrol | Space | kontrol.onizle | Önizle | typing | test_degerler.py, test_kontrol_a.py, test_loupe.py, test_phase4.py, test_sablon_canvas.py, test_shell.py |
+| kontrol | N | kontrol.sonraki_kontrol | Sonraki kontrol | typing | test_actions.py, test_degerler.py, test_kontrol_a.py |
+| kontrol | Shift+N | kontrol.onceki_kontrol | Önceki kontrol | typing | test_actions.py, test_degerler.py, test_kontrol_a.py |
+| kontrol | U | kontrol.sonraki_incelenmemis | Sonraki incelenmemiş | typing | test_kontrol_a.py |
+| kontrol | Ctrl+Right | kontrol.sonraki_belge | Sonraki belge | - | test_kontrol_a.py, test_loupe.py, test_phase4.py, test_sablon.py, test_sablon_canvas.py, test_sablon_window.py |
+| kontrol | Ctrl+Left | kontrol.onceki_belge | Önceki belge | - | test_kontrol_a.py, test_loupe.py, test_sablon_canvas.py |
+| kontrol | Left | kontrol.sayfa | Önceki / sonraki sayfa | local | test_kontrol_a.py, test_loupe.py, test_sablon_canvas.py |
+| kontrol | Right | kontrol.sayfa | Önceki / sonraki sayfa | local | test_kontrol_a.py, test_loupe.py, test_phase4.py, test_sablon.py, test_sablon_canvas.py, test_sablon_window.py |
+| kontrol | Home | kontrol.ilk_son | İlk / son sayfa | local | test_kontrol_a.py, test_loupe.py |
+| kontrol | End | kontrol.ilk_son | İlk / son sayfa | local | test_kontrol_a.py, test_loupe.py |
+| kontrol | PgUp | kontrol.ekran | Bir ekran geri / ileri | local | test_loupe.py |
+| kontrol | PgDown | kontrol.ekran | Bir ekran geri / ileri | local | test_loupe.py, test_rehber.py |
+| kontrol | Shift+Left | kontrol.secimi_genislet | Seçimi genişlet | local | test_kontrol_a.py, test_loupe.py, test_sablon_canvas.py |
+| kontrol | Shift+Right | kontrol.secimi_genislet | Seçimi genişlet | local | test_kontrol_a.py, test_loupe.py, test_phase4.py, test_sablon.py, test_sablon_canvas.py, test_sablon_window.py |
+| sablonlar | Ctrl+1 | app.sekme.yukle | Yükle | - | test_phase4.py, test_shell.py |
+| sablonlar | Ctrl+2 | app.sekme.kontrol | Kontrol | - | test_shell.py, test_yukle_a.py |
+| sablonlar | Ctrl+3 | app.sekme.sablonlar | Şablonlar | - | test_shell.py |
+| sablonlar | Ctrl+4 | app.sekme.degerler | Değerler | - | test_shell.py |
+| sablonlar | Ctrl+5 | app.sekme.disa_aktar | Dışa Aktar | - | test_shell.py |
+| sablonlar | Ctrl+6 | app.sekme.rehber | Rehber | - | test_shell.py |
+| sablonlar | Ctrl+Tab | app.sonraki_sekme | Sonraki sekme | - | test_degerler.py, test_phase4.py |
+| sablonlar | Ctrl+Shift+Tab | app.onceki_sekme | Önceki sekme | - | test_degerler.py, test_phase4.py |
+| sablonlar | Ctrl+Shift+Backtab | app.onceki_sekme | Önceki sekme | - | test_degerler.py |
+| sablonlar | F6 | app.sonraki_bolge | Sonraki bölge | - | test_actions.py, test_phase4.py |
+| sablonlar | Shift+F6 | app.onceki_bolge | Önceki bölge | - | test_phase4.py |
+| sablonlar | Ctrl+G | app.git | Belgeye veya sayfaya git… | - | test_sablon_window.py |
+| sablonlar | Ctrl+N | app.yeni_is | Yeni iş oluştur… | - | test_actions.py, test_degerler.py, test_kontrol_a.py, test_shell.py |
+| sablonlar | Ctrl+O | app.dosya_ekle | Dosya ekle… | - | NONE |
+| sablonlar | Ctrl+S | app.kaydet | Kaydet | - | test_phase4.py, test_sablon_window.py |
+| sablonlar | Ctrl+E | app.disa_aktar | Dışa aktar… | - | test_disa_aktar.py, test_phase4.py, test_shell.py |
+| sablonlar | Ctrl+W | app.isi_kapat | İşi kapat | - | test_shell.py |
+| sablonlar | Ctrl+Q | app.cikis | Çıkış | - | NONE |
+| sablonlar | Ctrl+Z | app.geri_al | Geri al | - | test_actions.py, test_degerler.py, test_integration.py, test_kontrol_a.py, test_main_window.py, test_sablon_window.py, test_shell.py |
+| sablonlar | Ctrl+Y | app.yinele | Yinele | - | test_integration.py, test_sablon_window.py |
+| sablonlar | Ctrl+Shift+Z | app.yinele | Yinele | - | test_integration.py, test_kontrol_a.py, test_sablon_window.py |
+| sablonlar | Ctrl+F | app.bul | Bul… | - | test_phase4.py, test_rehber.py |
+| sablonlar | F3 | app.sonraki_sonuc | Sonraki sonuç | - | test_rehber.py |
+| sablonlar | Shift+F3 | app.onceki_sonuc | Önceki sonuç | - | test_rehber.py |
+| sablonlar | Ctrl+Num++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| sablonlar | Ctrl++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| sablonlar | Ctrl+= | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| sablonlar | Ctrl+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| sablonlar | Ctrl+Num+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| sablonlar | Ctrl+0 | app.sigdir | Sığdır | - | test_integration.py, test_kontrol_a.py, test_loupe.py, test_rehber.py, test_sablon_window.py, test_shell.py, test_zoomview.py |
+| sablonlar | Ctrl+Shift+Num++ | app.yazi_buyut | Yazı boyutunu büyüt | - | NONE |
+| sablonlar | Ctrl+Shift+Num+- | app.yazi_kucult | Yazı boyutunu küçült | - | NONE |
+| sablonlar | F11 | app.tam_ekran | Tam ekran | checkable | NONE |
+| sablonlar | F9 | app.yan_panel | Yan paneli gizle | - | test_disa_aktar.py, test_rehber.py, test_sablon_window.py, test_shell.py |
+| sablonlar | F5 | app.yenile | Yenile | - | test_disa_aktar.py |
+| sablonlar | Ctrl+, | app.ayarlar | Ayarlar… | - | NONE |
+| sablonlar | F1 | app.yardim | Yardım konuları | - | test_actions.py, test_rehber.py, test_shell.py |
+| sablonlar | Shift+F1 | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| sablonlar | Ctrl+/ | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| sablonlar | ? | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| sablonlar | Ctrl+K | app.komut_ara | Komut ara… | - | test_actions.py, test_kontrol_a.py, test_shell.py |
+| sablonlar | Ctrl+Shift+P | app.komut_ara | Komut ara… | - | test_actions.py, test_rehber.py |
+| sablonlar | B | sablonlar.kutu_ciz | Kutu çiz | typing,checkable | test_actions.py, test_sablon_window.py |
+| sablonlar | G | sablonlar.izgara | Izgaraya oturt | typing,checkable | test_actions.py, test_phase4.py, test_sablon_window.py |
+| sablonlar | Ctrl+T | sablonlar.dene | Bütün örneklerde dene | - | NONE |
+| sablonlar | Del | sablonlar.kutu_sil | Kutuyu sil | typing | test_kontrol_a.py, test_sablon_window.py, test_yukle_a.py |
+| sablonlar | Ctrl+D | sablonlar.kutu_cogalt | Kutuyu çoğalt | - | test_sablon_window.py |
+| sablonlar | Ctrl+Shift+N | sablonlar.degisken_ekle | Değişken ekle | - | test_actions.py, test_degerler.py, test_kontrol_a.py |
+| sablonlar | Alt+Up | sablonlar.yukari | Değişkeni yukarı taşı | - | test_sablon_window.py |
+| sablonlar | Alt+Down | sablonlar.asagi | Değişkeni aşağı taşı | - | test_kontrol_a.py, test_palette.py, test_sablon.py, test_sablon_canvas.py, test_sablon_window.py, test_yukle_a.py |
+| sablonlar | Left | sablonlar.kaydir | Kutuyu 0,25 mm kaydır | local | test_kontrol_a.py, test_loupe.py, test_sablon_canvas.py |
+| sablonlar | Up | sablonlar.kaydir | Kutuyu 0,25 mm kaydır | local | NONE |
+| sablonlar | Right | sablonlar.kaydir | Kutuyu 0,25 mm kaydır | local | test_kontrol_a.py, test_loupe.py, test_phase4.py, test_sablon.py, test_sablon_canvas.py, test_sablon_window.py |
+| sablonlar | Down | sablonlar.kaydir | Kutuyu 0,25 mm kaydır | local | test_kontrol_a.py, test_palette.py, test_sablon.py, test_sablon_canvas.py, test_sablon_window.py, test_yukle_a.py |
+| sablonlar | Shift+Left | sablonlar.kaydir_1mm | Kutuyu 1 mm kaydır | local | test_kontrol_a.py, test_loupe.py, test_sablon_canvas.py |
+| sablonlar | Shift+Up | sablonlar.kaydir_1mm | Kutuyu 1 mm kaydır | local | NONE |
+| sablonlar | Shift+Right | sablonlar.kaydir_1mm | Kutuyu 1 mm kaydır | local | test_kontrol_a.py, test_loupe.py, test_phase4.py, test_sablon.py, test_sablon_canvas.py, test_sablon_window.py |
+| sablonlar | Shift+Down | sablonlar.kaydir_1mm | Kutuyu 1 mm kaydır | local | test_kontrol_a.py, test_palette.py, test_sablon.py, test_sablon_canvas.py, test_sablon_window.py, test_yukle_a.py |
+| sablonlar | Space | sablonlar.el | Sayfayı sürükle (basılı tut) | local | test_degerler.py, test_kontrol_a.py, test_loupe.py, test_phase4.py, test_sablon_canvas.py |
+| degerler | Ctrl+1 | app.sekme.yukle | Yükle | - | test_phase4.py, test_shell.py |
+| degerler | Ctrl+2 | app.sekme.kontrol | Kontrol | - | test_shell.py, test_yukle_a.py |
+| degerler | Ctrl+3 | app.sekme.sablonlar | Şablonlar | - | test_shell.py |
+| degerler | Ctrl+4 | app.sekme.degerler | Değerler | - | test_shell.py |
+| degerler | Ctrl+5 | app.sekme.disa_aktar | Dışa Aktar | - | test_shell.py |
+| degerler | Ctrl+6 | app.sekme.rehber | Rehber | - | test_shell.py |
+| degerler | Ctrl+Tab | app.sonraki_sekme | Sonraki sekme | - | test_degerler.py, test_phase4.py |
+| degerler | Ctrl+Shift+Tab | app.onceki_sekme | Önceki sekme | - | test_degerler.py, test_phase4.py |
+| degerler | Ctrl+Shift+Backtab | app.onceki_sekme | Önceki sekme | - | test_degerler.py |
+| degerler | F6 | app.sonraki_bolge | Sonraki bölge | - | test_actions.py, test_phase4.py |
+| degerler | Shift+F6 | app.onceki_bolge | Önceki bölge | - | test_phase4.py |
+| degerler | Ctrl+G | app.git | Belgeye veya sayfaya git… | - | test_sablon_window.py |
+| degerler | Ctrl+N | app.yeni_is | Yeni iş oluştur… | - | test_actions.py, test_degerler.py, test_kontrol_a.py, test_shell.py |
+| degerler | Ctrl+O | app.dosya_ekle | Dosya ekle… | - | NONE |
+| degerler | Ctrl+S | app.kaydet | Kaydet | - | test_phase4.py, test_sablon_window.py |
+| degerler | Ctrl+E | app.disa_aktar | Dışa aktar… | - | test_disa_aktar.py, test_phase4.py, test_shell.py |
+| degerler | Ctrl+W | app.isi_kapat | İşi kapat | - | test_shell.py |
+| degerler | Ctrl+Q | app.cikis | Çıkış | - | NONE |
+| degerler | Ctrl+Z | app.geri_al | Geri al | - | test_actions.py, test_degerler.py, test_integration.py, test_kontrol_a.py, test_main_window.py, test_sablon_window.py, test_shell.py |
+| degerler | Ctrl+Y | app.yinele | Yinele | - | test_integration.py, test_sablon_window.py |
+| degerler | Ctrl+Shift+Z | app.yinele | Yinele | - | test_integration.py, test_kontrol_a.py, test_sablon_window.py |
+| degerler | Ctrl+F | app.bul | Bul… | - | test_phase4.py, test_rehber.py |
+| degerler | F3 | app.sonraki_sonuc | Sonraki sonuç | - | test_rehber.py |
+| degerler | Shift+F3 | app.onceki_sonuc | Önceki sonuç | - | test_rehber.py |
+| degerler | Ctrl+Num++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| degerler | Ctrl++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| degerler | Ctrl+= | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| degerler | Ctrl+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| degerler | Ctrl+Num+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| degerler | Ctrl+0 | app.sigdir | Sığdır | - | test_integration.py, test_kontrol_a.py, test_loupe.py, test_rehber.py, test_sablon_window.py, test_shell.py, test_zoomview.py |
+| degerler | Ctrl+Shift+Num++ | app.yazi_buyut | Yazı boyutunu büyüt | - | NONE |
+| degerler | Ctrl+Shift+Num+- | app.yazi_kucult | Yazı boyutunu küçült | - | NONE |
+| degerler | F11 | app.tam_ekran | Tam ekran | checkable | NONE |
+| degerler | F9 | app.yan_panel | Yan paneli gizle | - | test_disa_aktar.py, test_rehber.py, test_sablon_window.py, test_shell.py |
+| degerler | F5 | app.yenile | Yenile | - | test_disa_aktar.py |
+| degerler | Ctrl+, | app.ayarlar | Ayarlar… | - | NONE |
+| degerler | F1 | app.yardim | Yardım konuları | - | test_actions.py, test_rehber.py, test_shell.py |
+| degerler | Shift+F1 | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| degerler | Ctrl+/ | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| degerler | ? | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| degerler | Ctrl+K | app.komut_ara | Komut ara… | - | test_actions.py, test_kontrol_a.py, test_shell.py |
+| degerler | Ctrl+Shift+P | app.komut_ara | Komut ara… | - | test_actions.py, test_rehber.py |
+| degerler | Return | degerler.onayla | Onayla ve sonrakine geç | typing | test_degerler.py, test_kontrol_a.py, test_palette.py, test_phase4.py, test_rehber.py |
+| degerler | Enter | degerler.onayla | Onayla ve sonrakine geç | typing | test_degerler.py, test_phase4.py |
+| degerler | Ctrl+Return | degerler.secilenleri_onayla | Seçilenleri onayla | - | test_degerler.py, test_kontrol_a.py, test_palette.py, test_phase4.py, test_rehber.py |
+| degerler | Ctrl+Enter | degerler.secilenleri_onayla | Seçilenleri onayla | - | test_degerler.py |
+| degerler | F2 | degerler.elle_yaz | Elle yaz | - | test_degerler.py |
+| degerler | V | degerler.varyant | Yeni varyant çiz | typing | test_degerler.py |
+| degerler | Esc | degerler.vazgec | Vazgeç | typing | test_degerler.py, test_feedback.py, test_kontrol_a.py, test_loupe.py, test_palette.py, test_rehber.py, test_sablon_canvas.py, test_shortcut_sheet.py, test_yukle_a.py |
+| degerler | Ctrl+A | degerler.tumunu_sec | Tümünü seç | - | test_degerler.py, test_kontrol_a.py |
+| degerler | Space | degerler.tum_sayfa | Tüm sayfayı göster | typing | test_degerler.py, test_kontrol_a.py, test_loupe.py, test_phase4.py, test_sablon_canvas.py |
+| degerler | N | degerler.sonraki_kontrol | Sonraki kontrol | typing | test_actions.py, test_degerler.py, test_kontrol_a.py |
+| degerler | Shift+N | degerler.onceki_kontrol | Önceki kontrol | typing | test_actions.py, test_degerler.py, test_kontrol_a.py |
+| degerler | Ctrl+. | degerler.durdur | Okumayı durdur | - | test_degerler.py |
+| degerler | Tab | degerler.sonraki_deger | Sonraki / önceki değer | local | test_actions.py, test_degerler.py, test_phase4.py |
+| degerler | Shift+Tab | degerler.sonraki_deger | Sonraki / önceki değer | local | test_actions.py, test_degerler.py, test_phase4.py |
+| disa_aktar | Ctrl+1 | app.sekme.yukle | Yükle | - | test_phase4.py, test_shell.py |
+| disa_aktar | Ctrl+2 | app.sekme.kontrol | Kontrol | - | test_shell.py, test_yukle_a.py |
+| disa_aktar | Ctrl+3 | app.sekme.sablonlar | Şablonlar | - | test_shell.py |
+| disa_aktar | Ctrl+4 | app.sekme.degerler | Değerler | - | test_shell.py |
+| disa_aktar | Ctrl+5 | app.sekme.disa_aktar | Dışa Aktar | - | test_shell.py |
+| disa_aktar | Ctrl+6 | app.sekme.rehber | Rehber | - | test_shell.py |
+| disa_aktar | Ctrl+Tab | app.sonraki_sekme | Sonraki sekme | - | test_degerler.py, test_phase4.py |
+| disa_aktar | Ctrl+Shift+Tab | app.onceki_sekme | Önceki sekme | - | test_degerler.py, test_phase4.py |
+| disa_aktar | Ctrl+Shift+Backtab | app.onceki_sekme | Önceki sekme | - | test_degerler.py |
+| disa_aktar | F6 | app.sonraki_bolge | Sonraki bölge | - | test_actions.py, test_phase4.py |
+| disa_aktar | Shift+F6 | app.onceki_bolge | Önceki bölge | - | test_phase4.py |
+| disa_aktar | Ctrl+G | app.git | Belgeye veya sayfaya git… | - | test_sablon_window.py |
+| disa_aktar | Ctrl+N | app.yeni_is | Yeni iş oluştur… | - | test_actions.py, test_degerler.py, test_kontrol_a.py, test_shell.py |
+| disa_aktar | Ctrl+O | app.dosya_ekle | Dosya ekle… | - | NONE |
+| disa_aktar | Ctrl+S | app.kaydet | Kaydet | - | test_phase4.py, test_sablon_window.py |
+| disa_aktar | Ctrl+E | app.disa_aktar | Dışa aktar… | - | test_disa_aktar.py, test_phase4.py, test_shell.py |
+| disa_aktar | Ctrl+Shift+O | disa_aktar.gezginde_goster | Dosya Gezgini'nde göster | - | test_disa_aktar.py |
+| disa_aktar | Ctrl+P | disa_aktar.yazdir | Dizini yazdır… | - | test_disa_aktar.py, test_rehber.py |
+| disa_aktar | Ctrl+W | app.isi_kapat | İşi kapat | - | test_shell.py |
+| disa_aktar | Ctrl+Q | app.cikis | Çıkış | - | NONE |
+| disa_aktar | Ctrl+Z | app.geri_al | Geri al | - | test_actions.py, test_degerler.py, test_integration.py, test_kontrol_a.py, test_main_window.py, test_sablon_window.py, test_shell.py |
+| disa_aktar | Ctrl+Y | app.yinele | Yinele | - | test_integration.py, test_sablon_window.py |
+| disa_aktar | Ctrl+Shift+Z | app.yinele | Yinele | - | test_integration.py, test_kontrol_a.py, test_sablon_window.py |
+| disa_aktar | Ctrl+F | app.bul | Bul… | - | test_phase4.py, test_rehber.py |
+| disa_aktar | F3 | app.sonraki_sonuc | Sonraki sonuç | - | test_rehber.py |
+| disa_aktar | Shift+F3 | app.onceki_sonuc | Önceki sonuç | - | test_rehber.py |
+| disa_aktar | Ctrl+Num++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| disa_aktar | Ctrl++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| disa_aktar | Ctrl+= | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| disa_aktar | Ctrl+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| disa_aktar | Ctrl+Num+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| disa_aktar | Ctrl+0 | app.sigdir | Sığdır | - | test_integration.py, test_kontrol_a.py, test_loupe.py, test_rehber.py, test_sablon_window.py, test_shell.py, test_zoomview.py |
+| disa_aktar | Ctrl+Shift+Num++ | app.yazi_buyut | Yazı boyutunu büyüt | - | NONE |
+| disa_aktar | Ctrl+Shift+Num+- | app.yazi_kucult | Yazı boyutunu küçült | - | NONE |
+| disa_aktar | F11 | app.tam_ekran | Tam ekran | checkable | NONE |
+| disa_aktar | F9 | app.yan_panel | Yan paneli gizle | - | test_disa_aktar.py, test_rehber.py, test_sablon_window.py, test_shell.py |
+| disa_aktar | F5 | app.yenile | Yenile | - | test_disa_aktar.py |
+| disa_aktar | Ctrl+, | app.ayarlar | Ayarlar… | - | NONE |
+| disa_aktar | F1 | app.yardim | Yardım konuları | - | test_actions.py, test_rehber.py, test_shell.py |
+| disa_aktar | Shift+F1 | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| disa_aktar | Ctrl+/ | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| disa_aktar | ? | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| disa_aktar | Ctrl+K | app.komut_ara | Komut ara… | - | test_actions.py, test_kontrol_a.py, test_shell.py |
+| disa_aktar | Ctrl+Shift+P | app.komut_ara | Komut ara… | - | test_actions.py, test_rehber.py |
+| disa_aktar | Ctrl+. | disa_aktar.durdur | Dışa aktarmayı durdur | - | test_disa_aktar.py |
+| rehber | Ctrl+1 | app.sekme.yukle | Yükle | - | test_phase4.py, test_shell.py |
+| rehber | Ctrl+2 | app.sekme.kontrol | Kontrol | - | test_shell.py, test_yukle_a.py |
+| rehber | Ctrl+3 | app.sekme.sablonlar | Şablonlar | - | test_shell.py |
+| rehber | Ctrl+4 | app.sekme.degerler | Değerler | - | test_shell.py |
+| rehber | Ctrl+5 | app.sekme.disa_aktar | Dışa Aktar | - | test_shell.py |
+| rehber | Ctrl+6 | app.sekme.rehber | Rehber | - | test_shell.py |
+| rehber | Ctrl+Tab | app.sonraki_sekme | Sonraki sekme | - | test_degerler.py, test_phase4.py |
+| rehber | Ctrl+Shift+Tab | app.onceki_sekme | Önceki sekme | - | test_degerler.py, test_phase4.py |
+| rehber | Ctrl+Shift+Backtab | app.onceki_sekme | Önceki sekme | - | test_degerler.py |
+| rehber | F6 | app.sonraki_bolge | Sonraki bölge | - | test_actions.py, test_phase4.py |
+| rehber | Shift+F6 | app.onceki_bolge | Önceki bölge | - | test_phase4.py |
+| rehber | Ctrl+G | app.git | Belgeye veya sayfaya git… | - | test_sablon_window.py |
+| rehber | Ctrl+N | app.yeni_is | Yeni iş oluştur… | - | test_actions.py, test_degerler.py, test_kontrol_a.py, test_shell.py |
+| rehber | Ctrl+O | app.dosya_ekle | Dosya ekle… | - | NONE |
+| rehber | Ctrl+S | app.kaydet | Kaydet | - | test_phase4.py, test_sablon_window.py |
+| rehber | Ctrl+E | app.disa_aktar | Dışa aktar… | - | test_disa_aktar.py, test_phase4.py, test_shell.py |
+| rehber | Ctrl+P | rehber.yazdir | Ayıraç sayfasını yazdır… | - | test_rehber.py |
+| rehber | Ctrl+W | app.isi_kapat | İşi kapat | - | test_shell.py |
+| rehber | Ctrl+Q | app.cikis | Çıkış | - | NONE |
+| rehber | Ctrl+Z | app.geri_al | Geri al | - | test_actions.py, test_degerler.py, test_integration.py, test_kontrol_a.py, test_main_window.py, test_sablon_window.py, test_shell.py |
+| rehber | Ctrl+Y | app.yinele | Yinele | - | test_integration.py, test_sablon_window.py |
+| rehber | Ctrl+Shift+Z | app.yinele | Yinele | - | test_integration.py, test_kontrol_a.py, test_sablon_window.py |
+| rehber | Ctrl+F | app.bul | Bul… | - | test_phase4.py, test_rehber.py |
+| rehber | F3 | app.sonraki_sonuc | Sonraki sonuç | - | test_rehber.py |
+| rehber | Shift+F3 | app.onceki_sonuc | Önceki sonuç | - | test_rehber.py |
+| rehber | Ctrl+Num++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| rehber | Ctrl++ | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| rehber | Ctrl+= | app.yakinlastir | Yakınlaştır | - | test_integration.py, test_kontrol_a.py, test_rehber.py, test_shell.py |
+| rehber | Ctrl+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| rehber | Ctrl+Num+- | app.uzaklastir | Uzaklaştır | - | test_rehber.py |
+| rehber | Ctrl+0 | app.sigdir | Sığdır | - | test_integration.py, test_kontrol_a.py, test_loupe.py, test_rehber.py, test_sablon_window.py, test_shell.py, test_zoomview.py |
+| rehber | Ctrl+Shift+Num++ | app.yazi_buyut | Yazı boyutunu büyüt | - | NONE |
+| rehber | Ctrl+Shift+Num+- | app.yazi_kucult | Yazı boyutunu küçült | - | NONE |
+| rehber | F11 | app.tam_ekran | Tam ekran | checkable | NONE |
+| rehber | F9 | app.yan_panel | Yan paneli gizle | - | test_disa_aktar.py, test_rehber.py, test_sablon_window.py, test_shell.py |
+| rehber | F5 | app.yenile | Yenile | - | test_disa_aktar.py |
+| rehber | Ctrl+, | app.ayarlar | Ayarlar… | - | NONE |
+| rehber | F1 | app.yardim | Yardım konuları | - | test_actions.py, test_rehber.py, test_shell.py |
+| rehber | Shift+F1 | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| rehber | Ctrl+/ | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| rehber | ? | app.kisayollar | Klavye kısayolları | typing | test_actions.py, test_integration.py, test_rehber.py, test_shell.py |
+| rehber | Ctrl+K | app.komut_ara | Komut ara… | - | test_actions.py, test_kontrol_a.py, test_shell.py |
+| rehber | Ctrl+Shift+P | app.komut_ara | Komut ara… | - | test_actions.py, test_rehber.py |
+| rehber | Esc | rehber.aramayi_temizle | Aramayı temizle | local | test_degerler.py, test_feedback.py, test_kontrol_a.py, test_loupe.py, test_palette.py, test_rehber.py, test_sablon_canvas.py, test_shortcut_sheet.py, test_yukle_a.py |
+
+Keys with a different label on different tabs (must be documented as page-specific in docs/ui-goal/shortcuts.md, or fixed):
+  Alt+Down: Partiyi aşağı taşı [yukle] | Değişkeni aşağı taşı [sablonlar]
+  Alt+Up: Partiyi yukarı taşı [yukle] | Değişkeni yukarı taşı [sablonlar]
+  Ctrl+.: İptal et [yukle] | Okumayı durdur [degerler] | Dışa aktarmayı durdur [disa_aktar]
+  Ctrl+P: Dizini yazdır… [disa_aktar] | Ayıraç sayfasını yazdır… [rehber]
+  Del: Partiyi çıkar [yukle] | Sayfayı sil [kontrol] | Kutuyu sil [sablonlar]
+  Enter: Belgeyi onayla [kontrol] | Onayla ve sonrakine geç [degerler]
+  Esc: Seçimi kaldır [kontrol] | Vazgeç [degerler] | Aramayı temizle [rehber]
+  F2: Yeniden adlandır [yukle] | Elle yaz [degerler]
+  Left: Önceki / sonraki sayfa [kontrol] | Kutuyu 0,25 mm kaydır [sablonlar]
+  Return: Belgeyi onayla [kontrol] | Onayla ve sonrakine geç [degerler]
+  Right: Önceki / sonraki sayfa [kontrol] | Kutuyu 0,25 mm kaydır [sablonlar]
+  Shift+Left: Seçimi genişlet [kontrol] | Kutuyu 1 mm kaydır [sablonlar]
+  Shift+Right: Seçimi genişlet [kontrol] | Kutuyu 1 mm kaydır [sablonlar]
+  Space: Önizle [kontrol] | Sayfayı sürükle (basılı tut) [sablonlar] | Tüm sayfayı göster [degerler]
+
+validate(): 0 problem(s)
+
+40 binding(s) no test file mentions by id or key:
+  - yukle Ctrl+O app.dosya_ekle
+  - yukle Ctrl+Q app.cikis
+  - yukle Ctrl+Shift+Num++ app.yazi_buyut
+  - yukle Ctrl+Shift+Num+- app.yazi_kucult
+  - yukle F11 app.tam_ekran
+  - yukle Ctrl+, app.ayarlar
+  - kontrol Ctrl+O app.dosya_ekle
+  - kontrol Ctrl+Q app.cikis
+  - kontrol Ctrl+Shift+Num++ app.yazi_buyut
+  - kontrol Ctrl+Shift+Num+- app.yazi_kucult
+  - kontrol F11 app.tam_ekran
+  - kontrol Ctrl+, app.ayarlar
+  - kontrol T kontrol.sablon
+  - sablonlar Ctrl+O app.dosya_ekle
+  - sablonlar Ctrl+Q app.cikis
+  - sablonlar Ctrl+Shift+Num++ app.yazi_buyut
+  - sablonlar Ctrl+Shift+Num+- app.yazi_kucult
+  - sablonlar F11 app.tam_ekran
+  - sablonlar Ctrl+, app.ayarlar
+  - sablonlar Ctrl+T sablonlar.dene
+  - sablonlar Up sablonlar.kaydir
+  - sablonlar Shift+Up sablonlar.kaydir_1mm
+  - degerler Ctrl+O app.dosya_ekle
+  - degerler Ctrl+Q app.cikis
+  - degerler Ctrl+Shift+Num++ app.yazi_buyut
+  - degerler Ctrl+Shift+Num+- app.yazi_kucult
+  - degerler F11 app.tam_ekran
+  - degerler Ctrl+, app.ayarlar
+  - disa_aktar Ctrl+O app.dosya_ekle
+  - disa_aktar Ctrl+Q app.cikis
+  - disa_aktar Ctrl+Shift+Num++ app.yazi_buyut
+  - disa_aktar Ctrl+Shift+Num+- app.yazi_kucult
+  - disa_aktar F11 app.tam_ekran
+  - disa_aktar Ctrl+, app.ayarlar
+  - rehber Ctrl+O app.dosya_ekle
+  - rehber Ctrl+Q app.cikis
+  - rehber Ctrl+Shift+Num++ app.yazi_buyut
+  - rehber Ctrl+Shift+Num+- app.yazi_kucult
+  - rehber F11 app.tam_ekran
+  - rehber Ctrl+, app.ayarlar
+
+# commit: 0a28b16 | date: 2026-11-19 | command: QT_QPA_PLATFORM=offscreen python .claude/skills/shortcut-audit/audit_shortcuts.py
+# run 2 identical to run 1: yes

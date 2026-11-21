@@ -1,0 +1,356 @@
+tab	key	action_id	label	menu_path	button	context_menu	palette	status
+yukle	Ctrl+1	app.sekme.yukle	Yükle	Git > Yükle			yes	ok
+yukle	Ctrl+2	app.sekme.kontrol	Kontrol	Git > Kontrol	GapButton | bar		yes	ok
+yukle	Ctrl+3	app.sekme.sablonlar	Şablonlar	Git > Şablonlar			yes	ok
+yukle	Ctrl+4	app.sekme.degerler	Değerler	Git > Değerler			yes	ok
+yukle	Ctrl+5	app.sekme.disa_aktar	Dışa Aktar	Git > Dışa Aktar			yes	ok
+yukle	Ctrl+6	app.sekme.rehber	Rehber	Git > Rehber			yes	ok
+yukle	Ctrl+Tab	app.sonraki_sekme	Sonraki sekme	Git > Sonraki sekme			yes	ok
+yukle	Ctrl+Shift+Tab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+yukle	Ctrl+Shift+Backtab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+yukle	F6	app.sonraki_bolge	Sonraki bölge				yes	exempt:F6 moves focus between regions like Tab; the mouse clicks to focus
+yukle	Shift+F6	app.onceki_bolge	Önceki bölge				yes	exempt:Shift+F6 moves focus between regions like Shift+Tab; the mouse clicks
+yukle	Ctrl+G	app.git	Belgeye veya sayfaya git…	Git > Belgeye veya sayfaya git [state-dependent]			yes	ok
+yukle	Ctrl+N	app.yeni_is	Yeni iş oluştur…	Dosya > Yeni iş oluştur	QPushButton [state-dependent] | bar		yes	ok
+yukle	Ctrl+O	app.dosya_ekle	Dosya ekle…	Dosya > Dosya ekle	QPushButton [state-dependent] | bar		yes	ok
+yukle		yukle.klasor_ekle	Klasör ekle…	Dosya > Klasör ekle	bar		yes	ok
+yukle	Ctrl+S	app.kaydet	Kaydet	Dosya > Kaydet			yes	ok
+yukle	Ctrl+E	app.disa_aktar	Dışa aktar…	Dosya > Dışa aktar			yes	ok
+yukle	Ctrl+Shift+O	yukle.gezginde_goster	Dosya Gezgini'nde göster	Dosya > Dosya Gezgini'nde göster	bar | panel Diğer	batch row	yes	ok
+yukle	Ctrl+W	app.isi_kapat	İşi kapat	Dosya > İşi kapat	GapButton | panel Diğer		yes	ok
+yukle	Ctrl+Q	app.cikis	Çıkış	Dosya > Çıkış			yes	ok
+yukle	Ctrl+Z	app.geri_al	Geri al	Düzen > Geri al: Şablon uygula	bar		yes	ok
+yukle	Ctrl+Y	app.yinele	Yinele	Düzen > Yinele [state-dependent]	bar [state-dependent]		yes	ok
+yukle	Ctrl+Shift+Z	app.yinele	Yinele	Düzen > Yinele [state-dependent]	bar [state-dependent]		yes	ok
+yukle	Ctrl+F	app.bul	Bul…	Düzen > Bul			yes	ok
+yukle	F3	app.sonraki_sonuc	Sonraki sonuç	Düzen > Sonraki sonuç [state-dependent]			yes	ok
+yukle	Shift+F3	app.onceki_sonuc	Önceki sonuç	Düzen > Önceki sonuç [state-dependent]			yes	ok
+yukle	Ctrl+Num++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır [state-dependent]			yes	ok
+yukle	Ctrl++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır [state-dependent]			yes	ok
+yukle	Ctrl+=	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır [state-dependent]			yes	ok
+yukle	Ctrl+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır [state-dependent]			yes	ok
+yukle	Ctrl+Num+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır [state-dependent]			yes	ok
+yukle	Ctrl+0	app.sigdir	Sığdır	Görünüm > Sığdır [state-dependent]			yes	ok
+yukle	Ctrl+Shift+Num++	app.yazi_buyut	Yazı boyutunu büyüt	Görünüm > Yazı boyutunu büyüt			yes	ok
+yukle	Ctrl+Shift+Num+-	app.yazi_kucult	Yazı boyutunu küçült	Görünüm > Yazı boyutunu küçült			yes	ok
+yukle	F11	app.tam_ekran	Tam ekran	Görünüm > Tam ekran			yes	ok
+yukle	F9	app.yan_panel	Yan paneli gizle	Görünüm > Yan paneli gizle	bar		yes	ok
+yukle	F5	app.yenile	Yenile	Görünüm > Yenile			yes	ok
+yukle	Ctrl+,	app.ayarlar	Ayarlar…	Araçlar > Ayarlar			yes	ok
+yukle	F1	app.yardim	Yardım konuları	Yardım > Yardım konuları			yes	ok
+yukle	Shift+F1	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+yukle	Ctrl+/	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+yukle	?	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+yukle	Ctrl+K	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+yukle	Ctrl+Shift+P	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+yukle		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	ok
+yukle	Alt+Up	yukle.yukari	Partiyi yukarı taşı	Düzen > Partiyi yukarı taşı [state-dependent]	bar [state-dependent]	batch row [state-dependent]	yes	ok
+yukle	Alt+Down	yukle.asagi	Partiyi aşağı taşı	Düzen > Partiyi aşağı taşı [state-dependent]	bar [state-dependent]	batch row [state-dependent]	yes	ok
+yukle	Del	yukle.cikar	Partiyi çıkar	Düzen > Partiyi çıkar	bar	batch row	yes	ok
+yukle	F2	yukle.yeniden_adlandir	Yeniden adlandır	Düzen > Yeniden adlandır	bar Diğer komutlar | panel Diğer		yes	ok
+yukle	Ctrl+.	yukle.iptal	İptal et	Araçlar > İptal et [state-dependent]	bar [state-dependent]		yes	ok
+kontrol	Ctrl+1	app.sekme.yukle	Yükle	Git > Yükle			yes	ok
+kontrol	Ctrl+2	app.sekme.kontrol	Kontrol	Git > Kontrol			yes	ok
+kontrol	Ctrl+3	app.sekme.sablonlar	Şablonlar	Git > Şablonlar			yes	ok
+kontrol	Ctrl+4	app.sekme.degerler	Değerler	Git > Değerler			yes	ok
+kontrol	Ctrl+5	app.sekme.disa_aktar	Dışa Aktar	Git > Dışa Aktar			yes	ok
+kontrol	Ctrl+6	app.sekme.rehber	Rehber	Git > Rehber			yes	ok
+kontrol	Ctrl+Tab	app.sonraki_sekme	Sonraki sekme	Git > Sonraki sekme			yes	ok
+kontrol	Ctrl+Shift+Tab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+kontrol	Ctrl+Shift+Backtab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+kontrol	F6	app.sonraki_bolge	Sonraki bölge				yes	exempt:F6 moves focus between regions like Tab; the mouse clicks to focus
+kontrol	Shift+F6	app.onceki_bolge	Önceki bölge				yes	exempt:Shift+F6 moves focus between regions like Shift+Tab; the mouse clicks
+kontrol	Ctrl+G	app.git	Belgeye veya sayfaya git…	Git > Belgeye veya sayfaya git	bar		yes	ok
+kontrol	Ctrl+N	app.yeni_is	Yeni iş oluştur…	Dosya > Yeni iş oluştur			yes	ok
+kontrol	Ctrl+O	app.dosya_ekle	Dosya ekle…	Dosya > Dosya ekle			yes	ok
+kontrol	Ctrl+S	app.kaydet	Kaydet	Dosya > Kaydet			yes	ok
+kontrol	Ctrl+E	app.disa_aktar	Dışa aktar…	Dosya > Dışa aktar			yes	ok
+kontrol	Ctrl+W	app.isi_kapat	İşi kapat	Dosya > İşi kapat			yes	ok
+kontrol	Ctrl+Q	app.cikis	Çıkış	Dosya > Çıkış			yes	ok
+kontrol	Ctrl+Z	app.geri_al	Geri al	Düzen > Geri al: Şablon uygula	bar		yes	ok
+kontrol	Ctrl+Y	app.yinele	Yinele	Düzen > Yinele [state-dependent]	bar [state-dependent]		yes	ok
+kontrol	Ctrl+Shift+Z	app.yinele	Yinele	Düzen > Yinele [state-dependent]	bar [state-dependent]		yes	ok
+kontrol	Ctrl+F	app.bul	Bul…	Düzen > Bul			yes	ok
+kontrol	F3	app.sonraki_sonuc	Sonraki sonuç	Düzen > Sonraki sonuç [state-dependent]			yes	ok
+kontrol	Shift+F3	app.onceki_sonuc	Önceki sonuç	Düzen > Önceki sonuç [state-dependent]			yes	ok
+kontrol	Ctrl+Num++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır			yes	ok
+kontrol	Ctrl++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır			yes	ok
+kontrol	Ctrl+=	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır			yes	ok
+kontrol	Ctrl+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır			yes	ok
+kontrol	Ctrl+Num+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır			yes	ok
+kontrol	Ctrl+0	app.sigdir	Sığdır	Görünüm > Sığdır			yes	ok
+kontrol	Ctrl+Shift+Num++	app.yazi_buyut	Yazı boyutunu büyüt	Görünüm > Yazı boyutunu büyüt			yes	ok
+kontrol	Ctrl+Shift+Num+-	app.yazi_kucult	Yazı boyutunu küçült	Görünüm > Yazı boyutunu küçült			yes	ok
+kontrol	F11	app.tam_ekran	Tam ekran	Görünüm > Tam ekran			yes	ok
+kontrol	F9	app.yan_panel	Yan paneli gizle	Görünüm > Yan paneli gizle	bar		yes	ok
+kontrol	F5	app.yenile	Yenile	Görünüm > Yenile			yes	ok
+kontrol	Ctrl+,	app.ayarlar	Ayarlar…	Araçlar > Ayarlar			yes	ok
+kontrol	F1	app.yardim	Yardım konuları	Yardım > Yardım konuları			yes	ok
+kontrol	Shift+F1	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+kontrol	Ctrl+/	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+kontrol	?	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+kontrol	Ctrl+K	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+kontrol	Ctrl+Shift+P	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+kontrol		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	ok
+kontrol	Ctrl+A	kontrol.tumunu_sec	Tümünü seç	Düzen > Tümünü seç	bar Diğer komutlar		yes	ok
+kontrol	Esc	kontrol.secimi_kaldir	Seçimi kaldır	Düzen > Seçimi kaldır	bar Diğer komutlar		yes	ok
+kontrol	B	kontrol.belgeyi_sec	Bu belgeyi seç	Düzen > Bu belgeyi seç	bar Diğer komutlar	page	yes	ok
+kontrol	Ctrl+Space	kontrol.sayfa_sec	Sayfayı seçime ekle / çıkar	Düzen > Sayfayı seçime ekle / çıkar	bar Diğer komutlar		no	ok
+kontrol	K	kontrol.kes	Burada kes	Düzen > Burada kes	bar	page	yes	ok
+kontrol	M	kontrol.birlestir	Önceki belgeyle birleştir	Düzen > Önceki belgeyle birleştir	bar | panel Diğer	page	yes	ok
+kontrol	R	kontrol.saga_dondur	Sağa döndür	Düzen > Sağa döndür	bar	page	yes	ok
+kontrol	Shift+R	kontrol.sola_dondur	Sola döndür	Düzen > Sola döndür	bar Diğer komutlar	page	yes	ok
+kontrol	Del	kontrol.sil	Sayfayı sil	Düzen > Sayfayı sil	bar	page	yes	ok
+kontrol	Return	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton | bar Diğer komutlar		yes	ok
+kontrol	Enter	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton | bar Diğer komutlar		yes	ok
+kontrol	S	kontrol.sec	Ölçüte göre seç…	Araçlar > Ölçüte göre seç	bar		yes	ok
+kontrol	F	kontrol.filtre	Filtre uygula…	Araçlar > Filtre uygula	ActionRow | bar	page	yes	ok
+kontrol	T	kontrol.sablon	Şablonu uygula	Araçlar > Şablonu uygula	ActionRow | bar		yes	ok
+kontrol	Shift+F	kontrol.filtre_kaldir	Filtreyi kaldır	Araçlar > Filtreyi kaldır	bar Diğer komutlar	page [state-dependent]	yes	ok
+kontrol	Shift+T	kontrol.sablon_kaldir	Şablonu kaldır	Araçlar > Şablonu kaldır	bar Diğer komutlar	page	yes	ok
+kontrol		kontrol.bos_geri_getir	Boş sayfayı geri getir	Araçlar > Boş sayfayı geri getir [state-dependent]	bar Diğer komutlar [state-dependent]		yes	ok
+kontrol	D	kontrol.degerlerde_ac	Değerlerde aç	Araçlar > Değerlerde aç	GapButton | bar Diğer komutlar	page	yes	ok
+kontrol	Space	kontrol.onizle	Önizle	Görünüm > Önizle	bar	page	yes	ok
+kontrol	N	kontrol.sonraki_kontrol	Sonraki kontrol	Git > Sonraki kontrol	bar		yes	ok
+kontrol	Shift+N	kontrol.onceki_kontrol	Önceki kontrol	Git > Önceki kontrol	bar Diğer komutlar		yes	ok
+kontrol	U	kontrol.sonraki_incelenmemis	Sonraki incelenmemiş	Git > Sonraki incelenmemiş	bar | panel Diğer		yes	ok
+kontrol	Ctrl+Right	kontrol.sonraki_belge	Sonraki belge	Git > Sonraki belge	bar Diğer komutlar | panel Diğer		yes	ok
+kontrol	Ctrl+Left	kontrol.onceki_belge	Önceki belge	Git > Önceki belge	bar Diğer komutlar | panel Diğer		yes	ok
+kontrol	Alt+Right	kontrol.git_secimsiz	Seçimi bozmadan git	Git > Seçimi bozmadan git	bar Diğer komutlar		no	ok
+kontrol	Alt+Left	kontrol.git_secimsiz_sol	Seçimi bozmadan git	Git > Seçimi bozmadan git	bar Diğer komutlar		no	ok
+kontrol	Left	kontrol.sayfa	Önceki / sonraki sayfa				no	exempt:Left/Right arrows step through the page list; a click picks a page
+kontrol	Right	kontrol.sayfa	Önceki / sonraki sayfa				no	exempt:Left/Right arrows step through the page list; a click picks a page
+kontrol	Home	kontrol.ilk_son	İlk / son sayfa				no	exempt:Home/End jump inside the page list; the scroll bar and a click do it
+kontrol	End	kontrol.ilk_son	İlk / son sayfa				no	exempt:Home/End jump inside the page list; the scroll bar and a click do it
+kontrol	PgUp	kontrol.ekran	Bir ekran geri / ileri				no	exempt:PgUp/PgDn scroll the page list; the scroll bar and the wheel do it
+kontrol	PgDown	kontrol.ekran	Bir ekran geri / ileri				no	exempt:PgUp/PgDn scroll the page list; the scroll bar and the wheel do it
+kontrol	Shift+Left	kontrol.secimi_genislet	Seçimi genişlet				no	exempt:Shift+arrows extend a list selection; click and Shift+click do it
+kontrol	Shift+Right	kontrol.secimi_genislet	Seçimi genişlet				no	exempt:Shift+arrows extend a list selection; click and Shift+click do it
+sablonlar	Ctrl+1	app.sekme.yukle	Yükle	Git > Yükle			yes	ok
+sablonlar	Ctrl+2	app.sekme.kontrol	Kontrol	Git > Kontrol			yes	ok
+sablonlar	Ctrl+3	app.sekme.sablonlar	Şablonlar	Git > Şablonlar			yes	ok
+sablonlar	Ctrl+4	app.sekme.degerler	Değerler	Git > Değerler			yes	ok
+sablonlar	Ctrl+5	app.sekme.disa_aktar	Dışa Aktar	Git > Dışa Aktar			yes	ok
+sablonlar	Ctrl+6	app.sekme.rehber	Rehber	Git > Rehber			yes	ok
+sablonlar	Ctrl+Tab	app.sonraki_sekme	Sonraki sekme	Git > Sonraki sekme			yes	ok
+sablonlar	Ctrl+Shift+Tab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+sablonlar	Ctrl+Shift+Backtab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+sablonlar	F6	app.sonraki_bolge	Sonraki bölge				yes	exempt:F6 moves focus between regions like Tab; the mouse clicks to focus
+sablonlar	Shift+F6	app.onceki_bolge	Önceki bölge				yes	exempt:Shift+F6 moves focus between regions like Shift+Tab; the mouse clicks
+sablonlar	Ctrl+G	app.git	Belgeye veya sayfaya git…	Git > Belgeye veya sayfaya git [state-dependent]			yes	ok
+sablonlar	Ctrl+N	app.yeni_is	Yeni iş oluştur…	Dosya > Yeni iş oluştur			yes	ok
+sablonlar	Ctrl+O	app.dosya_ekle	Dosya ekle…	Dosya > Dosya ekle			yes	ok
+sablonlar	Ctrl+S	app.kaydet	Kaydet	Dosya > Kaydet	QPushButton		yes	ok
+sablonlar	Ctrl+E	app.disa_aktar	Dışa aktar…	Dosya > Dışa aktar			yes	ok
+sablonlar	Ctrl+W	app.isi_kapat	İşi kapat	Dosya > İşi kapat			yes	ok
+sablonlar	Ctrl+Q	app.cikis	Çıkış	Dosya > Çıkış			yes	ok
+sablonlar	Ctrl+Z	app.geri_al	Geri al	Düzen > Geri al [state-dependent]	bar [state-dependent]		yes	ok
+sablonlar	Ctrl+Y	app.yinele	Yinele	Düzen > Yinele [state-dependent]	bar [state-dependent]		yes	ok
+sablonlar	Ctrl+Shift+Z	app.yinele	Yinele	Düzen > Yinele [state-dependent]	bar [state-dependent]		yes	ok
+sablonlar	Ctrl+F	app.bul	Bul…	Düzen > Bul			yes	ok
+sablonlar	F3	app.sonraki_sonuc	Sonraki sonuç	Düzen > Sonraki sonuç [state-dependent]			yes	ok
+sablonlar	Shift+F3	app.onceki_sonuc	Önceki sonuç	Düzen > Önceki sonuç [state-dependent]			yes	ok
+sablonlar	Ctrl+Num++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır			yes	ok
+sablonlar	Ctrl++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır			yes	ok
+sablonlar	Ctrl+=	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır			yes	ok
+sablonlar	Ctrl+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır			yes	ok
+sablonlar	Ctrl+Num+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır			yes	ok
+sablonlar	Ctrl+0	app.sigdir	Sığdır	Görünüm > Sığdır			yes	ok
+sablonlar	Ctrl+Shift+Num++	app.yazi_buyut	Yazı boyutunu büyüt	Görünüm > Yazı boyutunu büyüt			yes	ok
+sablonlar	Ctrl+Shift+Num+-	app.yazi_kucult	Yazı boyutunu küçült	Görünüm > Yazı boyutunu küçült			yes	ok
+sablonlar	F11	app.tam_ekran	Tam ekran	Görünüm > Tam ekran			yes	ok
+sablonlar	F9	app.yan_panel	Yan paneli gizle	Görünüm > Yan paneli gizle	bar		yes	ok
+sablonlar	F5	app.yenile	Yenile	Görünüm > Yenile			yes	ok
+sablonlar	Ctrl+,	app.ayarlar	Ayarlar…	Araçlar > Ayarlar			yes	ok
+sablonlar	F1	app.yardim	Yardım konuları	Yardım > Yardım konuları			yes	ok
+sablonlar	Shift+F1	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+sablonlar	Ctrl+/	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+sablonlar	?	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+sablonlar	Ctrl+K	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+sablonlar	Ctrl+Shift+P	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+sablonlar		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	ok
+sablonlar	B	sablonlar.kutu_ciz	Kutu çiz	Araçlar > Kutu çiz	bar	page menu	yes	ok
+sablonlar	G	sablonlar.izgara	Izgaraya oturt	Araçlar > Izgaraya oturt	bar	page menu	yes	ok
+sablonlar	Ctrl+T	sablonlar.dene	Bütün örneklerde dene	Araçlar > Bütün örneklerde dene	bar		yes	ok
+sablonlar	N	sablonlar.sonraki_zayif	Sonraki zayıf örnek	Git > Sonraki zayıf örnek	bar Diğer komutlar		yes	ok
+sablonlar	Shift+N	sablonlar.onceki_zayif	Önceki zayıf örnek	Git > Önceki zayıf örnek	bar Diğer komutlar		yes	ok
+sablonlar	Ctrl+L	sablonlar.zayif_ornekler	Zayıf örnekler	Git > Zayıf örnekler	bar Diğer komutlar		yes	ok
+sablonlar	Del	sablonlar.kutu_sil	Kutuyu sil	Düzen > Değişkeni sil	bar | panel Diğer	box menu | variable row	yes	ok
+sablonlar	Ctrl+D	sablonlar.kutu_cogalt	Kutuyu çoğalt	Düzen > Kutuyu çoğalt [state-dependent]	bar [state-dependent] | panel Diğer [state-dependent]	box menu [state-dependent] | variable row [state-dependent]	yes	ok
+sablonlar	Ctrl+Shift+N	sablonlar.degisken_ekle	Değişken ekle	Düzen > Değişken ekle	QToolButton | bar | panel Diğer	box menu | variable row	yes	ok
+sablonlar	Alt+Up	sablonlar.yukari	Değişkeni yukarı taşı	Düzen > Değişkeni yukarı taşı [state-dependent]	bar Diğer komutlar [state-dependent] | panel Diğer [state-dependent]	box menu [state-dependent] | variable row [state-dependent]	yes	ok
+sablonlar	Alt+Down	sablonlar.asagi	Değişkeni aşağı taşı	Düzen > Değişkeni aşağı taşı [state-dependent]	bar Diğer komutlar [state-dependent] | panel Diğer [state-dependent]	box menu [state-dependent] | variable row [state-dependent]	yes	ok
+sablonlar		sablonlar.okumalari_goster	Okumaları sayfada göster	Görünüm > Okumaları sayfada göster	bar	page menu	yes	ok
+sablonlar	Left	sablonlar.kaydir	Kutuyu 0,25 mm kaydır		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
+sablonlar	Up	sablonlar.kaydir	Kutuyu 0,25 mm kaydır		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
+sablonlar	Right	sablonlar.kaydir	Kutuyu 0,25 mm kaydır		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
+sablonlar	Down	sablonlar.kaydir	Kutuyu 0,25 mm kaydır		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
+sablonlar	Shift+Left	sablonlar.kaydir_1mm	Kutuyu 1 mm kaydır		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
+sablonlar	Shift+Up	sablonlar.kaydir_1mm	Kutuyu 1 mm kaydır		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
+sablonlar	Shift+Right	sablonlar.kaydir_1mm	Kutuyu 1 mm kaydır		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
+sablonlar	Shift+Down	sablonlar.kaydir_1mm	Kutuyu 1 mm kaydır		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
+sablonlar	Space	sablonlar.el	Sayfayı sürükle (basılı tut)				no	exempt:holding Space pans the sheet view; scroll bars and the wheel pan it
+degerler	Ctrl+1	app.sekme.yukle	Yükle	Git > Yükle			yes	ok
+degerler	Ctrl+2	app.sekme.kontrol	Kontrol	Git > Kontrol			yes	ok
+degerler	Ctrl+3	app.sekme.sablonlar	Şablonlar	Git > Şablonlar			yes	ok
+degerler	Ctrl+4	app.sekme.degerler	Değerler	Git > Değerler			yes	ok
+degerler	Ctrl+5	app.sekme.disa_aktar	Dışa Aktar	Git > Dışa Aktar			yes	ok
+degerler	Ctrl+6	app.sekme.rehber	Rehber	Git > Rehber			yes	ok
+degerler	Ctrl+Tab	app.sonraki_sekme	Sonraki sekme	Git > Sonraki sekme			yes	ok
+degerler	Ctrl+Shift+Tab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+degerler	Ctrl+Shift+Backtab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+degerler	F6	app.sonraki_bolge	Sonraki bölge				yes	exempt:F6 moves focus between regions like Tab; the mouse clicks to focus
+degerler	Shift+F6	app.onceki_bolge	Önceki bölge				yes	exempt:Shift+F6 moves focus between regions like Shift+Tab; the mouse clicks
+degerler	Ctrl+G	app.git	Belgeye veya sayfaya git…	Git > Belgeye veya sayfaya git			yes	ok
+degerler	Ctrl+N	app.yeni_is	Yeni iş oluştur…	Dosya > Yeni iş oluştur			yes	ok
+degerler	Ctrl+O	app.dosya_ekle	Dosya ekle…	Dosya > Dosya ekle			yes	ok
+degerler	Ctrl+S	app.kaydet	Kaydet	Dosya > Kaydet			yes	ok
+degerler	Ctrl+E	app.disa_aktar	Dışa aktar…	Dosya > Dışa aktar			yes	ok
+degerler	Ctrl+W	app.isi_kapat	İşi kapat	Dosya > İşi kapat			yes	ok
+degerler	Ctrl+Q	app.cikis	Çıkış	Dosya > Çıkış			yes	ok
+degerler	Ctrl+Z	app.geri_al	Geri al	Düzen > Geri al: Şablon uygula	bar		yes	ok
+degerler	Ctrl+Y	app.yinele	Yinele	Düzen > Yinele [state-dependent]	bar [state-dependent]		yes	ok
+degerler	Ctrl+Shift+Z	app.yinele	Yinele	Düzen > Yinele [state-dependent]	bar [state-dependent]		yes	ok
+degerler	Ctrl+F	app.bul	Bul…	Düzen > Bul			yes	ok
+degerler	F3	app.sonraki_sonuc	Sonraki sonuç	Düzen > Sonraki sonuç [state-dependent]			yes	ok
+degerler	Shift+F3	app.onceki_sonuc	Önceki sonuç	Düzen > Önceki sonuç [state-dependent]			yes	ok
+degerler	Ctrl+Num++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır	QToolButton		yes	ok
+degerler	Ctrl++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır	QToolButton		yes	ok
+degerler	Ctrl+=	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır	QToolButton		yes	ok
+degerler	Ctrl+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır	QToolButton		yes	ok
+degerler	Ctrl+Num+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır	QToolButton		yes	ok
+degerler	Ctrl+0	app.sigdir	Sığdır	Görünüm > Sığdır			yes	ok
+degerler	Ctrl+Shift+Num++	app.yazi_buyut	Yazı boyutunu büyüt	Görünüm > Yazı boyutunu büyüt			yes	ok
+degerler	Ctrl+Shift+Num+-	app.yazi_kucult	Yazı boyutunu küçült	Görünüm > Yazı boyutunu küçült			yes	ok
+degerler	F11	app.tam_ekran	Tam ekran	Görünüm > Tam ekran			yes	ok
+degerler	F9	app.yan_panel	Yan paneli gizle	Görünüm > Yan paneli gizle	bar		yes	ok
+degerler	F5	app.yenile	Yenile	Görünüm > Yenile			yes	ok
+degerler	Ctrl+,	app.ayarlar	Ayarlar…	Araçlar > Ayarlar			yes	ok
+degerler	F1	app.yardim	Yardım konuları	Yardım > Yardım konuları			yes	ok
+degerler	Shift+F1	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+degerler	Ctrl+/	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+degerler	?	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+degerler	Ctrl+K	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+degerler	Ctrl+Shift+P	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+degerler		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	ok
+degerler	Return	degerler.onayla	Onayla ve sonrakine geç	Düzen > Onayla ve sonrakine geç	_OnceButton | bar Diğer komutlar	value row	yes	ok
+degerler	Enter	degerler.onayla	Onayla ve sonrakine geç	Düzen > Onayla ve sonrakine geç	_OnceButton | bar Diğer komutlar	value row	yes	ok
+degerler	Ctrl+Return	degerler.secilenleri_onayla	Seçilenleri onayla	Düzen > Seçilenleri onayla	bar	value row	yes	ok
+degerler	Ctrl+Enter	degerler.secilenleri_onayla	Seçilenleri onayla	Düzen > Seçilenleri onayla	bar	value row	yes	ok
+degerler	F2	degerler.elle_yaz	Elle yaz	Düzen > Elle yaz	_OnceButton | bar Diğer komutlar	value row	yes	ok
+degerler	R	degerler.okunana_don	Okunana dön	Düzen > Okunana dön [state-dependent]	bar Diğer komutlar [state-dependent]	value row [state-dependent]	yes	ok
+degerler	V	degerler.varyant	Yeni varyant çiz	Düzen > Yeni varyant çiz	_OnceButton | bar Diğer komutlar	value row	yes	ok
+degerler	Esc	degerler.vazgec	Vazgeç	Düzen > Vazgeç	bar Diğer komutlar		yes	ok
+degerler	Ctrl+A	degerler.tumunu_sec	Tümünü seç	Düzen > Tümünü seç	bar Diğer komutlar	value row	yes	ok
+degerler	Space	degerler.tum_sayfa	Tüm sayfayı göster	Görünüm > Tüm sayfayı göster	QToolButton | bar Diğer komutlar	value row	yes	ok
+degerler	N	degerler.sonraki_kontrol	Sonraki kontrol	Git > Sonraki kontrol	bar	value row	yes	ok
+degerler	Shift+N	degerler.onceki_kontrol	Önceki kontrol	Git > Önceki kontrol	bar		yes	ok
+degerler		degerler.tumunu_incele	Tümünü incele	Araçlar > Tümünü incele	bar		yes	ok
+degerler		degerler.ornek_kontrol	Örnek kontrol	Araçlar > Örnek kontrol	bar		yes	ok
+degerler		degerler.oku	Değerleri oku	Araçlar > Değerleri oku	QPushButton [state-dependent] | bar		yes	ok
+degerler	K	degerler.kontrolde_ac	Kontrol'de aç	Araçlar > Kontrol'de aç	bar Diğer komutlar	value row	yes	ok
+degerler		degerler.eksikleri_oku	Yalnızca eksikleri oku	Araçlar > Yalnızca eksikleri oku	QPushButton [state-dependent] | bar		yes	ok
+degerler	Ctrl+.	degerler.durdur	Okumayı durdur	Araçlar > Okumayı durdur [state-dependent]	QPushButton [state-dependent] | bar Diğer komutlar [state-dependent]		yes	ok
+degerler	Tab	degerler.sonraki_deger	Sonraki / önceki değer				no	exempt:Tab/Shift+Tab move between table cells; a click picks a cell
+degerler	Shift+Tab	degerler.sonraki_deger	Sonraki / önceki değer				no	exempt:Tab/Shift+Tab move between table cells; a click picks a cell
+disa_aktar	Ctrl+1	app.sekme.yukle	Yükle	Git > Yükle	PartsButton [state-dependent]		yes	ok
+disa_aktar	Ctrl+2	app.sekme.kontrol	Kontrol	Git > Kontrol			yes	ok
+disa_aktar	Ctrl+3	app.sekme.sablonlar	Şablonlar	Git > Şablonlar			yes	ok
+disa_aktar	Ctrl+4	app.sekme.degerler	Değerler	Git > Değerler			yes	ok
+disa_aktar	Ctrl+5	app.sekme.disa_aktar	Dışa Aktar	Git > Dışa Aktar			yes	ok
+disa_aktar	Ctrl+6	app.sekme.rehber	Rehber	Git > Rehber			yes	ok
+disa_aktar	Ctrl+Tab	app.sonraki_sekme	Sonraki sekme	Git > Sonraki sekme			yes	ok
+disa_aktar	Ctrl+Shift+Tab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+disa_aktar	Ctrl+Shift+Backtab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+disa_aktar	F6	app.sonraki_bolge	Sonraki bölge				yes	exempt:F6 moves focus between regions like Tab; the mouse clicks to focus
+disa_aktar	Shift+F6	app.onceki_bolge	Önceki bölge				yes	exempt:Shift+F6 moves focus between regions like Shift+Tab; the mouse clicks
+disa_aktar	Ctrl+G	app.git	Belgeye veya sayfaya git…	Git > Belgeye veya sayfaya git [state-dependent]			yes	ok
+disa_aktar	Ctrl+N	app.yeni_is	Yeni iş oluştur…	Dosya > Yeni iş oluştur			yes	ok
+disa_aktar	Ctrl+O	app.dosya_ekle	Dosya ekle…	Dosya > Dosya ekle			yes	ok
+disa_aktar	Ctrl+S	app.kaydet	Kaydet	Dosya > Kaydet			yes	ok
+disa_aktar	Ctrl+E	app.disa_aktar	Dışa aktar…	Dosya > Dışa aktar	PartsButton | bar		yes	ok
+disa_aktar		disa_aktar.index_ac	index.xlsx'i aç	Dosya > index.xlsx'i aç [state-dependent]	PartsButton [state-dependent] | bar [state-dependent]		yes	ok
+disa_aktar	Ctrl+Shift+O	disa_aktar.gezginde_goster	Dosya Gezgini'nde göster	Dosya > Dosya Gezgini'nde göster [state-dependent]	PartsButton [state-dependent] | bar [state-dependent]		yes	ok
+disa_aktar	Ctrl+P	disa_aktar.yazdir	Dizini yazdır…	Dosya > Dizini yazdır	bar		yes	ok
+disa_aktar	Ctrl+W	app.isi_kapat	İşi kapat	Dosya > İşi kapat			yes	ok
+disa_aktar	Ctrl+Q	app.cikis	Çıkış	Dosya > Çıkış			yes	ok
+disa_aktar	Ctrl+Z	app.geri_al	Geri al	Düzen > Geri al: Şablon uygula	bar		yes	ok
+disa_aktar	Ctrl+Y	app.yinele	Yinele	Düzen > Yinele [state-dependent]	bar [state-dependent]		yes	ok
+disa_aktar	Ctrl+Shift+Z	app.yinele	Yinele	Düzen > Yinele [state-dependent]	bar [state-dependent]		yes	ok
+disa_aktar	Ctrl+F	app.bul	Bul…	Düzen > Bul			yes	ok
+disa_aktar	F3	app.sonraki_sonuc	Sonraki sonuç	Düzen > Sonraki sonuç [state-dependent]			yes	ok
+disa_aktar	Shift+F3	app.onceki_sonuc	Önceki sonuç	Düzen > Önceki sonuç [state-dependent]			yes	ok
+disa_aktar	Ctrl+Num++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır [state-dependent]			yes	ok
+disa_aktar	Ctrl++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır [state-dependent]			yes	ok
+disa_aktar	Ctrl+=	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır [state-dependent]			yes	ok
+disa_aktar	Ctrl+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır [state-dependent]			yes	ok
+disa_aktar	Ctrl+Num+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır [state-dependent]			yes	ok
+disa_aktar	Ctrl+0	app.sigdir	Sığdır	Görünüm > Sığdır [state-dependent]			yes	ok
+disa_aktar	Ctrl+Shift+Num++	app.yazi_buyut	Yazı boyutunu büyüt	Görünüm > Yazı boyutunu büyüt			yes	ok
+disa_aktar	Ctrl+Shift+Num+-	app.yazi_kucult	Yazı boyutunu küçült	Görünüm > Yazı boyutunu küçült			yes	ok
+disa_aktar	F11	app.tam_ekran	Tam ekran	Görünüm > Tam ekran			yes	ok
+disa_aktar	F9	app.yan_panel	Yan paneli gizle	Görünüm > Yan paneli gizle	bar		yes	ok
+disa_aktar	F5	app.yenile	Yenile	Görünüm > Yenile	bar		yes	ok
+disa_aktar	Ctrl+,	app.ayarlar	Ayarlar…	Araçlar > Ayarlar			yes	ok
+disa_aktar	F1	app.yardim	Yardım konuları	Yardım > Yardım konuları			yes	ok
+disa_aktar	Shift+F1	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+disa_aktar	Ctrl+/	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+disa_aktar	?	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			yes	ok
+disa_aktar	Ctrl+K	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+disa_aktar	Ctrl+Shift+P	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+disa_aktar		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	ok
+disa_aktar	Ctrl+.	disa_aktar.durdur	Dışa aktarmayı durdur	Araçlar > Dışa aktarmayı durdur [state-dependent]	bar [state-dependent]		yes	ok
+rehber	Ctrl+1	app.sekme.yukle	Yükle	Git > Yükle			yes	ok
+rehber	Ctrl+2	app.sekme.kontrol	Kontrol	Git > Kontrol			yes	ok
+rehber	Ctrl+3	app.sekme.sablonlar	Şablonlar	Git > Şablonlar			yes	ok
+rehber	Ctrl+4	app.sekme.degerler	Değerler	Git > Değerler			yes	ok
+rehber	Ctrl+5	app.sekme.disa_aktar	Dışa Aktar	Git > Dışa Aktar			yes	ok
+rehber	Ctrl+6	app.sekme.rehber	Rehber	Git > Rehber			yes	ok
+rehber	Ctrl+Tab	app.sonraki_sekme	Sonraki sekme	Git > Sonraki sekme			yes	ok
+rehber	Ctrl+Shift+Tab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+rehber	Ctrl+Shift+Backtab	app.onceki_sekme	Önceki sekme	Git > Önceki sekme			yes	ok
+rehber	F6	app.sonraki_bolge	Sonraki bölge				yes	exempt:F6 moves focus between regions like Tab; the mouse clicks to focus
+rehber	Shift+F6	app.onceki_bolge	Önceki bölge				yes	exempt:Shift+F6 moves focus between regions like Shift+Tab; the mouse clicks
+rehber	Ctrl+G	app.git	Belgeye veya sayfaya git…	Git > Belgeye veya sayfaya git [state-dependent]			yes	ok
+rehber	Ctrl+N	app.yeni_is	Yeni iş oluştur…	Dosya > Yeni iş oluştur			yes	ok
+rehber	Ctrl+O	app.dosya_ekle	Dosya ekle…	Dosya > Dosya ekle			yes	ok
+rehber	Ctrl+S	app.kaydet	Kaydet	Dosya > Kaydet [state-dependent]			yes	ok
+rehber	Ctrl+E	app.disa_aktar	Dışa aktar…	Dosya > Dışa aktar			yes	ok
+rehber	Ctrl+P	rehber.yazdir	Ayıraç sayfasını yazdır…	Dosya > Ayıraç sayfasını yazdır	PartsButton | bar		yes	ok
+rehber		rehber.pdf_ac	PDF olarak aç	Dosya > PDF olarak aç	bar		yes	ok
+rehber	Ctrl+W	app.isi_kapat	İşi kapat	Dosya > İşi kapat			yes	ok
+rehber	Ctrl+Q	app.cikis	Çıkış	Dosya > Çıkış			yes	ok
+rehber	Ctrl+Z	app.geri_al	Geri al	Düzen > Geri al [state-dependent]			yes	ok
+rehber	Ctrl+Y	app.yinele	Yinele	Düzen > Yinele [state-dependent]			yes	ok
+rehber	Ctrl+Shift+Z	app.yinele	Yinele	Düzen > Yinele [state-dependent]			yes	ok
+rehber	Ctrl+F	app.bul	Bul…	Düzen > Bul	QToolButton | bar		yes	ok
+rehber	F3	app.sonraki_sonuc	Sonraki sonuç	Düzen > Sonraki sonuç [state-dependent]	QToolButton [state-dependent] | bar [state-dependent]		yes	ok
+rehber	Shift+F3	app.onceki_sonuc	Önceki sonuç	Düzen > Önceki sonuç [state-dependent]	QToolButton [state-dependent] | bar [state-dependent]		yes	ok
+rehber	Ctrl+Num++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır			yes	ok
+rehber	Ctrl++	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır			yes	ok
+rehber	Ctrl+=	app.yakinlastir	Yakınlaştır	Görünüm > Yakınlaştır			yes	ok
+rehber	Ctrl+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır			yes	ok
+rehber	Ctrl+Num+-	app.uzaklastir	Uzaklaştır	Görünüm > Uzaklaştır			yes	ok
+rehber	Ctrl+0	app.sigdir	Sığdır	Görünüm > Sığdır			yes	ok
+rehber	Ctrl+Shift+Num++	app.yazi_buyut	Yazı boyutunu büyüt	Görünüm > Yazı boyutunu büyüt			yes	ok
+rehber	Ctrl+Shift+Num+-	app.yazi_kucult	Yazı boyutunu küçült	Görünüm > Yazı boyutunu küçült			yes	ok
+rehber	F11	app.tam_ekran	Tam ekran	Görünüm > Tam ekran			yes	ok
+rehber	F9	app.yan_panel	Yan paneli gizle	Görünüm > Yan paneli gizle	bar		yes	ok
+rehber	F5	app.yenile	Yenile	Görünüm > Yenile			yes	ok
+rehber	Ctrl+,	app.ayarlar	Ayarlar…	Araçlar > Ayarlar			yes	ok
+rehber	F1	app.yardim	Yardım konuları	Yardım > Yardım konuları	bar		yes	ok
+rehber	Shift+F1	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları	PartsButton [state-dependent] | bar		yes	ok
+rehber	Ctrl+/	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları	PartsButton [state-dependent] | bar		yes	ok
+rehber	?	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları	PartsButton [state-dependent] | bar		yes	ok
+rehber	Ctrl+K	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+rehber	Ctrl+Shift+P	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
+rehber		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	ok
+rehber	Esc	rehber.aramayi_temizle	Aramayı temizle		PartsButton [state-dependent] | QToolButton [state-dependent]		no	ok
+sablonlar	Ctrl+Arrows	local.kutu_boyutu	Resize the selected box (sablon_canvas.py)		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
+sablonlar	Enter	local.kutu_yerlestir	Place a default box while drawing (sablon_canvas.py)		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
+sablonlar	Esc	local.cizimi_birak	Leave drawing / deselect the box (sablon.py, sablon_canvas.py)				no	exempt:Esc dismisses the current mode like Esc in a dialog; a click on the empty sheet deselects
+degerler	Enter	local.tablo_enter	Enter in the values table (degerler_table.py)				no	exempt:Enter in a field or table confirms the cell; the Onayla button is the mouse path
+disa_aktar	Ctrl+C	local.dosya_adi_kopyala	Copy the file names (disa_aktar_table.py)			result row	no	ok
+yukle	Esc	local.liste_kapat	End the job search list (yukle.py, yukle_parts.py)				no	exempt:Esc clears or leaves a field
+kontrol	Esc / Space	local.lupa_kapat	Close the loupe (loupe.py)		QPushButton		no	ok
+kontrol	Arrows / Home / End / PgUp / PgDn	local.lupa_gezin	Page through the loupe (loupe.py)				no	exempt:arrow, Home/End and PgUp/PgDn navigation inside one view

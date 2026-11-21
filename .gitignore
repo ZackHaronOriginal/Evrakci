@@ -44,3 +44,12 @@ dist/
 !docs/superpowers/mockups/*.png
 !docs/screenshots/*.png
 docs/superpowers/mockups/fonts/
+
+# Private skills, never commit
+.claude/skills/model-akisi/
+# Task specs quote the owner; this repo is public
+.claude/gorevler/
+
+# ui_measure CI report
+ui-measure.tsv
+.claude/worktrees/

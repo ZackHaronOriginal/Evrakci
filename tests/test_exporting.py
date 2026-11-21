@@ -1,9 +1,10 @@
 import shutil
 
+import openpyxl
 import pytest
 from fakes import make_pdf, qr_page, text_page
 
-from evrakci.pipeline.exporting import ExportError, export_job
+from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after_export
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.textlayer import TextLayerResult
 from evrakci.pipeline.store import JobStore
@@ -66,3 +67,55 @@ def test_folder_with_an_earlier_export_is_refused(tmp_path):
     (tmp_path / "out" / "eski.pdf").write_bytes(b"x")
     with pytest.raises(ExportError, match="boş bir klasör"):
         export_job(job, store.batch_files(job), {}, tmp_path / "out", with_layer=False)
+
+
+def test_pdfa_failure_is_a_note_not_a_check(tmp_path):
+    store, job = _job(tmp_path)
+
+    def not_pdfa(src, dst, tessdata=None, **kwargs):
+        shutil.copy(src, dst)
+        return TextLayerResult(dst, False, "PDF/A doğrulanamadı")
+
+    result = export_job(job, store.batch_files(job), {}, tmp_path / "out", engine=Ok(),
+                        add_layer=not_pdfa)
+    assert result.items
+    for item in result.items:
+        assert item.pdfa is False and item.pdfa_note == "PDF/A doğrulanamadı"
+        assert not any("PDF/A" in c for c in item.checks)
+    assert result.needing_check == 0
+    assert may_delete_after_export(result)
+    sheet = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")["Belgeler"]
+    assert [row[5].value for row in sheet.iter_rows(min_row=2)] == ["hayır", "hayır"]
+    assert [row[6].value for row in sheet.iter_rows(min_row=2)] == ["hayır", "hayır"]
+
+
+def test_one_time_goes_to_the_sheet_and_the_job(tmp_path):
+    from datetime import datetime
+
+    store, job = _job(tmp_path)
+    result = export_job(job, store.batch_files(job), {}, tmp_path / "out", with_layer=False)
+    assert job.last_export is not None
+    assert job.last_export.documents == len(result.items)
+    assert job.last_export.needing_check == result.needing_check
+    assert job.last_export.folder == str(tmp_path / "out")
+    moment = datetime.fromisoformat(job.last_export.at)
+    book = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")
+    summary = {r[0].value: r[1].value for r in book["Özet"].iter_rows()}
+    assert summary["Dışa aktarma zamanı"] == moment.strftime("%d.%m.%Y %H:%M")
+    assert summary["İş adı"] == "İş"
+    assert summary["Belge sayısı"] == str(len(result.items))
+
+
+def test_check_sheet_rows_equal_needing_check_with_a_pdfa_failure(tmp_path):
+    store, job = _job(tmp_path)
+
+    def not_pdfa(src, dst, tessdata=None, **kwargs):
+        shutil.copy(src, dst)
+        return TextLayerResult(dst, False, "PDF/A doğrulanamadı")
+
+    result = export_job(job, store.batch_files(job), {}, tmp_path / "out", engine=Ok(),
+                        add_layer=not_pdfa)
+    sheet = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")["Kontrol gerekenler"]
+    rows = [[c.value for c in row] for row in sheet.iter_rows(min_row=2)]
+    assert result.needing_check == 0
+    assert rows == [["Kontrol gerektiren belge yok.", None, None, None]]

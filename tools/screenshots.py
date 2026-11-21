@@ -28,6 +28,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -53,7 +54,7 @@ from evrakci.pipeline.cuts import record_values  # noqa: E402
 from evrakci.pipeline.store import JobStore  # noqa: E402
 from evrakci.pipeline.templates.model import Section  # noqa: E402
 from evrakci.pipeline.templates.store import TemplateStore  # noqa: E402
-from evrakci.pipeline.templates.values import VariableValue  # noqa: E402
+from evrakci.pipeline.templates.values import SectionReading, VariableValue  # noqa: E402
 from evrakci.ui import theme, titlebar  # noqa: E402
 from evrakci.ui.main_window import TAB_NAMES, MainWindow  # noqa: E402
 
@@ -85,14 +86,19 @@ def build(root: Path) -> MainWindow:
     job = store.create_job("Kasım 2026 kapasite raporları", [pdf])  # A's demo job
     store.create_job("Ekim 2026 – Faaliyet belgeleri", [pdf2])
     window = MainWindow(store, templates, settings_path=root / "ayar.json")
-    window.yukle.open_job(store.load(job.id))
+    window.yukle.open_job(store.load(job.id))  # read in a worker: wait for the swap
+    deadline = time.monotonic() + 30
+    while window.controller() is None and time.monotonic() < deadline:
+        QApplication.processEvents()
+        time.sleep(0.01)
     ctl = window.controller()
     ids = ctl.job.ordered_page_ids()
     ctl.apply_template(ids, template.id)
     names = ["Ege Kalıp San. Ltd.", "Akçay Tekstil San. ve Tic. Ltd. Şti.", "Doğan Tekstil Ltd."]
     for n, doc in enumerate(ctl.documents()):
         if n == 1:
-            values = {sicil.key: VariableValue("48Z13", 0.41, 0, True, "48213", (), False),
+            values = {sicil.key: VariableValue("48Z13", 0.41, 0, True, "48213", (
+                SectionReading(0, "48Z13", 0.41), SectionReading(1, "48213", 0.55)), False),
                       firma.key: VariableValue(names[1], 0.9, 0, False)}
         else:
             values = {sicil.key: VariableValue(f"4819{n}", 0.95, 0, False),

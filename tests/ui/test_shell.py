@@ -170,6 +170,8 @@ def test_recent_jobs_fill_the_job_switcher(qtbot, tmp_path):
     job = store.create_job("Mart yazışmaları", [make_pdf(tmp_path / "a.pdf", [text_page()])])
     window = _window(qtbot, tmp_path)
     window.prefs.add_recent_job(job.id)
+    with qtbot.waitSignal(window.recent_changed, timeout=5000):  # read in a worker
+        window.refresh_recent_jobs()
     assert [j.id for j, _when in window.recent_jobs()] == [job.id]
     window.open_job_switcher()
     texts = [a.text() for a in window.job_menu.actions()]
@@ -413,9 +415,11 @@ def test_each_job_is_wired_once_and_the_old_one_let_go(qtbot, tmp_path):
     store = window.store
     pdf = make_pdf(tmp_path / "t.pdf", [text_page(), text_page()])
     first, second = store.create_job("Bir", [pdf]), store.create_job("İki", [pdf])
-    window.yukle.open_job(store.load(first.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(first.id))
     old = window.controller()
-    window.yukle.open_job(store.load(second.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(second.id))
     new = window.controller()
     assert new is not old
     window.message.setText("")
@@ -438,6 +442,7 @@ def test_an_old_save_shows_its_date(qtbot, tmp_path):
     stamp = time.time() - 3 * 86400
     os.utime(store._job_file(job.id), (stamp, stamp))
     window = _window(qtbot, tmp_path)
-    window.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(job.id))
     words = window.job_switch.save_state.text().split()
     assert words[0] == "Kaydedildi" and len(words) >= 4  # "Kaydedildi 10 Kas 14:32"

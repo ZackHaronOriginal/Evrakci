@@ -8,7 +8,8 @@ tiles between documents; pages that will be deleted stay in their document, dimm
 
 Smooth at 1,000 pages: the view is one QListView with its own flow layout (plain rectangles,
 computed in one pass), it paints only the rows in view, every page through the delegate, and
-asks the thumbnail service only for the pages it paints.
+asks the thumbnail service for the pages in view plus a margin ahead of the scroll (driven by
+the scroll position, not by painting or the mouse), nearest first.
 """
 
 from __future__ import annotations
@@ -29,6 +30,8 @@ from PySide6.QtCore import (
     QRectF,
     QSize,
     Qt,
+    QTimer,
+    Signal,
 )
 from PySide6.QtGui import QColor, QFontMetrics, QImage, QPainter, QPen, QRegion
 from PySide6.QtWidgets import (
@@ -47,6 +50,8 @@ from evrakci.ui.thumbnails import ThumbnailService
 SEP_W = 48  # A .sepage
 DOC_GAP = 28  # A .row gap between documents
 ZOOM_MIN, ZOOM_MAX, ZOOM_STEP = 50, 200, 10
+PREFETCH_AHEAD = 1.0  # viewports of pages requested beyond the edge the scroll moves towards
+PREFETCH_BEHIND = 0.5  # and beyond the other edge
 
 
 class Roles(IntEnum):
@@ -428,7 +433,12 @@ class TimelineDelegate(QStyledItemDelegate):
 # -- view ---------------------------------------------------------------------------------------
 class TimelineView(QListView):
     """The working timeline: A's flow layout, page selection (click, Shift/Ctrl, rubber band),
-    arrow keys, Home/End and PgUp/PgDn; Ctrl+wheel zooms through the screen's ZoomController."""
+    arrow keys, Home/End and PgUp/PgDn; Ctrl+wheel zooms through the screen's ZoomController.
+    Ctrl+Space asks to toggle the current page (`toggle_requested`) and Alt+Left / Alt+Right to
+    move the focus ring one page without touching the selection (`focus_requested(-1 / +1)`)."""
+
+    toggle_requested = Signal()
+    focus_requested = Signal(int)
 
     def __init__(self, thumbnails: ThumbnailService | None = None, parent=None) -> None:
         self.zoom = 100
@@ -438,6 +448,7 @@ class TimelineView(QListView):
         self._row_tops: list[int] = []
         self._height = 0
         self._laid_width = -1
+        self._last_offset = 0
         self._band: QRect | None = None
         self._press: QPoint | None = None
         super().__init__(parent)
@@ -460,7 +471,8 @@ class TimelineView(QListView):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         if thumbnails is not None:
             thumbnails.ready.connect(self._thumbnail_ready)
-            self.verticalScrollBar().valueChanged.connect(self._forget_hidden)
+            self.verticalScrollBar().valueChanged.connect(self.load_thumbnails)
+            thumbnails.distance = self._distance
         theme.follow(self, self.relayout)
 
     # -- layout -------------------------------------------------------------------------------
@@ -498,6 +510,8 @@ class TimelineView(QListView):
         self._row_tops = [row.y for row in self._rows]
         self._laid_width = self.viewport().width()
         QAbstractItemView.doItemsLayout(self)
+        if self.thumbnails is not None and self._rows:
+            QTimer.singleShot(0, self, self.load_thumbnails)  # after the layout settles
 
     def reset(self) -> None:
         super().reset()
@@ -507,6 +521,12 @@ class TimelineView(QListView):
         super().resizeEvent(event)
         if self.viewport().width() != self._laid_width:
             self.doItemsLayout()
+
+    def scrollContentsBy(self, dx: int, dy: int) -> None:  # noqa: N802
+        """Move the painted pixels and repaint the strip that came into view. The inherited
+        QListView version does nothing here (doItemsLayout skips the list-mode layout), which
+        left old pixels on screen after a scroll (B-032)."""
+        self.viewport().scroll(dx, dy)
 
     def updateGeometries(self) -> None:  # noqa: N802
         bar = self.verticalScrollBar()
@@ -595,6 +615,18 @@ class TimelineView(QListView):
             bar.setValue(min(top, bottom - height))
         self.viewport().update()
 
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        key, mods = event.key(), event.modifiers()
+        if key == Qt.Key.Key_Space and mods == Qt.KeyboardModifier.ControlModifier:
+            event.accept()
+            self.toggle_requested.emit()
+            return
+        if mods == Qt.KeyboardModifier.AltModifier and key in (Qt.Key.Key_Left, Qt.Key.Key_Right):
+            event.accept()
+            self.focus_requested.emit(-1 if key == Qt.Key.Key_Left else 1)
+            return
+        super().keyPressEvent(event)
+
     def moveCursor(self, action, modifiers) -> QModelIndex:  # noqa: N802
         model = self.model()
         if model is None or model.rowCount() == 0:
@@ -635,6 +667,13 @@ class TimelineView(QListView):
         return min(range(line.first, line.last + 1),
                    key=lambda r: abs(self._rects[r].center().x() - centre))
 
+    def _row_at(self, point: QPoint) -> int | None:
+        for line in self._rows_between(point.y(), point.y()):
+            for r in range(line.first, line.last + 1):
+                if self._slot(r).contains(point):
+                    return r
+        return None
+
     def setSelection(self, rect: QRect, command) -> None:  # noqa: N802
         model = self.model()
         if model is None:
@@ -651,6 +690,21 @@ class TimelineView(QListView):
             if i + 1 == len(rows) or rows[i + 1] != r + 1:
                 selection.select(model.index(start, 0), model.index(r, 0))
                 start = None
+        here = self.currentIndex()
+        dragging = self.state() == QAbstractItemView.State.DragSelectingState
+        if (command & QItemSelectionModel.SelectionFlag.Current and not dragging
+                and here.isValid()):
+            # Shift+click / Shift+arrow: Qt hands over the rectangle from the anchor page to the
+            # current one. The pages between them in reading order are the range, not the slots
+            # the rectangle touches (F-kontrol-01, F-kontrol-02).
+            offset = QPoint(0, self.verticalOffset())
+            ends = {self._row_at(rect.topLeft() + offset),
+                    self._row_at(rect.bottomRight() + offset)}
+            ends.discard(None)
+            ends.discard(here.row())
+            if len(ends) == 1:
+                low, high = sorted((ends.pop(), here.row()))
+                selection = QItemSelection(model.index(low, 0), model.index(high, 0))
         self.selectionModel().select(selection, command)
 
     def visualRegionForSelection(self, selection) -> QRegion:  # noqa: N802
@@ -771,13 +825,89 @@ class TimelineView(QListView):
         if current is not None:
             self.selectionModel().setCurrentIndex(model.index(current, 0), flags.NoUpdate)
 
-    # -- thumbnails ---------------------------------------------------------------------------
-    def _forget_hidden(self) -> None:
+    def select_row_set(self, rows) -> None:
+        """Select exactly these rows (one selection of merged ranges, one repaint); the current
+        page stays where it is."""
         model = self.model()
-        if model is None or self.thumbnails is None:
+        selection = QItemSelection()
+        first = last = None
+        for row in sorted(set(rows)):
+            if first is not None and row == last + 1:
+                last = row
+                continue
+            if first is not None:
+                selection.select(model.index(first, 0), model.index(last, 0))
+            first = last = row
+        if first is not None:
+            selection.select(model.index(first, 0), model.index(last, 0))
+        self.selectionModel().select(selection, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+
+    # -- thumbnails ---------------------------------------------------------------------------
+    def prefetch_rows(self) -> tuple[list[int], list[int]]:
+        """(rows in view, rows in the margin), each nearest to the viewport first. The margin is
+        PREFETCH_AHEAD viewports beyond the edge the scroll moves towards (down by default) and
+        PREFETCH_BEHIND beyond the other."""
+        if not self._rows:
+            return [], []
+        top = self.verticalOffset()
+        height = self.viewport().height()
+        down = top >= self._last_offset
+        ahead, behind = round(height * PREFETCH_AHEAD), round(height * PREFETCH_BEHIND)
+        before, after = (behind, ahead) if down else (ahead, behind)
+        view_top, view_bottom = top, top + height
+        seen = set()
+        near: list[tuple[int, int]] = []
+        far: list[tuple[int, int]] = []
+        for line in self._rows_between(view_top - before, view_bottom + after):
+            bottom = line.y + self.metrics.row_h
+            gap = max(view_top - bottom, line.y - view_bottom, 0)
+            for r in range(line.first, line.last + 1):
+                if r not in seen:
+                    seen.add(r)
+                    (near if gap == 0 else far).append((gap, r))
+        return [r for _g, r in sorted(near)], [r for _g, r in sorted(far)]
+
+    def load_thumbnails(self) -> None:
+        """Ask for the pages in view and the margin (nearest first), forget the rest. Runs on
+        every scroll and after a layout, so loading never waits for a paint or the mouse."""
+        model = self.model()
+        service = self.thumbnails
+        if model is None or service is None or not isinstance(model, TimelineModel):
             return
-        rows = self.visible_rows()
-        self.thumbnails.keep_only({model.page_id(r) for r in rows})
+        visible, margin = self.prefetch_rows()
+        self._last_offset = self.verticalOffset()
+        # separator tiles are drawn without a scan, so they are never rendered
+        pids = [model.page_id(r) for r in visible + margin if model.state(r) != "separator"]
+        service.keep_only(set(pids))
+        # never evict a page that is wanted right now: the cap covers the whole request
+        service.capacity = max(service.min_capacity, int(1.5 * len(pids)))
+        for pid in pids:
+            if not service.is_current(pid):
+                service.request(pid)
+
+    def detach_thumbnails(self) -> None:
+        """Stop using the thumbnail service (it was retired): no more requests reach it."""
+        service, self.thumbnails = self.thumbnails, None
+        self.itemDelegate().thumbnails = None
+        if service is not None:
+            for signal, slot in ((service.ready, self._thumbnail_ready),
+                                 (self.verticalScrollBar().valueChanged, self.load_thumbnails)):
+                try:
+                    signal.disconnect(slot)
+                except (RuntimeError, TypeError):
+                    pass
+
+    def _distance(self, pid: str) -> float:
+        """Pixels between page `pid` and the viewport (0 inside it), for cache eviction."""
+        try:
+            row = self.model().row_of(pid)
+        except (ValueError, AttributeError, RuntimeError):
+            return float("inf")
+        if row >= len(self._rects):
+            return float("inf")
+        rect = self._rects[row]
+        top = self.verticalOffset()
+        return max(top - rect.bottom(), rect.top() - (top + self.viewport().height()), 0)
 
     def _thumbnail_ready(self, pid: str, _image) -> None:
         model = self.model()

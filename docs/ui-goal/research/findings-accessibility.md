@@ -1,0 +1,36 @@
+# Findings: accessibility (5c, R5c-3)
+
+Researched 2026-11-19 at commit 89c4844. Ideas only, nothing decided; the approved look is not questioned. "We do" cites [inventory-app-wide.md](inventory-app-wide.md) (A-xx), [inventory-kontrol.md](inventory-kontrol.md) (K-xx) and the code. WCAG is written for web content; where a criterion is applied to a desktop app that is an interpretation and is marked so. Every external claim links to a page that was opened.
+
+## What we do
+Four looks including "Yüksek karşıtlık" (A-40, A-58); text 100 to 150 percent (A-41, A-60); reduced motion (A-43, A-64); text contrast rule D10 (A-59); 24 px click targets (A-87); single-key shortcuts can be turned off (A-46); typing and button guards (A-81, A-82); F6 regions and tab order (A-83, A-84); focus restored after dialogs (A-86); accessible names on every control, toasts announced (A-78); status line not announced (A-75 note, Observation in the app-wide file). The code detects the Windows high-contrast flag (`ui/theme.py` lines 128 to 154). A grep of `src/evrakci/ui` finds `QAccessible` only in `feedback.py` (the alert event); the custom-painted timeline (`timeline.py`, `kontrol_paint.py`) defines no accessible interface of its own.
+
+## Comparison table
+
+| Practice | Who does it (opened links) | What we do | Gap | Cost to us | Perf cost | Risk |
+|---|---|---|---|---|---|---|
+| Text contrast 4.5:1, 3:1 for large text; disabled controls exempt | [WCAG 1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html) | Rule enforced for text pairs (A-59) | Non-text contrast (icons, focus ring) is not covered by the opened page; unverified | S to check | none | none |
+| Pointer targets at least 24 by 24 px unless spacing or another exemption applies | [WCAG 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) | 24 px minimum (A-87) | Page tiles at small zoom (50 percent) and the 8 px overview squares (K-73) are likely under 24 px; equivalent keyboard access exists, which is an exemption on the opened page (interpretation) | none to S | none | none |
+| Focus must not be fully hidden by author content | [WCAG 2.4.11](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html) | Moving the current page scrolls it into view (K-74); toasts sit bottom right (A-71) | Not verified that a toast or info bar never covers the focused row or page | S (a check in the UI bug hunt) | none | none |
+| Text resizable to 200 percent without loss | [WCAG 1.4.4](https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html), web; page says platform-controlled UI is exempt | Up to 150 percent (A-41) | 150 vs 200: no step above 150 | M (every screen must hold at 200 at 1366 px) | none | Layout breakage; tabs already move to "»" at 150 (A-06) |
+| Status messages announced without moving focus | [WCAG 4.1.3](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html): progress, success, errors | Toasts announced (A-78); status line and the Kontrol history band have no announcement (A-75 note) | Some changes are silent for a screen reader user | S | none | Too many announcements in long sessions |
+| Custom-painted widgets expose their own accessibility interface | Qt: subclass `QAccessibleWidget`, override role, text, state, rect, child count; emit updates after the state changed ([Qt docs](https://doc.qt.io/qt-6/accessible-qwidget.html)); built-in widgets give enough metadata ([overview](https://doc.qt.io/qt-6/accessible.html)) | Timeline, overview and page tiles are painted by hand (K-79, K-94); no interface found by grep | A screen reader likely sees one unnamed canvas. Only a real NVDA test would confirm | L for a full tree; S to M for "current page, document, state" as one live name | low | Large effort for uncertain user count; staff profile suggests few screen reader users (unverified) |
+| Respect Windows contrast themes with system colors, do not hard-code | [Microsoft contrast themes](https://learn.microsoft.com/en-us/windows/apps/design/accessibility/high-contrast-themes): map to system colors, test all four built-in themes, users edit theme colors | One own "Yüksek karşıtlık" token set; OS flag is detected (theme.py) | Unverified whether the app follows the user's own edited colors or only picks our fixed set | M | none | New theme path to test |
+| Automated and manual accessibility testing for Windows apps | [Accessibility Insights for Windows](https://accessibilityinsights.io/docs/windows/overview/): 60+ checks, tab-stop check, UI Automation inspector, contrast checker; page does not mention Qt | Our own screenshot matrix and keyboard walkthrough in the `ui-bug-hunt` skill; Qt support of that tool unverified | No UI Automation tree inspection in our routine | S (one manual pass per release) | none | May report Qt-specific noise |
+| Fully keyboard-driven review UI | ABBYY verification: Enter confirm, Ctrl+Enter postpone, Ctrl+Up/Down between fields, shortcuts for the image; settings and zoom list described only as clicks ([docs](https://docs.abbyy.com/flexi-capture/operator-work/field-verification-operator-work)) | Palette, F6, single-key shortcuts (A-29, A-83, K keys) | Parity or better; their page does not claim mouse-free use | none | none | none |
+
+## Ideas for the owner's ranking
+1. **Run an NVDA and Accessibility Insights pass on Kontrol and Değerler; record results.** Problem: unknown how the hand-painted timeline reads. Who gains: any user of a screen reader or Windows magnifier. Evidence: [Qt](https://doc.qt.io/qt-6/accessible-qwidget.html), [Accessibility Insights](https://accessibilityinsights.io/docs/windows/overview/). Effort S (test only).
+2. **One accessible description for the current page** ("Belge 16, sayfa 2, kontrol gerekli") announced when it changes. Problem: canvas is silent. Evidence: [Qt](https://doc.qt.io/qt-6/accessible-qwidget.html), [WCAG 4.1.3](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html). Effort M.
+3. **Announce the status line and Kontrol history band changes.** Problem: silent messages. Evidence: [WCAG 4.1.3](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html). Effort S.
+4. **Text size 175 and 200 percent.** Problem: only 150 at most. Evidence: [WCAG 1.4.4](https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html). Effort M; visual change, owner decides.
+5. **Follow Windows contrast theme colors.** Evidence: [Microsoft](https://learn.microsoft.com/en-us/windows/apps/design/accessibility/high-contrast-themes). Effort M.
+
+Review notes (Opus, 2026-11-19): idea 4 (175 and 200 percent text) would reopen D5 (text sizes fixed at 100 to 150 percent; tab rule approved 2026-11-13). Idea 5 is already D9 (high contrast follows the OS palette), so it reduces to checking D9 against edited Windows contrast themes.
+
+## Unverified
+- Whether any screen reader reads our screens: no reader was run. The `QAccessible` gap comes from a grep only.
+- Our own focus ring and icon contrast numbers (A-59 covers text only per inventory); WCAG non-text contrast page was not opened.
+- Whether toasts or the info bar can cover a focused item.
+- Accessibility Insights support for Qt apps (page silent).
+- WCAG pages are web-focused; the mapping to a Qt desktop app is the author's interpretation.

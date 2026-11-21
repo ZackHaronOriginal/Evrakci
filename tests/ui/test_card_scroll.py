@@ -216,6 +216,17 @@ def _screen_scroller(window, tab: str) -> CardScroll:
 
 @pytest.mark.parametrize("text, height", [(150, 768), (150, 560), (100, 768)])
 def test_every_side_panel_at_1366_wide(qtbot, tmp_path, text, height):
+    _side_panels_at_1366_wide(qtbot, tmp_path, text, height)
+
+
+@pytest.mark.parametrize("text, height", [(150, 768), (150, 560), (100, 768)])
+def test_every_side_panel_at_1366_wide_in_the_real_look(real_look, qtbot, tmp_path, text, height):
+    """The same check as the real application is set up (Inter, palette, style sheet), where
+    the Değerler panel's "Tüm okumalar" rows once made its card taller than the panel."""
+    _side_panels_at_1366_wide(qtbot, tmp_path, text, height)
+
+
+def _side_panels_at_1366_wide(qtbot, tmp_path, text, height):
     """At 150 % no panel shows part of a card, at every stop; the hairline is there exactly
     while more is below. At 100 % the panels that fit do not scroll, trim or draw a line.
     (In-process the app font differs from the screenshot matrix, so 560 px makes sure
@@ -271,3 +282,36 @@ def test_a_card_scrolls_in_with_its_group_label(panel):
     box = label.rect().translated(label.mapTo(port, QPoint(0, 0)))
     assert 0 <= box.top() <= 12  # the stop is the label's top, not its card's
     assert _shown(area).contains(box)
+
+
+def test_a_step_uses_the_cards_as_they_are_now(panel):
+    """A card can change height (a wrapped label, other font metrics) after the last scheduled
+    measure and before the next one runs; the step must still stop on whole cards."""
+    _host, area, scroller, _fields = panel
+    scroller._timer.stop()
+    for card in _cards(area)[:2]:
+        card.setFixedHeight(card.height() + 23)  # the layout has not run yet
+    for _ in range(len(scroller.stops()) + 2):
+        scroller.step(1)  # no event loop between the change and the step
+        assert _partial_cards(area) == []
+        assert area.verticalScrollBar().value() in scroller.stops()
+        scroller._timer.stop()
+
+
+def test_the_event_filter_ignores_events_after_its_attributes_are_cleared(qapp):
+    """Windows CI: the cycle collector cleared a CardScroll's attributes while Qt still sent
+    events to its filter (AttributeError 'area' in the event loop)."""
+    from PySide6.QtCore import QEvent
+    from PySide6.QtWidgets import QScrollArea, QWidget
+
+    from evrakci.ui.card_scroll import CardScroll
+
+    area = QScrollArea()
+    area.setWidget(QWidget())
+    scroll = CardScroll(area)
+    del scroll.__dict__["area"]  # tp_clear on a collected cycle removes the attributes
+    try:
+        assert scroll.eventFilter(area, QEvent(QEvent.Type.Resize)) is False
+    finally:
+        scroll.area = area  # the rest of this synthetic object still needs it at teardown
+    area.deleteLater()

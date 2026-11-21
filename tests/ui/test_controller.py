@@ -2,6 +2,7 @@ import json
 
 import pytest
 from fakes import job_from_kinds
+from saving import wait_saved
 
 from evrakci.pipeline.cuts import compute_documents, record_values
 from evrakci.pipeline.job import job_to_dict
@@ -19,6 +20,7 @@ def ctl(qapp, tmp_path):
 
 
 def _saved(ctl):
+    wait_saved(ctl)  # the write is behind the edit (write-behind saver)
     return json.loads((ctl.store.root / ctl.job.id / "job.json").read_text(encoding="utf-8"))
 
 
@@ -99,3 +101,27 @@ def test_accept_suggestion_undoes(ctl):
     assert ctl.job.values["a/0"]["k"].value == "48213"
     ctl.undo()
     assert ctl.job.values["a/0"]["k"].value == "48Z13"
+
+
+def test_a_dropped_controller_dies_by_refcount_on_the_window_thread(qapp, tmp_path):
+    """B-089: the controller, its undo stack and its saver must not wait for the cyclic GC,
+    which may run on a worker thread and free Qt objects there (CI segfault)."""
+    import gc
+    import weakref
+
+    job = job_from_kinds({"a": "ppqpppep"})
+    store = JobStore(tmp_path)
+    store.save(job)
+    controller = JobController(store, job)
+    assert controller.add_cut("a/1")  # pushes an undo command
+    wait_saved(controller)
+    refs = [weakref.ref(controller), weakref.ref(controller.undo_stack),
+            weakref.ref(controller.saver)]
+    was_enabled = gc.isenabled()
+    gc.disable()
+    try:
+        del controller
+        assert [r() for r in refs] == [None, None, None]
+    finally:
+        if was_enabled:
+            gc.enable()

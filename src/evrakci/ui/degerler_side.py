@@ -25,9 +25,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.ui import theme
+from evrakci.ui import gc_guard, theme
 from evrakci.ui.card_scroll import CardScroll
-from evrakci.ui.chrome import make_icon
+from evrakci.ui.chrome import ElidedLabel, make_icon, press_on_enter
 from evrakci.ui.degerler_table import paint_level, paint_marked
 
 SIDE_W = 368  # A: Değerler inspector
@@ -52,11 +52,12 @@ class _Render(QRunnable):
         self.relay, self.render, self.pid, self.dpi = relay, render, pid, dpi
 
     def run(self) -> None:
-        try:
-            image = self.render(self.pid, self.dpi)
-        except Exception:  # noqa: BLE001 - a missing or broken batch file shows no crop
-            image = QImage()
-        self.relay.done.emit(self.pid, self.dpi, image)
+        with gc_guard.working():
+            try:
+                image = self.render(self.pid, self.dpi)
+            except Exception:  # noqa: BLE001 - a missing or broken batch file shows no crop
+                image = QImage()
+            self.relay.done.emit(self.pid, self.dpi, image)
 
 
 class PageImages(QObject):
@@ -83,6 +84,7 @@ class PageImages(QObject):
             return self._cache[key]
         if self.render is not None and key not in self._pending:
             self._pending.add(key)
+            gc_guard.install()  # cyclic garbage is never collected on the worker
             QThreadPool.globalInstance().start(_Render(self._relay, self.render, pid, dpi))
         return None
 
@@ -117,9 +119,13 @@ class SourceView(QWidget):
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setFixedHeight(well_height())
+        self.trim = 0  # px given back to a header line that wraps (the card keeps its height)
+        self.fit()
         images.ready.connect(lambda *_: self.update())
-        theme.follow(self, lambda: self.setFixedHeight(well_height()), "degerler-well")
+        theme.follow(self, self.fit, "degerler-well")
+
+    def fit(self) -> None:
+        self.setFixedHeight(max(well_height() // 2, well_height() - self.trim))
 
     def set_crop(self, crop: Crop | None, description: str = "") -> None:
         self.crop = crop
@@ -244,18 +250,21 @@ class MarkedText(QWidget):
 
     def __init__(self, role: str, style: str = "uncertain", parent=None) -> None:
         super().__init__(parent)
-        self.role = role  # "read" (panel size) or "big" (page size, semibold)
+        self.role = role  # "read" (panel size), "big" (page size, semibold) or "body" (one line)
         self.style = style
         self.text = ""
         self.marks: tuple[int, ...] = ()
         self.colour = "text"
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        if role == "body":
+            self.setMinimumWidth(0)
         theme.follow(self, self._resize, "marked")
 
     def font_(self) -> QFont:
         m = theme.manager()
         font = m.font("value")
         size, weight = {"read": ("fs-panel", QFont.Weight.Normal),
+                        "body": ("fs-body", QFont.Weight.Normal),
                         "big": ("fs-page", QFont.Weight.DemiBold)}[self.role]
         font.setPixelSize(m.size(size))
         font.setWeight(weight)
@@ -263,11 +272,13 @@ class MarkedText(QWidget):
         return font
 
     def _line(self) -> int:
-        return theme.manager().size("lh-panel" if self.role == "read" else "lh-page")
+        return theme.manager().size({"read": "lh-panel", "body": "lh-body"}.get(self.role,
+                                                                                    "lh-page"))
 
     def _wraps(self, width: int) -> bool:
         metrics = QFontMetrics(self.font_())
-        return not self.marks and width > 0 and metrics.horizontalAdvance(self.text) > width
+        return (self.role != "body" and not self.marks and width > 0
+                and metrics.horizontalAdvance(self.text) > width)
 
     def _resize(self) -> None:
         height = self._line()
@@ -394,15 +405,18 @@ class SourceCard(QFrame):
         head.setSpacing(m.size("s1"))
         words = QVBoxLayout()
         words.setSpacing(0)
-        self.title = QLabel("")
+        self.title = ElidedLabel("")  # a long variable name elides; tooltip = full name (F-02)
         self.title.setFont(m.font("body-strong"))
         self.meta = _caption(wrap=True)
         words.addWidget(self.title)
         words.addWidget(self.meta)
         head.addLayout(words, 1)
         self.zoom_out = _icon_button("zoom-out", "Uzaklaştır (Ctrl+-)", lambda: None)
+        self.zoom_out.setProperty("action_id", "app.uzaklastir")
         self.zoom_in = _icon_button("zoom-in", "Yakınlaştır (Ctrl++)", lambda: None)
+        self.zoom_in.setProperty("action_id", "app.yakinlastir")
         self.whole = _icon_button("maximize-2", "Sayfanın tamamı (Boşluk)", lambda: None)
+        self.whole.setProperty("action_id", "degerler.tum_sayfa")
         for button in (self.zoom_out, self.zoom_in, self.whole):
             head.addWidget(button, 0, Qt.AlignmentFlag.AlignTop)
         col.addLayout(head)
@@ -443,17 +457,122 @@ class SourceCard(QFrame):
             widget.hide()
         self.blank.show()
 
+    def fit_well(self) -> None:
+        """The meta line may wrap (e.g. "· zorunlu" at 150 % text): the well gives back that
+        height, so the card keeps the height the whole-card rule was checked with."""
+        width = self.meta.width()
+        text = self.meta.text()
+        trim = 0
+        if width > 40 and text:
+            metrics = self.meta.fontMetrics()
+            box = metrics.boundingRect(0, 0, width, 10_000, Qt.TextFlag.TextWordWrap, text)
+            trim = max(0, round(box.height() / metrics.lineSpacing()) - 1) * metrics.lineSpacing()
+        if trim != self.view.trim:
+            self.view.trim = trim
+            self.view.fit()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.fit_well()
+
     def show_crop(self, title: str, meta: str, crop: Crop | None, description: str) -> None:
         self.title.setText(title)
         self.meta.setText(meta)
+        self.fit_well()
         self.blank.hide()
         for widget in (self.zoom_out, self.zoom_in, self.whole, self.view):
             widget.show()
         self.view.set_crop(crop, description)
 
 
+MAX_READINGS = 4  # I-19: rows in "Tüm okumalar"; the rest is "+N daha"
+
+
+@dataclass(frozen=True)
+class ReadingItem:
+    """One row of "Tüm okumalar": a section's reading, as the card shows it."""
+
+    name: str
+    text: str
+    marks: tuple[int, ...]
+    percent: int
+    suggested: bool
+    problem: str = ""
+
+
+class ReadingRow(QFrame):
+    """A clickable reading (at least 32 px high, AUD-HIT-03; it grows with its content):
+    section, text in the body style (one line, elided), Güven %, and the words "Öneri" (with
+    an icon) / the problem under it. Click = put it into the editor; a reading without text
+    shows "boş" and cannot be picked."""
+
+    picked = Signal()
+    MIN_HEIGHT = 32
+
+    def __init__(self, item: ReadingItem, parent=None) -> None:
+        super().__init__(parent)
+        m = theme.manager()
+        self.item = item
+        self.pickable = bool(item.text)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # the keys are F2 + Alt+digit
+        if self.pickable:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMinimumHeight(self.MIN_HEIGHT)
+        self.setToolTip(item.text)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)  # the rows are at least 32 px high anyway
+        outer.setSpacing(0)
+        row = QHBoxLayout()
+        row.setSpacing(m.size("s2"))
+        self.name = _caption(item.name)
+        self.text = MarkedText("body")
+        self.text.set(item.text or "boş", item.marks if item.text else (),
+                      "text" if item.text else "text-2")
+        self.text.setToolTip(item.text)
+        self.percent = _caption(f"%{item.percent}")
+        row.addWidget(self.name)
+        row.addWidget(self.text, 1)
+        row.addWidget(self.percent)
+        outer.addLayout(row)
+        # the second line (only when there is something to say): the "Öneri" tag, the problem
+        notes = QHBoxLayout()
+        notes.setSpacing(m.size("s2"))
+        self.icon = QLabel()
+        self.tag = _caption("Öneri" if item.suggested else "")
+        self.problem = _caption(item.problem, wrap=True)
+        notes.addWidget(self.icon)
+        notes.addWidget(self.tag)
+        notes.addWidget(self.problem)
+        notes.addStretch(1)
+        outer.addLayout(notes)  # parents the labels: only then may they be shown or hidden
+        self.icon.setVisible(item.suggested)
+        self.tag.setVisible(item.suggested)
+        self.problem.setVisible(bool(item.problem))
+        for label in (self.name, self.text, self.percent, self.icon, self.tag, self.problem):
+            label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAccessibleName(" ".join(p for p in (
+            f"{item.name}: {item.text or 'boş'}", f"%{item.percent}",
+            "Öneri" if item.suggested else "", item.problem) if p))
+        theme.follow(self, self._restyle, f"degerler-reading-{id(self)}")
+
+    def _restyle(self) -> None:
+        m = theme.manager()
+        size = m.size("icon-sm")
+        self.icon.setPixmap(make_icon("check", "icon", size).pixmap(size, size))
+        self.name.setFixedWidth(QFontMetrics(self.name.font()).horizontalAdvance("Varyant 99"))
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton and self.pickable:
+            self.picked.emit()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+
 class ValueCard(QFrame):
     """Okunan (with uncertain characters), Öneri (with the changes marked), Güven and why."""
+
+    reading_picked = Signal(int)  # the row's index in "Tüm okumalar"
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -477,7 +596,20 @@ class ValueCard(QFrame):
         col.addWidget(self.suggestion_label)
         col.addSpacing(2)
         col.addWidget(self.suggestion)
-        col.addSpacing(m.size("s3"))
+        self.readings_box = QFrame()
+        self.readings_col = QVBoxLayout(self.readings_box)
+        self.readings_col.setContentsMargins(0, m.size("s1"), 0, 0)
+        self.readings_col.setSpacing(m.size("s1"))
+        self.readings_label = _caption("Tüm okumalar")
+        self.readings_col.addWidget(self.readings_label)
+        self.reading_rows: list[ReadingRow] = []
+        self.more = _caption("")
+        self.readings_col.addWidget(self.more)
+        self.readings_box.hide()
+        self.has_readings = False
+        self._in_card = col
+        col.addWidget(self.readings_box)
+        col.addSpacing(m.size("s1"))
         col.addWidget(self.level)
         col.addSpacing(m.size("s1"))
         col.addWidget(self.why)
@@ -492,6 +624,57 @@ class ValueCard(QFrame):
         self.suggestion_label.setVisible(bool(suggestion))
         self.suggestion.setVisible(bool(suggestion))
         self.suggestion.set(suggestion, changes)
+        self.layout().invalidate()
+
+    def set_readings(self, items: list[ReadingItem]) -> None:
+        """"Tüm okumalar": only with two or more readings; at most MAX_READINGS rows, then
+        "+N daha"."""
+        for row in self.reading_rows:
+            self.readings_col.removeWidget(row)
+            row.hide()
+            row.deleteLater()
+        self.reading_rows = []
+        shown = items[:MAX_READINGS] if len(items) >= 2 else []
+        for number, item in enumerate(shown):
+            row = ReadingRow(item)
+            row.picked.connect(lambda n=number: self.reading_picked.emit(n))
+            self.readings_col.insertWidget(1 + number, row)
+            self.reading_rows.append(row)
+        extra = len(items) - len(shown) if shown else 0
+        self.more.setText(f"+{extra} daha")
+        self.more.setVisible(extra > 0)
+        self.has_readings = bool(shown)
+        self.sync_readings()
+        self.layout().invalidate()
+
+    def sync_readings(self) -> None:
+        """The block shows with readings, and only while this card shows (it can sit outside)."""
+        self.readings_box.setVisible(self.has_readings and not self.isHidden())
+
+    def split_readings(self, stack: QVBoxLayout | None) -> None:
+        """Bigger text: the whole card (with its rows) is taller than a short window's panel,
+        and a card taller than the panel cannot scroll whole. "Tüm okumalar" then is a card of
+        its own under this one (`stack` = the panel's column); at normal text it stays inside
+        (stack is None)."""
+        box, margin = self.readings_box, theme.manager().size("s4")
+        split = stack is not None
+        if split == (box.property("kind") == "card"):
+            return
+        if split:
+            self._in_card.removeWidget(box)
+            box.setProperty("kind", "card")
+            stack.insertWidget(stack.indexOf(self) + 1, box)
+            self.readings_col.setContentsMargins(margin, margin, margin, margin)
+        else:
+            stack_layout = box.parentWidget().layout()
+            stack_layout.removeWidget(box)
+            box.setProperty("kind", "")
+            self.readings_col.setContentsMargins(0, theme.manager().size("s1"), 0, 0)
+            self._in_card.insertWidget(self._in_card.indexOf(self.level) - 1, box)
+        box.setParent(self if not split else stack.parentWidget())
+        box.style().unpolish(box)
+        box.style().polish(box)
+        self.sync_readings()
         self.layout().invalidate()
 
     def show_value(self, text: str, colour: str = "text") -> None:
@@ -527,6 +710,19 @@ class _Scroll(QScrollArea):
             self.updateGeometry()  # wrapped text: a new width is a new height
 
 
+class _OnceButton(QPushButton):
+    """A double click is one press: the second click would confirm the value the panel shows
+    next, one nobody has looked at (F-degerler-03). Enter presses it too: the window unbinds
+    Enter while a button has focus (same as chrome.press_on_enter users)."""
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if not press_on_enter(self, event):
+            super().keyPressEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
+        event.accept()
+
+
 class SidePanel(QWidget):
     """Source card + value card, then the actions (pinned under the cards; when nothing is
     selected they sit at the bottom, as A's empty state draws them)."""
@@ -546,6 +742,7 @@ class SidePanel(QWidget):
         self.value = ValueCard()
         stack.addWidget(self.source)
         stack.addWidget(self.value)
+        self.stack = stack
         stack.addStretch(1)
         self.scroll = _Scroll()
         self.scroll.setWidgetResizable(True)
@@ -558,11 +755,14 @@ class SidePanel(QWidget):
         acts = QVBoxLayout()
         acts.setSpacing(m.size("s2"))
         # One space after the icon: Qt's 4 px icon gap + a space = A's s2 between them
-        self.accept_button = QPushButton(" Onayla ve sonrakine geç")
+        self.accept_button = _OnceButton(" Onayla ve sonrakine geç")
+        self.accept_button.setProperty("action_id", "degerler.onayla")
         self.accept_button.setProperty("variant", "primary")
         self.accept_button.setProperty("sizeVariant", "lg")
-        self.type_button = QPushButton(" Elle yaz")
-        self.variant_button = QPushButton(" Yeni kutu çiz")
+        self.type_button = _OnceButton(" Elle yaz")
+        self.type_button.setProperty("action_id", "degerler.elle_yaz")
+        self.variant_button = _OnceButton(" Yeni kutu çiz")
+        self.variant_button.setProperty("action_id", "degerler.varyant")
         pair = QHBoxLayout()
         pair.setSpacing(m.size("s2"))
         pair.addWidget(self.type_button, 1)
@@ -592,6 +792,7 @@ class SidePanel(QWidget):
             button: QPushButton = getattr(self, name)
             button.setIcon(make_icon(icon, role, m.size("icon-sm")))
         self.accept_button.setMinimumHeight(m.size("lg-h"))
+        self.value.split_readings(self.stack if m.text_scale() > 100 else None)
 
     def set_blank(self, blank: bool) -> None:
         layout = self.layout()
@@ -599,6 +800,7 @@ class SidePanel(QWidget):
         layout.setStretch(1, 0)
         layout.setStretch(3, 0 if blank else 1)
         self.value.setVisible(not blank)
+        self.value.sync_readings()
         self.relayout()
 
     def relayout(self) -> None:

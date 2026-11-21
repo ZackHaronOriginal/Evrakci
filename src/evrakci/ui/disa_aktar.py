@@ -21,10 +21,12 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 
+import shiboken6
 from PySide6.QtCore import QByteArray, QEvent, QModelIndex, QPoint, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QKeySequence, QUndoCommand
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
     QFileDialog,
     QFrame,
     QHeaderView,
@@ -43,6 +45,7 @@ from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after
 from evrakci.pipeline.job import job_from_dict, job_to_dict
 from evrakci.pipeline.naming import safe_filename
 from evrakci.pipeline.ocr.engine import EngineUnavailable
+from evrakci.pipeline.pdfium_lock import PDFIUM_LOCK
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, SettingsError, load_settings
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
@@ -63,7 +66,7 @@ from evrakci.ui.disa_aktar_parts import EmptyPane, HeadBar, PartsButton, Preflig
 from evrakci.ui.disa_aktar_side import SidePanel, mark_invalid, side_width
 from evrakci.ui.disa_aktar_table import NAME_MIN, WIDTHS, WIDTHS_150, FilesModel, FilesTable
 from evrakci.ui.feedback import announce
-from evrakci.ui.workers import Task, start
+from evrakci.ui.workers import Task, run_background, start
 
 STAGES = {"write": "dosyalar yazılıyor", "layer": "metin katmanı ekleniyor"}
 HEADER_KEY = "disa_aktar/dosyalar"
@@ -121,10 +124,13 @@ class DisaAktarScreen(QWidget):
         self.settings_path = settings_path
         self.window_ = None
         self.task: Task | None = None
+        self._flushing = False  # an export waits for the job's last write
+        self._flushed = None  # the controller whose write just ended (export() goes on)
         self.out_dir: Path | None = None
         self._exporting: tuple[JobController, object] | None = None
         self._written = False  # the table shows what was written, not the preview
         self._written_for: JobController | None = None
+        self._job_gone = False  # the export deleted its job: the window closed it, keep the card
         self._written_rows: list[FileRow] = []
         self._outcome: dict | None = None  # the outcome card's content (done / stopped / failed)
         self._index_written = False
@@ -419,22 +425,27 @@ class DisaAktarScreen(QWidget):
         known = {v.name for i in used for v in templates[i].variables}
         self._variables = sorted(known, key=str.casefold)
         override = self._overrides.get(job.id, "")
-        effective = self._effective(job, templates, used)
+        problem = pattern_problem(override, known) if override else ("", [])
+        # an unmatched brace would make plan_export raise: plan with the templates' own
+        # patterns and let the Engel row (findings) say what is wrong
+        effective = (dict(templates) if problem[0] == "brace"
+                     else self._effective(job, templates, used))
         self._items = plan_export(job, effective)
         per_item = {n + 1: (effective[i].filename_pattern if i in used else "")
                     for n, i in enumerate(ids)}
         self._patterns = per_item
         self._rows = file_rows(job, self._items, per_item)
         self._summary = summarize(self._items, self._rows)
-        if override:
-            self._problem = pattern_problem(override, known)
+        self._problem = problem
 
     def refresh(self) -> None:
         controller = self.controller()
         if self.task is not None:
             self._sync()
             return
-        if self._written and controller is not self._written_for:
+        if self._written and controller is not self._written_for \
+                and not (self._job_gone and controller is None):
+            self._job_gone = False
             self._written = False  # another job is open: show its names again
             self._written_rows, self._outcome = [], None
         if not self._written:
@@ -561,12 +572,26 @@ class DisaAktarScreen(QWidget):
             if count == 0 and self.filter_button.isChecked():
                 self.filter_button.setChecked(False)
 
+    def _path_room(self) -> int:
+        """Width the path may take in the head: what the left column really has, less the
+        title and the card's padding (a fixed 520 x scale overflowed it at 150 %)."""
+        wide = round(520 * scale())
+        have = self.left_scroll.viewport().width()
+        if have <= 0:
+            return wide
+        return max(round(120 * scale()), min(wide, have - round(300 * scale())))
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        if self._compute_state() in ("running", "done") and self.out_dir is not None:
+            self._sync()
+
     def _short_path(self, text: str) -> str:
         from PySide6.QtGui import QFontMetrics
 
         font = theme.manager().font("caption")
         return QFontMetrics(font).elidedText(text, Qt.TextElideMode.ElideMiddle,
-                                             round(520 * scale()))
+                                             self._path_room())
 
     def _sync_side(self, state: str) -> None:
         side = self.side
@@ -704,9 +729,10 @@ class DisaAktarScreen(QWidget):
             state = self._state
             # app.disa_aktar's one owner is MainWindow; it asks can_export().
             window._sync_export_action()
-            r.set_enabled("disa_aktar.durdur", state == "running")
+            r.set_enabled("disa_aktar.durdur", state == "running" or getattr(
+                self.window_, "loading_cancellable", lambda: False)())
             r.set_enabled("disa_aktar.yazdir", state != "empty" and self.model.rowCount() > 0)
-            r.set_enabled_for("app.yenile", "disa_aktar", state not in ("empty", "running"))
+            r.set_enabled_for("app.yenile", "disa_aktar", state != "running")
             r.set_enabled("disa_aktar.gezginde_goster", self._reveal_target() is not None)
             r.set_enabled("disa_aktar.index_ac",
                           self._index_written and self._index_path().is_file())
@@ -739,6 +765,7 @@ class DisaAktarScreen(QWidget):
 
     def _folder_changed(self, text: str) -> None:
         self._folder = folder_state(text)
+        self.folder.setToolTip(text.strip())  # the field shows the end of a long path
         if text.strip():
             self._folder_error = False
         self._sync()
@@ -874,6 +901,7 @@ class DisaAktarScreen(QWidget):
         menu = QMenu(self.results)
         copy = menu.addAction("Dosya adını kopyala")
         copy.setShortcut(QKeySequence.StandardKey.Copy)
+        copy.setProperty("action_id", "local.dosya_adi_kopyala")
         copy.triggered.connect(self.copy_names)
         if self.model.mode == "written":
             show = menu.addAction("Dosya Gezgini'nde göster")
@@ -889,7 +917,15 @@ class DisaAktarScreen(QWidget):
     # -- export ---------------------------------------------------------------------------
     def export(self) -> None:
         controller = self.controller()
-        if controller is None or self.task is not None:
+        if controller is None or self.task is not None or self._flushing:
+            return
+        window = self.window_
+        others = [s for s in window._busy_screens() if s is not self] if window else []
+        if others:  # a read is running: it would find the job gone (delete after export)
+            toaster = self._toaster()
+            if toaster is not None:
+                toaster.show("Dışa aktarma ya da okuma sürüyor; bitince başka bir iş açın.",
+                             kind="info")
             return
         if self._written:
             self.again()
@@ -912,7 +948,13 @@ class DisaAktarScreen(QWidget):
             announce(self.side.folder_hint, "Bir hedef klasör seçin.")
             return
         out_dir = Path(text)
-        controller.store.save(controller.job)  # marks the job as in use for the day limit
+        if self._flushed is not controller:
+            # The job's changes are written first (the write also marks the job as in use for
+            # the day limit); the export then starts from the event loop, with the file equal to
+            # the job, and checks everything above again.
+            self._flush_then_export(controller)
+            return
+        self._flushed = None
         # The worker gets its own copy: the live job can still be edited meanwhile.
         job = job_from_dict(job_to_dict(controller.job))
         files = controller.store.batch_files(job)
@@ -940,6 +982,7 @@ class DisaAktarScreen(QWidget):
 
         self.out_dir = out_dir
         self._written, self._index_written = False, False
+        self._job_gone = False
         self._stage, self._stage_seen = "write", None
         self._done_count, self._total = 0, len(self._items)
         self.task = Task(work)
@@ -954,6 +997,29 @@ class DisaAktarScreen(QWidget):
         if taskbar is not None:
             taskbar.indeterminate()
         start(self.task)
+
+    def _flush_then_export(self, controller) -> None:
+        window = self.window_
+        self._flushing = True
+        controller.save_now()
+
+        def written(ok: bool, error: str) -> None:
+            self._flushing = False
+            if not shiboken6.isValid(self) or getattr(window, "_closed", False) \
+                    or self.controller() is not controller:
+                return  # the window closed or another job opened while the write ran
+            if not ok:  # the title band shows "Kaydedilemedi" with its retry; no export starts
+                toaster = self._toaster()
+                if toaster is not None:
+                    toaster.show(f"İş kaydedilemedi: {error}", kind="error")
+                return
+            self._flushed = controller
+            try:
+                self.export()  # no event between the write and the job copy it takes
+            finally:
+                self._flushed = None
+
+        controller.saver.when_idle(written)
 
     def _progress(self, done: int, total: int) -> None:
         stage = self._stage
@@ -1002,15 +1068,67 @@ class DisaAktarScreen(QWidget):
             retention = load_settings(self.settings_path).retention
         except SettingsError:
             retention = ""  # a broken settings file never deletes a job
-        count = len(result.paths)
         kept = "İş listede kalır; Yükle'den yeniden açabilirsiniz."
+        # The export time goes into the open job, then to the file through the saver; not an edit
+        # (no undo step). A job that is about to be deleted is not written (the failed delete
+        # path writes it again).
+        controller.job.last_export = job.last_export
         if retention == DELETE_AFTER_EXPORT and may_delete_after_export(result):
-            controller.store.delete(job.id)
-            kept = "İş silindi (saklama ayarı)."
-            self.job_deleted.emit()
+            if self._delete_in_worker(controller, job, result):
+                return  # the outcome is written when the delete is done
+            controller.save_now()
         elif retention == DELETE_AFTER_EXPORT and result.paths and not result.with_layer:
             kept = "İş saklandı: metin katmanı eklenmedi."
+            controller.save_now()
+        else:
+            controller.save_now()
+        self._write_outcome(result, kept)
+
+    def _delete_in_worker(self, controller, job, result) -> bool:
+        """Delete the job's folder in a worker (it can wait on a slow disk); the outcome and the
+        window's close of the job follow in on_done. False when no loading job could start."""
+        window = self.window_ if self.window_ is not None else self
+        start = getattr(window, "start_loading", None)
+        store, job_id = controller.store, job.id  # plain data for the worker
+        controller.freeze()  # no edit or save while the folder goes (a save would bring it back)
+
+        def done(deleted: bool) -> None:
+            if not shiboken6.isValid(self):
+                return
+            kept = "İş listede kalır; Yükle'den yeniden açabilirsiniz."
+            if not deleted:
+                controller.unfreeze()
+                controller.save_now()  # the failed delete may have removed job.json: write it again
+            if deleted:
+                kept = "İş silindi (saklama ayarı)."
+                self._job_gone = True
+                self.job_deleted.emit()
+            self._write_outcome(result, kept)
+
+        def failed(_message: str) -> None:
+            done(False)
+
+        saver = controller.saver
+
+        def work(_progress) -> bool:
+            # A write in flight ends first (none can start: frozen); a write that hangs on a dead
+            # share keeps the job (nothing is deleted under it).
+            if not saver.wait_idle(saver.stall_seconds):
+                return False
+            return self._delete_job_files(store, job_id)
+
+        options = {"title": "İş siliniyor", "name": job.name, "on_done": done,
+                   "on_failed": failed, "on_cancelled": lambda: done(False),
+                   "cancellable": False}
+        handle = start(work, **options) if start is not None else run_background(
+            window, work, **options)
+        if handle is None:
+            controller.unfreeze()
+        return handle is not None
+
+    def _write_outcome(self, result, kept: str) -> None:
         check = ""
+        count = len(result.paths)
         if result.needing_check:
             check = (f"{result.needing_check} belge kontrol gerektiriyor; index.xlsx'te işaretli,"
                      " nedeni yazılı.")
@@ -1020,6 +1138,24 @@ class DisaAktarScreen(QWidget):
             "check": check, "folder": True, "index": result.index_written, "reveal": True,
         }
         self._finish(f"{count} belge yazıldı", "kontrol" if result.needing_check else "success")
+
+    @staticmethod
+    def _delete_job(controller, job_id: str) -> bool:
+        return DisaAktarScreen._delete_job_files(controller.store, job_id)
+
+    @staticmethod
+    def _delete_job_files(store, job_id: str) -> bool:
+        """Delete the job folder; False (the job stays, listed and open) when that fails.
+
+        Windows refuses to delete a file that is open. Every PDFium document of this process is
+        opened and closed under PDFIUM_LOCK (thumbnails, loupe, Değerler crops, Şablon), so
+        holding the lock makes sure no render has a job PDF open while the folder goes."""
+        try:
+            with PDFIUM_LOCK:
+                store.delete(job_id)
+        except (OSError, KeyError):
+            return False
+        return True
 
     def _failed(self, message: str) -> None:
         exists = self.out_dir is not None and self.out_dir.exists()
@@ -1110,9 +1246,10 @@ class DisaAktarScreen(QWidget):
 
         rows = self.model._all
         head = "".join(f"<th align='left'>{escape(t)}</th>"
-                       for t in ("Durum", "Dosya adı", "Sayfalar", "Şablon", "Not"))
+                       for t in ("Durum", "No", "Dosya adı", "Sayfalar", "Şablon", "Not"))
         body = "".join(
-            f"<tr><td>{escape(self.model.word(r))}</td><td>{escape(r.name)}</td>"
+            f"<tr><td>{escape(self.model.word(r))}</td><td align='right'>{r.number}</td>"
+            f"<td>{escape(r.name)}</td>"
             f"<td align='right'>{escape(r.pages)}</td><td>{escape(r.template or 'Şablon yok')}"
             f"</td><td>{escape(r.why)}</td></tr>" for r in rows)
         return (f"<h2>{escape(self._job_name or 'Dışa aktarma')}</h2>"
@@ -1127,11 +1264,11 @@ class DisaAktarScreen(QWidget):
 
         if self.model.rowCount() == 0:
             return
-        if printer is None:
+        if not isinstance(printer, QPrinter):  # a QAction's checked flag arrives here too
             printer = QPrinter()
             dialog = QPrintDialog(printer, self)
             dialog.setWindowTitle("Dizini yazdır")
-            if dialog.exec() != QPrintDialog.DialogCode.Accepted:
+            if dialog.exec() != QDialog.DialogCode.Accepted:
                 return
         document = QTextDocument()
         document.setHtml(self.index_html())

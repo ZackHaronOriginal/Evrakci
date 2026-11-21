@@ -39,6 +39,10 @@ class PreparedBatch:
     pages: list[PageInfo]
 
 
+# A file another program holds (Windows: antivirus, indexer, a second reader) is tried again
+# this many times, pausing 0.05 s, 0.1 s, ... in between (about 1.4 s in all).
+BUSY_TRIES = 8
+
 class JobStore:
     def __init__(self, root: Path) -> None:
         self.root = Path(root)
@@ -127,20 +131,46 @@ class JobStore:
         return batch
 
     def save(self, job: Job) -> None:
-        target = self._job_file(job.id)
+        self.save_dict(job.id, job_to_dict(job))
+
+    def save_dict(self, job_id: str, data: dict) -> None:
+        """Write a snapshot made by `job_to_dict` (atomic: a .json.tmp, then os.replace).
+
+        The snapshot is plain data, so a thread other than the one that edits the job can
+        write it (the window's saver). The file format is the same as `save`.
+        """
+        target = self._job_file(job_id)
         target.parent.mkdir(parents=True, exist_ok=True)
         temporary = target.with_suffix(".json.tmp")
-        temporary.write_text(
-            json.dumps(job_to_dict(job), ensure_ascii=False, indent=1), encoding="utf-8"
-        )
-        os.replace(temporary, target)
+        temporary.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+        for attempt in range(1, BUSY_TRIES + 1):  # on Windows a reader (antivirus, indexer)
+            try:                                  # can hold the file for a moment
+                os.replace(temporary, target)
+                return
+            except PermissionError:
+                if attempt == BUSY_TRIES:
+                    raise
+                time.sleep(0.05 * attempt)
+
+    @staticmethod
+    def _read_text(path: Path) -> str:
+        """Read a job file; on Windows a read that meets the saver's os.replace gets
+        PermissionError for a moment, so it is tried again (as `save_dict` does)."""
+        for attempt in range(1, BUSY_TRIES + 1):
+            try:
+                return path.read_text(encoding="utf-8")
+            except PermissionError:
+                if attempt == BUSY_TRIES:
+                    raise
+                time.sleep(0.05 * attempt)
+        raise AssertionError("unreachable")
 
     def load(self, job_id: str) -> Job:
         path = self._job_file(job_id)
         if not path.is_file():
             raise KeyError(job_id)
         try:
-            job = job_from_dict(json.loads(path.read_text(encoding="utf-8")))
+            job = job_from_dict(json.loads(self._read_text(path)))
         except (ValueError, KeyError, TypeError, OSError) as error:
             raise JobFileError(f"İş dosyası okunamadı: {job_id}") from error
         # The folder is the job: a copied folder must never save into, or delete, the original.

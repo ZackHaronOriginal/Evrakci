@@ -64,19 +64,29 @@ class Column:
     title: str
     key: str = ""  # the variable key of a "var" column
     style: str = "text"  # var / value: number, date, code, text
+    required: bool = False  # a required variable: "Firma *", spoken "Firma, zorunlu"
+
+    @property
+    def label(self) -> str:
+        """The header text: the title, with the template's "*" for a required variable."""
+        return f"{self.title} *" if self.required else self.title
+
+    @property
+    def spoken(self) -> str:
+        return f"{self.title}, zorunlu" if self.required else self.title
 
     @property
     def right(self) -> bool:
         return self.kind == "doc" or (self.kind == "var" and self.style == "number")
 
 
-def main_columns(rows: list[Row], variables: list[tuple[str, str]]) -> list[Column]:
+def main_columns(rows: list[Row], variables: list[tuple[str, str, bool]]) -> list[Column]:
     """✓, Belge, Sayfa, the template's variables, Güven."""
     columns = [Column("review", ""), Column("doc", "Belge"), Column("pages", "Sayfa")]
-    for key, name in variables:
+    for key, name, required in variables:
         texts = [c.suggestion if c.needs_check else c.text  # what it should read
                  for r in rows for c in r.cells if c.key == key]
-        columns.append(Column("var", display_name(name), key, column_kind(texts)))
+        columns.append(Column("var", display_name(name), key, column_kind(texts), required))
     columns.append(Column("guven", "Güven"))
     return columns
 
@@ -164,9 +174,9 @@ class ValuesModel(QAbstractTableModel):
             return None
         column = self.columns[section]
         if role == Qt.ItemDataRole.DisplayRole:
-            return column.title
+            return column.label
         if role in (Qt.ItemDataRole.ToolTipRole, Qt.ItemDataRole.AccessibleTextRole):
-            return "İnceleme" if column.kind == "review" else column.title
+            return "İnceleme" if column.kind == "review" else column.spoken
         if role == KIND_ROLE:
             return column
         return None
@@ -212,9 +222,12 @@ class ValuesModel(QAbstractTableModel):
             return self._spoken(row, sampled, column, index)
         if role == Qt.ItemDataRole.ToolTipRole and column.kind in VALUE_KINDS:
             cell = self.cell_at(index)
-            if cell is not None and cell.needs_check and cell.suggestion:
-                return f"Öneri: {cell.suggestion}"
             text = self._text(row, sampled, column)
+            if cell is not None and cell.needs_check:
+                lines = ["Bu değere bakın: okuma emin değil."] if cell.level == "kontrol" else []
+                lines.append(LEVELS[cell.level][2])
+                lines.append(f"Öneri: {cell.suggestion}" if cell.suggestion else text)
+                return "\n".join(line for line in lines if line)
             return text or None  # the whole value, also where a narrow column elides it
         return None
 
@@ -582,6 +595,12 @@ class ValuesDelegate(QStyledItemDelegate):
         m = theme.manager()
         if cell is None or cell.value is None:
             return
+        if cell.needs_check:  # I-17: the mark sits left of the value, the word is in the tooltip
+            name, role = LEVELS[cell.level][:2]
+            size = m.inline_icon(16)
+            icons.paint(painter, name, QRectF(rect.left(), rect.center().y() - size / 2, size,
+                                              size), m.hex(ink or role))
+            rect = rect.adjusted(size + 6, 0, 0, 0)
         if cell.level == "okunamadi" or not cell.text:
             self._text(painter, rect, "boş", self.fonts.body, m.color(ink or "text-2"),
                        column.right)
@@ -625,6 +644,13 @@ class ValuesDelegate(QStyledItemDelegate):
         if isinstance(obj, QLineEdit) and event.type() == QEvent.Type.KeyPress and \
                 event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             obj.setProperty("submit", True)
+        if isinstance(obj, QLineEdit) and event.type() == QEvent.Type.KeyPress and \
+                event.modifiers() == Qt.KeyboardModifier.AltModifier and \
+                Qt.Key.Key_1 <= event.key() <= Qt.Key.Key_4:
+            table = self.parent()
+            if hasattr(table, "reading_key"):  # I-19: Alt+1..Alt+4 take a reading
+                table.reading_key.emit(event.key() - Qt.Key.Key_1)
+                return True
         return super().eventFilter(obj, event)
 
     def updateEditorGeometry(self, editor, option, index) -> None:  # noqa: N802
@@ -672,7 +698,7 @@ class ValuesHeader(QHeaderView):
         chevron = 16 if sorted_here else 0
         if column.right:  # a narrow number column may use its left padding (A: "Belge ^")
             inner.setLeft(rect.left() + 4)
-        text = metrics.elidedText(column.title, Qt.TextElideMode.ElideRight,
+        text = metrics.elidedText(column.label, Qt.TextElideMode.ElideRight,
                                   inner.width() - chevron)
         width = metrics.horizontalAdvance(text) + chevron
         left = inner.right() - width if column.right else inner.left()
@@ -721,6 +747,7 @@ class ValuesTable(QTableView):
 
     submitted = Signal(int)  # the editor closed: 1 = Enter, 0 = Esc
     return_pressed = Signal()
+    reading_key = Signal(int)  # Alt+1..Alt+4 in the open editor: reading 0..3
     hint_keys: Callable[[], list[tuple[str, str]]] | None = None
 
     def __init__(self, parent=None) -> None:

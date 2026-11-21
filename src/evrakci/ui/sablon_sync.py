@@ -7,6 +7,8 @@ A mixin of `SablonScreen`; every `_sync_*` reads the screen's state and changes 
 
 from __future__ import annotations
 
+from evrakci.pipeline.templates.read import flagged_count
+from evrakci.ui import actions
 from evrakci.ui import sablon_read as reading
 from evrakci.ui.sablon_canvas import fmt_mm
 from evrakci.ui.sablon_inspector import InspectorState
@@ -99,7 +101,8 @@ class Syncing:
         page = has and self.canvas.has_page()
         has_variable = self.current_variable() is not None
         has_box = has_variable and self.section_index is not None
-        busy = self._all_task is not None
+        loading = getattr(self.window(), "loading", lambda: False)()  # a job loads
+        waiting = self._all_task is not None or loading
         variable_count = len(self.template.variables) if has else 0
         up = down = False
         variable = self.current_variable()
@@ -111,13 +114,23 @@ class Syncing:
                 up, down = place > 0, place < variable_count - 1
         states = {
             "sablonlar.kutu_ciz": page, "sablonlar.izgara": page,
-            "sablonlar.dene": page and not busy,
+            "sablonlar.dene": page and not waiting,
             "sablonlar.kutu_sil": has_variable, "sablonlar.kutu_cogalt": has_box and page,
             "sablonlar.degisken_ekle": has, "sablonlar.yukari": up, "sablonlar.asagi": down,
             "sablonlar.okumalari_goster": page,
         }
         for action_id, enabled in states.items():
             registry.set_enabled(action_id, enabled)
+        self._sync_weak_actions(registry, page and not waiting)
+        # Del removes what is chosen: the item says "Değişkeni sil" while only a variable is.
+        delete = registry.action("sablonlar.kutu_sil")
+        spec = registry.spec("sablonlar.kutu_sil")
+        if has_variable and not has_box:
+            delete.setText("Değişkeni &sil")
+            delete.setToolTip(f"Değişkeni sil (geri alınabilir) ({actions.key_text('Del')})")
+        else:
+            delete.setText(spec.text)
+            delete.setToolTip(actions.tooltip_for(spec))
         # Only this tab's route: MainWindow and the other tabs own Ctrl+S elsewhere.
         registry.set_enabled_for("app.kaydet", "sablonlar", has)
         self.side.save.setEnabled(has)
@@ -160,8 +173,8 @@ class Syncing:
         check = s["check"]
         if self._all_task is not None:
             return
-        flagged = sum(reading.flagged_count(v) for v in self.example_values.values()) \
-            if len(self.example_values) > 1 else reading.flagged_count(self.values)
+        flagged = sum(flagged_count(v) for v in self.example_values.values()) \
+            if len(self.example_values) > 1 else flagged_count(self.values)
         check.set_icon("triangle-alert", "rider-edge")
         check.setVisible(bool(flagged) and page)
         check.set(str(flagged), " okuma kontrol bekliyor")

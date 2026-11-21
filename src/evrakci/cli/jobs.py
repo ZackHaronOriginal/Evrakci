@@ -25,10 +25,12 @@ from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
 from evrakci.pipeline.render import render_page
 from evrakci.pipeline.review import needs_reading, store_reading
+from evrakci.pipeline.select import Criterion, evaluate
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsError, load_settings
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.model import Template, TemplateError, template_revision
 from evrakci.pipeline.templates.read import read_document
+from evrakci.pipeline.templates.values import value_level
 
 
 def load_job(store: JobStore, job_id: str) -> Job:
@@ -186,6 +188,35 @@ def apply_filter(args: argparse.Namespace, store: JobStore) -> int:
     return 0
 
 
+def remove_filter(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    start, end = parse_range(args.aralik)
+    job.remove_filter([page_id_at(job, position) for position in range(start, end + 1)])
+    store.save(job)
+    print(f"Filtre kaldırıldı, {end - start + 1} sayfa.")
+    return 0
+
+
+def select_pages(args: argparse.Namespace, store: JobStore) -> int:
+    """`is sec`: the pages the window's "Ölçüte göre seç…" would select; `--sil` deletes them."""
+    job = load_job(store, args.id)
+    params = {"number": args.numara} if args.olcut == "belge" else {}
+    match = evaluate(job, Criterion(args.olcut, params))
+    if not match.page_ids:
+        print("Eşleşen sayfa yok.")
+        return 0
+    position = {pid: n for n, pid in enumerate(job.ordered_page_ids(), start=1)}
+    positions = [position[pid] for pid in match.page_ids]
+    print(f"{len(positions)} sayfa seçildi.")
+    print(f"sayfa {positions_text(positions)}")
+    if args.sil:
+        for pid in match.page_ids:
+            job.delete_page(pid)
+        store.save(job)
+        print(f"Sayfa {positions_text(positions)} silindi")
+    return 0
+
+
 def cut(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
     pid = page_id_at(job, args.sayfa)
@@ -284,6 +315,7 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
     finally:
         if with_layer:
             print(file=sys.stderr)
+    store.save(job)  # the export time (job.last_export) reaches the job file
     items, paths = result.items, result.paths
     notes = {path: _layer_note(pdfa, note) for path, (pdfa, note) in result.notes.items()}
     for path, item in zip(paths, items, strict=True):
@@ -293,6 +325,8 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
     needing = result.needing_check
     listing = " Liste: index.xlsx" if paths else ""
     print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.{listing}")
+    if needing:
+        print("Kontrol listesi: index.xlsx, sayfa 'Kontrol gerekenler'.")
     if _settings().retention == DELETE_AFTER_EXPORT:
         if may_delete_after_export(result):
             store.delete(job.id)
@@ -453,7 +487,12 @@ def list_values(args: argparse.Namespace, store: JobStore) -> int:
                 print(f"  {variable.name}: [okunmadı]")
             elif value.flagged:
                 hint = f", öneri: {value.suggestion}" if value.suggestion else ""
-                print(f"  {variable.name}: [okunamadı{hint}]")
+                if value_level(value) == "okunamadi":
+                    print(f"  {variable.name}: [okunamadı{hint}]")
+                else:
+                    read = value.value or next((r.text for r in sorted(
+                        value.readings, key=lambda r: r.section) if r.text), "")
+                    print(f"  {variable.name}: {read + ' ' if read else ''}[kontrol{hint}]")
             else:
                 mark = " [düzeltildi]" if value.edited else ""
                 print(f"  {variable.name}: {value.value}{mark}")
@@ -461,7 +500,13 @@ def list_values(args: argparse.Namespace, store: JobStore) -> int:
 
 
 def fix_value(args: argparse.Namespace, store: JobStore) -> int:
-    from evrakci.pipeline.review import accept_suggestion, revert_value, set_value
+    from evrakci.pipeline.review import (
+        REQUIRED_EMPTY,
+        accept_suggestion,
+        can_revert,
+        revert_value,
+        set_value,
+    )
 
     job = load_job(store, args.id)
     found = {n: (d, t) for n, d, t in _templated_documents(args, job)}
@@ -478,11 +523,21 @@ def fix_value(args: argparse.Namespace, store: JobStore) -> int:
         if args.oneri:
             accept_suggestion(job, document, key)
         elif args.geri_al:
+            current = current_values(job, document)
+            value = current.get(key) if current is not None else None
+            # only a hand-typed value with no reading has nothing to go back to; an
+            # unedited value keeps the command's earlier behaviour
+            if value is not None and value.edited and not can_revert(value):
+                raise UserError(f"{args.ad}: Bu değer elle yazıldı; okunmuş bir değer yok.")
             revert_value(job, document, key)
         else:
             if args.deger is None:
                 raise UserError("Yeni değeri yazın, ya da --oneri veya --geri-al kullanın.")
-            set_value(job, document, key, args.deger)
+            variable = template.variable(args.ad)
+            if not set_value(job, document, key, args.deger, variable.required):
+                store.save(job)
+                print(REQUIRED_EMPTY)
+                return 0
     except KeyError:
         raise UserError(f"{args.belge}. belgenin değerleri okunmadı (is oku).") from None
     except ValueError:
@@ -557,6 +612,21 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument("aralik", metavar="BAS-SON", help="sayfa aralığı, örn. 1-40")
     p.add_argument("n", type=int, metavar="N", help="kaç sayfada bir belge")
     p.set_defaults(handler=apply_filter)
+
+    p = job_commands.add_parser("filtre-kaldir", help="Filtreyi kaldır")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("aralik", metavar="BAS-SON", help="sayfa aralığı, örn. 1-40")
+    p.set_defaults(handler=remove_filter)
+
+    p = job_commands.add_parser("sec", help="Ölçüte göre seç…")
+    p.add_argument("id", help="iş numarası")
+    criteria = p.add_subparsers(dest="olcut", required=True)
+    for name, label in (("belge", "Bu belge"), ("tek", "Tek sayfalar"), ("cift", "Çift sayfalar")):
+        q = criteria.add_parser(name, help=label)
+        if name == "belge":
+            q.add_argument("--numara", type=int, required=True, metavar="N")
+        q.add_argument("--sil", action="store_true", help="Sayfayı sil")
+        q.set_defaults(handler=select_pages)
 
     p = job_commands.add_parser("kes", help="bir sayfanın önüne kesim ekler veya kaldırır")
     p.add_argument("id", help="iş numarası")

@@ -34,7 +34,8 @@ def window(qtbot, tmp_path):
     a = make_pdf(tmp_path / "a.pdf", [text_page("A"), qr_page(), text_page("B"), text_page()])
     b = make_pdf(tmp_path / "b.pdf", [text_page("C"), text_page()])
     job = win.store.create_job("Kasım", [a, b])
-    win.yukle.open_job(win.store.load(job.id))
+    with qtbot.waitSignal(win.yukle.job_opened, timeout=10000):
+        win.yukle.open_job(win.store.load(job.id))
     QApplication.processEvents()
     return win
 

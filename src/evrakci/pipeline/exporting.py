@@ -8,13 +8,14 @@ from __future__ import annotations
 import os
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 import pikepdf
 
 from evrakci.pipeline.export import ExportItem, plan_export
 from evrakci.pipeline.index import write_index
-from evrakci.pipeline.job import Job
+from evrakci.pipeline.job import Job, LastExport
 from evrakci.pipeline.naming import fit_names, unique_names
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.textlayer import add_text_layer
@@ -81,6 +82,7 @@ def export_job(
         reason = engine.available()
         if reason:
             raise EngineUnavailable(reason)
+    exported_at = datetime.now()  # one time for both places that write index.xlsx
     report = progress or (lambda stage, done, total: None)
     report("write", 0, len(items))
     def written_so_far() -> str:
@@ -121,7 +123,7 @@ def export_job(
                 done = ", ".join(p.name for p in paths[: number - 1]) or "yok"
                 for later in items[number - 1:]:
                     later.checks.append("metin katmanı eklenmedi")
-                index_note = _write_index_quietly(items, job, out_dir)
+                index_note = _write_index_quietly(items, job, out_dir, exported_at)
                 raise ExportError(
                     f"{path.name}: {error}. Tüm belgeler yazıldı; metin katmanı eklenenler: {done}."
                     f" {index_note}"
@@ -130,21 +132,24 @@ def export_job(
                 layered.unlink(missing_ok=True)
             item.pdfa = layer.pdfa
             if not layer.pdfa and layer.note:
-                item.checks.append(f"PDF/A değil: {layer.note}")
+                item.pdfa_note = layer.note
             result.notes[path] = (layer.pdfa, layer.note)
         report("layer", len(paths), len(paths))
     if paths:
         try:
-            write_index(items, job, out_dir / "index.xlsx")
+            write_index(items, job, out_dir / "index.xlsx", exported_at)
         except Exception as error:  # the PDFs are safe; say clearly what is missing
             raise ExportError(f"PDF'ler yazıldı ama index.xlsx yazılamadı: {error}") from None
         result.index_written = True
+        job.last_export = LastExport(
+            exported_at.isoformat(timespec="minutes"), str(out_dir), len(items),
+            result.needing_check)
     return result
 
 
-def _write_index_quietly(items, job: Job, out_dir: Path) -> str:
+def _write_index_quietly(items, job: Job, out_dir: Path, exported_at: datetime) -> str:
     try:
-        write_index(items, job, out_dir / "index.xlsx")
+        write_index(items, job, out_dir / "index.xlsx", exported_at)
     except Exception as error:
         return f"index.xlsx da yazılamadı: {error}"
     return "index.xlsx yazıldı; metin katmanı eksik olanlar orada işaretli."

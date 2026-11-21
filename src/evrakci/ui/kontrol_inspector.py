@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.ui import icons, theme
 from evrakci.ui.card_scroll import CardScroll
-from evrakci.ui.chrome import make_icon
+from evrakci.ui.chrome import ElidedLabel, make_icon
 from evrakci.ui.kontrol_paint import RiderLabel
 
 KEY_W = 76  # A .kv .r .k width
@@ -60,7 +60,7 @@ class SelectionInfo:
     first: int
     last: int
     template: str  # the template "Şablon uygula" will apply ("" when none exists)
-    every_n: int
+    every_n: int  # N of the filter on the selected pages; 0 when they have none
 
 
 @dataclass
@@ -223,6 +223,18 @@ class GapButton(QPushButton):
         hint = super().sizeHint()
         return QSize(hint.width() + theme.manager().size("s1"), hint.height())
 
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        # the window unbinds Enter while a button has focus, so the button takes it (F-kontrol-04)
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not event.isAutoRepeat():
+            self.click()
+            return
+        super().keyPressEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
+        # the second click of a double click would act on what the panel shows next: for
+        # "Belgeyi onayla" that is a document the user has not looked at (F-kontrol-05)
+        event.accept()
+
     def paintEvent(self, _event) -> None:  # noqa: N802
         painter = QStylePainter(self)
         option = QStyleOptionButton()
@@ -301,7 +313,7 @@ class Inspector(QWidget):
         self.title = QLabel("Belge seçilmedi")
         self.title.setProperty("textRole", "page")
         self.title.setContentsMargins(0, m.size("s1"), 0, 0)
-        self.sub = QLabel("")
+        self.sub = ElidedLabel("")
         self.sub.setProperty("textRole", "secondary")
         self.sub.setContentsMargins(0, 2, 0, 0)
         self.reason = QLabel("")
@@ -341,7 +353,9 @@ class Inspector(QWidget):
         card_col.setContentsMargins(pad, pad, pad, pad)
         card_col.setSpacing(0)
         self.template_button = ActionRow("Şablon uygula")
+        self.template_button.setProperty("action_id", "kontrol.sablon")
         self.filter_button = ActionRow("Filtre uygula")
+        self.filter_button.setProperty("action_id", "kontrol.filtre")
         self.template_button.clicked.connect(self.template_row)
         self.filter_button.clicked.connect(self.filter_row)
         card_col.addWidget(self.template_button)
@@ -371,10 +385,12 @@ class Inspector(QWidget):
         foot = QVBoxLayout()
         foot.setSpacing(m.size("s1"))
         self.approve_button = GapButton("Belgeyi onayla")
+        self.approve_button.setProperty("action_id", "kontrol.onayla")
         self.approve_button.setProperty("variant", "primary")
         self.approve_button.setProperty("sizeVariant", "lg")
         self.approve_button.clicked.connect(self.approve)
         self.values_button = GapButton("Değerlerde aç")
+        self.values_button.setProperty("action_id", "kontrol.degerlerde_ac")
         self.values_button.setProperty("variant", "subtle")
         self.values_button.clicked.connect(self.open_values)
         foot.addWidget(self.approve_button)
@@ -432,7 +448,7 @@ class Inspector(QWidget):
                 else f"{info.first}–{info.last}")
         self.selection_label.setText(f"Seçim: {info.count} sayfa ({span})")
         self.template_button.set_value(info.template or "Şablon yok")
-        self.filter_button.set_value(f"Her {info.every_n} sayfa")
+        self.filter_button.set_value(f"Her {info.every_n} sayfa" if info.every_n else "Filtre yok")
         self.selection_group.show()
 
     def set_history(self, changes: list[Change]) -> None:

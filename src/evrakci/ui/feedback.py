@@ -92,7 +92,7 @@ class _Toast(QWidget):
         name = KIND_ICON.get(kind, "info")
         row.addWidget(_icon_label(name, KIND_COLOUR.get(kind, "icon"), m.size("icon-md")))
         label = QLabel(text)
-        label.setWordWrap(False)
+        label.setWordWrap(True)  # a long sentence takes a second line, never cut (F-yukle-08)
         row.addWidget(label, 1)
         if action_text:
             def act() -> None:
@@ -100,10 +100,22 @@ class _Toast(QWidget):
                     on_action()
                 self.closed.emit()
 
-            row.addWidget(_link_button(action_text, act))
+            self.action_button = _link_button(action_text, act)
+            row.addWidget(self.action_button)
         row.addWidget(_close_button(self.closed.emit, "Kapat"))
         self.setMaximumWidth(560 + 2 * SHADOW_ROOM)
         announce(self, text)
+
+    action_button: QPushButton | None = None
+
+    def watch(self, available: Callable[[], bool], stack) -> None:
+        """Take the action off as soon as `available` turns False (the stack changed)."""
+        self._available = available
+        stack.indexChanged.connect(self._recheck)
+
+    def _recheck(self, *_args) -> None:
+        if self.action_button is not None and not self._available():
+            self.action_button.hide()
 
     def paintEvent(self, event: QEvent) -> None:  # noqa: N802
         """Soft shadow of the popover level under the frame."""
@@ -139,6 +151,31 @@ class _Pending:
     on_action: Callable[[], None] | None
     kind: str
     timeout_ms: int
+    available: Callable[[], bool] | None = None
+    spoken: str | None = None  # what a screen reader hears when it differs from the shown text
+
+
+def undo_last(stack) -> tuple[Callable[[], None], Callable[[], bool]]:
+    """Geri al for the step just made: (undo, available). Both act only while that step is
+    still the newest one, so a toast never undoes a different step (B-023)."""
+    index = stack.index()
+    command = stack.command(index - 1) if index else None
+
+    def available() -> bool:
+        # same position AND same command object: an index is reused after Ctrl+Z and a new
+        # edit, or after clear() (B-023)
+        try:
+            return stack.index() == index and (not index or stack.command(index - 1) is command)
+        except RuntimeError:  # the stack's owner (a job or template) is gone
+            return False
+
+    available.stack = stack  # lets the toast hide its action when the stack changes
+
+    def undo() -> None:
+        if available():
+            stack.undo()
+
+    return undo, available
 
 
 class Toaster(QObject):
@@ -156,9 +193,12 @@ class Toaster(QObject):
 
     def show(self, text: str, action_text: str | None = None,
              on_action: Callable[[], None] | None = None, kind: str = "info",
-             timeout_ms: int = 6000) -> None:
-        """Queue a toast; it appears at once when none is visible."""
-        self._queue.append(_Pending(text, action_text, on_action, kind, timeout_ms))
+             timeout_ms: int = 6000, available: Callable[[], bool] | None = None,
+             spoken: str | None = None) -> None:
+        """Queue a toast; it appears at once when none is visible. With `available`, the
+        action is left off when it returns False at the moment the toast is shown."""
+        self._queue.append(_Pending(text, action_text, on_action, kind, timeout_ms, available,
+                                    spoken))
         if self._current is None:
             self._next()
 
@@ -180,7 +220,15 @@ class Toaster(QObject):
 
     def _next(self) -> None:
         item = self._queue.popleft()
-        toast = _Toast(self._window, item.text, item.action_text, item.on_action, item.kind)
+        action_text, on_action = item.action_text, item.on_action
+        if item.available is not None and not item.available():
+            action_text = on_action = None
+        toast = _Toast(self._window, item.text, action_text, on_action, item.kind)
+        stack = getattr(item.available, "stack", None)
+        if action_text and stack is not None:
+            toast.watch(item.available, stack)
+        if item.spoken:
+            toast.setAccessibleName(item.spoken)
         toast.closed.connect(self.dismiss)
         self._current = toast
         toast.adjustSize()
@@ -199,9 +247,12 @@ class Toaster(QObject):
         if isinstance(win, QMainWindow) and win.statusBar() is not None:
             bottom -= win.statusBar().height()
         size = toast.sizeHint()
-        width = min(size.width(), win.width() - 2 * TOAST_MARGIN + 2 * SHADOW_ROOM)
+        width = min(size.width(), toast.maximumWidth(),
+                    win.width() - 2 * TOAST_MARGIN + 2 * SHADOW_ROOM)
+        layout = toast.layout()
+        height = max(size.height(), layout.totalHeightForWidth(width) if layout else 0)
         toast.setGeometry(win.width() - TOAST_MARGIN + SHADOW_ROOM - width,
-                          bottom - size.height() + SHADOW_ROOM, width, size.height())
+                          bottom - height + SHADOW_ROOM, width, height)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802
         if obj is getattr(self, "_window", None) and event.type() == QEvent.Type.Resize:

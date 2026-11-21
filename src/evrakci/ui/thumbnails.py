@@ -13,13 +13,22 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from PIL import Image
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal
 from PySide6.QtGui import QImage
 
 from evrakci.pipeline.job import Job, parse_page_id
 from evrakci.pipeline.render import render_page
+from evrakci.ui import gc_guard
 
 Renderer = Callable[[str, int], Image.Image]
+
+# The cache holds at most this many bytes of QImage pixels, whatever the zoom: a count cap lets
+# memory grow with the thumbnail size (a 200 % tile is four times a 100 % tile). Pages farthest
+# from the viewport go first. A 100 % tile is about 92 KB at device pixel ratio 1; the bytes of a
+# tile scale with zoom squared times the device pixel ratio squared (about 1.47 MB at zoom 200 and
+# ratio 2). At normal zoom and ratio 1 the count cap (`capacity`, 400 or more) binds first; the
+# byte cap binds at high zoom or a high device pixel ratio.
+CACHE_MAX_BYTES = 150 * 1024 * 1024
 
 
 def to_qimage(image: Image.Image) -> QImage:
@@ -57,6 +66,21 @@ def job_renderer(
     return render
 
 
+# Retired services stay referenced here until no runnable is left: deleting a service (and its
+# pool and relay) under a worker thread that is inside the renderer crashes natively.
+_RETIRING: list[ThumbnailService] = []
+_RETIRE_POLL_MS = 20
+
+
+def _sweep_retired() -> None:
+    for service in list(_RETIRING):
+        if service._settled():
+            _RETIRING.remove(service)
+            service.deleteLater()
+    if _RETIRING:
+        QTimer.singleShot(_RETIRE_POLL_MS, _sweep_retired)
+
+
 class _Relay(QObject):
     done = Signal(str, QImage, int, int)
 
@@ -68,7 +92,8 @@ class _Job(QRunnable):
         self.pid = pid
 
     def run(self) -> None:
-        self.service._render(self.pid)
+        with gc_guard.working():
+            self.service._render(self.pid)
 
 
 class ThumbnailService(QObject):
@@ -80,17 +105,25 @@ class ThumbnailService(QObject):
         height: int = 100,
         capacity: int = 400,
         workers: int = 2,
+        max_bytes: int = CACHE_MAX_BYTES,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self.renderer = renderer
         self.height = height
         self.capacity = capacity
+        self.min_capacity = capacity  # the view may raise `capacity` above this, never below
+        self.max_bytes = max_bytes
+        self.cache_bytes = 0
+        # How far a page is from the viewport (smaller is nearer); set by the view. Without it
+        # the least recently used page is evicted first.
+        self.distance: Callable[[str], float] | None = None
         self.cache: OrderedDict[str, QImage] = OrderedDict()
         self._heights: dict[str, int] = {}  # the height each cached image was rendered for
         self._wanted: set[str] = set()
         self._version: dict[str, int] = {}  # bumped by invalidate; older renders are dropped
         self._busy = 0
+        self._retired = False
         self._lock = threading.Lock()
         self._pool = QThreadPool(self)
         self._pool.setMaxThreadCount(workers)
@@ -123,6 +156,7 @@ class ThumbnailService(QObject):
                 return
             self._wanted.add(pid)
             self._busy += 1
+        gc_guard.install()  # cyclic garbage is never collected on the worker
         self._pool.start(_Job(self, pid))
 
     def keep_only(self, pids: set[str]) -> None:
@@ -140,9 +174,9 @@ class ThumbnailService(QObject):
         if pid is None:
             self.cache.clear()
             self._heights.clear()
+            self.cache_bytes = 0
         else:
-            self.cache.pop(pid, None)
-            self._heights.pop(pid, None)
+            self._drop(pid)
 
     def stop(self) -> None:
         """Forget all pending work, for example when another job is opened.
@@ -150,6 +184,24 @@ class ThumbnailService(QObject):
         Queued renders still run but skip their page, so the busy count stays right.
         """
         self.keep_only(set())
+
+    def retire(self) -> None:
+        """Stop and release the service once its workers are done (never while one is running).
+
+        The service is detached from its parent and kept alive by the module until the pool is
+        idle; only then is it deleted. Workers stop emitting as soon as it is retired.
+        """
+        self._retired = True
+        self.stop()
+        self.invalidate()
+        self.distance = None
+        self.setParent(None)
+        if self not in _RETIRING:
+            _RETIRING.append(self)
+        _sweep_retired()
+
+    def _settled(self) -> bool:
+        return self.idle() and self._pool.activeThreadCount() == 0
 
     def idle(self) -> bool:
         with self._lock:
@@ -172,16 +224,38 @@ class ThumbnailService(QObject):
                 if self._version.get(pid, 0) == version:
                     self._wanted.discard(pid)
                 self._busy -= 1
-        if image is not None:
+        if image is not None and not self._retired:
             self._relay.done.emit(pid, image, version, height)
 
     def _finished(self, pid: str, image: QImage, version: int, height: int) -> None:
         if self._version.get(pid, 0) != version:
             return  # invalidated while rendering: an old picture
+        self._drop(pid)
         self.cache[pid] = image
+        self.cache_bytes += image.sizeInBytes()
         self._heights[pid] = height
-        self.cache.move_to_end(pid)
-        while len(self.cache) > self.capacity:
-            old, _ = self.cache.popitem(last=False)
-            self._heights.pop(old, None)
+        self._evict(keep=pid)
         self.ready.emit(pid, image)
+
+    def _drop(self, pid: str) -> None:
+        image = self.cache.pop(pid, None)
+        if image is not None:
+            self.cache_bytes -= image.sizeInBytes()
+        self._heights.pop(pid, None)
+
+    def _evict(self, keep: str) -> None:
+        """Bring the cache under its count and byte caps, never dropping `keep` (the page that
+        just arrived). Over a cap it drops down to 90 % of it in one go, farthest page from
+        the viewport first (else least recent), so the distances are computed once per batch
+        and not on every arrival (about 1 ms each at 400 pages)."""
+        if len(self.cache) <= max(1, self.capacity) and self.cache_bytes <= self.max_bytes:
+            return
+        others = [pid for pid in self.cache if pid != keep]  # least recent first
+        if self.distance is not None:
+            others.sort(key=self.distance, reverse=True)
+        count_goal = self.capacity - self.capacity // 10
+        bytes_goal = self.max_bytes - self.max_bytes // 10
+        for victim in others:
+            if len(self.cache) <= count_goal and self.cache_bytes <= bytes_goal:
+                break
+            self._drop(victim)

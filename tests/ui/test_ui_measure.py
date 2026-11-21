@@ -38,6 +38,8 @@ def light_100(qapp):
     # reason in the full suite), so they run without it and it is restored afterwards.
     sheet, font, palette = qapp.styleSheet(), qapp.font(), qapp.palette()
     qapp.setStyleSheet("")
+    # the same holds for the palette (placeholder colour, B-092): start from the style's own
+    qapp.setPalette(qapp.style().standardPalette())
     yield qapp
     qapp.setStyleSheet(sheet)
     qapp.setFont(font)

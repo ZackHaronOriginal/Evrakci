@@ -94,6 +94,14 @@ def _results(qapp: QApplication, root: QWidget) -> dict[tuple[str, str], str]:
     return {(row[4], row[6]): row[9] for row in rows}
 
 
+def _row(qapp: QApplication, root: QWidget, widget: str, rule: str):
+    rules = um.load_rules()
+    ctx = um.make_ctx(root, "light", 100, (420, 160), rules)
+    ctx.window_checks = False
+    rows = um.measure_tree(qapp, ctx, rules, "probe")
+    return [r for r in rows if r[4] == widget and r[6] == rule]
+
+
 def test_broken_widget_is_flagged_on_all_four_defects(light_100):
     root = _panel(light_100, broken=True)
     found = _results(light_100, root)
@@ -210,7 +218,12 @@ def test_stacked_page_pill_placeholder_and_caption_button(light_100):
     assert found[("probeBox", "DEC-LAY-02")] == "fail"
     assert found[("probePill", "DEC-LAY-03")] == "pass"  # radius = half the side
     assert found[("probeCorner", "DEC-LAY-03")] == "fail"  # 5 px on a 40 px box
-    assert found[("probeField", "DEC-CON-02")] == "pass"  # placeholder: secondary tier, 4.5:1
+    # B-092: in the full CI run only this probe fails; the message names the measured value
+    assert found[("probeField", "DEC-CON-02")] == "pass", (  # placeholder: secondary tier, 4.5:1
+        _row(light_100, root, "probeField", "DEC-CON-02"),
+        light_100.palette().color(QPalette.ColorRole.PlaceholderText).name(),
+        light_100.palette().color(QPalette.ColorRole.Base).name(),
+        light_100.styleSheet()[:200])
     assert ("probeField", "DEC-CON-01") not in found
     assert found[("probeGrey", "DEC-CON-01")] == "fail"  # same colour as body text: 7:1
     assert found[("probeCaption", "AUD-KBD-01")] == "skip"  # exempt: Alt+Space window menu

@@ -47,6 +47,7 @@ listed here. Format, one line per key: `` `Key`: page-specific: <why> `` or
 the part between the two comments.
 
 <!-- page-specific:start -->
+- `B`: page-specific: select this document (Bu belgeyi seç on Kontrol), draw a box (Kutu çiz on Şablonlar)
 - `Alt+Up`: page-specific: move the selected item up (Partiyi on Yükle, Değişkeni on Şablonlar)
 - `Alt+Down`: page-specific: move the selected item down (Partiyi on Yükle, Değişkeni on Şablonlar)
 - `Ctrl+.`: page-specific: stop what is running; the label names the job (reading, export)
@@ -122,7 +123,10 @@ the part between the two comments.
 | Del | Sayfayı sil | Düzen | toggles delete / restore; undoable, the label names the count; yazarken kapalı |
 | Enter | Belgeyi onayla | Düzen | marks the document İncelendi and moves on; keypad Enter too; yazarken kapalı |
 | Ctrl+A | Tümünü seç | Düzen | |
+| B | Bu belgeyi seç | Düzen | every page of the current document, not separators or deleted pages; status 'N sayfa seçildi.'; yazarken kapalı |
+| Ctrl+Space | Sayfayı seçime ekle / çıkar | Düzen | adds the current page to the selection or takes it out, the others stay; yerel (timeline) |
 | Esc | Seçimi kaldır | Düzen | also closes the preview; yazarken kapalı |
+| S | Ölçüte göre seç… | Araçlar | the dialog 'Sayfaları seç': Bu belge, Tek sayfalar, Çift sayfalar (counted from each document's first page); only changes the selection; yazarken kapalı |
 | F | Filtre uygula… | Araçlar | yazarken kapalı |
 | T | Şablonu uygula | Araçlar | yazarken kapalı |
 | D | Değerlerde aç | Araçlar | opens Değerler on this document, status 'Belge N seçildi.'; yazarken kapalı |
@@ -130,6 +134,7 @@ the part between the two comments.
 | N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | yazarken kapalı |
 | U | Sonraki incelenmemiş | Git | yazarken kapalı |
 | Ctrl+Right / Ctrl+Left | Sonraki belge / Önceki belge | Git | |
+| Alt+Right / Alt+Left | Seçimi bozmadan git | Git | the focus ring moves one page, the selection stays; yerel (timeline); the menu item moves right |
 | Left / Right | Önceki / sonraki sayfa | — | yerel (timeline) |
 | Home / End | İlk / son sayfa | — | yerel |
 | PgUp / PgDn | Bir ekran geri / ileri | — | yerel |

@@ -412,6 +412,111 @@ def _feedback_template_removed(c: Ctx) -> None:
     assert c.win.controller().undo_stack.undoText() == "Şablonu kaldır"
 
 
+# -- S, B, Ctrl+Space, Alt+Left / Alt+Right ----------------------------------------------------
+@helper("pre.kontrol_select_dialog")
+def _pre_select_dialog(c: Ctx) -> None:
+    pick(c, [5])  # Belge 2 (rows 4-10) is the current document
+
+    def answer(dialog) -> None:
+        c.data["counts"] = {k: label.text() for k, label in dialog._counts.items()}
+        dialog._radios["tek"].setChecked(True)
+        dialog.accept()
+
+    on_modal(c, answer)
+
+
+@helper("effect.kontrol_odd_selected")
+def _effect_odd_selected(c: Ctx) -> None:
+    assert c.data.get("modals"), "the dialog did not open"
+    assert selected(c) == [0, 2, 4, 6, 8, 10, 12, 14], selected(c)  # 1st, 3rd ... of each document
+    assert c.win.controller().undo_stack.index() == c.snap["index"]  # no undo step
+    assert c.win.controller().job.deleted == c.snap["deleted"]
+
+
+@helper("feedback.kontrol_odd_selected")
+def _feedback_odd_selected(c: Ctx) -> None:
+    assert c.data["modals"][0].windowTitle() == "Sayfaları seç"
+    assert c.data["counts"] == {"belge": "7", "tek": "8", "cift": "5"}, c.data["counts"]
+    assert c.win.toaster.current_text() == "8 sayfa seçildi.", heard(c.win)
+    assert "8 sayfa seçili" in _status(c), _status(c)
+    assert QApplication.focusWidget() is _k(c).timeline
+
+
+@helper("pre.kontrol_doc_page5")
+def _pre_doc_page5(c: Ctx) -> None:
+    pick(c, [5])
+
+
+@helper("effect.kontrol_document_selected")
+def _effect_document_selected(c: Ctx) -> None:
+    assert selected(c) == list(range(4, 11)), selected(c)  # Belge 2, not the QR pages
+    assert c.win.controller().undo_stack.index() == c.snap["index"]
+
+
+@helper("feedback.kontrol_document_selected")
+def _feedback_document_selected(c: Ctx) -> None:
+    assert c.win.toaster.current_text() == "7 sayfa seçildi.", heard(c.win)
+    assert "7 sayfa seçili" in _status(c), _status(c)
+    assert QApplication.focusWidget() is _k(c).timeline
+
+
+@helper("pre.kontrol_two_selected_current_page8")
+def _pre_two_selected_current_page8(c: Ctx) -> None:
+    pick(c, [0, 1], current=8)
+
+
+@helper("effect.kontrol_page_toggled_in")
+def _effect_page_toggled_in(c: Ctx) -> None:
+    assert selected(c) == [0, 1, 8], selected(c)  # the others stay
+    assert _k(c).current_row() == 8
+
+
+@helper("feedback.kontrol_page_toggled_in")
+def _feedback_page_toggled_in(c: Ctx) -> None:
+    assert "3 sayfa seçili" in _status(c), _status(c)
+    assert_focus_ring(c.win)
+
+
+@helper("pre.kontrol_rows_4_to_6_current6")
+def _pre_rows_4_to_6_current6(c: Ctx) -> None:
+    pick(c, [4, 5, 6], current=6)
+
+
+def _focus_moved(row: int):
+    def step(c: Ctx) -> None:
+        assert _k(c).current_row() == row, _k(c).current_row()
+        assert selected(c) == [4, 5, 6], selected(c)  # the selection did not change
+
+    return step
+
+
+helper("effect.kontrol_focus_right")(_focus_moved(7))
+helper("effect.kontrol_focus_left")(_focus_moved(5))
+
+
+@helper("feedback.kontrol_focus_moved")
+def _feedback_focus_moved(c: Ctx) -> None:
+    assert _page_status(c) in _status(c), (_page_status(c), _status(c))
+    assert _in_view(c, _k(c).current_row())
+    assert_focus_ring(c.win)
+
+
+@helper("broken.kontrol_selected_at_page14")
+def _broken_selected_at_page14(c: Ctx) -> None:
+    pick(c, [13, 14])
+
+
+@helper("broken.kontrol_selected_at_page0")
+def _broken_selected_at_page0(c: Ctx) -> None:
+    pick(c, [0, 1], current=0)
+
+
+@helper("na.kontrol_focus_and_selection_stay")
+def _na_focus_and_selection_stay(c: Ctx) -> None:
+    assert _k(c).current_row() == c.snap["row"] and selected(c) == c.snap["selected"]
+    assert_focus_ring(c.win)
+
+
 # -- Space ------------------------------------------------------------------------------------
 @helper("pre.kontrol_loupe")
 def _pre_loupe(c: Ctx) -> None:
@@ -693,6 +798,25 @@ PLANS["kontrol.sablon_kaldir"] = _plan(
     "pre.kontrol_template_applied", "effect.kontrol_template_removed",
     "feedback.kontrol_template_removed", na_pre="pre.none", na_window="job",
     broken="broken.kontrol_nothing_selected", na="na.kontrol_pick_pages_says")
+PLANS["kontrol.sec"] = _plan(
+    "pre.kontrol_select_dialog", "effect.kontrol_odd_selected", "feedback.kontrol_odd_selected",
+    na_pre="pre.none", na="na.says_no_job", xfail={"na": _M30})
+PLANS["kontrol.belgeyi_sec"] = _plan(
+    "pre.kontrol_doc_page5", "effect.kontrol_document_selected",
+    "feedback.kontrol_document_selected", na_pre="pre.none", na_window="job",
+    broken="broken.kontrol_no_current_page", na="na.kontrol_pick_page_says")
+PLANS["kontrol.sayfa_sec", "kontrol", "Ctrl+Space"] = _plan(
+    "pre.kontrol_two_selected_current_page8", "effect.kontrol_page_toggled_in",
+    "feedback.kontrol_page_toggled_in", na_pre="pre.none", na_window="job",
+    broken="broken.kontrol_no_current_page", na="na.kontrol_pick_page_says")
+PLANS["kontrol.git_secimsiz", "kontrol", "Alt+Right"] = _plan(
+    "pre.kontrol_rows_4_to_6_current6", "effect.kontrol_focus_right",
+    "feedback.kontrol_focus_moved", na_pre="pre.none", na_window="job",
+    broken="broken.kontrol_selected_at_page14", na="na.kontrol_focus_and_selection_stay")
+PLANS["kontrol.git_secimsiz", "kontrol", "Alt+Left"] = _plan(
+    "pre.kontrol_rows_4_to_6_current6", "effect.kontrol_focus_left",
+    "feedback.kontrol_focus_moved", na_pre="pre.none", na_window="job",
+    broken="broken.kontrol_selected_at_page0", na="na.kontrol_focus_and_selection_stay")
 PLANS["kontrol.degerlerde_ac"] = _plan(
     "pre.kontrol_doc3", "effect.kontrol_values_at_doc3", "feedback.kontrol_values_at_doc3",
     na_pre="pre.none", na="na.kontrol_stays_on_tab")
@@ -801,7 +925,8 @@ NO_JOB_KEYS = (
     ("kontrol.secimi_kaldir", "Esc"), ("kontrol.kes", "K"), ("kontrol.birlestir", "M"),
     ("kontrol.saga_dondur", "R"), ("kontrol.sola_dondur", "Shift+R"), ("kontrol.sil", "Del"),
     ("kontrol.onayla", "Return"), ("kontrol.onayla", "Enter"), ("kontrol.filtre", "F"),
-    ("kontrol.sablon", "T"), ("kontrol.filtre_kaldir", "Shift+F"),
+    ("kontrol.sablon", "T"), ("kontrol.sec", "S"), ("kontrol.belgeyi_sec", "B"),
+    ("kontrol.filtre_kaldir", "Shift+F"),
     ("kontrol.sablon_kaldir", "Shift+T"), ("kontrol.onizle", "Space"),
     ("kontrol.sonraki_kontrol", "N"),
     ("kontrol.onceki_kontrol", "Shift+N"), ("kontrol.sonraki_incelenmemis", "U"),

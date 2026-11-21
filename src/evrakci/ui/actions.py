@@ -232,13 +232,13 @@ SPECS: tuple[ActionSpec, ...] = (
        menu="duzen"),
     _a("kontrol.secimi_kaldir", "Seçimi &kaldır", "x", "Esc", ctx="kontrol", menu="duzen",
        tip="Seçimi kaldır ya da önizlemeyi kapat"),
-    _a("kontrol.belgeyi_sec", "Bu &belgeyi seç", "list-checks", "B", ctx="kontrol",
+    _a("kontrol.belgeyi_sec", "Bu belgeyi seç", "list-checks", "B", ctx="kontrol",
        menu="duzen", kw="belge tümü"),
-    _a("kontrol.sayfa_sec", "Say&fayı seçime ekle / çıkar", None, "Ctrl+Space", ctx="kontrol",
+    _a("kontrol.sayfa_sec", "Sayfayı seçime ekle / çıka&r", None, "Ctrl+Space", ctx="kontrol",
        local=True, menu="duzen", palette=False, kw="seçim ekle çıkar tek tek"),
     _a("kontrol.kes", "Burada k&es", "scissors", "K", ctx="kontrol", menu="duzen",
        tip="Burada kes / kesimi kaldır", kw="ayır böl kesim"),
-    _a("kontrol.birlestir", "Ön&ceki belgeyle birleştir", "merge", "M", ctx="kontrol",
+    _a("kontrol.birlestir", "Önceki belgeyle &birleştir", "merge", "M", ctx="kontrol",
        menu="duzen", kw="kesimi kaldır"),
     _a("kontrol.saga_dondur", "Sağa &döndür", "rotate-cw", "R", ctx="kontrol",
        menu="duzen", kw="çevir"),
@@ -270,13 +270,13 @@ SPECS: tuple[ActionSpec, ...] = (
        ctx="kontrol", menu="git", kw="şüpheli uyarı"),
     _a("kontrol.sonraki_incelenmemis", "Sonraki incelen&memiş", "circle-dashed", "U",
        ctx="kontrol", menu="git", kw="incelenmedi"),
-    _a("kontrol.sonraki_belge", "Sonraki be&lge", "chevron-right", "Ctrl+Right",
+    _a("kontrol.sonraki_belge", "Sonraki &belge", "chevron-right", "Ctrl+Right",
        ctx="kontrol", menu="git"),
-    _a("kontrol.onceki_belge", "Ön&ceki belge", "chevron-left", "Ctrl+Left", ctx="kontrol",
+    _a("kontrol.onceki_belge", "Önceki be&lge", "chevron-left", "Ctrl+Left", ctx="kontrol",
        menu="git"),
     _a("kontrol.git_secimsiz", "Seçimi bo&zmadan git", None, "Alt+Right",
        ctx="kontrol", local=True, menu="git", palette=False, kw="odak seçim"),
-    _a("kontrol.git_secimsiz_sol", "Seçimi &bozmadan git", None, "Alt+Left",
+    _a("kontrol.git_secimsiz_sol", "Seçimi bozmadan git", None, "Alt+Left",
        ctx="kontrol", local=True, menu="git", palette=False, kw="odak seçim"),
     _a("kontrol.sayfa", "Önceki / sonraki sayfa", None, ("Left", "Right"), ctx="kontrol",
        local=True, palette=False),
@@ -557,10 +557,11 @@ def _validate_menus(specs: tuple[ActionSpec, ...]) -> list[str]:
             letters = []
             for item in filter(None, items):
                 letter = access_key(by_id[item].text) if item in by_id else None
-                if letter is None or not ("A" <= letter <= "Z") or letter == "I":
+                if letter is not None and (not ("A" <= letter <= "Z") or letter == "I"):
                     errors.append(f"{tab} {plain_text(title)}: {item} needs an ASCII access "
                                   "key other than I")
-                letters.append(letter)
+                if letter is not None:  # an item with no free letter has none
+                    letters.append(letter)
             for letter in {x for x in letters if letters.count(x) > 1}:
                 errors.append(f"{tab} {plain_text(title)}: access key {letter} repeats")
     for title in MENUS.values():

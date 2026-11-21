@@ -180,7 +180,7 @@ def context_menu(screen, action: Callable[[str], QAction], parent: QWidget) -> Q
     menu.addAction(_dimmed(screen, "kontrol.filtre_kaldir", menu, screen.can_remove_filter()))
     menu.addSeparator()
     menu.addAction(action("kontrol.belgeyi_sec"))
-    menu.addAction(action("kontrol.sec"))
+    menu.addAction(_without_access_key(screen, action("kontrol.sec"), menu))  # S is Sayfayı sil
     if screen.can_show_restore_empty():
         menu.addAction(_dimmed(screen, "kontrol.bos_geri_getir", menu,
                                screen.can_restore_empty()))
@@ -192,6 +192,16 @@ def context_menu(screen, action: Callable[[str], QAction], parent: QWidget) -> Q
     menu.addAction(delete)
     mark_danger(menu, delete)  # A's red "3 sayfayı sil"
     return menu
+
+
+def _without_access_key(screen, source: QAction, parent: QWidget) -> QAction:
+    """A copy of the registry command whose label has no & (its letter belongs to another
+    item of the same menu)."""
+    item = QAction(source.text().replace("&", ""), parent)
+    item.setIcon(source.icon())
+    item.setToolTip(source.toolTip())
+    item.triggered.connect(lambda *_: screen.select_by())
+    return item
 
 
 def _dimmed(screen, action_id: str, parent: QWidget, enabled: bool) -> QAction:

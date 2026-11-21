@@ -216,3 +216,19 @@ def test_alt_left_has_its_own_git_menu_item_with_the_same_label(qtbot, tmp_path)
     right.trigger()
     right.trigger()
     assert window.kontrol.current_row() == 7
+
+
+def test_access_keys_are_unique_in_every_menu_including_the_page_context_menu(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    for title, items in actions.menu_structure("kontrol"):
+        letters = [actions.access_key(actions.spec(i).text) for i in items if i]
+        letters = [x for x in letters if x]
+        assert len(letters) == len(set(letters)), title
+    screen = window.kontrol
+    _go(window, 5)
+    screen._context_menu(screen.timeline.page_rect(4).center())
+    keys = [a.text().split("\t")[0].split("&")[1][0].upper() for a in screen.menu.actions()
+            if not a.isSeparator() and "&" in a.text().split("\t")[0]]
+    screen.menu.close()
+    repeated = {k for k in keys if keys.count(k) > 1}
+    assert repeated <= {"D"}, keys  # D (Sağa döndür / Değerlerde aç) was already shared before I-09

@@ -103,7 +103,7 @@ kontrol	Shift+R	kontrol.sola_dondur	Sola döndür	Düzen > Sola döndür	bar Di�
 kontrol	Del	kontrol.sil	Sayfayı sil	Düzen > Sayfayı sil	bar	page	yes	ok
 kontrol	Return	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton | bar Diğer komutlar		yes	ok
 kontrol	Enter	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton | bar Diğer komutlar		yes	ok
-kontrol	S	kontrol.sec	Ölçüte göre seç…	Araçlar > Ölçüte göre seç	bar	page	yes	ok
+kontrol	S	kontrol.sec	Ölçüte göre seç…	Araçlar > Ölçüte göre seç	bar		yes	ok
 kontrol	F	kontrol.filtre	Filtre uygula…	Araçlar > Filtre uygula	ActionRow | bar	page	yes	ok
 kontrol	T	kontrol.sablon	Şablonu uygula	Araçlar > Şablonu uygula	ActionRow | bar		yes	ok
 kontrol	Shift+F	kontrol.filtre_kaldir	Filtreyi kaldır	Araçlar > Filtreyi kaldır	bar Diğer komutlar	page [state-dependent]	yes	ok

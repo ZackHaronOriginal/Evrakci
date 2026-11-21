@@ -205,7 +205,7 @@ def blank_percent(text: str) -> float:
     except ValueError:
         value = float("nan")
     if not 0.1 <= value <= 5.0:
-        raise argparse.ArgumentTypeError("0,1 ile 5,0 arası")
+        raise argparse.ArgumentTypeError("En çok mürekkep oranı: 0,1–5,0 %")
     return value
 
 
@@ -642,7 +642,7 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
         q.set_defaults(handler=select_pages)
     q = criteria.add_parser("bos", help="Boş sayfalar")
     q.add_argument("--esik", type=blank_percent, default=EMPTY_INK_RATIO * 100, metavar="ORAN",
-                   help="En çok mürekkep oranı (%%, 0,1 ile 5,0 arası; varsayılan 0,3)")
+                   help="En çok mürekkep oranı: 0,1–5,0 %% (0,3)")
     q.add_argument("--sil", action="store_true", help="Sayfayı sil")
     q.set_defaults(handler=select_pages)
 

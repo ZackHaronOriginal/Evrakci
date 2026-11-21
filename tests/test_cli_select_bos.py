@@ -49,7 +49,7 @@ def test_the_limit_must_be_a_percentage_in_range(tmp_path, capsys, bad):
     _root, job_id = make_job(tmp_path, capsys, [text_page(), empty_page()])
     assert main(["--kok", str(tmp_path / "kok"), "is", "sec", job_id, "bos",
                  f"--esik={bad}"]) == 2
-    assert "0,1 ile 5,0 arası" in capsys.readouterr().err
+    assert "En çok mürekkep oranı: 0,1–5,0 %" in capsys.readouterr().err
 
 
 def test_sil_deletes_only_the_blank_pages(tmp_path, capsys):

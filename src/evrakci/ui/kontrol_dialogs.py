@@ -251,7 +251,6 @@ class SelectDialog(QDialog):
         self.ink_count = QLabel()
         self.ink_count.setWordWrap(True)
         self.ink_count.setFont(fonts.tabular(self.ink_count.font()))
-        self.ink_count.setAccessibleName("Boş sayfa sayısı")
         self.ink_widgets = (label, self.ink, self.ink_hint, self.ink_count)
         for widget in self.ink_widgets:
             col.addWidget(widget)

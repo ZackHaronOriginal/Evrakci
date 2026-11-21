@@ -180,9 +180,9 @@ def _extras(qapp: QApplication) -> QWidget:
     # colour when the grab catches it (B-092: failed in CI only, by the blink phase)
     field.setReadOnly(True)
     ink = QPalette(field.palette())
-    ink.setColor(QPalette.ColorRole.PlaceholderText, QColor("#707070"))  # about 5:1 on white
-    # its own white field too: the app palette an earlier module leaves can tint the base
-    # (B-092: measured 4.12:1 in the full CI run on a tinted base)
+    # about 6.2:1 on white: a margin over 4.5, because thin anti-aliased glyphs (the app font an
+    # earlier module leaves) read lighter than their colour (B-092: #707070 read as 4.12 in CI)
+    ink.setColor(QPalette.ColorRole.PlaceholderText, QColor("#616161"))
     ink.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
     field.setPalette(ink)
     grey = QLabel("Ara")  # the same colour as body text: needs 7:1

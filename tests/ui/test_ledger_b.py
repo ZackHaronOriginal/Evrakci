@@ -142,8 +142,6 @@ def test_b005_day_limit_keeps_a_job_that_was_never_exported(qtbot, tmp_path):
     assert [j.id for j in JobStore(tmp_path / "jobs").list_jobs()] == [old.id]
 
 
-@pytest.mark.xfail(strict=True, reason="B-006: the guide promises a job setting for blank "
-                   "pages but no window action sets drop_empty (only the CLI does)")
 def test_b006_a_window_command_exists_for_dropping_blank_pages():
     # "Boş sayfayı geri getir" (I-08) brings one page back; it does not set drop_empty
     found = [s.id for s in actions.SPECS

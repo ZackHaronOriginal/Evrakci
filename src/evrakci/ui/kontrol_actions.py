@@ -36,6 +36,7 @@ SCREEN_SLOTS: dict[str, tuple] = {
     "kontrol.saga_dondur": ("rotate_selected", 90), "kontrol.sola_dondur": ("rotate_selected", -90),
     "kontrol.sil": ("toggle_delete",), "kontrol.filtre": ("apply_filter",),
     "kontrol.sablon": ("apply_template",),
+    "kontrol.bos_at": ("toggle_drop_empty",),
     "kontrol.filtre_kaldir": ("remove_filter",), "kontrol.sablon_kaldir": ("remove_template",),
     "kontrol.sonraki_kontrol": ("jump_to_check", 1),
     "kontrol.onceki_kontrol": ("jump_to_check", -1),

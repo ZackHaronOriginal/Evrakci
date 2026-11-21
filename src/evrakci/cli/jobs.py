@@ -10,6 +10,7 @@ from pathlib import Path
 import pypdfium2 as pdfium
 
 from evrakci.cli.errors import UserError
+from evrakci.pipeline.analyze import EMPTY_INK_RATIO
 from evrakci.pipeline.cuts import (
     Document,
     compute_documents,
@@ -197,10 +198,25 @@ def remove_filter(args: argparse.Namespace, store: JobStore) -> int:
     return 0
 
 
+def blank_percent(text: str) -> float:
+    """`--esik`: a percentage, the decimal comma or point (0,3), from 0,1 to 5,0."""
+    try:
+        value = float(text.replace(",", "."))
+    except ValueError:
+        value = float("nan")
+    if not 0.1 <= value <= 5.0:
+        raise argparse.ArgumentTypeError("0,1 ile 5,0 arası")
+    return value
+
+
 def select_pages(args: argparse.Namespace, store: JobStore) -> int:
     """`is sec`: the pages the window's "Ölçüte göre seç…" would select; `--sil` deletes them."""
     job = load_job(store, args.id)
-    params = {"number": args.numara} if args.olcut == "belge" else {}
+    params: dict = {}
+    if args.olcut == "belge":
+        params = {"number": args.numara}
+    elif args.olcut == "bos":
+        params = {"ink": round(args.esik / 100, 6)}
     match = evaluate(job, Criterion(args.olcut, params))
     if not match.page_ids:
         print("Eşleşen sayfa yok.")
@@ -624,6 +640,11 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
             q.add_argument("--numara", type=int, required=True, metavar="N")
         q.add_argument("--sil", action="store_true", help="Sayfayı sil")
         q.set_defaults(handler=select_pages)
+    q = criteria.add_parser("bos", help="Boş sayfalar")
+    q.add_argument("--esik", type=blank_percent, default=EMPTY_INK_RATIO * 100, metavar="ORAN",
+                   help="En çok mürekkep oranı (%%, 0,1 ile 5,0 arası; varsayılan 0,3)")
+    q.add_argument("--sil", action="store_true", help="Sayfayı sil")
+    q.set_defaults(handler=select_pages)
 
     p = job_commands.add_parser("kes", help="bir sayfanın önüne kesim ekler veya kaldırır")
     p.add_argument("id", help="iş numarası")

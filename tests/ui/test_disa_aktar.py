@@ -628,3 +628,23 @@ def test_a_job_deleted_after_export_is_not_written_back(qtbot, tmp_path, monkeyp
     with qtbot.waitSignal(screen.finished, timeout=30000):
         screen.export_button.click()
     assert window.controller() is None and not folder.exists()
+
+
+def test_list_kontrol_count_equals_the_check_sheet_rows(qtbot, tmp_path, monkeypatch):
+    import openpyxl
+
+    monkeypatch.setattr(module, "open_path", lambda path: None)
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    out = tmp_path / "out"
+    screen.folder.setText(str(out))
+    screen.layer.setChecked(False)
+    model = screen.results.model()
+    in_list = [model.row_at(i).name for i in range(model.rowCount())
+               if model.row_at(i).state == "kontrol"]
+    assert in_list
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    sheet = openpyxl.load_workbook(out / "index.xlsx")["Kontrol gerekenler"]
+    rows = [r[1].value for r in sheet.iter_rows(min_row=2)]
+    assert len(rows) == len(in_list)
+    assert [n.removesuffix(".pdf") for n in rows] == [n.removesuffix(".pdf") for n in in_list]

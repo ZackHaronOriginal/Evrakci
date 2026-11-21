@@ -325,6 +325,8 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
     needing = result.needing_check
     listing = " Liste: index.xlsx" if paths else ""
     print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.{listing}")
+    if needing:
+        print("Kontrol listesi: index.xlsx, sayfa 'Kontrol gerekenler'.")
     if _settings().retention == DELETE_AFTER_EXPORT:
         if may_delete_after_export(result):
             store.delete(job.id)

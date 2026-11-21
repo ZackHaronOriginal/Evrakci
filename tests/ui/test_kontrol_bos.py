@@ -37,7 +37,7 @@ def test_the_row_its_spin_box_hint_and_live_count(qtbot, tmp_path):
     qtbot.addWidget(dialog)
     dialog.show()
     assert dialog.kind() == "bos" and dialog._radios["bos"].text() == "Boş sayfalar"
-    assert dialog.ink.value() == 0.3 and dialog.ink.text() == "0,3\u00a0%"
+    assert dialog.ink.value() == 0.3 and dialog.ink.text() == "0,3 %"
     assert (dialog.ink.minimum(), dialog.ink.maximum(), dialog.ink.singleStep()) == (0.1, 5.0, 0.1)
     assert dialog.ink_hint.text() == "Bu orandan az mürekkepli sayfalar boş sayılır."
     assert dialog.ink.accessibleName() == "En çok mürekkep oranı"

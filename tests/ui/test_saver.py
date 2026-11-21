@@ -141,7 +141,12 @@ def test_a_slow_disk_never_stalls_the_window(qtbot, tmp_path, disk):
     timer.stop()
     assert band.text().startswith("Kaydedildi")
     gaps = [b - a for a, b in zip(ticks, ticks[1:], strict=False)]
-    assert len(ticks) >= 30 and max(gaps) < 0.1
+    # the message says when the longest gap happened (seconds after the first tick), so a
+    # Windows CI miss can be told apart from a real stall (window thread blocked by the write)
+    worst = max(range(len(gaps)), key=gaps.__getitem__) if gaps else -1
+    assert len(ticks) >= 30 and max(gaps) < 0.1, (
+        len(ticks), round(max(gaps), 3), round(ticks[worst] - ticks[0], 3),
+        sorted(round(g, 3) for g in gaps)[-5:])
     _equal_on_disk(store, controller)
 
 

@@ -283,10 +283,12 @@ class SelectDialog(QDialog):
         details = []
         if spread:
             low, high = spread
-            details.append(f"en boş {self._percent(low)} %, en dolu {self._percent(high)} %")
+            # U+00A0: a number and its unit never part when the line wraps at 150 %
+            details.append(
+                f"en boş {self._percent(low)}\u00a0%, en dolu {self._percent(high)}\u00a0%")
         deleted = match.reasons.get("silinmis", 0)
         if deleted:
-            details.append(f"{deleted} silinmiş")
+            details.append(f"{deleted}\u00a0silinmiş")
         if details:
             text += "   (" + ", ".join(details) + ")"
         self.ink_count.setText(text)

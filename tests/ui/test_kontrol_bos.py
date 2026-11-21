@@ -1,6 +1,6 @@
 """I-03: "Boş sayfalar" in Ölçüte göre seç… (ink limit, live count) and Araçlar > Boş sayfaları at.
 
-Job of the tests: "ppeppepp": pages 2 and 5 are blank (no ink), page 3 is pale (0,2 %).
+Job of the tests: "ppeppepp": pages 2 and 5 are blank (no ink), page 3 is pale (0,2\u00a0%).
 """
 
 from PySide6.QtCore import Qt
@@ -37,11 +37,11 @@ def test_the_row_its_spin_box_hint_and_live_count(qtbot, tmp_path):
     qtbot.addWidget(dialog)
     dialog.show()
     assert dialog.kind() == "bos" and dialog._radios["bos"].text() == "Boş sayfalar"
-    assert dialog.ink.value() == 0.3 and dialog.ink.text() == "0,3 %"
+    assert dialog.ink.value() == 0.3 and dialog.ink.text() == "0,3\u00a0%"
     assert (dialog.ink.minimum(), dialog.ink.maximum(), dialog.ink.singleStep()) == (0.1, 5.0, 0.1)
     assert dialog.ink_hint.text() == "Bu orandan az mürekkepli sayfalar boş sayılır."
     assert dialog.ink.accessibleName() == "En çok mürekkep oranı"
-    assert dialog.ink_count.text() == "3 sayfa boş   (en boş 0,0 %, en dolu 0,2 %)"
+    assert dialog.ink_count.text() == "3 sayfa boş   (en boş 0,0\u00a0%, en dolu 0,2\u00a0%)"
     assert dialog._counts["bos"].text() == "3"
     assert dialog.criterion().params == {"ink": 0.003}
 
@@ -55,7 +55,7 @@ def test_the_count_follows_the_limit_after_a_pause(qtbot, tmp_path):
     dialog.ink.setValue(0.1)
     assert dialog.ink_count.text().startswith("3 sayfa boş")  # not evaluated per key
     qtbot.waitUntil(lambda: dialog.ink_count.text().startswith("2 sayfa boş"), timeout=2000)
-    assert dialog.ink_count.text() == "2 sayfa boş   (en boş 0,0 %, en dolu 0,0 %)"
+    assert dialog.ink_count.text() == "2 sayfa boş   (en boş 0,0\u00a0%, en dolu 0,0\u00a0%)"
     assert dialog._counts["bos"].text() == "2"
     assert dialog.criterion().params == {"ink": 0.001}
     dialog.ink.setValue(5.0)
@@ -68,11 +68,12 @@ def test_blank_pages_already_deleted_are_counted_apart(qtbot, tmp_path):
     job = window.controller().job
     dialog = SelectDialog(job, 1, [], "bos", parent=window)
     qtbot.addWidget(dialog)
-    assert dialog.ink_count.text() == "2 sayfa boş   (en boş 0,0 %, en dolu 0,0 %)"
+    assert dialog.ink_count.text() == "2 sayfa boş   (en boş 0,0\u00a0%, en dolu 0,0\u00a0%)"
     job.delete_page("a/5")
     other = SelectDialog(job, 1, [], "bos", parent=window)
     qtbot.addWidget(other)
-    assert other.ink_count.text() == "1 sayfa boş   (en boş 0,0 %, en dolu 0,0 %, 1 silinmiş)"
+    assert other.ink_count.text() == (
+        "1 sayfa boş   (en boş 0,0\u00a0%, en dolu 0,0\u00a0%, 1\u00a0silinmiş)")
     assert other.criterion().params == {"ink": 0.003}
     assert other._counts["bos"].text() == "1"
 

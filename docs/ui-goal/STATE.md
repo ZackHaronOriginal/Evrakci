@@ -90,7 +90,9 @@ Updated after every accepted step. A new session or a compacted one reads this f
   tests/test_exporting.py, test_index.py, test_cli_jobs.py, test_ledger_b.py::test_b003; full suite 2713 passed.
   D step 14 I-35 DONE (merged): index.xlsx "Belge no" first column + Özet sheet, Job.last_export (format 2,
   saved after export in window and CLI), printed No column; evidence tests/test_job_format.py, test_index.py,
-  test_exporting.py, tests/ui/test_disa_aktar.py (104 passed). Next D: step 15 I-40 Kontrol gerekenler sheet.
+  test_exporting.py, tests/ui/test_disa_aktar.py (104 passed). D step 15 I-40 DONE (merged): "Kontrol gerekenler" sheet + CLI line;
+  evidence tests/test_index.py, test_exporting.py, test_cli_jobs.py, tests/ui/test_disa_aktar.py; tests/ui 1967 passed.
+  Next D: step 16 I-39 (rename preview), step 17 I-38 (print preview).
   IN PROGRESS: A I-03 (worktree branch a03). B-092 attempt b895e1e: check CI. Then A §0 + I-09
   (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).

@@ -81,7 +81,10 @@ Updated after every accepted step. A new session or a compacted one reads this f
   0 problems. Group B report sent to the owner.
   GROUP A: I-08 DONE (merged): Filtreyi kaldır (Shift+F), Şablonu kaldır (Shift+T), Boş sayfayı geri getir,
   Job.remove_filter, CLI is filtre-kaldir; evidence tests/ui/test_kontrol_a.py, test_job.py, test_cuts.py,
-  test_cli_edit.py (927 passed on touched files), audits 0, matrix 0 clipping. Next: A §0 + I-09
+  test_cli_edit.py (927 passed on touched files), audits 0, matrix 0 clipping.
+  IN PROGRESS (worktrees under .claude/worktrees, each an agent; merge each after gates): A §0 + I-09 (task spec
+  .claude/gorevler/2026-11-21-a0-i09-select.md, branch a09) and D step 13 = I-40 step 1, B-003 fix (task spec
+  2026-11-21-d13-b003.md, branch d13). B-092 attempt b895e1e: check CI. Then A §0 + I-09
   (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no

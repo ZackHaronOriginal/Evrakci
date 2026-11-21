@@ -125,6 +125,19 @@ class JobController(QObject):
         ids = list(page_ids)
         return self._edit(f"Filtre: her {every_n} sayfa", lambda j: j.apply_filter(ids, every_n))
 
+    def remove_filter(self, page_ids: Iterable[str]) -> bool:
+        ids = list(page_ids)
+        return self._edit("Filtreyi kaldır", lambda j: j.remove_filter(ids))
+
+    def remove_template(self, page_ids: Iterable[str]) -> bool:
+        ids = list(page_ids)
+        return self._edit("Şablonu kaldır", lambda j: j.remove_template(ids))
+
+    def restore_empty(self, page_ids: Iterable[str]) -> bool:
+        ids = list(page_ids)
+        return self._edit("Boş sayfayı geri getir",
+                          lambda j: [j.restore_empty(pid) for pid in ids])
+
     def add_cut(self, pid: str) -> bool:
         return self._edit("Kesim ekle", lambda j: j.add_cut(pid))
 

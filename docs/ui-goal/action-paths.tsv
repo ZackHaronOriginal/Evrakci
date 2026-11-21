@@ -103,6 +103,9 @@ kontrol	Return	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton |
 kontrol	Enter	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton | bar Diğer komutlar		yes	ok
 kontrol	F	kontrol.filtre	Filtre uygula…	Araçlar > Filtre uygula	ActionRow | bar	page	yes	ok
 kontrol	T	kontrol.sablon	Şablonu uygula	Araçlar > Şablonu uygula	ActionRow | bar		yes	ok
+kontrol	Shift+F	kontrol.filtre_kaldir	Filtreyi kaldır	Araçlar > Filtreyi kaldır	bar Diğer komutlar	page [state-dependent]	yes	ok
+kontrol	Shift+T	kontrol.sablon_kaldir	Şablonu kaldır	Araçlar > Şablonu kaldır	bar Diğer komutlar	page	yes	ok
+kontrol		kontrol.bos_geri_getir	Boş sayfayı geri getir	Araçlar > Boş sayfayı geri getir [state-dependent]	bar Diğer komutlar [state-dependent]		yes	ok
 kontrol	D	kontrol.degerlerde_ac	Değerlerde aç	Araçlar > Değerlerde aç	GapButton | bar Diğer komutlar	page	yes	ok
 kontrol	Space	kontrol.onizle	Önizle	Görünüm > Önizle	bar	page	yes	ok
 kontrol	N	kontrol.sonraki_kontrol	Sonraki kontrol	Git > Sonraki kontrol	bar		yes	ok

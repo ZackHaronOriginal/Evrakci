@@ -60,7 +60,7 @@ class SelectionInfo:
     first: int
     last: int
     template: str  # the template "Şablon uygula" will apply ("" when none exists)
-    every_n: int
+    every_n: int  # N of the filter on the selected pages; 0 when they have none
 
 
 @dataclass
@@ -448,7 +448,7 @@ class Inspector(QWidget):
                 else f"{info.first}–{info.last}")
         self.selection_label.setText(f"Seçim: {info.count} sayfa ({span})")
         self.template_button.set_value(info.template or "Şablon yok")
-        self.filter_button.set_value(f"Her {info.every_n} sayfa")
+        self.filter_button.set_value(f"Her {info.every_n} sayfa" if info.every_n else "Filtre yok")
         self.selection_group.show()
 
     def set_history(self, changes: list[Change]) -> None:

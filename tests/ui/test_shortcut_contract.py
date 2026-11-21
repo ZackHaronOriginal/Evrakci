@@ -90,6 +90,7 @@ from contract_helpers import (  # noqa: E402
 # action: kontrol.secimi_kaldir, kontrol.kes, kontrol.birlestir, kontrol.saga_dondur
 # action: kontrol.sola_dondur, kontrol.sil, kontrol.onayla, kontrol.filtre
 # action: kontrol.sablon, kontrol.onizle, kontrol.sonraki_kontrol
+# action: kontrol.filtre_kaldir, kontrol.sablon_kaldir
 # action: kontrol.onceki_kontrol, kontrol.sonraki_incelenmemis, kontrol.sonraki_belge
 # action: kontrol.onceki_belge, kontrol.sayfa, kontrol.ilk_son, kontrol.ekran
 # action: kontrol.secimi_genislet, sablonlar.kutu_ciz, sablonlar.izgara

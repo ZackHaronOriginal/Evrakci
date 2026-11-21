@@ -3,7 +3,7 @@ inspector, status bar, empty state, persistence and accessible names."""
 
 from fakes import job_from_kinds
 from PIL import Image
-from PySide6.QtCore import QEvent, QItemSelectionModel, QPoint, QPointF, QRect, Qt
+from PySide6.QtCore import QEvent, QItemSelectionModel, QModelIndex, QPoint, QPointF, QRect, Qt
 from PySide6.QtGui import QMouseEvent, QShortcut
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
@@ -13,7 +13,9 @@ from PySide6.QtWidgets import (
     QMenu,
     QWidget,
 )
+from saving import wait_saved
 
+from evrakci.pipeline.cuts import template_by_page
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.store import TemplateStore
 from evrakci.ui import kontrol_paint, theme
@@ -713,3 +715,163 @@ def test_double_click_on_approve_approves_one_document(qtbot, tmp_path):
     assert screen.current_document() == 2
     docs = screen.controller.documents()
     assert not screen.reviews.is_reviewed(docs[1])
+
+
+# -- I-08: remove a filter, remove a template, bring a blank page back ----------------------------
+def _says(controller):
+    said: list[str] = []
+    controller.status.connect(said.append)
+    return said
+
+
+def _shift_key(window, key):
+    _key(window, key, Qt.KeyboardModifier.ShiftModifier)
+
+
+def test_shift_f_takes_the_filter_back_and_ctrl_z_puts_it_there_again(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+    before = [d.page_ids for d in ctl.documents()]
+    screen.timeline.select_rows(4, 10, 4)
+    screen.apply_filter(3)
+    assert [d.page_ids for d in ctl.documents()] != before and ctl.job.filters
+    _shift_key(window, Qt.Key.Key_F)
+    assert not ctl.job.filters
+    assert [d.page_ids for d in ctl.documents()] == before
+    assert ctl.undo_stack.undoText() == "Filtreyi kaldır"
+    assert window.toaster.current_text() == "Filtre kaldırıldı, 6 sayfa."
+    assert screen.side.filter_button.value.text() == "Filtre yok"
+    _key(window, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    assert [f.every_n for f in ctl.job.filters] == [3]
+    assert [d.page_ids for d in ctl.documents()] != before
+    assert screen.side.filter_button.value.text() == "Her 3 sayfa"
+
+
+def test_shift_f_without_a_filter_or_a_selection_says_so(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+    said = _says(ctl)
+    screen.timeline.select_rows(4, 5, 4)
+    index = ctl.undo_stack.index()
+    _shift_key(window, Qt.Key.Key_F)
+    assert said == ["Bu sayfalarda filtre yok."]
+    assert ctl.undo_stack.index() == index and not ctl.job.filters
+    screen.timeline.selectionModel().clearSelection()
+    screen.timeline.selectionModel().setCurrentIndex(
+        QModelIndex(), QItemSelectionModel.SelectionFlag.NoUpdate)
+    said.clear()
+    _shift_key(window, Qt.Key.Key_F)
+    assert said == ["Önce sayfaları seçin."]
+
+
+def test_shift_f_takes_only_the_selected_pages_out_of_a_filter(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+    screen.timeline.select_rows(4, 10, 4)
+    screen.apply_filter(2)
+    screen.timeline.select_rows(6, 7, 6)
+    screen.remove_filter()
+    assert len(ctl.job.filters) == 1
+    assert ctl.job.filters[0].page_ids == {"a/4", "a/5", "a/8", "a/9", "a/10"}
+    assert window.toaster.current_text() == "Filtre kaldırıldı, 1 sayfa."
+
+
+def test_shift_t_removes_the_template_and_says_so_when_there_is_none(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+    said = _says(ctl)
+    screen.timeline.select_rows(0, 2, 0)
+    _shift_key(window, Qt.Key.Key_T)
+    assert said == ["Bu sayfalarda şablon yok."]
+    assert ctl.apply_template(["a/0", "a/1", "a/2"], "t1")
+    index = ctl.undo_stack.index()
+    _shift_key(window, Qt.Key.Key_T)
+    assert ctl.undo_stack.index() == index + 1
+    assert ctl.undo_stack.undoText() == "Şablonu kaldır"
+    assert window.toaster.current_text() == "Şablon kaldırıldı, 3 sayfa."
+    assert not template_by_page(ctl.job)
+    _key(window, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    assert template_by_page(ctl.job) == {"a/0": "t1", "a/1": "t1", "a/2": "t1"}
+
+
+def test_a_dropped_blank_page_comes_back_in_one_undo_step(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path, spec={"a": "ppepp"})
+    screen = window.kontrol
+    ctl = window.controller()
+    said = _says(ctl)
+    action = window.registry.action("kontrol.bos_geri_getir")
+    screen.timeline.select_rows(0, 0, 0)
+    assert not action.isVisible()  # Boş sayfaları at is off: not offered
+    assert ctl.set_drop_empty(True)
+    screen.timeline.select_rows(0, 0, 0)
+    assert action.isVisible() and action.isEnabled()
+    screen.restore_empty()
+    assert said[-1] == "Silinen boş sayfa yok."
+    screen.timeline.select_rows(2, 2, 2)
+    assert [len(d.page_ids) for d in ctl.documents()] == [4]
+    action.trigger()
+    assert ctl.job.restored == {"a/2"}
+    assert [len(d.page_ids) for d in ctl.documents()] == [5]
+    assert ctl.undo_stack.undoText() == "Boş sayfayı geri getir"
+    assert window.toaster.current_text() == "Boş sayfa geri getirildi."
+    ctl.undo()
+    assert ctl.job.restored == set() and ctl.job.drop_empty
+
+
+def test_context_menu_order_and_dimmed_entries(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+
+    def entries():
+        screen.timeline.select_rows(4, 5, 4)
+        screen._context_menu(screen.timeline.page_rect(4).center())
+        return {a.text().replace("&", "").split("\t")[0]: a
+                for a in screen.menu.actions() if not a.isSeparator() and a.text()}
+
+    found = entries()
+    names = list(found)
+    start = names.index("Şablon uygula")
+    assert names[start:start + 4] == ["Şablon uygula", "Şablonu kaldır", "Filtre uygula…",
+                                      "Filtreyi kaldır"]
+    assert "Boş sayfayı geri getir" not in names  # the job keeps blank pages
+    assert not found["Filtreyi kaldır"].isEnabled()  # dimmed, still listed
+    assert not found["Şablonu kaldır"].isEnabled()
+    assert found["Filtre uygula…"].isEnabled()
+    assert found["Filtreyi kaldır"].text().endswith("Shift+F")
+    screen.menu.close()
+    screen.apply_filter(2)
+    assert ctl.job.filters
+    found = entries()
+    assert found["Filtreyi kaldır"].isEnabled()
+    found["Filtreyi kaldır"].trigger()
+    assert not ctl.job.filters
+    screen.menu.close()
+
+
+def test_the_window_and_the_command_line_remove_a_filter_the_same_way(qtbot, tmp_path):
+    import shutil
+
+    from fakes import make_pdf, text_page
+
+    from evrakci.cli import main
+    from evrakci.pipeline.job import job_to_dict
+
+    root = tmp_path / "kok"
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()] * 6)
+    assert main(["--kok", str(root), "is", "olustur", "Test", str(pdf)]) == 0
+    job_id = JobStore(root).list_jobs()[0].id
+    assert main(["--kok", str(root), "is", "filtre", job_id, "1-6", "2"]) == 0
+    other = tmp_path / "kok2"
+    shutil.copytree(root, other)
+    assert main(["--kok", str(root), "is", "filtre-kaldir", job_id, "3-4"]) == 0
+    store = JobStore(other)
+    ctl = JobController(store, store.load(job_id))
+    assert ctl.remove_filter([ctl.job.page_at(3), ctl.job.page_at(4)])
+    wait_saved(ctl)
+    assert job_to_dict(ctl.job) == job_to_dict(JobStore(root).load(job_id))
+    assert job_to_dict(store.load(job_id)) == job_to_dict(JobStore(root).load(job_id))

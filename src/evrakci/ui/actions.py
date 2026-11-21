@@ -248,6 +248,12 @@ SPECS: tuple[ActionSpec, ...] = (
     _a("kontrol.filtre", "&Filtre uygula…", "funnel", "F", ctx="kontrol", menu="araclar"),
     _a("kontrol.sablon", "Şablonu &uygula", "layout-template", "T", ctx="kontrol",
        menu="araclar"),
+    _a("kontrol.filtre_kaldir", "Filtreyi ka&ldır", "funnel", "Shift+F", ctx="kontrol",
+       menu="araclar", kw="süzgeç her n sayfa"),
+    _a("kontrol.sablon_kaldir", "Şablonu &kaldır", "layout-template", "Shift+T", ctx="kontrol",
+       menu="araclar", kw="şablonsuz"),
+    _a("kontrol.bos_geri_getir", "Boş sayfayı geri &getir", "undo-2", (), ctx="kontrol",
+       menu="araclar", kw="boş sayfa atılan silinen"),
     _a("kontrol.degerlerde_ac", "&Değerlerde aç", "table-2", "D", ctx="kontrol",
        menu="araclar", tip="Bu belgeyi Değerler sekmesinde aç"),
     _a("kontrol.onizle", "Ö&nizle", "eye", "Space", ctx="kontrol", menu="gorunum",
@@ -376,7 +382,8 @@ MENU_LAYOUT: dict[str, tuple[str | None, ...]] = {
             "kontrol.sonraki_incelenmemis", "kontrol.sonraki_belge", "kontrol.onceki_belge",
             "degerler.sonraki_kontrol", "degerler.onceki_kontrol",
             "sablonlar.sonraki_zayif", "sablonlar.onceki_zayif", "sablonlar.zayif_ornekler"),
-    "araclar": ("kontrol.filtre", "kontrol.sablon", "kontrol.degerlerde_ac",
+    "araclar": ("kontrol.filtre", "kontrol.filtre_kaldir", "kontrol.sablon",
+                "kontrol.sablon_kaldir", "kontrol.bos_geri_getir", "kontrol.degerlerde_ac",
                 "sablonlar.kutu_ciz", "sablonlar.izgara", "sablonlar.dene",
                 "degerler.oku", "degerler.kontrolde_ac", "degerler.eksikleri_oku",
                 "degerler.tumunu_incele",
@@ -566,6 +573,7 @@ class Registry(QObject):
         self._actions: dict[str, QAction] = {}
         self._connected: set[str] = set()
         self._disabled: set[str] = set()
+        self._hidden: set[str] = set()
         self._routes: dict[str, dict[str, Callable[..., object]]] = {}
         self._tab_disabled: set[tuple[str, str]] = set()
         self._context = next(iter(TABS))
@@ -604,6 +612,12 @@ class Registry(QObject):
     def set_enabled(self, action_id: str, enabled: bool) -> None:
         """Screen-level state, e.g. "nothing selected"; context still applies on top."""
         (self._disabled.discard if enabled else self._disabled.add)(action_id)
+        self._refresh(action_id)
+
+    def set_hidden(self, action_id: str, hidden: bool) -> None:
+        """Take an action out of its menu while it does not apply (e.g. only with a job option
+        on); its key, if any, is unbound with it."""
+        (self._hidden.add if hidden else self._hidden.discard)(action_id)
         self._refresh(action_id)
 
     def connect_tab(self, action_id: str, tab: str, slot: Callable[..., object]) -> None:
@@ -693,7 +707,7 @@ class Registry(QObject):
             s = self._specs[action_id]
             action = self._actions[action_id]
             active = _active(s, self._context)
-            action.setVisible(active)
+            action.setVisible(active and action_id not in self._hidden)
             action.setEnabled(active and self._usable(action_id, self._context))
             keys = [] if s.local else [key_sequence(k) for k in s.shortcuts]
             if self._typing and s.single_key:

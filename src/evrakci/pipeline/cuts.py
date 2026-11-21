@@ -25,6 +25,11 @@ def _template_of(job: Job) -> dict[str, str]:
     return template_of
 
 
+def template_by_page(job: Job) -> dict[str, str]:
+    """The template each page has now (pages without one are left out)."""
+    return _template_of(job)
+
+
 def document_template(job: Job, document: Document) -> tuple[str | None, bool]:
     """The template of the document's first page, and whether its pages disagree."""
     template_of = _template_of(job)

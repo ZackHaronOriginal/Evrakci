@@ -213,7 +213,7 @@ def test_stacked_page_pill_placeholder_and_caption_button(light_100):
     assert found[("probePill", "DEC-LAY-03")] == "pass"  # radius = half the side
     assert found[("probeCorner", "DEC-LAY-03")] == "fail"  # 5 px on a 40 px box
     assert found[("probeField", "DEC-CON-02")] == "pass", (  # placeholder: secondary, 4.5:1
-        _results.rows.get(("probeField", "DEC-CON-02")))  # B-092: CI only; names the value
+        " | ".join(map(str, (_results.rows.get(("probeField", "DEC-CON-02")) or ())[7:])))  # B-092
     assert ("probeField", "DEC-CON-01") not in found
     assert found[("probeGrey", "DEC-CON-01")] == "fail"  # same colour as body text: 7:1
     assert found[("probeCaption", "AUD-KBD-01")] == "skip"  # exempt: Alt+Space window menu

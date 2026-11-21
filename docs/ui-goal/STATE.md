@@ -83,8 +83,10 @@ Updated after every accepted step. A new session or a compacted one reads this f
   Job.remove_filter, CLI is filtre-kaldir; evidence tests/ui/test_kontrol_a.py, test_job.py, test_cuts.py,
   test_cli_edit.py (927 passed on touched files), audits 0, matrix 0 clipping.
   IN PROGRESS (worktrees under .claude/worktrees, each an agent; merge each after gates): A §0 + I-09 (task spec
-  .claude/gorevler/2026-11-21-a0-i09-select.md, branch a09) and D step 13 = I-40 step 1, B-003 fix (task spec
-  2026-11-21-d13-b003.md, branch d13). B-092 attempt b895e1e: check CI. Then A §0 + I-09
+  .claude/gorevler/2026-11-21-a0-i09-select.md, branch a09).
+  D step 13 DONE (merged): B-003 fixed, PDF/A failure is Bilgi everywhere (ExportItem.pdfa_note); evidence
+  tests/test_exporting.py, test_index.py, test_cli_jobs.py, test_ledger_b.py::test_b003; full suite 2713 passed.
+  Next D: step 14 I-35 (Belge no, job name, export time). B-092 attempt b895e1e: check CI. Then A §0 + I-09
   (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no

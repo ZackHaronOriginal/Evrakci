@@ -110,8 +110,6 @@ class _Ok:
         return None
 
 
-@pytest.mark.xfail(strict=True, reason="B-003: 'PDF/A değil' is Bilgi in the list but counted as "
-                   "a check by ExportResult.needing_check, the outcome card, index and deletion")
 def test_b003_pdfa_failure_is_one_rule_in_list_and_outcome_count(tmp_path):
     pdf = make_pdf(tmp_path / "in.pdf", [text_page("A"), qr_page(), text_page("B")])
     store = JobStore(tmp_path / "jobs")

@@ -132,13 +132,12 @@ def file_rows(job, items, patterns: Mapping[int, str] | None = None,
     base_names = {i.name.casefold() for i in items}
     rows = []
     for index, item in enumerate(items):
-        pdfa = [c for c in item.checks if c.startswith("PDF/A değil")]
-        checks = [c for c in item.checks if c not in pdfa]
+        checks = item.checks
         why, tail = _name_change(item, patterns.get(item.number, ""), base_names)
         state = "tamam"
         if checks:
             state, why, tail = "kontrol", reason(checks[0]), ""
-        elif pdfa:
+        elif item.pdfa_note:
             state, why = "bilgi", "PDF/A değil"
         elif why:
             state = "bilgi"

@@ -156,7 +156,8 @@ def test_select_menu_paths_and_the_command_bar(qtbot, tmp_path):
     registry = window.registry
     for action_id, key in (("kontrol.sec", "S"), ("kontrol.belgeyi_sec", "B"),
                            ("kontrol.sayfa_sec", "Ctrl+Space"),
-                           ("kontrol.git_secimsiz", "Alt+Right")):
+                           ("kontrol.git_secimsiz", "Alt+Right"),
+                           ("kontrol.git_secimsiz_sol", "Alt+Left")):
         assert registry.is_enabled(action_id), action_id
         assert (actions.key_text(key) in registry.action(action_id).text()
                 or key in registry.live_keys(action_id))
@@ -186,3 +187,32 @@ def test_the_window_and_the_command_line_select_the_same_pages(qtbot, tmp_path):
     assert rows == [1, 3, 6]
     order = job.ordered_page_ids()
     assert [order[r] for r in rows] == list(evaluate(job, Criterion("cift")).page_ids)
+
+
+def test_select_add_with_nothing_matching_says_so_and_changes_nothing(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    screen.timeline.select_rows(0, 1, 1)
+    messages = []
+    window.controller().status.connect(messages.append)
+    for mode in ("add", "within"):
+        assert screen.select_matching(Criterion("belge", {"number": 99}), mode) == 0
+        assert _chosen(window) == [0, 1]
+    assert messages == ["Eşleşen sayfa yok."] * 2
+
+
+def test_alt_left_has_its_own_git_menu_item_with_the_same_label(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    registry = window.registry
+    right = registry.action("kontrol.git_secimsiz")
+    left = registry.action("kontrol.git_secimsiz_sol")
+    label = [a.text().replace("&", "").split("\t")[0] for a in (right, left)]
+    assert label[0] == label[1] == "Seçimi bozmadan git"
+    assert actions.key_text("Alt+Right") in right.text()
+    assert actions.key_text("Alt+Left") in left.text()
+    _go(window, 6)
+    left.trigger()
+    assert window.kontrol.current_row() == 5
+    right.trigger()
+    right.trigger()
+    assert window.kontrol.current_row() == 7

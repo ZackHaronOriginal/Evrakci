@@ -134,7 +134,7 @@ the part between the two comments.
 | N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | yazarken kapalı |
 | U | Sonraki incelenmemiş | Git | yazarken kapalı |
 | Ctrl+Right / Ctrl+Left | Sonraki belge / Önceki belge | Git | |
-| Alt+Right / Alt+Left | Seçimi bozmadan git | Git | the focus ring moves one page, the selection stays; yerel (timeline); the menu item moves right |
+| Alt+Right / Alt+Left | Seçimi bozmadan git | Git | the focus ring moves one page, the selection stays; yerel (timeline); two menu items under Git, one per direction |
 | Left / Right | Önceki / sonraki sayfa | — | yerel (timeline) |
 | Home / End | İlk / son sayfa | — | yerel |
 | PgUp / PgDn | Bir ekran geri / ileri | — | yerel |

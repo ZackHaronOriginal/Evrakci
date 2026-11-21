@@ -636,7 +636,7 @@ class KontrolScreen(QWidget):
         match = evaluate(self.controller.job, criterion, templates=self.templates(),
                          selection=chosen)
         ids = combine(chosen, match, mode, order=self._page_order())
-        if not ids:
+        if not match.page_ids or not ids:
             self.controller.status.emit("Eşleşen sayfa yok.")
             self.timeline.setFocus()
             return 0

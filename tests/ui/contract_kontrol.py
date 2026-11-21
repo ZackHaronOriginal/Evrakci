@@ -813,7 +813,7 @@ PLANS["kontrol.git_secimsiz", "kontrol", "Alt+Right"] = _plan(
     "pre.kontrol_rows_4_to_6_current6", "effect.kontrol_focus_right",
     "feedback.kontrol_focus_moved", na_pre="pre.none", na_window="job",
     broken="broken.kontrol_selected_at_page14", na="na.kontrol_focus_and_selection_stay")
-PLANS["kontrol.git_secimsiz", "kontrol", "Alt+Left"] = _plan(
+PLANS["kontrol.git_secimsiz_sol", "kontrol", "Alt+Left"] = _plan(
     "pre.kontrol_rows_4_to_6_current6", "effect.kontrol_focus_left",
     "feedback.kontrol_focus_moved", na_pre="pre.none", na_window="job",
     broken="broken.kontrol_selected_at_page0", na="na.kontrol_focus_and_selection_stay")

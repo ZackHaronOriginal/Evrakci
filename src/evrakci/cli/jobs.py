@@ -201,8 +201,6 @@ def select_pages(args: argparse.Namespace, store: JobStore) -> int:
     """`is sec`: the pages the window's "Ölçüte göre seç…" would select; `--sil` deletes them."""
     job = load_job(store, args.id)
     params = {"number": args.numara} if args.olcut == "belge" else {}
-    if args.olcut == "belge" and args.numara is None:
-        raise UserError("Belge numarası gerekli: --numara N")
     match = evaluate(job, Criterion(args.olcut, params))
     if not match.page_ids:
         print("Eşleşen sayfa yok.")
@@ -617,13 +615,15 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument("aralik", metavar="BAS-SON", help="sayfa aralığı, örn. 1-40")
     p.set_defaults(handler=remove_filter)
 
-    p = job_commands.add_parser("sec", help="ölçüte göre seçilecek sayfaları gösterir")
+    p = job_commands.add_parser("sec", help="Ölçüte göre seç…")
     p.add_argument("id", help="iş numarası")
-    p.add_argument("olcut", metavar="ÖLÇÜT", choices=["belge", "tek", "cift"],
-                   help="belge (--numara ile), tek veya cift")
-    p.add_argument("--numara", type=int, metavar="N", help="belge numarası (ölçüt belge ise)")
-    p.add_argument("--sil", action="store_true", help="seçilen sayfaları siler")
-    p.set_defaults(handler=select_pages)
+    criteria = p.add_subparsers(dest="olcut", required=True)
+    for name, label in (("belge", "Bu belge"), ("tek", "Tek sayfalar"), ("cift", "Çift sayfalar")):
+        q = criteria.add_parser(name, help=label)
+        if name == "belge":
+            q.add_argument("--numara", type=int, required=True, metavar="N")
+        q.add_argument("--sil", action="store_true", help="Sayfayı sil")
+        q.set_defaults(handler=select_pages)
 
     p = job_commands.add_parser("kes", help="bir sayfanın önüne kesim ekler veya kaldırır")
     p.add_argument("id", help="iş numarası")

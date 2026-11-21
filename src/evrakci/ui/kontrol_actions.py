@@ -42,6 +42,7 @@ SCREEN_SLOTS: dict[str, tuple] = {
     "kontrol.tumunu_sec": ("select_all",),
     "kontrol.sec": ("select_by",), "kontrol.belgeyi_sec": ("select_document",),
     "kontrol.sayfa_sec": ("toggle_current",), "kontrol.git_secimsiz": ("move_focus", 1),
+    "kontrol.git_secimsiz_sol": ("move_focus", -1),
     "kontrol.secimi_kaldir": ("escape",),
     "kontrol.onayla": ("approve_document",),
     "kontrol.degerlerde_ac": ("open_in_values",),
@@ -314,7 +315,7 @@ def label_delete(registry: actions.Registry | None, count: int, restore: bool) -
     if restore:
         text = "Sayfayı geri &getir" if count <= 1 else f"{count} sayfayı geri &getir"
     else:
-        text = "Say&fayı sil" if count <= 1 else f"{count} sayfayı si&l"
+        text = "Sayfayı &sil" if count <= 1 else f"{count} sayfayı si&l"
     if registry is not None:
         item = registry.action("kontrol.sil")
         item.setText(text)

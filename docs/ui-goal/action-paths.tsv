@@ -117,7 +117,7 @@ kontrol	U	kontrol.sonraki_incelenmemis	Sonraki incelenmemiş	Git > Sonraki incel
 kontrol	Ctrl+Right	kontrol.sonraki_belge	Sonraki belge	Git > Sonraki belge	bar Diğer komutlar | panel Diğer		yes	ok
 kontrol	Ctrl+Left	kontrol.onceki_belge	Önceki belge	Git > Önceki belge	bar Diğer komutlar | panel Diğer		yes	ok
 kontrol	Alt+Right	kontrol.git_secimsiz	Seçimi bozmadan git	Git > Seçimi bozmadan git	bar Diğer komutlar		no	ok
-kontrol	Alt+Left	kontrol.git_secimsiz	Seçimi bozmadan git	Git > Seçimi bozmadan git	bar Diğer komutlar		no	ok
+kontrol	Alt+Left	kontrol.git_secimsiz_sol	Seçimi bozmadan git	Git > Seçimi bozmadan git	bar Diğer komutlar		no	ok
 kontrol	Left	kontrol.sayfa	Önceki / sonraki sayfa				no	exempt:Left/Right arrows step through the page list; a click picks a page
 kontrol	Right	kontrol.sayfa	Önceki / sonraki sayfa				no	exempt:Left/Right arrows step through the page list; a click picks a page
 kontrol	Home	kontrol.ilk_son	İlk / son sayfa				no	exempt:Home/End jump inside the page list; the scroll bar and a click do it

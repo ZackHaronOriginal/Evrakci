@@ -192,7 +192,7 @@ def remove_filter(args: argparse.Namespace, store: JobStore) -> int:
     start, end = parse_range(args.aralik)
     job.remove_filter([page_id_at(job, position) for position in range(start, end + 1)])
     store.save(job)
-    print(f"Filtre kaldırıldı: sayfa {start}-{end}")
+    print(f"Filtre kaldırıldı, {end - start + 1} sayfa.")
     return 0
 
 
@@ -589,7 +589,7 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument("n", type=int, metavar="N", help="kaç sayfada bir belge")
     p.set_defaults(handler=apply_filter)
 
-    p = job_commands.add_parser("filtre-kaldir", help="seçili sayfalardaki filtreyi kaldırır")
+    p = job_commands.add_parser("filtre-kaldir", help="Filtreyi kaldır")
     p.add_argument("id", help="iş numarası")
     p.add_argument("aralik", metavar="BAS-SON", help="sayfa aralığı, örn. 1-40")
     p.set_defaults(handler=remove_filter)

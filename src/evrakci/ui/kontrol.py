@@ -381,7 +381,7 @@ class KontrolScreen(QWidget):
             self.controller.status.emit("Bu sayfalarda filtre yok.")
             return
         if self.controller.remove_filter(targets):
-            self._remember("funnel", f"Filtre kaldırıldı, {self._span(targets)}")
+            self._remember("funnel", f"Filtre kaldırıldı, {len(targets)} sayfa.")
             self._toast(f"Filtre kaldırıldı, {len(targets)} sayfa.")
 
     def remove_template(self) -> None:
@@ -395,7 +395,7 @@ class KontrolScreen(QWidget):
             self.controller.status.emit("Bu sayfalarda şablon yok.")
             return
         if self.controller.remove_template(targets):
-            self._remember("stamp", f"Şablon kaldırıldı, {self._span(targets)}")
+            self._remember("stamp", f"Şablon kaldırıldı, {len(targets)} sayfa.")
             self._toast(f"Şablon kaldırıldı, {len(targets)} sayfa.")
 
     def restore_empty(self) -> None:
@@ -409,7 +409,7 @@ class KontrolScreen(QWidget):
             self.controller.status.emit("Silinen boş sayfa yok.")
             return
         if self.controller.restore_empty(targets):
-            self._remember("undo-2", f"Boş sayfa geri getirildi, {self._span(targets)}")
+            self._remember("undo-2", "Boş sayfa geri getirildi.")
             self._toast("Boş sayfa geri getirildi.")
 
     def toggle_cut(self) -> None:

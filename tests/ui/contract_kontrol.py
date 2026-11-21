@@ -382,7 +382,7 @@ def _effect_filter_removed(c: Ctx) -> None:
 def _feedback_filter_removed(c: Ctx) -> None:
     assert c.win.toaster.current_text() == "Filtre kaldırıldı, 7 sayfa."
     assert _toast_undo(c)
-    assert _history(c)[0] == "Filtre kaldırıldı, sayfa 5–11", _history(c)
+    assert _history(c)[0] == "Filtre kaldırıldı, 7 sayfa.", _history(c)
     assert c.win.controller().undo_stack.undoText() == "Filtreyi kaldır"
     assert _k(c).side.filter_button.value.text() == "Filtre yok"
 
@@ -408,7 +408,7 @@ def _effect_template_removed(c: Ctx) -> None:
 def _feedback_template_removed(c: Ctx) -> None:
     assert c.win.toaster.current_text() == "Şablon kaldırıldı, 3 sayfa."
     assert _toast_undo(c)
-    assert _history(c)[0] == "Şablon kaldırıldı, sayfa 1–3", _history(c)
+    assert _history(c)[0] == "Şablon kaldırıldı, 3 sayfa.", _history(c)
     assert c.win.controller().undo_stack.undoText() == "Şablonu kaldır"
 
 

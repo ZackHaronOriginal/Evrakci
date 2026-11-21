@@ -238,7 +238,7 @@ def test_remove_filter_range_and_errors(tmp_path, capsys):
     run, job_id = setup_job(tmp_path, capsys, [text_page()] * 4)
     assert run("is", "filtre", job_id, "1-4", "2") == 0
     assert run("is", "filtre-kaldir", job_id, "1-2") == 0
-    assert "Filtre kaldırıldı: sayfa 1-2" in capsys.readouterr().out
+    assert "Filtre kaldırıldı, 2 sayfa." in capsys.readouterr().out
     run("is", "goster", job_id)
     out = capsys.readouterr().out
     assert "1. belge: sayfa 1, 2, 3, 4" not in out and "belge: sayfa 3, 4" in out

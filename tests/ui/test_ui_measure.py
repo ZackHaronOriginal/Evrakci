@@ -181,6 +181,9 @@ def _extras(qapp: QApplication) -> QWidget:
     field.setReadOnly(True)
     ink = QPalette(field.palette())
     ink.setColor(QPalette.ColorRole.PlaceholderText, QColor("#707070"))  # about 5:1 on white
+    # its own white field too: the app palette an earlier module leaves can tint the base
+    # (B-092: measured 4.12:1 in the full CI run on a tinted base)
+    ink.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
     field.setPalette(ink)
     grey = QLabel("Ara")  # the same colour as body text: needs 7:1
     grey.setObjectName("probeGrey")
@@ -213,7 +216,7 @@ def test_stacked_page_pill_placeholder_and_caption_button(light_100):
     assert found[("probePill", "DEC-LAY-03")] == "pass"  # radius = half the side
     assert found[("probeCorner", "DEC-LAY-03")] == "fail"  # 5 px on a 40 px box
     assert found[("probeField", "DEC-CON-02")] == "pass", (  # placeholder: secondary, 4.5:1
-        " | ".join(map(str, (_results.rows.get(("probeField", "DEC-CON-02")) or ())[7:])))  # B-092
+        " | ".join(map(str, (_results.rows.get(("probeField", "DEC-CON-02")) or ())[7:])))
     assert ("probeField", "DEC-CON-01") not in found
     assert found[("probeGrey", "DEC-CON-01")] == "fail"  # same colour as body text: 7:1
     assert found[("probeCaption", "AUD-KBD-01")] == "skip"  # exempt: Alt+Space window menu

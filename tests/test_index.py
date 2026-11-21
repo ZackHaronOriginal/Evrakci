@@ -23,8 +23,9 @@ def items():
         "belge_002",
         "Deneme",
         {"Kayıt No": "", "Ünvan": "=1+1", "Not": "@x"},
-        ["zorunlu değer eksik: Kayıt No", "PDF/A değil: doğrulanamadı"],
+        ["zorunlu değer eksik: Kayıt No"],
         False,
+        pdfa_note="PDF/A doğrulanamadı",
     )
     three = ExportItem(3, Document(("a/3",)), "belge_003", None, {}, [], True)
     return job, [one, two, three]
@@ -86,3 +87,14 @@ def test_control_characters_do_not_break_the_index(tmp_path):
     write_index(rows, job, tmp_path / "index.xlsx")
     sheet = openpyxl.load_workbook(tmp_path / "index.xlsx")["Belgeler"]
     assert sheet.cell(row=2, column=9).value == "ÖrnekŞti"
+
+
+def test_pdfa_failure_alone_is_not_a_check_and_the_column_says_hayir(tmp_path):
+    job, rows = items()
+    rows[2].pdfa, rows[2].pdfa_note = False, "PDF/A doğrulanamadı"
+    write_index(rows, job, tmp_path / "index.xlsx")
+    sheet = openpyxl.load_workbook(tmp_path / "index.xlsx")["Belgeler"]
+    third = [c.value for c in sheet[4]]
+    assert third[4] == "hayır"  # PDF/A column
+    assert third[5] == "hayır" and not third[6]  # Kontrol gerekli, no reasons
+    assert "PDF/A" not in (sheet.cell(row=3, column=7).value or "")

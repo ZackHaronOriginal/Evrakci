@@ -130,7 +130,7 @@ def export_job(
                 layered.unlink(missing_ok=True)
             item.pdfa = layer.pdfa
             if not layer.pdfa and layer.note:
-                item.checks.append(f"PDF/A değil: {layer.note}")
+                item.pdfa_note = layer.note
             result.notes[path] = (layer.pdfa, layer.note)
         report("layer", len(paths), len(paths))
     if paths:

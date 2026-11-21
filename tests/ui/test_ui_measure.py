@@ -89,6 +89,7 @@ def _results(qapp: QApplication, root: QWidget) -> dict[tuple[str, str], str]:
     ctx = um.make_ctx(root, "light", 100, (420, 160), rules)
     ctx.window_checks = False
     rows = um.measure_tree(qapp, ctx, rules, "probe")
+    _results.rows = {(row[4], row[6]): row for row in rows}  # the whole row, for messages
     return {(row[4], row[6]): row[9] for row in rows}
 
 
@@ -211,7 +212,8 @@ def test_stacked_page_pill_placeholder_and_caption_button(light_100):
     assert found[("probeBox", "DEC-LAY-02")] == "fail"
     assert found[("probePill", "DEC-LAY-03")] == "pass"  # radius = half the side
     assert found[("probeCorner", "DEC-LAY-03")] == "fail"  # 5 px on a 40 px box
-    assert found[("probeField", "DEC-CON-02")] == "pass"  # placeholder: secondary tier, 4.5:1
+    assert found[("probeField", "DEC-CON-02")] == "pass", (  # placeholder: secondary, 4.5:1
+        _results.rows.get(("probeField", "DEC-CON-02")))  # B-092: CI only; names the value
     assert ("probeField", "DEC-CON-01") not in found
     assert found[("probeGrey", "DEC-CON-01")] == "fail"  # same colour as body text: 7:1
     assert found[("probeCaption", "AUD-KBD-01")] == "skip"  # exempt: Alt+Space window menu

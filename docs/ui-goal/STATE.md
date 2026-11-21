@@ -88,7 +88,10 @@ Updated after every accepted step. A new session or a compacted one reads this f
   Next A: I-03 (blank pages), then I-06, I-04.
   D step 13 DONE (merged): B-003 fixed, PDF/A failure is Bilgi everywhere (ExportItem.pdfa_note); evidence
   tests/test_exporting.py, test_index.py, test_cli_jobs.py, test_ledger_b.py::test_b003; full suite 2713 passed.
-  Next D: step 14 I-35 (Belge no, job name, export time). B-092 attempt b895e1e: check CI. Then A §0 + I-09
+  D step 14 I-35 DONE (merged): index.xlsx "Belge no" first column + Özet sheet, Job.last_export (format 2,
+  saved after export in window and CLI), printed No column; evidence tests/test_job_format.py, test_index.py,
+  test_exporting.py, tests/ui/test_disa_aktar.py (104 passed). Next D: step 15 I-40 Kontrol gerekenler sheet.
+  IN PROGRESS: A I-03 (worktree branch a03). B-092 attempt b895e1e: check CI. Then A §0 + I-09
   (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no

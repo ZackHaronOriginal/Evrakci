@@ -79,8 +79,9 @@ Updated after every accepted step. A new session or a compacted one reads this f
   R-B-1/3/4/6/7 fixed in 471b7dd, R-B-2 ledgered B-093, R-B-5 half waits on Q-25 (B-091); B-092 needs-repro.
   Full suite at the fix: 2686 passed, 4 skipped, 202 xfailed, 0 failed; ruff clean; action paths 285 pairs,
   0 problems. Group B report sent to the owner.
-  GROUP A: I-08 built on worktree branch a08 (685f3a9), gates done (Kapı G clean; lens c: new CLI/history
-  strings outside the table -> fix round), reviewer running. Next: I-08 fix round, merge, then A §0 + I-09
+  GROUP A: I-08 DONE (merged): Filtreyi kaldır (Shift+F), Şablonu kaldır (Shift+T), Boş sayfayı geri getir,
+  Job.remove_filter, CLI is filtre-kaldir; evidence tests/ui/test_kontrol_a.py, test_job.py, test_cuts.py,
+  test_cli_edit.py (927 passed on touched files), audits 0, matrix 0 clipping. Next: A §0 + I-09
   (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no

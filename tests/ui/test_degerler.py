@@ -338,7 +338,7 @@ def test_accept_selected_is_one_step_with_a_count(qtbot, setup):
     screen.status.connect(said.append)
     screen.select_all()
     screen.accept_selected()
-    assert said[-1] == "6 değer onaylandı"
+    assert said[-1] == "6 değer onaylandı; 1 tanesi Kontrol'dü."
     assert all(_value(ctl, n, sicil.key).edited for n in range(3))
     assert ctl.undo_stack.undoText() == "6 değeri onayla"
     ctl.undo()
@@ -608,7 +608,7 @@ def test_bulk_accept_shows_a_toast_with_undo(qtbot, window):
     screen = win.degerler
     screen.select_all()
     win.registry.action("degerler.secilenleri_onayla").trigger()
-    assert win.toaster.current_text() == "6 değer onaylandı"
+    assert win.toaster.current_text() == "6 değer onaylandı; 1 tanesi Kontrol'dü."
     toast = win.toaster._current
     undo = next(b for b in toast.findChildren(QAbstractButton) if b.text() == "Geri al")
     undo.click()
@@ -1424,3 +1424,64 @@ def test_a_failed_typed_edit_does_not_claim_the_value_went_to_kontrol(qtbot, win
     monkeypatch.setattr(win.controller(), "set_value", lambda *args: False)
     screen.model.setData(screen.cell(1, "Sicil_No"), "48200")
     assert win.toaster.current_text() != "Zorunlu değer boş bırakılamaz; Kontrol'e alındı."
+
+
+# -- Q1+Q3: D-1 failed reads are counted, D-2 empty is refused, D-3 bulk accept names Kontrol ----
+def test_d1_a_read_with_failed_documents_says_how_many_failed(window):
+    win, sicil = window
+    screen = win.degerler
+    ctl = win.controller()
+    from evrakci.ui.degerler import document_template
+
+    docs = ctl.documents()
+    tid = document_template(ctl.job, docs[0])[0]
+    results = [(docs[0], tid, {sicil.key: GOOD}, None, ""),
+               (docs[1], tid, None, "Tesseract çalışmadı", ""),
+               (docs[2], tid, None, "Tesseract çalışmadı", "")]
+    screen._read_done(results)
+    assert win.toaster.current_text() == "1 belge okundu; 2 belge okunamadı."
+
+
+def test_d1_a_clean_read_keeps_the_plain_sentence(window):
+    win, sicil = window
+    ctl = win.controller()
+    from evrakci.ui.degerler import document_template
+
+    docs = ctl.documents()
+    tid = document_template(ctl.job, docs[0])[0]
+    win.degerler._read_done([(docs[0], tid, {sicil.key: GOOD}, None, "")])
+    assert win.toaster.current_text() == "1 belge okundu."
+
+
+def test_d1_an_unexpected_read_error_is_not_shown_raw(window):
+    win, _ = window
+    win.degerler._read_failed("Traceback: boom")
+    assert win.degerler.progress_label.text() == (
+        "Okuma durdu. Kalan belgeleri 'Yalnızca eksikleri oku' ile deneyebilirsiniz.")
+    assert win.degerler.progress_label.toolTip() == "Traceback: boom"
+
+
+def test_d2_an_emptied_unreadable_required_value_is_not_stored_as_reviewed(qtbot, setup):
+    ctl, templates, template, sicil = setup
+    firma = next(v for v in template.variables if v.name == "Firma")
+    unreadable = VariableValue("", 0.0, None, True)  # Okunamadı: nothing read, no suggestion
+    record_values(ctl.job, ctl.documents()[1], template.id, {sicil.key: unreadable,
+                                                              firma.key: GOOD})
+    ctl.job_changed.emit()
+    screen = _screen(qtbot, ctl, templates)
+    screen.show()
+    screen.select_value(2, sicil.key)
+    screen.type_current()  # F2
+    editor = screen.table.open_editor_widget()
+    assert editor is not None and editor.text() == ""
+    QTest.keyClick(editor, Qt.Key.Key_Return)  # Enter on the empty editor
+    qtbot.waitUntil(lambda: not screen.table.is_editing())
+    stored = _value(ctl, 1, sicil.key)
+    assert stored.flagged and not stored.edited and not stored.value
+
+
+def test_d3_bulk_accept_says_how_many_were_kontrol(window):
+    win, _ = window
+    win.degerler.select_all()
+    win.registry.action("degerler.secilenleri_onayla").trigger()
+    assert win.toaster.current_text() == "6 değer onaylandı; 1 tanesi Kontrol'dü."

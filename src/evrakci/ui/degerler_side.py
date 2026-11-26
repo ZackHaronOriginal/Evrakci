@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from PySide6.QtCore import QObject, QPointF, QRectF, QRunnable, QSize, Qt, QThreadPool, Signal
 from PySide6.QtGui import QFont, QFontMetrics, QImage, QMouseEvent, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
+    QAbstractButton,
     QBoxLayout,
     QFrame,
     QHBoxLayout,
@@ -501,6 +502,13 @@ class ReadingItem:
     problem: str = ""
 
 
+class _ReadingHit(QAbstractButton):
+    """The invisible button over a reading row: the mouse path of Alt+1..Alt+4 (Okuma seç)."""
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        pass
+
+
 class ReadingRow(QFrame):
     """A clickable reading (at least 32 px high, AUD-HIT-03; it grows with its content):
     section, text in the body style (one line, elided), Güven %, and the words "Öneri" (with
@@ -554,7 +562,20 @@ class ReadingRow(QFrame):
         self.setAccessibleName(" ".join(p for p in (
             f"{item.name}: {item.text or 'boş'}", f"%{item.percent}",
             "Öneri" if item.suggested else "", item.problem) if p))
+        self.hit = _ReadingHit(self)  # a real button: the tab's mouse path for "Okuma seç"
+        self.hit.setProperty("action_id", "degerler.okuma_sec")
+        self.hit.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.hit.setEnabled(self.pickable)
+        self.hit.setAccessibleName(self.accessibleName())
+        if self.pickable:
+            self.hit.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.hit.clicked.connect(self.picked)
+        self.hit.raise_()
         theme.follow(self, self._restyle, f"degerler-reading-{id(self)}")
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.hit.setGeometry(self.rect())
 
     def _restyle(self) -> None:
         m = theme.manager()

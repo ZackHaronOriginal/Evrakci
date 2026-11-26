@@ -187,6 +187,7 @@ list and the inspector fields.
 | Ctrl+. | Okumayı durdur | Araçlar | |
 | — | Değerleri oku / Yalnızca eksikleri oku | Araçlar | A's labelled scan-text and list-filter command-bar buttons |
 | Tab / Shift+Tab | Sonraki / önceki değer | — | yerel (table); Tab on the last value leaves the table, F6 moves to the next region |
+| Alt+1 / Alt+2 / Alt+3 / Alt+4 | Okuma seç | — | yerel (open editor only); the editor takes reading 1-4 of "Tüm okumalar", Enter stores it as one undo step; the mouse path is a click on the reading row (Q-23) |
 
 ### Dışa Aktar
 

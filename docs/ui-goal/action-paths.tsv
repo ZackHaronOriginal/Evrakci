@@ -107,7 +107,7 @@ kontrol	S	kontrol.sec	Ölçüte göre seç…	Araçlar > Ölçüte göre seç	ba
 kontrol	F	kontrol.filtre	Filtre uygula…	Araçlar > Filtre uygula	ActionRow | bar	page	yes	ok
 kontrol	Ctrl+Shift+F	kontrol.kayitli_filtreler	Kayıtlı filtreler	Araçlar > Kayıtlı filtreler	bar Diğer komutlar		yes	ok
 kontrol	T	kontrol.sablon	Şablonu uygula	Araçlar > Şablonu uygula	ActionRow | bar		yes	ok
-kontrol	Shift+F	kontrol.filtre_kaldir	Filtreyi kaldır	Araçlar > Filtreyi kaldır	bar Diğer komutlar	page [state-dependent]	yes	ok
+kontrol	Shift+F	kontrol.filtre_kaldir	Filtreyi kaldır	Araçlar > Filtreyi kaldır [state-dependent]	bar Diğer komutlar	page [state-dependent]	yes	ok
 kontrol	Shift+T	kontrol.sablon_kaldir	Şablonu kaldır	Araçlar > Şablonu kaldır	bar Diğer komutlar	page	yes	ok
 kontrol		kontrol.bos_at	Boş sayfaları at	Araçlar > Boş sayfaları at	bar Diğer komutlar		yes	ok
 kontrol		kontrol.bos_geri_getir	Boş sayfayı geri getir	Araçlar > Boş sayfayı geri getir [state-dependent]	bar Diğer komutlar [state-dependent]		yes	ok
@@ -260,6 +260,10 @@ degerler		degerler.eksikleri_oku	Yalnızca eksikleri oku	Araçlar > Yalnızca ek
 degerler	Ctrl+.	degerler.durdur	Okumayı durdur	Araçlar > Okumayı durdur [state-dependent]	QPushButton [state-dependent] | bar Diğer komutlar [state-dependent]		yes	ok
 degerler	Tab	degerler.sonraki_deger	Sonraki / önceki değer				no	exempt:Tab/Shift+Tab move between table cells; a click picks a cell
 degerler	Shift+Tab	degerler.sonraki_deger	Sonraki / önceki değer				no	exempt:Tab/Shift+Tab move between table cells; a click picks a cell
+degerler	Alt+1	degerler.okuma_sec	Okuma seç		_ReadingHit | _ReadingHit [state-dependent]		no	ok
+degerler	Alt+2	degerler.okuma_sec	Okuma seç		_ReadingHit | _ReadingHit [state-dependent]		no	ok
+degerler	Alt+3	degerler.okuma_sec	Okuma seç		_ReadingHit | _ReadingHit [state-dependent]		no	ok
+degerler	Alt+4	degerler.okuma_sec	Okuma seç		_ReadingHit | _ReadingHit [state-dependent]		no	ok
 disa_aktar	Ctrl+1	app.sekme.yukle	Yükle	Git > Yükle	PartsButton [state-dependent]		yes	ok
 disa_aktar	Ctrl+2	app.sekme.kontrol	Kontrol	Git > Kontrol			yes	ok
 disa_aktar	Ctrl+3	app.sekme.sablonlar	Şablonlar	Git > Şablonlar			yes	ok

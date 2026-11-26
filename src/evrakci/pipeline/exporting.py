@@ -21,7 +21,7 @@ from evrakci.pipeline.export import (
     plan_export,
 )
 from evrakci.pipeline.index import write_index
-from evrakci.pipeline.job import Job, LastExport
+from evrakci.pipeline.job import Job, LastExport, job_state
 from evrakci.pipeline.naming import fit_names, unique_names
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.textlayer import add_text_layer
@@ -192,7 +192,7 @@ def export_job(
 def _record_export(job: Job, out_dir: Path, exported_at: datetime, result: ExportResult) -> None:
     job.last_export = LastExport(
         exported_at.isoformat(timespec="minutes"), str(out_dir), len(result.items),
-        result.needing_check)
+        result.needing_check, job_state(job))
 
 
 def _write_index_quietly(items, job: Job, out_dir: Path, exported_at: datetime,

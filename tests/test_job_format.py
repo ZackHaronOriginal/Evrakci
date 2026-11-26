@@ -34,6 +34,18 @@ def test_last_export_round_trips_and_stays_version_2():
     assert job_from_dict(data) == job
 
 
+def test_the_export_state_round_trips_and_follows_edits():
+    from evrakci.pipeline.job import job_state
+
+    job = job_from_kinds({"a": "pp"})
+    before = job_state(job)
+    job.last_export = LastExport("2026-11-20T14:32", "C:/Çıktı", 8, 2, before)
+    assert job_state(job) == before  # the last export is not part of the state
+    assert job_from_dict(json.loads(json.dumps(job_to_dict(job)))).last_export.state == before
+    job.drop_empty = not job.drop_empty
+    assert job_state(job) != before
+
+
 def test_a_job_never_exported_writes_no_field():
     assert "last_export" not in job_to_dict(job_from_kinds({"a": "pp"}))
 

@@ -696,9 +696,11 @@ def fix_value(args: argparse.Namespace, store: JobStore) -> int:
         elif args.geri_al:
             current = current_values(job, document)
             value = current.get(key) if current is not None else None
-            # only a hand-typed value with no reading has nothing to go back to; an
-            # unedited value keeps the command's earlier behaviour
-            if value is not None and value.edited and not can_revert(value):
+            # like the window's Okunana dön: nothing to go back to for a value nobody
+            # corrected (Q-25), nor for a hand-typed one with no reading
+            if value is not None and not value.edited:
+                raise UserError("Bu değer düzeltilmedi; geri alınacak bir şey yok.")
+            if value is not None and not can_revert(value):
                 raise UserError(f"{args.ad}: Bu değer elle yazıldı; okunmuş bir değer yok.")
             revert_value(job, document, key)
         else:

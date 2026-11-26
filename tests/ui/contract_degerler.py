@@ -172,7 +172,7 @@ def _effect_rows_accepted(c: Ctx) -> None:
 
 @helper("feedback.degerler_rows_accepted")
 def _feedback_rows_accepted(c: Ctx) -> None:
-    assert c.win.toaster.current_text() == "4 değer onaylandı", heard(c.win)
+    assert c.win.toaster.current_text() == "4 değer onaylandı; 1 tanesi Kontrol'dü.", heard(c.win)
     assert _toast_undo(c)
     assert c.win.controller().undo_stack.undoText() == "4 değeri onayla"
     assert "4 / 6 incelendi" in slot_texts(c.win, "degerler"), slot_texts(c.win, "degerler")
@@ -586,3 +586,96 @@ PLANS["degerler.sonraki_deger", "degerler", "Shift+Tab"] = _plan(
     "pre.degerler_second_value", "effect.degerler_previous_value",
     "feedback.degerler_value_moved", na_pre="pre.none", na_window="job_degerler",
     broken="broken.degerler_first_value", na="na.degerler_focus_left")
+
+
+# -- Alt+1 .. Alt+4 (Okuma seç, Q-23) --------------------------------------------------------------
+_FOUR = ("48Z13", "48213", "4B213", "48 213")  # the four readings given to row 1's Kontrol value
+
+
+@helper("pre.degerler_editor_four_readings")
+def _pre_editor_four_readings(c: Ctx) -> None:
+    """Row 1's Kontrol value has four readings and its editor is open and focused."""
+    from evrakci.pipeline.cuts import current_values, record_values
+    from evrakci.pipeline.templates.values import SectionReading, VariableValue
+
+    restore_job(c)
+    d = _d(c)
+    ctl = c.win.controller()
+    row = d.model.row_at(1)
+    key = d.model.cell_at(d.model.index(1, 3)).key
+    readings = tuple(SectionReading(n, text, 0.4 + n / 20) for n, text in enumerate(_FOUR))
+
+    def give_readings(job) -> None:
+        values = dict(current_values(job, row.document))
+        values[key] = VariableValue("48Z13", 0.41, 0, True, "48213", readings, False)
+        record_values(job, row.document, degerler.document_template(job, row.document)[0],
+                      values)
+
+    assert ctl.run("Okumalar", give_readings)
+    d.refresh()
+    settle()
+
+    def close_editor() -> None:
+        editor = d.table.open_editor_widget()
+        if d.table.is_editing() and editor is not None:
+            QTest.keyClick(editor, Qt.Key.Key_Escape)
+            settle()
+
+    c.undo.append(close_editor)
+    pick(c, 1, 3)
+    d.type_current()
+    settle()
+    editor = d.table.open_editor_widget()
+    assert editor is not None and QApplication.focusWidget() is editor
+
+
+def _reading_effect(number: int):
+    def effect(c: Ctx) -> None:
+        editor = _d(c).table.open_editor_widget()
+        assert editor is not None and editor.text() == _FOUR[number], editor and editor.text()
+        # nothing is stored until Enter: the job did not change
+        assert c.win.controller().undo_stack.index() == c.snap["index"]
+    return effect
+
+
+@helper("reopen.degerler_editor")
+def _reopen_editor(c: Ctx) -> None:
+    """The editor closed when the shortcut sheet took focus: open it again."""
+    d = _d(c)
+    if not d.table.is_editing():
+        pick(c, 1, 3)
+        d.type_current()
+        settle()
+    assert QApplication.focusWidget() is d.table.open_editor_widget()
+
+
+@helper("feedback.degerler_reading_taken")
+def _feedback_reading_taken(c: Ctx) -> None:
+    editor = _d(c).table.open_editor_widget()
+    assert editor.isModified() and editor.cursorPosition() == len(editor.text())
+    assert QApplication.focusWidget() is editor
+
+
+@helper("broken.degerler_no_editor")
+def _broken_no_editor(c: Ctx) -> None:
+    """The editor is closed and the table has focus."""
+    pick(c, 1, 3)
+    assert not _d(c).table.is_editing()
+
+
+@helper("na.degerler_reading_key_idle")
+def _na_reading_key_idle(c: Ctx) -> None:
+    """Outside the open editor the key does nothing: no editor opens, nothing is stored."""
+    d = _d(c)
+    assert not d.table.is_editing()
+    assert c.win.controller().undo_stack.index() == c.snap["index"]
+    assert _cur(c) == c.snap["cur"]
+
+
+for _n, _key in enumerate(("Alt+1", "Alt+2", "Alt+3", "Alt+4")):
+    helper(f"effect.degerler_reading_{_n + 1}")(_reading_effect(_n))
+    PLANS["degerler.okuma_sec", "degerler", _key] = _plan(
+        "pre.degerler_editor_four_readings", f"effect.degerler_reading_{_n + 1}",
+        "feedback.degerler_reading_taken", na_pre="pre.none", na_window="job_degerler",
+        broken="broken.degerler_no_editor", na="na.degerler_reading_key_idle",
+        reopen="reopen.degerler_editor")

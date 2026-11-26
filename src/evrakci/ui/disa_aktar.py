@@ -1395,20 +1395,40 @@ class DisaAktarScreen(QWidget):
         def done(html: str) -> None:
             if not shiboken6.isValid(self) or self._job_id() != job_id:
                 return
-            self._preview = print_view.PrintPreviewDialog(html, name, self)
-            self._preview.finished.connect(self._preview_closed)
-            self._preview.open()
+            card = getattr(window, "loading_card", None)
+            if card is not None:  # the build blocks the window for a moment: say so first
+                card.show_loading("Önizleme hazırlanıyor…", name, cancellable=False)
+                card.repaint()
+            QTimer.singleShot(0, lambda: build(html, card))
+
+        def build(html: str, card) -> None:
+            try:
+                if not shiboken6.isValid(self) or self._job_id() != job_id:
+                    return
+                self._preview = print_view.PrintPreviewDialog(html, name, self)
+                self._preview.finished.connect(self._preview_closed)
+                self._preview.open()
+            finally:
+                if card is not None and shiboken6.isValid(card):
+                    card.close()
+
+        def failed(_message: str) -> None:
+            toaster = self._toaster()
+            if toaster is not None:
+                toaster.show("Dışa aktarma tamamlanamadı", kind="error")
 
         start = getattr(window, "start_loading", None)
         options = {"title": "Önizleme hazırlanıyor…", "name": name, "on_done": done,
-                   "on_failed": lambda _message: None, "on_cancelled": lambda: None}
+                   "on_failed": failed, "on_cancelled": lambda: None}
         handle = start(work, **options) if start is not None else run_background(
             window, work, **options)
         if handle is None and hasattr(window, "message"):
             window.message.setText(BUSY_REASON)
 
     def _preview_closed(self) -> None:
-        self._preview = None
+        preview, self._preview = self._preview, None
+        if preview is not None and shiboken6.isValid(preview):
+            preview.deleteLater()  # its document and rendered pages go with it
         self.results.setFocus(Qt.FocusReason.OtherFocusReason)
 
     # Compatibility for the window and old callers

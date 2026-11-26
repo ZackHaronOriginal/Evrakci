@@ -125,15 +125,17 @@ class PrintPreviewDialog(QDialog):
         root.setSpacing(m.size("s3"))
         bar = QHBoxLayout()
         bar.setSpacing(m.size("s2"))
-        self.previous = self._tool("chevron-left", "Önceki sayfa")
+        self.previous = self._tool("chevron-left", "Önceki sayfa", actions.key_text("PgUp"))
         self.page_label = QLabel(page_text(1, 1))
         self.page_label.setAccessibleName("Sayfa")
-        self.next = self._tool("chevron-right", "Sonraki sayfa")
+        self.next = self._tool("chevron-right", "Sonraki sayfa", actions.key_text("PgDown"))
         zoom_out, zoom_in = actions.spec("app.uzaklastir"), actions.spec("app.yakinlastir")
-        self.zoom_out = self._tool("zoom-out", actions.plain_text(zoom_out.text))
+        self.zoom_out = self._tool("zoom-out", actions.plain_text(zoom_out.text),
+                              actions.key_text(zoom_out.shortcuts[0]))
         self.zoom_label = QLabel("100 %")
         self.zoom_label.setAccessibleName("Yakınlık")
-        self.zoom_in = self._tool("zoom-in", actions.plain_text(zoom_in.text))
+        self.zoom_in = self._tool("zoom-in", actions.plain_text(zoom_in.text),
+                             actions.key_text(zoom_in.shortcuts[0]))
         self.fit = QPushButton("Sığdır")
         self.fit.setToolTip(f"Sayfaya sığdır ({actions.key_text('Ctrl+0')})")
         self.print_button = QPushButton("Yazdır…")
@@ -169,10 +171,10 @@ class PrintPreviewDialog(QDialog):
         self.fit_page()
         self.print_button.setFocus()
 
-    def _tool(self, icon: str, name: str) -> QPushButton:
+    def _tool(self, icon: str, name: str, keys: str = "") -> QPushButton:
         button = QPushButton()
         button.setIcon(make_icon(icon, "icon"))
-        button.setToolTip(name)
+        button.setToolTip(f"{name} ({keys})" if keys else name)
         button.setAccessibleName(name)
         button.setAutoDefault(False)
         side = theme.manager().size("icon-btn")
@@ -194,7 +196,9 @@ class PrintPreviewDialog(QDialog):
     def keyPressEvent(self, event) -> None:  # noqa: N802
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not event.isAutoRepeat():
             event.accept()
-            self.print_button.click()  # Enter prints, wherever the focus is
+            focus = self.focusWidget()  # Enter presses the focused button, else it prints
+            button = focus if isinstance(focus, QPushButton) else self.print_button
+            button.click()
             return
         super().keyPressEvent(event)
 

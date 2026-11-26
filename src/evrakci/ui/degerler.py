@@ -715,7 +715,7 @@ class DegerlerScreen(QWidget):
                 width = max(width, self._content_width(c) + self._note_width(c))
             self.table.setColumnWidth(c, width)
 
-    def _note_width(self, column: int) -> int:
+    def _note_width(self, column: int, own_line: bool = False) -> int:
         """Room for the "← okunan …" part of the widest value in a code or number column, so
         the cell shows what was read beside the suggestion (Q-12); text columns wrap instead."""
         from PySide6.QtGui import QFontMetrics
@@ -730,6 +730,9 @@ class DegerlerScreen(QWidget):
                  and cell.dual]
         if not notes:
             return 0
+        if own_line:  # the narrowest the column may get: the read still shows on a second line
+            return max(metrics.horizontalAdvance(f"okunan {n}") for n in notes) \
+                + 2 * m.size("s3") + m.inline_icon(16) + 6
         widest = max(metrics.horizontalAdvance(f"← okunan {n}") for n in notes)
         return widest + m.size("s3") + m.inline_icon(16) + 6
 
@@ -773,10 +776,10 @@ class DegerlerScreen(QWidget):
             need = max(round(160 * self._scale()), room)
             over = others + need - self.table.viewport().width()
             if over > 0:  # still too wide: the other value columns give way down to a floor
-                floor = round(110 * self._scale())
                 for c, column in enumerate(self.model.columns):
                     if over <= 0 or c == flex or column.kind not in VALUE_KINDS:
                         continue
+                    floor = max(round(110 * self._scale()), self._note_width(c, True))
                     give = min(over, header.sectionSize(c) - floor)
                     if give > 0:
                         header.blockSignals(True)

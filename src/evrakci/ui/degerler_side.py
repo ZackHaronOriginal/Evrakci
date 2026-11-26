@@ -767,17 +767,23 @@ class SidePanel(QWidget):
         self.type_button.setProperty("action_id", "degerler.elle_yaz")
         self.variant_button = _OnceButton(" Yeni kutu çiz")
         self.variant_button.setProperty("action_id", "degerler.varyant")
-        pair = QHBoxLayout()
+        self.secondary = QWidget()
+        pair = QHBoxLayout(self.secondary)
+        pair.setContentsMargins(0, 0, 0, 0)
         pair.setSpacing(m.size("s2"))
         pair.addWidget(self.type_button, 1)
         pair.addWidget(self.variant_button, 1)
-        # the two approvals share one row, so the pinned button group stays as tall as before
+        # the two approvals share a row at 100 %; at larger text they stack and the second
+        # row of buttons follows the cards, so the pinned group is not taller than before
+        self._large = False
+        self._blank = True
         self.approve = QBoxLayout(QBoxLayout.Direction.LeftToRight)
         self.approve.setSpacing(m.size("s2"))
         self.approve.addWidget(self.accept_button, 1)
         self.approve.addWidget(self.read_button, 1)
         acts.addLayout(self.approve)
-        acts.addLayout(pair)
+        acts.addWidget(self.secondary)
+        self.acts = acts
         col.addLayout(acts)
         self.card_scroll = CardScroll(self.scroll, self.accept_button)
         col.addStretch(1)  # index 3: grows in the normal state
@@ -808,22 +814,30 @@ class SidePanel(QWidget):
         self.value.split_readings(self.stack if m.text_scale() > 100 else None)
 
     def _place_read_button(self, large_text: bool) -> None:
-        """"Okunanla onayla" sits beside the first approval at 100 % (the pinned group stays
-        as tall as with one button). At larger text two buttons do not fit side by side and a
-        third pinned row would leave no room for a card, so it follows the cards instead."""
-        in_cards = self.stack.indexOf(self.read_button) >= 0
-        if large_text == in_cards:
-            return
-        if large_text:
-            self.approve.removeWidget(self.read_button)
-            self.stack.insertWidget(self.stack.count() - 1, self.read_button)
-        else:
-            self.stack.removeWidget(self.read_button)
-            self.approve.addWidget(self.read_button, 1)
+        """At larger text the two approvals' labels do not fit side by side: they stack, both
+        pinned and visible. Elle yaz and Yeni kutu çiz then follow the cards (a third pinned
+        row would leave no room for a whole card); with nothing selected they stay pinned."""
+        self._large = large_text
+        self.approve.setDirection(QBoxLayout.Direction.TopToBottom if large_text
+                                  else QBoxLayout.Direction.LeftToRight)
+        self._place_secondary()
+
+    def _place_secondary(self) -> None:
+        in_cards = self.stack.indexOf(self.secondary) >= 0
+        want = self._large and not self._blank
+        if want != in_cards:
+            if want:
+                self.acts.removeWidget(self.secondary)
+                self.stack.insertWidget(self.stack.count() - 1, self.secondary)
+            else:
+                self.stack.removeWidget(self.secondary)
+                self.acts.addWidget(self.secondary)
         self.relayout()
 
     def set_blank(self, blank: bool) -> None:
         layout = self.layout()
+        self._blank = blank
+        self._place_secondary()
         layout.setStretch(0, 1 if blank else 0)  # blank: the card on top, actions at the bottom
         layout.setStretch(1, 0)
         layout.setStretch(3, 0 if blank else 1)

@@ -520,20 +520,55 @@ class ValuesDelegate(QStyledItemDelegate):
         pad = theme.manager().size("row-h") - metrics.lineSpacing()
         return int(metrics.lineSpacing() * lines + pad + 0.999)
 
+    def _main_font(self, cell: Cell, column: Column) -> QFont:
+        style = column.style if column.kind == "var" else column_kind([cell.main])
+        return {"number": self.fonts.num, "date": self.fonts.num,
+                "code": self.fonts.value}.get(style, self.fonts.body)
+
+    def _note_below(self, index, width: int) -> bool:
+        """True when "← okunan …" does not fit beside the suggestion at this column width:
+        the read then takes a second line in the same cell and the row grows (Q-12)."""
+        column: Column = index.data(KIND_ROLE)
+        if column.kind not in VALUE_KINDS:
+            return False
+        cell = index.model().cell_at(index)
+        if cell is None or not cell.dual:
+            return False
+        m = theme.manager()
+        room = cell_inner(QRectF(0, 0, width, 1), column.kind).width()
+        if cell.needs_check:
+            room -= m.inline_icon(16) + 6
+        return not self._note_beside(cell, column, room)
+
+    def _note_beside(self, cell: Cell, column: Column, room: float) -> bool:
+        main_w = QFontMetricsF(self._main_font(cell, column)).horizontalAdvance(cell.main)
+        note_w = QFontMetricsF(self.fonts.note).horizontalAdvance(f"← okunan {cell.read_note}")
+        return main_w + theme.manager().size("s3") + note_w <= room
+
+    def _note_height(self) -> int:
+        return int(QFontMetricsF(self.fonts.note).lineSpacing() + 0.999)
+
     def row_height(self, index, width: int) -> int | None:
         """The row height this cell asks for: its wrapped lines (at most MAX_LINES) plus A's
-        row padding; None for a cell that does not wrap."""
+        row padding, plus a line for the read when it sits below the suggestion; None for a
+        cell that does not wrap and has no second line."""
         found = self._line_count(index, width)
-        return None if found is None else self._lines_height(min(found[0], MAX_LINES),
-                                                             found[1])
+        height = None if found is None else self._lines_height(min(found[0], MAX_LINES),
+                                                               found[1])
+        if self._note_below(index, width):
+            height = (height or theme.manager().size("row-h")) + self._note_height()
+        return height
 
     def wrapped_height(self, index, width: int) -> int | None:
         """The row height a wrapping cell needs to show all of its text; None for a cell
         that does not wrap or that needs more than MAX_LINES (its last line elides)."""
         found = self._line_count(index, width)
-        if found is None or found[0] > MAX_LINES:
+        if found is not None and found[0] > MAX_LINES:
             return None
-        return self._lines_height(*found)
+        height = None if found is None else self._lines_height(*found)
+        if self._note_below(index, width):
+            height = (height or theme.manager().size("row-h")) + self._note_height()
+        return height
 
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index) -> None:
         m = theme.manager()
@@ -603,8 +638,11 @@ class ValuesDelegate(QStyledItemDelegate):
         if cell.needs_check:  # I-17: the mark sits left of the value, the word is in the tooltip
             name, role = LEVELS[cell.level][:2]
             size = m.inline_icon(16)
-            icons.paint(painter, name, QRectF(rect.left(), rect.center().y() - size / 2, size,
-                                              size), m.hex(ink or role))
+            second = 0.0  # a read on its own second line: the mark stays with the suggestion
+            if cell.dual and not self._note_beside(cell, column, rect.width() - size - 6):
+                second = self._note_height() + 6
+            icons.paint(painter, name, QRectF(rect.left(), (rect.top() + rect.bottom() - second)
+                                              / 2 - size / 2, size, size), m.hex(ink or role))
             rect = rect.adjusted(size + 6, 0, 0, 0)
         if cell.level == "okunamadi" or not cell.main:
             self._text(painter, rect, "boş", self.fonts.body, m.color(ink or "text-2"),
@@ -613,41 +651,43 @@ class ValuesDelegate(QStyledItemDelegate):
         style = column.style if column.kind == "var" else column_kind([cell.main])
         font = {"number": self.fonts.num, "date": self.fonts.num,
                 "code": self.fonts.value}.get(style, self.fonts.body)
-        if cell.dual:
-            rect = self._read_note(painter, rect, cell, column, font, ink)
-        # what was read is marked in the inspector; the cell shows the suggestion plain
         marks = () if cell.dual else cell.uncertain
-        paint_marked(painter, rect, cell.main, font, m.color(ink or "text"), marks,
+        main_rect = rect
+        if cell.dual:
+            main_rect = self._read_note(painter, rect, cell, column, font, ink)
+        # what was read is marked in the inspector; the cell shows the suggestion plain
+        paint_marked(painter, main_rect, cell.main, font, m.color(ink or "text"), marks,
                      right=column.right, on_highlight=ink is not None, wrap=style == "text")
 
     def _read_note(self, painter: QPainter, rect: QRectF, cell: Cell, column: Column,
                    font: QFont, ink: str | None) -> QRectF:
-        """"← okunan 482I3" in the secondary text role beside the suggestion (Q-12). It takes
-        only the room the suggestion leaves and elides first; none left, none drawn (the
-        tooltip and the accessible text carry it). Returns the rect left for the suggestion."""
+        """"← okunan 482I3" in the secondary text role (Q-12). Beside the suggestion when it
+        fits; otherwise on a second line of the same cell (the row is taller then). Returns
+        the rect left for the suggestion."""
         m = theme.manager()
-        main_w = QFontMetricsF(font).horizontalAdvance(cell.main)
-        gap = m.size("s3")
-        note_font = self.fonts.note
-        room = rect.width() - main_w - gap
-        metrics = QFontMetricsF(note_font)
-        if room < metrics.horizontalAdvance("← okunan ") + metrics.averageCharWidth() * 2:
-            return rect
-        arrow = "" if column.right else "← "
-        text = arrow + metrics.elidedText(f"okunan {cell.read_note}",
-                                          Qt.TextElideMode.ElideRight,
-                                          room - metrics.horizontalAdvance(arrow))
-        width = min(room, metrics.horizontalAdvance(text))
-        painter.setFont(note_font)
+        metrics = QFontMetricsF(self.fonts.note)
+        painter.setFont(self.fonts.note)
         painter.setPen(m.color(ink or "text-2"))
-        if column.right:  # the suggestion keeps the right edge; the note sits left of it
-            box = QRectF(rect.left(), rect.top(), width, rect.height())
+        if self._note_beside(cell, column, rect.width()):
+            main_w = QFontMetricsF(font).horizontalAdvance(cell.main)
+            text = f"← okunan {cell.read_note}"
+            if column.right:  # the suggestion keeps the right edge; the note sits left of it
+                box = QRectF(rect.left(), rect.top(), metrics.horizontalAdvance(text),
+                             rect.height())
+                text = f"okunan {cell.read_note}"
+            else:
+                box = QRectF(rect.left() + main_w + m.size("s3"), rect.top(),
+                             metrics.horizontalAdvance(text), rect.height())
             painter.drawText(box, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                              text)
             return rect
-        box = QRectF(rect.left() + main_w + gap, rect.top(), width, rect.height())
-        painter.drawText(box, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
-        return rect
+        height = self._note_height()
+        text = metrics.elidedText(f"okunan {cell.read_note}", Qt.TextElideMode.ElideRight,
+                                  rect.width())
+        box = QRectF(rect.left(), rect.bottom() - height - 6, rect.width(), height)
+        align = Qt.AlignmentFlag.AlignRight if column.right else Qt.AlignmentFlag.AlignLeft
+        painter.drawText(box, Qt.AlignmentFlag.AlignVCenter | align, text)
+        return QRectF(rect).adjusted(0, 0, 0, -(height + 6))
 
     @staticmethod
     def _focus_ring(painter: QPainter, rect: QRectF) -> None:

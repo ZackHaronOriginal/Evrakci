@@ -11,8 +11,11 @@ and they cannot be filtered or deleted. `combine()` joins a match with the curre
 Kinds of this step: `belge` (param `number`, the document's number from 1), `tek` and `cift`
 (param `within`: count only inside the documents the selection touches). Odd and even are
 counted from the first page of each document (1st, 3rd, 5th ... / 2nd, 4th ...), because that
-is what a duplex pile follows. The kinds `bos`, `farkli` and `guven` of the later steps plug in
-with `kind()` and need nothing else here.
+is what a duplex pile follows. The kind `bos` (param `ink`, the highest ink share as a fraction,
+default `analyze.EMPTY_INK_RATIO`) gives the pages with less ink than that; QR separator pages
+never match and blank pages already deleted are counted apart (`reasons["silinmis"]`), not
+selected. The kinds `farkli` and `guven` of the later steps plug in with `kind()` and need
+nothing else here.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
+from evrakci.pipeline.analyze import EMPTY_INK_RATIO
 from evrakci.pipeline.cuts import Document, compute_documents
 from evrakci.pipeline.job import Job
 
@@ -143,3 +147,37 @@ def _odd(job: Job, criterion: Criterion, _templates: Mapping, selection: frozens
 @kind("cift")
 def _even(job: Job, criterion: Criterion, _templates: Mapping, selection: frozenset) -> Match:
     return _every_other(job, criterion, selection, 1)
+
+
+def blank_limit(criterion: Criterion) -> float:
+    """The ink share a `bos` criterion allows; the default when the param is missing or bad."""
+    value = criterion.params.get("ink", EMPTY_INK_RATIO)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        return EMPTY_INK_RATIO
+    return float(value)
+
+
+@kind("bos")
+def _blank(job: Job, criterion: Criterion, _templates: Mapping, _selection: frozenset) -> Match:
+    limit = blank_limit(criterion)
+    found: list[str] = []
+    deleted = 0
+    for pid in job.ordered_page_ids():
+        info = job.pages[pid]
+        if info.is_separator or info.ink_ratio >= limit:
+            continue
+        if pid in job.deleted:
+            deleted += 1
+        else:
+            found.append(pid)
+    found_set = set(found)
+    touched = sum(1 for document in _documents(job) if found_set.intersection(document.page_ids))
+    return Match(tuple(found), touched, {"silinmis": deleted} if deleted else {})
+
+
+def ink_range(job: Job, match: Match) -> tuple[float, float] | None:
+    """The emptiest and the fullest page of `match` as ink shares, or None for no pages."""
+    if not match.page_ids:
+        return None
+    shares = [job.pages[pid].ink_ratio for pid in match.page_ids]
+    return min(shares), max(shares)

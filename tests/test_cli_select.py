@@ -64,4 +64,4 @@ def test_nothing_matches_and_errors(tmp_path, capsys):
     assert "--numara" in capsys.readouterr().err  # argparse's own "required" message
     assert run("is", "sec", "yok", "tek") == 2
     assert "İş bulunamadı" in capsys.readouterr().err
-    assert run("is", "sec", job_id, "bos") == 2
+    assert run("is", "sec", job_id, "yok") == 2

@@ -370,8 +370,25 @@ class KontrolScreen(QWidget):
             return
         try:
             registry.set_hidden("kontrol.bos_geri_getir", not self.can_show_restore_empty())
+            self._show_drop_empty(self.controller.job.drop_empty)
         except RuntimeError:  # the window is being torn down
             pass
+
+    def _show_drop_empty(self, on: bool) -> None:
+        """The check mark of "Boş sayfaları at" follows the job (also after Geri al)."""
+        action = self.registry.action("kontrol.bos_at")
+        if action.isChecked() != on:
+            action.blockSignals(True)
+            action.setChecked(on)
+            action.blockSignals(False)
+            action.changed.emit()
+
+    def toggle_drop_empty(self, *_args) -> None:
+        """Araçlar, Boş sayfaları at: the job's switch, one undo step ("Boş sayfaları at").
+        Dropped pages stay drawn in the timeline."""
+        on = self.registry.action("kontrol.bos_at").isChecked()
+        if not self.controller.set_drop_empty(on):
+            self._show_drop_empty(self.controller.job.drop_empty)
 
     def remove_filter(self) -> None:
         """Shift+F, Filtreyi kaldır: the selected pages leave their filters (one undo step)."""
@@ -641,7 +658,10 @@ class KontrolScreen(QWidget):
             self.timeline.setFocus()
             return 0
         self._select_ids(ids)
-        self._toast(f"{len(ids)} sayfa seçildi.", undo=False)
+        if criterion.kind == "bos":
+            self._toast(f"{len(ids)} boş sayfa seçildi. Silmek için Del.", undo=False)
+        else:
+            self._toast(f"{len(ids)} sayfa seçildi.", undo=False)
         return len(ids)
 
     def select_document(self) -> None:

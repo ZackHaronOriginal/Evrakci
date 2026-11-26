@@ -109,7 +109,8 @@ def test_the_select_dialog_counts_and_selects_odd_pages(qtbot, tmp_path, monkeyp
     monkeypatch.setattr(SelectDialog, "exec", answer)
     _key(window, Qt.Key.Key_S)
     assert seen["title"] == "Sayfaları seç" and seen["checked"] == "belge"
-    assert seen["counts"] == {"belge": "2", "tek": "6", "cift": "4"}  # documents of 3, 2, 4, 1
+    # documents of 3, 2, 4, 1; the demo job has no blank page
+    assert seen["counts"] == {"belge": "2", "tek": "6", "cift": "4", "bos": "Hiç yok"}
     assert seen["hint"] == "Her belgenin 1., 3., 5. ... sayfaları"
     assert _chosen(window) == [0, 2, 4, 7, 9, 12]
     assert window.toaster.current_text() == "6 sayfa seçildi."

@@ -546,5 +546,6 @@ def test_b104_an_anti_aliased_mix_of_the_declared_colour_counts_as_that_colour()
     bg, text2 = 0xFFFFFF, 0x5C5C5C
     mid = 0xA0A0A0  # 60 % of the way from white to text-2 in every channel
     assert um._blend_of(mid, text2, bg)
-    assert not um._blend_of(0xA06060, text2, bg)  # a red tint is not a mix of grey and white
+    assert um._blend_of(0x6E6997, text2, bg)  # CI's subpixel-tinted edge of grey on white
     assert not um._blend_of(0x202020, text2, bg)  # darker than declared: a different colour
+    assert not um._blend_of(0xFFFFFF, text2, bg)  # the background itself is no ink

@@ -378,7 +378,12 @@ def _blend_of(colour: int, declared: int, background: int, slack: float = 0.12) 
         if ok and fractions and all(0 < t <= 1.03 for t in fractions) \
                 and max(fractions) - min(fractions) <= slack:
             return True
-    return False
+    # subpixel smoothing (seen on CI: ".pdf" sampled as #6e6997 for a grey text colour) tints
+    # the edge pixels, so the channels move apart; their brightness still lies between the
+    # background and the declared colour
+    lum_c, lum_d, lum_b = _luminance(colour), _luminance(declared), _luminance(background)
+    low, high = sorted((lum_d, lum_b))
+    return low - 0.01 <= lum_c <= high + 0.01 and abs(lum_c - lum_b) > 0.02
 
 
 def _dominant(hist: Counter[int]) -> int:

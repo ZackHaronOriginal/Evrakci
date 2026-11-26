@@ -17,6 +17,8 @@ GO_TO_ELSEWHERE = "Belgeye gitmek için Kontrol sekmesini açın (Ctrl+2)."
 NO_DOCUMENT = "Gidilecek bir belge yok."
 DOCUMENT_NOT_SHOWN = "Belge {number} bu görünümde yok."
 PAGE_NOT_SHOWN = "Sayfa {number} bu görünümde yok."
+READ_FAILED = "Örnek sayfa okunamadı. Yükle sekmesinden işi kontrol edin."
+DAMAGED_NEXT = " Dosyayı kontrol edin veya silin."
 NO_VARIABLE_TO_FIND = "Aranacak değişken yok."
 NO_RESULTS_HERE = "Bu sekmede aranacak sonuç yok."
 NO_HITS = "Sonuç yok."
@@ -353,6 +355,8 @@ _RULES = {
     "sablonlar.degisken_ekle": _add_variable,
     "sablonlar.yukari": _sablon_up,
     "sablonlar.asagi": _sablon_down,
+    **dict.fromkeys(("sablonlar.sablon_adlandir", "sablonlar.sablon_cogalt",
+                     "sablonlar.sablon_sil", "sablonlar.sablon_disa"), _add_variable),
     "degerler.onayla": _degerler_value,
     "degerler.okunanla_onayla": _degerler_value,
     "degerler.elle_yaz": _degerler_value,

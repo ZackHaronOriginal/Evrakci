@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import time
+
 from PySide6.QtGui import QUndoCommand
+
+MERGE_WINDOW_S = 1.0  # the same box edited again within this time is one undo step (Ş-3)
+clock = time.monotonic  # replaced in tests
 
 
 class TemplateEdit(QUndoCommand):
@@ -13,6 +18,7 @@ class TemplateEdit(QUndoCommand):
         super().__init__(text)
         self.screen, self.before, self.after, self.first = screen, before, after, True
         self._id = merge_id
+        self.stamp = clock()
 
     def id(self) -> int:
         return self._id
@@ -20,7 +26,11 @@ class TemplateEdit(QUndoCommand):
     def mergeWith(self, other: QUndoCommand) -> bool:  # noqa: N802
         if self._id < 0 or other.id() != self._id:
             return False
+        now = clock()
+        if now - self.stamp > MERGE_WINDOW_S:  # a later, separate edit keeps its own step
+            return False
         self.after = other.after
+        self.stamp = now
         return True
 
     def redo(self) -> None:

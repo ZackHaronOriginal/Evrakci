@@ -498,12 +498,18 @@ class ActionButton(QToolButton):
         left = 2 * m.size("s2") + self.iconSize().width()
         return QRect(left, 0, max(0, self.width() - left - m.size("s3")), self.height())
 
+    def accented(self) -> bool:
+        """A labelled mode button that is on (Kutu çiz) is an accent fill, so the mode cannot
+        be missed (F-sablonlar-38); icon buttons keep the quiet `selected` fill."""
+        return self.labelled() and self.isCheckable() and self.isChecked()
+
     def refresh(self) -> None:
         """Icon for the theme and A's box: 36 px square, or s2 + icon + s2 + label + s3."""
         m = theme.manager()
         size = m.size("icon-md")
         self.setIconSize(QSize(size, size))
-        self.setIcon(make_icon(self.icon_name, "icon", size, 1.6))
+        self.setIcon(make_icon(self.icon_name, "text-on-accent" if self.accented() else "icon",
+                               size, 1.6))
         side = m.size("icon-btn")
         if not self.labelled():
             self.setFixedSize(side, side)
@@ -528,7 +534,8 @@ class ActionButton(QToolButton):
         self.icon().paint(painter, QRect(m.size("s2"), (self.height() - size) // 2, size, size),
                           Qt.AlignmentFlag.AlignCenter, mode)
         painter.setFont(self.label_font())
-        painter.setPen(m.color("text" if self.isEnabled() else "text-disabled"))
+        painter.setPen(m.color("text-on-accent" if self.accented() else
+                               "text" if self.isEnabled() else "text-disabled"))
         painter.drawText(self.text_rect(), Qt.AlignmentFlag.AlignVCenter
                          | Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextSingleLine, self.text())
 
@@ -547,6 +554,12 @@ class ActionButton(QToolButton):
         self.setCheckable(action.isCheckable())
         if action.isCheckable():
             self.setChecked(action.isChecked())
+        on = self.accented()
+        if bool(self.property("accentOn")) != on:
+            self.setProperty("accentOn", on)
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.refresh()  # the icon colour follows
         self.setToolTip(action.toolTip())
         self.setAccessibleName(action.toolTip())
 

@@ -43,7 +43,7 @@ def validate_name(name: str) -> str:
     if "{" in cleaned or "}" in cleaned:
         raise TemplateError(f"Değişken adında {{ veya }} olamaz: {cleaned}")
     if _has_hidden_characters(cleaned):
-        raise TemplateError(f"Değişken adında görünmeyen veya özel karakter var: {cleaned!r}")
+        raise TemplateError("Değişken adında görünmeyen veya özel karakter var. Adı yeniden yazın.")
     return cleaned
 
 
@@ -118,7 +118,7 @@ def validate_filter_name(name: str) -> str:
     if not cleaned:
         raise TemplateError("Filtre adı boş olamaz.")
     if _has_hidden_characters(cleaned):
-        raise TemplateError(f"Filtre adında görünmeyen veya özel karakter var: {cleaned!r}")
+        raise TemplateError("Filtre adında görünmeyen veya özel karakter var. Adı yeniden yazın.")
     return cleaned
 
 

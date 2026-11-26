@@ -21,8 +21,8 @@ from evrakci.pipeline.templates.values import SectionReading, VariableValue
 __all__ = ["NO_PAGE", "OUTSIDE", "ExampleWeakness", "SectionReading", "VariableValue",
            "flagged_count", "read_document", "tried", "weakest_examples"]
 
-NO_PAGE = "sayfa yok"
-OUTSIDE = "kutu sayfa dışında"
+NO_PAGE = "Bu örnekte böyle bir sayfa yok. Kutunun sayfasını değiştirin."
+OUTSIDE = "Kutu sayfanın dışında. Kutuyu sayfa içine taşıyın."
 
 
 def _page_index(section: Section, page_count: int) -> int | None:

@@ -7,11 +7,34 @@ A mixin of `SablonScreen`; every `_sync_*` reads the screen's state and changes 
 
 from __future__ import annotations
 
+import re
+
 from evrakci.pipeline.templates.read import flagged_count
 from evrakci.ui import actions
 from evrakci.ui import sablon_read as reading
 from evrakci.ui.sablon_canvas import fmt_mm
 from evrakci.ui.sablon_inspector import InspectorState
+
+_AT = {0: "da", 1: "de", 2: "de", 3: "te", 4: "te", 5: "te", 6: "da", 7: "de", 8: "de", 9: "da"}
+_AT_TENS = {1: "da", 2: "de", 3: "da", 4: "ta", 5: "de", 6: "ta", 7: "te", 8: "de", 9: "da"}
+
+
+def locative(number: int) -> str:
+    """The suffix after a number read aloud: 3'te, 6'da, 40'ta, 100'de."""
+    ones, tens = number % 10, number // 10 % 10
+    if ones:
+        return _AT[ones]
+    return _AT_TENS[tens] if tens else "de"
+
+
+def drawn_on(example: str | None) -> str:
+    """", Örnek 3'te çizildi" from the example a section was drawn on (F-sablonlar-41);
+    nothing when the stored name has no document number."""
+    found = re.search(r"Belge (\d+)", example or "")
+    if not found:
+        return ""
+    number = int(found.group(1))
+    return f", Örnek {number}'{locative(number)} çizildi"
 
 
 class Syncing:
@@ -87,8 +110,9 @@ class Syncing:
             shown = reading.shown_for(self.values.get(variable.key), index, self._minimum())
             state = InspectorState(
                 "box", f"Kutu {index + 1} / {len(variable.sections)}", variable.name,
-                f"Bölüm {index + 1}, {page}", variable.name, variable.required, section.page,
-                section.box_mm, sheet, read_title, shown if self.values else None, self._busy)
+                f"Bölüm {index + 1}, {page}{drawn_on(section.example)}", variable.name,
+                variable.required, section.page, section.box_mm, sheet, read_title,
+                shown if self.values else None, self._busy)
         self.side.show_state(state)
         extent = state.box if state.mode == "box" else None
         self.well.set_extent(extent)
@@ -118,6 +142,9 @@ class Syncing:
             "sablonlar.kutu_sil": has_variable, "sablonlar.kutu_cogalt": has_box and page,
             "sablonlar.degisken_ekle": has, "sablonlar.yukari": up, "sablonlar.asagi": down,
             "sablonlar.okumalari_goster": page,
+            "sablonlar.sablon_adlandir": has, "sablonlar.sablon_cogalt": has,
+            "sablonlar.sablon_sil": has, "sablonlar.sablon_disa": has,
+            "sablonlar.sablon_ice": True,
         }
         for action_id, enabled in states.items():
             registry.set_enabled(action_id, enabled)
@@ -156,6 +183,8 @@ class Syncing:
         total = len(self._documents())
         has = self.template is not None
         page = has and self.canvas.has_page()
+        s["draw"].setVisible(self._drawing and page)  # the mode must not be missed (Ş-2)
+        s["draw"].set("", "Kutu çiz açık", ": sayfada sürükleyin, Esc ile çıkın.")
         s["example"].setVisible(page)
         s["example"].set("Örnek ", str(self.example), f" / {total}")
         focused = self.canvas.hasFocus() and self.canvas.selected_item() is not None

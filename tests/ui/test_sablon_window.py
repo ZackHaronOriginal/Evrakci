@@ -228,7 +228,7 @@ def test_a_template_without_variables_says_how_to_start(qtbot, tmp_path):
     assert screen.template.name == "Boş şablon" and screen.template.variables == []
     assert screen.side.title.full_text() == "Değişken yok"
     assert "Ctrl+Shift+N" in screen.side.sub.text()
-    assert "henüz değişken yok" in screen.nav.foot.text()
+    assert "henüz değişken yok" in screen.variables.hint  # inside the empty card (Ş-5)
 
 
 def test_the_empty_state_is_the_mockups_and_its_actions_work(qtbot, tmp_path):

@@ -36,18 +36,40 @@ def default_template_root() -> Path:
     return Path(configured) if configured else data_dir() / "templates"
 
 
-def _write(path: Path, template: Template) -> None:
+def _atomic(path: Path, data: bytes) -> None:
+    """Write `data` to a temporary file in the same folder, then replace `path` in one step:
+    a crash leaves the old file or the new one, never half of either."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(template_to_dict(template), ensure_ascii=False, indent=1)
     handle, temporary = tempfile.mkstemp(dir=path.parent, prefix=".sablon-", suffix=".tmp")
     try:
-        with os.fdopen(handle, "w", encoding="utf-8") as out:
-            out.write(text)
+        with os.fdopen(handle, "wb") as out:
+            out.write(data)
         os.chmod(temporary, _FILE_MODE)
         os.replace(temporary, path)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def _write(path: Path, template: Template) -> None:
+    text = json.dumps(template_to_dict(template), ensure_ascii=False, indent=1)
+    _atomic(path, text.encode("utf-8"))
+
+
+MAX_NAME = 100
+INVALID_NAME = "Şablon adı geçersiz."
+
+
+def clean_name(name: str) -> str:
+    """The name as stored: trimmed, NFC. A control character (NUL, newline), a brace (the
+    file-name pattern's own syntax) or more than MAX_NAME characters is refused (F-sablonlar-25)."""
+    name = unicodedata.normalize("NFC", name or "").strip()
+    if not name:
+        raise TemplateError("Şablon adı boş olamaz.")
+    if (len(name) > MAX_NAME or "{" in name or "}" in name
+            or any(unicodedata.category(c).startswith("C") for c in name)):
+        raise TemplateError(INVALID_NAME)
+    return name
 
 
 def _read(path: Path, label: str) -> Template:
@@ -68,9 +90,13 @@ class TemplateStore:
             raise KeyError(template_id)  # ids are hex; anything else never touches the disk
         return self.root / f"{template_id}.json"
 
-    def _unique_name(self, name: str) -> str:
+    def unique_name(self, name: str, exclude: str | None = None) -> str:
+        """`name`, or "name (2)", "name (3)"... when another template (not `exclude`) has it."""
+        return self._unique_name(name, exclude)
+
+    def _unique_name(self, name: str, exclude: str | None = None) -> str:
         name = unicodedata.normalize("NFC", name)
-        names = {t.name for t in self.list()}
+        names = {t.name for t in self.list() if t.id != exclude}
         if name not in names:
             return name
         number = 2
@@ -79,9 +105,7 @@ class TemplateStore:
         return f"{name} ({number})"
 
     def create(self, name: str) -> Template:
-        name = name.strip()
-        if not name:
-            raise TemplateError("Şablon adı boş olamaz.")
+        name = clean_name(name)
         template = Template(id=uuid.uuid4().hex[:10], name=self._unique_name(name))
         self.save(template)
         return template
@@ -109,6 +133,38 @@ class TemplateStore:
                 if on_error:
                     on_error(path.stem)
         return sorted(templates, key=lambda t: (t.name.casefold(), t.id))
+
+    def rename(self, template_id: str, name: str) -> Template:
+        """A new name (made unique like a new template's); everything else stays as it is."""
+        name = clean_name(name)
+        template = self.load(template_id)
+        template.name = self._unique_name(name, exclude=template_id)
+        self.save(template)
+        return template
+
+    def duplicate(self, template_id: str) -> Template:
+        """A copy under a new id: "Ad (kopya)", every variable, box and setting the same."""
+        source = self.load(template_id)
+        copy = template_from_dict(template_to_dict(source))
+        copy.id = uuid.uuid4().hex[:10]
+        copy.name = self._unique_name(f"{source.name} (kopya)")
+        self.save(copy)
+        return copy
+
+    def raw(self, template_id: str) -> bytes:
+        """The file's bytes as they are on disk, for `restore` after a delete."""
+        path = self._path(template_id)
+        if not path.is_file():
+            raise KeyError(template_id)
+        return path.read_bytes()
+
+    def restore(self, template_id: str, data: bytes) -> None:
+        """Put back what `raw` returned, byte for byte, in one atomic step. Never writes over
+        a file that exists now (a template made meanwhile with that id keeps its place)."""
+        path = self._path(template_id)
+        if path.exists():
+            raise TemplateError(f"Bu şablon zaten var: {template_id}")
+        _atomic(path, data)
 
     def delete(self, template_id: str) -> None:
         path = self._path(template_id)
@@ -141,6 +197,6 @@ class TemplateStore:
             raise TemplateError(f"Dosya bulunamadı: {path.name}")
         template = _read(path, path.name)
         template.id = uuid.uuid4().hex[:10]  # never trust an id (or path) from a file
-        template.name = self._unique_name(template.name)
+        template.name = self._unique_name(clean_name(template.name))
         self.save(template)
         return template

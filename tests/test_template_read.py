@@ -97,13 +97,16 @@ def test_last_page_and_missing_page():
     assert read_by_name(template(last), 2, page, engine)["Ünvan"].value == "X"
     assert seen == [1]
     value = read_by_name(template(third), 2, page, engine)["Ünvan"]
-    assert value.flagged and value.readings[0].problem == "sayfa yok"
+    assert value.flagged
+    assert value.readings[0].problem == (
+        "Bu örnekte böyle bir sayfa yok. Kutunun sayfasını değiştirin.")
 
 
 def test_box_outside_page():
     outside = Section(1, (230.0, 10.0, 260.0, 20.0))
     value = read_by_name(template(outside), 1, blank, SizeEngine({}))["Ünvan"]
-    assert value.flagged and value.readings[0].problem == "kutu sayfa dışında"
+    assert value.flagged
+    assert value.readings[0].problem == "Kutu sayfanın dışında. Kutuyu sayfa içine taşıyın."
 
 
 def test_variable_without_sections():

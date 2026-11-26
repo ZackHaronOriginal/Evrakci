@@ -287,7 +287,6 @@ class InspectorPanel(QWidget):
         scroll.setWidget(body)
         outer.addWidget(scroll, 1)
         self.save = QPushButton(" Şablonu kaydet")
-        self.save.setProperty("variant", "primary")
         self.save.setProperty("sizeVariant", "lg")
         self.save.setAccessibleName("Şablonu kaydet")
         self.save.setProperty("action_id", "app.kaydet")

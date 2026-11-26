@@ -13,6 +13,7 @@ from PySide6.QtCore import QTimer
 from evrakci.pipeline.templates.model import template_from_dict, template_to_dict
 from evrakci.pipeline.templates.read import flagged_count
 from evrakci.ui import sablon_read as reading
+from evrakci.ui.refusals import READ_FAILED
 from evrakci.ui.workers import BUSY_REASON, Task, start
 
 
@@ -70,10 +71,10 @@ class LiveReads:
 
     def _read_failed(self, message: str) -> None:
         self.values = {}
-        self.read_lines = [f"Okunamadı: {message}"]
+        self.read_lines = ["Örnek sayfa okunamadı."]  # never the raw path (F-sablonlar-18)
         self._push_readings()
         self._read_finished()
-        self.message.setText(f"Okuma yapılamadı: {message}")
+        self.message.setText(READ_FAILED)
         self._sync_all()
 
     def _show_reads(self, values) -> None:
@@ -86,7 +87,7 @@ class LiveReads:
         self.values = values
         self.example_values[self.example] = values
         self.read_lines = reading.lines(self._read_template, values)
-        if self.message.text().startswith("Okuma yapılamadı"):
+        if self.message.text() == READ_FAILED:
             self.message.setText("")
         self._read_finished()
         self._push_readings()

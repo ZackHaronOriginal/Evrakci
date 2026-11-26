@@ -44,6 +44,8 @@ NOT_KNOWN = "Tanınmıyor"
 NOT_KNOWN_TIP = "Bu filtreyi bu sürüm tanımıyor"
 NO_TEMPLATE = "Şablon yok"
 NONE_ON = "Hiçbir filtre açık değil"
+SAVE_FAILED = ("Şablon kaydedilemedi. Diskte yer olduğundan emin olup "  # the Şablonlar text
+               "Şablonu kaydet'e basın.")
 CHIP_MIN_H = 32
 MIN_NAME_CHARS = 12  # a name is never cut below this many characters
 
@@ -582,7 +584,7 @@ class SaveFilterDialog(QDialog):
     def accept(self) -> None:
         try:
             name = self.name()
-            if name in self._taken:
+            if name.casefold() in {t.casefold() for t in self._taken}:
                 raise TemplateError(f"Bu adla bir filtre zaten var: {name}")
         except TemplateError as error:
             self.error.setText(str(error))

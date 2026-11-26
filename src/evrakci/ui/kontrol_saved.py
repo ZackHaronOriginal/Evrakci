@@ -24,6 +24,7 @@ from evrakci.ui.feedback import undo_last
 from evrakci.ui.kontrol_chips import (
     NO_TEMPLATE,
     NOT_KNOWN_TIP,
+    SAVE_FAILED,
     ChipInfo,
     ChipRow,
     SaveFilterDialog,
@@ -55,6 +56,7 @@ class SavedFiltersMixin:
         self._chip_selection: tuple[str, ...] | None = None  # what the chips selected
         self._result: tuple[Criterion, frozenset[str]] | None = None  # a "select by" result
         self._chip_counts: dict[tuple[str, str], int] = {}
+        self._chip_bad: set[tuple[str, str]] = set()  # filters whose settings cannot be run
         self._chips_busy = False
         self._chips_timer = QTimer(self)
         self._chips_timer.setSingleShot(True)
@@ -86,6 +88,12 @@ class SavedFiltersMixin:
         pending = self._result_pending()
         if not pending:
             self._result = None
+        on_set = self._chip_on.get(owner or "")
+        if on_set and not self._chips_busy and (
+                self._chip_selection is None
+                or set(self._chosen_ids()) != set(self._chip_selection)):
+            on_set.clear()  # the selection is no longer what the chips made: they are off
+            self._chip_selection = None
         filters = list(template.saved_filters) if template is not None else []
         visible = bool(filters) or pending
         row.setVisible(visible)
@@ -93,8 +101,8 @@ class SavedFiltersMixin:
             return
         on = self._chip_on.get(owner or "", set())
         known = set(kinds())
-        infos = [ChipInfo(f.name, f.kind in known, self._chip_counts.get((owner or "", f.name)))
-                 for f in filters]
+        infos = [ChipInfo(f.name, f.kind in known and (owner or "", f.name) not in self._chip_bad,
+                          self._chip_counts.get((owner or "", f.name))) for f in filters]
         row.set_chips(infos, {n for n in on if any(f.name == n for f in filters)})
         row.set_note("" if template is not None else NO_TEMPLATE)
         row.set_can_save(template is not None and pending)
@@ -105,6 +113,7 @@ class SavedFiltersMixin:
     def _chips_invalidate(self) -> None:
         """The job or the template changed: the counts are stale, count again when idle."""
         self._chip_counts.clear()
+        self._chip_bad.clear()
         if hasattr(self, "chips") and not self.chips.isHidden():
             self._chips_timer.start()
 
@@ -119,6 +128,8 @@ class SavedFiltersMixin:
         for item in template.saved_filters:
             if item.kind in kinds():
                 result = select_pages(job, [Criterion(item.kind, item.params)], templates)
+                if result.unknown_at:
+                    self._chip_bad.add((template.id, item.name))
                 self._chip_counts[(template.id, item.name)] = len(result.page_ids)
         self._chips_sync()
 
@@ -126,7 +137,8 @@ class SavedFiltersMixin:
     def _chips_criteria(self, template: Template) -> list[Criterion]:
         names = set(self.chips.on_names())
         return [Criterion(f.kind, f.params) for f in template.saved_filters
-                if f.name in names and f.kind in kinds()]
+                if f.name in names and f.kind in kinds()
+                and (template.id, f.name) not in self._chip_bad]
 
     def _chips_summary(self, template: Template | None, templates: Mapping) -> None:
         if template is None:
@@ -147,10 +159,23 @@ class SavedFiltersMixin:
             return
         self._chip_on[template.id] = set(self.chips.on_names())
         criteria = self._chips_criteria(template)
+        if criteria:
+            found = select_pages(self.controller.job, criteria, templates)
+            if found.unknown_at:  # settings that cannot run: those chips turn inert
+                names = self._runnable_on(template)
+                for number in found.unknown_at:
+                    self._chip_bad.add((template.id, names[number]))
+                self._chip_on[template.id] -= {n for t, n in self._chip_bad if t == template.id}
+                self._chips_busy = True
+                try:
+                    self._chips_sync(templates)
+                finally:
+                    self._chips_busy = False
+                self._chips_changed()
+                return
         self._chips_busy = True
         try:
             if criteria:
-                found = select_pages(self.controller.job, criteria, templates)
                 self._chip_selection = found.page_ids
                 self.timeline.select_row_set(self.model.row_of(p) for p in found.page_ids)
                 self._chip_owner_id = template.id
@@ -165,6 +190,13 @@ class SavedFiltersMixin:
                 self.chips.set_count_text(count_text(0, 0))
         finally:
             self._chips_busy = False
+
+    def _runnable_on(self, template: Template) -> list[str]:
+        """Names of the turned-on chips that go into the criteria, in the criteria's order."""
+        names = set(self.chips.on_names())
+        return [f.name for f in template.saved_filters
+                if f.name in names and f.kind in kinds()
+                and (template.id, f.name) not in self._chip_bad]
 
     def _chip_inert(self, _name: str) -> None:
         self.controller.status.emit(NOT_KNOWN_TIP)
@@ -212,8 +244,8 @@ class SavedFiltersMixin:
         if template is None or not any(f.name == name for f in template.saved_filters):
             return
         number = next(n for n, c in enumerate(self.chips.chips) if c.info.name == name)
-        self._chip_on.get(template.id, set()).discard(name)
         if self._edit_template(template.id, DELETED, lambda t: t.remove_saved_filter(name)):
+            self._chip_on.get(template.id, set()).discard(name)
             had_focus = any(c.hasFocus() for c in self.chips.chips)
             self._chips_changed_after_edit()
             if had_focus and self.chips.chips:
@@ -235,12 +267,12 @@ class SavedFiltersMixin:
         new = dialog.name()
         if new == name:
             return
-        on = self._chip_on.get(template.id, set())
-        if name in on:
-            on.discard(name)
-            on.add(new)
         if self._edit_template(template.id, RENAME_STEP,
                                lambda t: t.rename_saved_filter(name, new)):
+            on = self._chip_on.get(template.id, set())
+            if name in on:
+                on.discard(name)
+                on.add(new)
             self._chips_changed_after_edit()
             self.chips.focus_row()
 
@@ -272,6 +304,9 @@ class SavedFiltersMixin:
             return self._edit_in_memory(template_id, text, change)
         except TemplateError as error:
             self.controller.status.emit(str(error))
+            return False
+        except OSError:
+            self.controller.status.emit(SAVE_FAILED)
             return False
 
     def _edit_in_memory(self, template_id: str, text: str, change) -> bool:

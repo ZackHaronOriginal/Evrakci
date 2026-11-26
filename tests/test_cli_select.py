@@ -123,17 +123,49 @@ def test_is_sec_sablon_says_unknown_kinds_and_refuses_bad_use(tmp_path, capsys):
     template = store.load(template_id)
     template.add_saved_filter("Gelecek", "gelecek")
     store.save(template)
-    assert secs("--sablon", template_id, "--filtre", "Gelecek") == 0
-    out = capsys.readouterr().out
-    assert "Gelecek: Tanınmıyor" in out and "Eşleşen sayfa yok." in out
+    assert secs("--sablon", template_id, "--filtre", "Gelecek") == 2  # refused, no count
+    captured = capsys.readouterr()
+    assert "Gelecek: Bu filtreyi bu sürüm tanımıyor" in captured.err
+    assert "filtre açık" not in captured.out and "sayfa" not in captured.out
     assert secs("--sablon", template_id, "--filtre", "Yok") == 2
     assert "Filtre yok" in capsys.readouterr().err
     assert secs("--sablon", "ffff") == 2
     assert "Şablon bulunamadı" in capsys.readouterr().err
     assert secs() == 2  # no criterion and no template: argparse's own message
-    assert "olcut" in capsys.readouterr().err
-    assert secs("--sablon", template_id, "tek") == 2
-    capsys.readouterr()
+    assert "required: olcut" in capsys.readouterr().err
+    assert secs("--filtre", "Tekler") == 2  # --filtre alone is not ignored
+    assert "--filtre needs --sablon" in capsys.readouterr().err
+    assert secs("--sablon", template_id, "cift", "--sil") == 2
+    assert "usage:" in capsys.readouterr().err
+
+
+def test_bad_settings_of_a_known_kind_are_refused_like_an_unknown_kind(tmp_path, capsys):
+    from evrakci.pipeline.templates.store import TemplateStore
+
+    secs, _store, _job_id, template_id, templates = saved_filters(tmp_path, capsys)
+    store = TemplateStore(templates)
+    template = store.load(template_id)
+    template.add_saved_filter("Bozuk", "farkli", {"by": 5})
+    store.save(template)
+    assert secs("--sablon", template_id, "--filtre", "Bozuk") == 2
+    assert "Bozuk: Bu filtreyi bu sürüm tanımıyor" in capsys.readouterr().err
+
+
+def test_a_criterion_after_sablon_is_anded_with_the_filters(tmp_path, capsys):
+    from evrakci.pipeline.select import select_pages
+
+    secs, store, job_id, template_id, _templates = saved_filters(tmp_path, capsys)
+    job = store.load(job_id)
+    assert secs("--sablon", template_id, "--filtre", "Tekler", "cift") == 0
+    out = capsys.readouterr().out
+    expected = select_pages(job, [Criterion("tek"), Criterion("cift")])
+    assert not expected.page_ids and "Eşleşen sayfa yok." in out
+    assert secs("--sablon", template_id, "--filtre", "Tekler", "--filtre", "Tekler",
+                "belge", "--numara", "2") == 0
+    out = capsys.readouterr().out
+    expected = select_pages(job, [Criterion("tek"), Criterion("belge", {"number": 2})])
+    assert "2 filtre açık: 2 sayfa" in out and len(expected.page_ids) == 2
+    assert printed_positions(out) == [6, 8]
 
 
 def test_a_template_without_filters_says_none_is_on(tmp_path, capsys):

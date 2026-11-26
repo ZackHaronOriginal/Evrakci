@@ -157,3 +157,12 @@ def test_select_pages_reports_an_unknown_kind_and_never_hides_it():
     assert found.page_ids == pids(0, 2)  # what the known criteria give is still there
     only_unknown = select_pages(job, [Criterion("gelecek")])
     assert only_unknown.page_ids == () and only_unknown.unknown_kinds == ("gelecek",)
+
+
+def test_select_pages_treats_criteria_that_raise_as_unknown():
+    from evrakci.pipeline.select import select_pages
+
+    job = job_from_kinds({"a": "pppp"})
+    found = select_pages(job, [Criterion("tek"), Criterion("farkli", {"by": 5})])
+    assert found.unknown_at == (1,) and found.unknown_kinds == ("farkli",)
+    assert found.per_filter_counts[1] == 0 and found.page_ids == pids(0, 2)

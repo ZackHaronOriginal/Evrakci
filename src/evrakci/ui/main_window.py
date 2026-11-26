@@ -58,7 +58,7 @@ from evrakci.ui.disa_aktar import DisaAktarScreen
 from evrakci.ui.feedback import Toaster
 from evrakci.ui.kontrol import KontrolScreen
 from evrakci.ui.kontrol_actions import DIMMABLE, NO_JOB_TEXT, KontrolStatus, menu_bar_entry
-from evrakci.ui.kontrol_chips import TemplateStep
+from evrakci.ui.kontrol_chips import SAVE_FAILED, TemplateStep
 from evrakci.ui.loading import LoadingCard
 from evrakci.ui.palette import CommandPalette
 from evrakci.ui.prefs import Prefs
@@ -1270,20 +1270,31 @@ class MainWindow(QMainWindow):
         A TemplateError from `change` goes to the caller."""
         if self.sablon.template is not None and self.sablon.template.id == template_id:
             change(template_from_dict(template_to_dict(self.sablon.template)))  # a trial run
-            return self.sablon._edit(text, change)
+            done = self.sablon._edit(text, change)
+            if done and self.sablon._save_error:  # the editor kept the edit but could not write
+                raise OSError(self.sablon._save_error)
+            return done
         try:
             template = self.template_store.load(template_id)
-        except (KeyError, TemplateError):
-            return False
+        except KeyError:
+            raise TemplateError(f"Şablon dosyası okunamadı: {template_id}") from None
         before = template_to_dict(template)
         change(template)
-        self.template_store.save(template)
+        self.template_store.save(template)  # OSError goes to the caller
 
         def apply(data: dict) -> None:
-            if self.sablon.template is not None and self.sablon.template.id == template_id:
-                self.sablon._restore(data)
-            else:
-                self.template_store.save(template_from_dict(data))
+            """Undo or redo: only the saved filters of the file as it is now are put back."""
+            try:
+                if self.sablon.template is not None and self.sablon.template.id == template_id:
+                    self.sablon._restore(data)
+                else:
+                    current = self.template_store.load(template_id)
+                    current.saved_filters[:] = template_from_dict(data).saved_filters
+                    self.template_store.save(current)
+            except (KeyError, TemplateError, OSError) as error:
+                self.message.setText(
+                    SAVE_FAILED if isinstance(error, OSError)
+                    else f"Şablon dosyası okunamadı: {template_id}")
 
         self.sablon.undo_stack.push(TemplateStep(text, before, template_to_dict(template), apply))
         return True

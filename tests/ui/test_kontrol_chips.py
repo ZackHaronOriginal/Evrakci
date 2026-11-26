@@ -96,13 +96,120 @@ def test_two_chips_and_with_one_count(qtbot, tmp_path):
     assert row.count.text() == NONE_ON and _chosen(window) == []
 
 
-def test_turning_chips_off_keeps_a_selection_the_chips_did_not_make(qtbot, tmp_path):
+def test_a_selection_the_chips_did_not_make_turns_the_chips_off(qtbot, tmp_path):
     window, _template_ = _make(qtbot, tmp_path, *DEFAULT)
     screen = window.kontrol
     _chip(window, "Tekler").click()
+    assert screen.chips.on_names() == ["Tekler"]
     screen.timeline.select_rows(1, 2, 2)  # the user selects by hand
+    assert screen.chips.on_names() == [] and screen.chips.count.text() == NONE_ON
+    assert _chosen(window) == [1, 2]  # the hand selection is untouched
+    _chip(window, "Tekler").click()  # turning it on again selects by the chip again
+    assert screen.chips.count.text().startswith("1 filtre açık")
+
+
+def test_moving_to_another_template_clears_the_chips(qtbot, tmp_path):
+    _template(tmp_path, ("Tekler", "tek", {}), name="A şablonu")
+    second = _template(tmp_path, ("Boşlar", "bos", {}), name="B şablonu")
+    window = _window(qtbot, tmp_path, SPEC)
+    screen = window.kontrol
+    screen._chips_sync()
     _chip(window, "Tekler").click()
-    assert _chosen(window) == [1, 2]
+    ids = screen.controller.job.ordered_page_ids()
+    screen.controller.apply_template([ids[4], ids[5]], second.id)
+    screen.timeline.select_rows(4, 5, 5)
+    assert [c.info.name for c in screen.chips.chips] == ["Boşlar"]
+    assert screen.chips.on_names() == [] and screen.chips.count.text() == NONE_ON
+    screen.timeline.select_rows(0, 0, 0)  # back to the first template: its chip is off too
+    assert screen.chips.on_names() == [] and screen.chips.count.text() == NONE_ON
+
+
+def test_settings_that_cannot_run_make_the_chip_inert_and_never_raise(qtbot, tmp_path):
+    window, _template_ = _make(qtbot, tmp_path, ("Tekler", "tek", {}),
+                               ("Bozuk", "farkli", {"by": 5}))
+    screen = window.kontrol
+    qtbot.waitUntil(lambda: not _chip(window, "Bozuk").info.known, timeout=3000)
+    chip = _chip(window, "Bozuk")
+    assert chip.tail_text() == NOT_KNOWN and chip.toolTip() == NOT_KNOWN_TIP
+    chip.click()
+    assert not chip.isChecked() and screen.chips.on_names() == []
+    _chip(window, "Tekler").click()  # the others still work
+    assert screen.chips.count.text().startswith("1 filtre açık")
+
+
+def test_settings_that_cannot_run_are_caught_when_the_chip_is_turned_on_first(qtbot, tmp_path):
+    window, _template_ = _make(qtbot, tmp_path, ("Tekler", "tek", {}),
+                               ("Bozuk", "farkli", {"by": 5}))
+    screen = window.kontrol
+    screen._chips_timer.stop()
+    screen._chip_bad.clear()  # as before the first count
+    screen._chips_sync()
+    chip = _chip(window, "Bozuk")
+    assert chip.info.known  # not counted yet
+    chip.click()  # must not raise
+    assert not _chip(window, "Bozuk").info.known and screen.chips.on_names() == []
+    assert screen.chips.count.text() == NONE_ON
+
+
+def test_a_failed_delete_or_rename_keeps_the_chip_on(qtbot, tmp_path, monkeypatch):
+    window, template = _make(qtbot, tmp_path, *DEFAULT)
+    screen = window.kontrol
+    _chip(window, "Tekler").click()
+    monkeypatch.setattr(TemplateStore, "save", lambda self, t: (_ for _ in ()).throw(
+        OSError("disk dolu")))
+    messages = []
+    window.controller().status.connect(messages.append)
+    screen.delete_saved_filter("Tekler")
+    assert messages[-1].startswith("Şablon kaydedilemedi")
+    assert screen.chips.on_names() == ["Tekler"] and screen._chip_on[template.id] == {"Tekler"}
+    monkeypatch.undo()
+    monkeypatch.setattr(SaveFilterDialog, "exec", lambda self: (
+        self.field.setText("Yeni ad"), QDialog.DialogCode.Accepted)[1])
+    monkeypatch.setattr(TemplateStore, "save", lambda self, t: (_ for _ in ()).throw(
+        OSError("disk dolu")))
+    screen.rename_saved_filter("Tekler")
+    assert screen._chip_on[template.id] == {"Tekler"}
+
+
+def test_edit_template_reports_save_and_load_failures(qtbot, tmp_path, monkeypatch):
+    window, template = _make(qtbot, tmp_path, ("Tekler", "tek", {}))
+    messages = []
+    window.controller().status.connect(messages.append)
+    assert not window.kontrol._edit_template("00ff00ff", "x", lambda t: None)
+    assert messages[-1] == "Şablon dosyası okunamadı: 00ff00ff"
+    monkeypatch.setattr(TemplateStore, "save", lambda self, t: (_ for _ in ()).throw(
+        OSError("disk dolu")))
+    add = lambda t: t.add_saved_filter("Z", "tek")  # noqa: E731
+    assert not window.kontrol._edit_template(template.id, "x", add)  # open in Şablonlar
+    assert messages[-1].startswith("Şablon kaydedilemedi")
+    messages.clear()
+    window.sablon.template = None
+    assert not window.kontrol._edit_template(template.id, "x", add)  # only in its file
+    assert messages[-1].startswith("Şablon kaydedilemedi")
+
+
+def test_undo_of_a_filter_step_patches_only_the_saved_filters_of_the_file(qtbot, tmp_path):
+    window, template = _make(qtbot, tmp_path, *DEFAULT)
+    window.sablon.template = None  # not open in Şablonlar: the file is patched
+    window.kontrol.delete_saved_filter("Tekler")
+    store = TemplateStore(tmp_path / "tpl")
+    other = store.load(template.id)
+    other.add_variable("Sonradan")  # the file changed meanwhile (another edit)
+    store.save(other)
+    window.sablon.undo_stack.undo()
+    loaded = store.load(template.id)
+    assert [f.name for f in loaded.saved_filters] == ["Tekler", "Boşlar", "Yedinci belge"]
+    assert [v.name for v in loaded.variables] == ["Sonradan"]  # not overwritten by the old dict
+
+
+def test_a_failed_undo_apply_says_so(qtbot, tmp_path, monkeypatch):
+    window, template = _make(qtbot, tmp_path, *DEFAULT)
+    window.sablon.template = None
+    window.kontrol.delete_saved_filter("Tekler")
+    monkeypatch.setattr(TemplateStore, "save", lambda self, t: (_ for _ in ()).throw(
+        OSError("disk dolu")))
+    window.sablon.undo_stack.undo()
+    assert window.message.text().startswith("Şablon kaydedilemedi")
 
 
 def test_a_chip_that_matches_nothing_is_marked_zero_and_says_zero_pages(qtbot, tmp_path):

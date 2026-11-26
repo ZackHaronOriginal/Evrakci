@@ -184,3 +184,15 @@ def test_template_revision_ignores_saved_filters():
     before = template_revision(t)
     t.add_saved_filter("Boş sayfalar", "bos")
     assert template_revision(t) == before
+
+
+def test_saved_filter_names_are_unique_by_casefold():
+    t = sample()
+    t.add_saved_filter("Tekler", "tek")
+    with pytest.raises(TemplateError, match="zaten var"):
+        t.add_saved_filter("tekler", "cift")
+    t.add_saved_filter("Çiftler", "cift")
+    with pytest.raises(TemplateError, match="zaten var"):
+        t.rename_saved_filter("Çiftler", "TEKLER")
+    t.rename_saved_filter("Tekler", "TEKLER")  # its own name in another case is no clash
+    assert [f.name for f in t.saved_filters] == ["TEKLER", "Çiftler"]

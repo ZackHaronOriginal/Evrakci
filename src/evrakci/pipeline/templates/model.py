@@ -232,7 +232,8 @@ class Template:
     def add_saved_filter(self, name: str, kind: str, params: dict | None = None) -> SavedFilter:
         item = SavedFilter(name, kind, dict(params) if isinstance(params, dict) else
                            ({} if params is None else params))
-        if any(existing.name == item.name for existing in self.saved_filters):
+        if any(existing.name.casefold() == item.name.casefold()
+               for existing in self.saved_filters):
             raise TemplateError(f"Bu adla bir filtre zaten var: {item.name}")
         if len(self.saved_filters) >= MAX_SAVED_FILTERS:
             raise TemplateError(f"En çok {MAX_SAVED_FILTERS} kayıtlı filtre olabilir.")
@@ -245,7 +246,8 @@ class Template:
     def rename_saved_filter(self, old: str, new: str) -> None:
         item = self.saved_filter(old)
         new = validate_filter_name(new)
-        if new != item.name and any(other.name == new for other in self.saved_filters):
+        if new.casefold() != item.name.casefold() and any(
+                other.name.casefold() == new.casefold() for other in self.saved_filters):
             raise TemplateError(f"Bu adla bir filtre zaten var: {new}")
         index = self.saved_filters.index(item)
         self.saved_filters[index] = SavedFilter(new, item.kind, dict(item.params))

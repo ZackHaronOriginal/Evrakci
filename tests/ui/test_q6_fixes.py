@@ -175,3 +175,50 @@ def test_inspector_captions_in_cards_use_the_text_colour(demo):
 def test_status_bar_labels_use_the_text_colour():
     sheet = theme.manager().stylesheet()
     assert "QStatusBar#statusBar QLabel { color: " + theme.manager().hex("text") in sheet
+
+
+def _pixel_contrast(widget, toast) -> float:
+    """Contrast of the strongest ink pixel against the commonest (background) pixel, read from
+    the window as drawn (the widget alone has a transparent background)."""
+    from collections import Counter
+
+    window = toast.window()
+    box = widget.rect().translated(widget.mapTo(window, widget.rect().topLeft()))
+    image = window.grab().toImage().copy(box)
+    pixels = Counter(image.pixel(x, y) & 0xFFFFFF
+                     for x in range(image.width()) for y in range(image.height()))
+    background = pixels.most_common(1)[0][0]
+    best = 1.0
+    for colour, count in pixels.items():
+        if count >= 2:
+            best = max(best, _ratio(f"#{colour:06x}", f"#{background:06x}"))
+    return best
+
+
+@pytest.mark.parametrize("mode", ["light", "dark", "hc"])
+def test_toast_text_meets_the_contrast_tier_in_every_theme(qtbot, tmp_path, mode):
+    from PySide6.QtWidgets import QLabel, QPushButton
+
+    from evrakci.app import configure_application
+
+    manager = theme.manager()
+    before = manager.mode()
+    app = QApplication.instance()
+    configure_application(app)
+    try:
+        manager.set_mode(mode)
+        window = screenshots.build(tmp_path / "demo")
+        qtbot.addWidget(window)
+        window.resize(1366, 768)
+        window.show()
+        _settle(10)
+        window.toaster.show("İş kaydedildi 10:52.", "Geri al", lambda: None, timeout_ms=0)
+        qtbot.wait(500)
+        toast = window.toaster._current
+        label = next(w for w in toast.findChildren(QLabel) if w.text().startswith("İş kaydedildi"))
+        button = next(b for b in toast.findChildren(QPushButton) if b.text() == "Geri al")
+        assert _pixel_contrast(label, toast) >= 7.0, mode
+        assert _pixel_contrast(button, toast) >= 4.5, mode
+        window.toaster.dismiss()
+    finally:
+        manager.set_mode(before)

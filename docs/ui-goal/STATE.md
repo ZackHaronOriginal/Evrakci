@@ -113,7 +113,11 @@ Updated after every accepted step. A new session or a compacted one reads this f
   Group D review fixes merged (4a8e1dc). Late-callback CI error fixed (5627f63, tests/ui/test_late_callbacks.py).
   GROUP A CLOSED: Opus review docs/ui-goal/review-group-a.md (0 S1, 0 S2, 4 S3, 8 S4; suite 2944 passed);
   fixes R-A-1/2/3/5/8/10/12 merged 2c82730; R-A-4 B-100, R-A-9 B-101, R-A-6/7 Q-28.
-  NEXT: C I-07 (building in a worktree) (task spec .claude/gorevler/2026-11-26-c18-i07.md).
+  C I-07 DONE (merged f590a5f): saved filters as chips with the template, select_pages, CLI sablon filtre-* and is sec
+  --sablon/--filtre; evidence tests/ui/test_kontrol_chips.py, test_select.py, test_cli_select.py, test_template_model.py;
+  full suite 3007 passed on the branch. GROUP C BUILT. B-005 FIXED (Q-01 c). Q-04 done. fluent-reference skill added.
+  NEXT: group C Opus review; then the owner-approved items of 2026-11-26 (decisions.md): texts Q-05..Q-30, Q-08 shortcut
+  fixes, Q-16 fixes, Değerler/Yükle/Dışa Aktar proposals, toast bottom left, Q-03 enforced rules, B-057 font. (task spec .claude/gorevler/2026-11-26-c18-i07.md).
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,

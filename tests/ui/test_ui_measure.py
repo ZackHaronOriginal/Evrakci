@@ -445,7 +445,8 @@ def test_b104_thin_pdf_label_is_read_as_its_declared_secondary_colour(light_100)
     rows = _contrast_rows(light_100, root, "thinPdf")
     real = um.contrast(text2, 0xFFFFFF)
     got = _measured(rows)
-    assert got and all(result == "pass" and abs(ratio - real) < 0.05 for ratio, result in got), rows
+    assert got and all(result == "pass" and abs(ratio - real) < 0.05 for ratio, result in got), (
+        rows, dict(um.LAST_SAMPLE))  # what was sampled, so a CI-only miss can be read (B-104)
     assert {r[6] for r in rows} == {"DEC-CON-02"}  # judged as secondary text, not body
 
 

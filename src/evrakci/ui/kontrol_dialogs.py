@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QBoxLayout,
     QButtonGroup,
     QCheckBox,
+    QComboBox,
     QDialog,
     QDoubleSpinBox,
     QHBoxLayout,
@@ -28,6 +29,7 @@ from PySide6.QtWidgets import (
 from evrakci.pipeline.analyze import EMPTY_INK_RATIO
 from evrakci.pipeline.job import Job
 from evrakci.pipeline.select import (
+    FARKLI_BY,
     GUVEN_CHECKS,
     GUVEN_DEFAULT,
     GUVEN_LEVELS,
@@ -40,6 +42,7 @@ from evrakci.pipeline.select import (
     guven_match,
     ink_range,
     reason_count_text,
+    unknown_sizes,
     values_read,
 )
 from evrakci.ui import fonts, icons, theme
@@ -170,10 +173,13 @@ class SelectDialog(QDialog):
         ("cift", "Çift sayfalar", "Her belgenin 2., 4., 6. ... sayfaları"),
         ("bos", "Boş sayfalar", ""),
         ("guven", "Kontrol gerekenler", ""),
+        ("farkli", "Farklı boyut veya yön", ""),
     )
     NOT_READ = "Değerler henüz okunmadı"
     INK_RANGE = (0.1, 5.0)  # percent
     INK_DEBOUNCE_MS = 80
+    FARKLI_BOXES = (("boyut", "Boyut"), ("yon", "Yön"))
+    FARKLI_REFERENCES = (("is", "Bütün iş"), ("belge", "Her belge"))
     MODES = (("replace", "Seçimi değiştir"), ("add", "Seçime ekle"),
              ("within", "Seçimle kesiştir"))
 
@@ -241,6 +247,7 @@ class SelectDialog(QDialog):
         right.addWidget(self.hint)
         self._blank_parameters(right)
         self._guven_parameters(right)
+        self._farkli_parameters(right)
         right.addStretch(1)
 
         columns.addLayout(left, 1)
@@ -268,6 +275,7 @@ class SelectDialog(QDialog):
         chain = [*self._radios.values(), self.ink,
                  *(box for box in self._reason_boxes.values()),
                  self.pages_value, self.pages_document,
+                 *self.farkli_boxes.values(), self.farkli_reference,
                  *self._mode_radios.values(), self.ok, cancel]
         for first, second in zip(chain, chain[1:], strict=False):
             QWidget.setTabOrder(first, second)
@@ -394,6 +402,48 @@ class SelectDialog(QDialog):
         self._guven_rows = widgets
         self._guven_texts()
 
+    def _farkli_parameters(self, col: QVBoxLayout) -> None:
+        """The parameter pane of "Farklı boyut veya yön": Boyut and Yön check boxes (both on),
+        what to compare with, and the live count; the pages of unknown size are named."""
+        self.farkli_boxes: dict[str, QCheckBox] = {}
+        widgets: list[QWidget] = []
+        for name, text in self.FARKLI_BOXES:
+            box = QCheckBox(text)
+            box.setChecked(True)
+            box.toggled.connect(self._farkli_changed)
+            self.farkli_boxes[name] = box
+            widgets.append(box)
+        self.farkli_label = QLabel("Karşılaştır")
+        self.farkli_reference = QComboBox()
+        for value, text in self.FARKLI_REFERENCES:
+            self.farkli_reference.addItem(text, value)
+        self.farkli_reference.setAccessibleName("Karşılaştır")
+        self.farkli_label.setBuddy(self.farkli_reference)
+        self.farkli_reference.currentIndexChanged.connect(self._farkli_changed)
+        self.farkli_count = QLabel()
+        self.farkli_count.setFont(fonts.tabular(self.farkli_count.font()))
+        self.farkli_count.setWordWrap(True)
+        self.farkli_note = QLabel()
+        self.farkli_note.setProperty("textRole", "secondary")
+        self.farkli_note.setWordWrap(True)
+        self._unknown = unknown_sizes(self._job)
+        if self._unknown:
+            self.farkli_note.setText(f"Boyutu bilinmiyor ({self._unknown})")
+        self.farkli_widgets = [*widgets, self.farkli_label, self.farkli_reference,
+                               self.farkli_count, self.farkli_note]
+        for widget in self.farkli_widgets:
+            col.addWidget(widget)
+        self._farkli_texts()
+
+    def _farkli_texts(self) -> None:
+        match = evaluate(self._job, self.criterion("farkli"))
+        self.farkli_count.setText(f"{match.count()}{NBSP}sayfa farklı görünüyor")
+
+    def _farkli_changed(self, *_args) -> None:
+        if hasattr(self, "farkli_count"):
+            self._farkli_texts()
+            self._refresh_counts()
+
     def _guven_texts(self) -> None:
         match = self._guven_match()
         self.guven_count.setText(
@@ -425,6 +475,10 @@ class SelectDialog(QDialog):
                 "levels": [r for r in reasons if r in GUVEN_LEVELS],
                 "checks": [r for r in reasons if r in GUVEN_CHECKS],
                 "pages": "deger" if self.pages_value.isChecked() else "belge"})
+        if kind == "farkli":
+            return Criterion("farkli", {
+                "by": [name for name in FARKLI_BY if self.farkli_boxes[name].isChecked()],
+                "reference": self.farkli_reference.currentData()})
         return Criterion(kind, {"within": self.mode() == "within"})
 
     def count(self, kind: str) -> int:
@@ -465,6 +519,10 @@ class SelectDialog(QDialog):
         self.hint.setVisible(bool(hint))
         for widget in self.ink_widgets:
             widget.setVisible(name == "bos")
+        if hasattr(self, "farkli_widgets"):
+            for widget in self.farkli_widgets:
+                widget.setVisible(name == "farkli")
+            self.farkli_note.setVisible(bool(self._unknown) and name == "farkli")
         if hasattr(self, "guven_widgets"):
             on = name == "guven"
             for widget in (*self.guven_widgets, *self._guven_rows):

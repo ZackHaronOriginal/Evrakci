@@ -27,7 +27,7 @@ play square square-dashed save folder file file-text book grid-3x3 qr-code table
 check-check copy-minus shuffle arrow-down-up arrow-right-to-line signal-high signal-medium
 arrow-up-down ban book-open braces cloud copy corner-down-left file-output file-up folder-check
 folder-plus gallery-horizontal-end history layers list-filter loader-circle lock panel-right-
-close scan-line sheet table
+close scan-line sheet table rectangle-horizontal rectangle-vertical
 """.split()}
 NAMES["funnel"] = ("funnel", "filter")
 NAMES["help-circle"] = ("help-circle", "circle-help")

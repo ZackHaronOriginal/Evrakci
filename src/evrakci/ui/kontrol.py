@@ -55,6 +55,7 @@ KIND_TEXT = CUT_WORDS  # kept for callers of the old name
 SPLITTER = "kontrol.govde"
 ZOOM_KEY = "kontrol"
 ZOOM_TARGET = "Küçük resim boyutu"
+ODD_MARKS_KEY = "kontrol_farkli_isaretle"  # the view switch "Farklı görünenleri işaretle" (on)
 REASONS = {"qr": "QR ayıraç sayfası ayırdı.", "filter": "QR ayıraç yok, filtre kesti.",
            "manual": "Elle kesildi.", "start": "İşin ilk belgesi."}
 THUMB_DELAY_MS = 150  # re-render thumbnails once zooming pauses
@@ -177,6 +178,8 @@ class KontrolScreen(QWidget):
         QTimer.singleShot(0, self, self._sync_binder)  # once the window names this screen
         prefs = getattr(window, "prefs", None)
         if prefs is not None:
+            self.model.set_marks(prefs.flag(ODD_MARKS_KEY, True))
+            self._show_odd_marks(self.model.marks_on)
             self.zoom = self._make_zoom(prefs)
             self.timeline.set_zoom(self.zoom.zoom())
             self._rerender()
@@ -371,6 +374,7 @@ class KontrolScreen(QWidget):
         try:
             registry.set_hidden("kontrol.bos_geri_getir", not self.can_show_restore_empty())
             self._show_drop_empty(self.controller.job.drop_empty)
+            self._show_odd_marks(self.model.marks_on)
         except RuntimeError:  # the window is being torn down
             pass
 
@@ -382,6 +386,24 @@ class KontrolScreen(QWidget):
             action.setChecked(on)
             action.blockSignals(False)
             action.changed.emit()
+
+    def _show_odd_marks(self, on: bool) -> None:
+        """The check mark of "Farklı görünenleri işaretle" follows the switch."""
+        action = self.registry.action("kontrol.farkli_isaretle")
+        if action.isChecked() != on:
+            action.blockSignals(True)
+            action.setChecked(on)
+            action.blockSignals(False)
+            action.changed.emit()
+
+    def set_odd_marks(self, *_args) -> None:
+        """Görünüm, Farklı görünenleri işaretle: the marks under pages whose size or orientation
+        differs. A view choice kept in the user's settings, not a job edit (no undo step)."""
+        on = self.registry.action("kontrol.farkli_isaretle").isChecked()
+        self.model.set_marks(on)
+        prefs = getattr(self._window, "prefs", None)
+        if prefs is not None:
+            prefs.set_flag(ODD_MARKS_KEY, on)
 
     def toggle_drop_empty(self, *_args) -> None:
         """Araçlar, Boş sayfaları at: the job's switch, one undo step ("Boş sayfaları at").
@@ -595,6 +617,20 @@ class KontrolScreen(QWidget):
         if target == here:  # wrapped round to the same one: say so, never a silent no-op
             self._toast("Kontrol gereken tek belge bu.", undo=False)
         self.go_to_document(target)
+
+    def jump_to_different(self, direction: int) -> None:
+        """Git, Sonraki / Önceki farklı sayfa: the next / previous page whose size or orientation
+        differs (wraps round). Works with the marks hidden."""
+        rows = self.model.odd_rows()
+        if not rows:
+            self._toast("Farklı sayfa yok.", undo=False)
+            return
+        here = self.current_row()
+        if direction > 0:
+            target = next((r for r in rows if r > here), rows[0])
+        else:
+            target = next((r for r in reversed(rows) if r < here), rows[-1])
+        self.go_to_row(target)
 
     def next_unreviewed(self) -> None:
         """U: the next document nobody has approved yet (wraps around)."""

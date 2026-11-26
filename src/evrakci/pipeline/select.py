@@ -15,8 +15,9 @@ is what a duplex pile follows. The kind `bos` (param `ink`, the highest ink shar
 default `analyze.EMPTY_INK_RATIO`) gives the pages with less ink than that; QR separator pages
 never match and blank pages already deleted are counted apart (`reasons["silinmis"]`), not
 selected. The kind `guven` (params `levels`, `checks`, `pages`) gives the pages of documents
-that need a look, with a count per reason (see "Güven" below). The kind `farkli` of a later
-step plugs in with `kind()` and needs nothing else here.
+that need a look, with a count per reason (see "Güven" below). The kind `farkli` (params `by`:
+`boyut` and / or `yon`, `reference`: `is` or `belge`) gives the pages whose size or orientation
+differs from the job's (or each document's) own majority (see "Farklı" below).
 """
 
 from __future__ import annotations
@@ -316,3 +317,155 @@ def guven_text(match: Match) -> str:
     """"9 belge seçildi: Kontrol 4, Okunamadı 3" (the reasons with something in them)."""
     parts = [f"{GUVEN_WORDS[r]} {n}" for r, n in match.reasons.items() if n]
     return f"{match.documents} belge seçildi: {', '.join(parts)}"
+
+
+# Farklı: "Farklı boyut veya yön"
+FARKLI_BY = ("boyut", "yon")  # size, orientation
+FARKLI_REFERENCE = ("is", "belge")  # the whole job, or each document
+FARKLI_TOLERANCE = 0.03  # scanner jitter: a side within 3 % of the reference is the same size
+ODD_KINDS = ("boyut", "yatay", "dikey")  # what a marked page is: size, landscape, portrait
+
+
+def _extent(job: Job, pid: str) -> tuple[float, float] | None:
+    """(width, height) in millimetres as the page is exported, after the job's rotation of it
+    (a quarter turn swaps the sides); None when the size is unknown."""
+    info = job.pages[pid]
+    if not info.has_size:
+        return None
+    width, height = info.width_mm, info.height_mm
+    return (height, width) if job.rotations.get(pid, 0) % 180 else (width, height)
+
+
+def _orientation(extent: tuple[float, float]) -> str | None:
+    """"yatay" / "dikey"; a page whose sides are within the tolerance (square) has none."""
+    width, height = extent
+    if width > height * (1 + FARKLI_TOLERANCE):
+        return "yatay"
+    if height > width * (1 + FARKLI_TOLERANCE):
+        return "dikey"
+    return None
+
+
+def _same_size(extent: tuple[float, float], reference: tuple[float, float]) -> bool:
+    """Both sides, short with short and long with long (a sideways A4 is still A4), within the
+    tolerance of the reference."""
+    return all(abs(a - b) <= FARKLI_TOLERANCE * b
+               for a, b in zip(sorted(extent), sorted(reference), strict=True))
+
+
+MAX_CANDIDATES = 40  # distinct sizes tried as the centre of the majority (jitter makes many)
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
+
+
+def _majority(extents: Sequence[tuple[float, float]]) -> tuple[tuple[float, float] | None,
+                                                                 str | None]:
+    """The most frequent size and the most frequent orientation of `extents`.
+
+    Each distinct size (to the millimetre, in page order; at most MAX_CANDIDATES, evenly
+    spread) is tried as a centre and counted with the pages within the tolerance of it. The
+    centre with most pages wins (the first in page order on a tie), and the reference is the
+    median of the pages it counted, so scanner jitter around the real size, whichever page
+    comes first, does not mark pages. O(n * k) with few distinct sizes."""
+    orientations: dict[str, int] = {}
+    seen: dict[tuple[int, int], tuple[float, float]] = {}
+    for extent in extents:
+        short, long_ = sorted(extent)
+        seen.setdefault((round(short), round(long_)), extent)
+        found = _orientation(extent)
+        if found is not None:
+            orientations[found] = orientations.get(found, 0) + 1
+    orientation = max(orientations, key=orientations.get) if orientations else None
+    if not seen:
+        return None, orientation
+    centres = list(seen.values())
+    if len(centres) > MAX_CANDIDATES:
+        step = len(centres) / MAX_CANDIDATES
+        centres = [centres[int(i * step)] for i in range(MAX_CANDIDATES)]
+    ordered = [tuple(sorted(e)) for e in extents]
+    best: list[tuple[float, float]] = []
+    for centre in centres:
+        low, high = sorted(centre)
+        members = [e for e in ordered if abs(e[0] - low) <= FARKLI_TOLERANCE * low
+                   and abs(e[1] - high) <= FARKLI_TOLERANCE * high]
+        if len(members) > len(best):
+            best = members
+    shorts, longs = zip(*best, strict=True)
+    return (_median(list(shorts)), _median(list(longs))), orientation
+
+
+def farkli_params(criterion: Criterion) -> tuple[tuple[str, ...], str]:
+    """What a `farkli` criterion compares (in the fixed order; both when `by` is missing) and
+    against what ("is" unless "belge")."""
+    asked = criterion.params.get("by")
+    asked = FARKLI_BY if asked is None else {str(x) for x in asked}
+    reference = criterion.params.get("reference", "is")
+    return (tuple(x for x in FARKLI_BY if x in asked),
+            reference if reference in FARKLI_REFERENCE else "is")
+
+
+def _mark_group(job: Job, pids: Sequence[str], by: Sequence[str], found: dict[str, str],
+                reference_pids: Sequence[str]) -> None:
+    reference_size, reference_orientation = _majority(
+        [e for pid in reference_pids if (e := _extent(job, pid)) is not None])
+    for pid in pids:
+        extent = _extent(job, pid)
+        if extent is None:
+            continue  # unknown size: never marked
+        if "boyut" in by and reference_size is not None and not _same_size(
+                extent, reference_size):
+            found[pid] = "boyut"
+        elif "yon" in by and reference_orientation is not None:
+            own = _orientation(extent)
+            if own is not None and own != reference_orientation:
+                found[pid] = own
+
+
+def different_pages(job: Job, by: Sequence[str] = FARKLI_BY, reference: str = "is",
+                    documents: Sequence[Document] | None = None) -> dict[str, str]:
+    """The pages that look different, in job order, each with what is different: "boyut" (size
+    differs), or "yatay" / "dikey" (the page's own orientation, when only that differs).
+
+    The reference is the most frequent size, and the most frequent orientation, among the
+    pages that are not deleted and not separators: of the whole job, or of each document.
+    Orientation is judged after the job's rotations, so a quarter turn that stands a sideways
+    page up takes its mark away. Pages whose size is unknown (`unknown_sizes`) are never marked;
+    pages outside every document (dropped blank pages) are not marked either. Pure and O(n);
+    `documents` are the job's documents when the caller has them already."""
+    if not any(info.has_size for info in job.pages.values()):
+        return {}
+    usable = [pid for pid in job.ordered_page_ids()
+              if not job.pages[pid].is_separator and pid not in job.deleted]
+    found: dict[str, str] = {}
+    documents = _documents(job) if documents is None else documents
+    in_documents = {pid for document in documents for pid in document.page_ids}
+    if reference == "belge":
+        usable_set = set(usable)
+        for document in documents:
+            members = [pid for pid in document.page_ids if pid in usable_set]
+            _mark_group(job, members, by, found, members)
+    else:
+        _mark_group(job, [pid for pid in usable if pid in in_documents], by, found, usable)
+    return {pid: found[pid] for pid in job.ordered_page_ids() if pid in found}
+
+
+def unknown_sizes(job: Job) -> int:
+    """How many pages (not deleted, not separators) have no known size."""
+    return sum(1 for pid, info in job.pages.items()
+               if not info.has_size and not info.is_separator and pid not in job.deleted)
+
+
+@kind("farkli")
+def _farkli(job: Job, criterion: Criterion, _templates: Mapping, _selection: frozenset) -> Match:
+    by, reference = farkli_params(criterion)
+    found = different_pages(job, by, reference)
+    counts = {"boyut": sum(1 for k in found.values() if k == "boyut"),
+              "yon": sum(1 for k in found.values() if k != "boyut"),
+              "bilinmiyor": unknown_sizes(job)}
+    chosen = set(found)
+    touched = sum(1 for document in _documents(job) if chosen.intersection(document.page_ids))
+    return Match(tuple(found), touched, {k: n for k, n in counts.items() if n})

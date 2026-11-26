@@ -78,6 +78,7 @@ TAB_IDS = tuple(actions.TABS)
 TAB_NAMES = list(actions.TABS.values())
 LAST_JOB = "son-is.txt"
 PREFS_FILE = "arayuz.ini"
+FILL_CARD_MS = 1500  # reading an older job's page sizes: the loading card only if it is slow
 
 
 class Cmd(NamedTuple):
@@ -1369,6 +1370,37 @@ class MainWindow(QMainWindow):
         self._saved(datetime.fromtimestamp(path.stat().st_mtime) if path.is_file() else None)
         self._update_counts()
         self._sync_job_actions()
+        self._fill_page_sizes(controller)
+
+    def _fill_page_sizes(self, controller: JobController) -> None:
+        """A job made before page sizes were kept has pages of unknown size: read them once from
+        the batch files (no rendering) in a worker, then store them as housekeeping (no undo
+        step; the job is saved). The loading card shows only if it takes long."""
+        store, job_id = self.store, controller.job.id
+        requests = store.size_requests(controller.job)
+        if not requests:
+            return
+        text = "Sayfa boyutları okunuyor"
+
+        def work(progress):
+            return store.read_sizes(requests, progress)  # plain data in, plain data out
+
+        def finish() -> None:
+            if self.message.text() == text:
+                self.message.setText("")
+
+        def done(sizes) -> None:
+            finish()
+            current = self.controller()
+            if current is controller and current.job.id == job_id:  # not another job's result
+                controller.fill_page_sizes(sizes)
+
+        handle = self.start_loading(work, title=text, name=controller.job.name, on_done=done,
+                                    on_failed=lambda _message: finish(), on_cancelled=finish,
+                                    cancellable=False, show_after_ms=FILL_CARD_MS,
+                                    inherit_card=False)
+        if handle is not None:
+            self.message.setText(text)
 
     def _wire_controller(self, controller: JobController) -> None:
         """Connect the open job's signals once, and drop the previous job's."""

@@ -14,8 +14,15 @@ from pathlib import Path
 
 import platformdirs
 
-from evrakci.pipeline.analyze import PageInfo, analyze_pdf, count_pages
-from evrakci.pipeline.job import Batch, Job, job_from_dict, job_to_dict, page_id
+from evrakci.pipeline.analyze import BatchError, PageInfo, analyze_pdf, count_pages, read_page_sizes
+from evrakci.pipeline.job import (
+    Batch,
+    Job,
+    job_from_dict,
+    job_to_dict,
+    page_id,
+    parse_page_id,
+)
 
 Progress = Callable[[int, int], None]
 
@@ -31,6 +38,16 @@ def default_root() -> Path:
 
 
 _JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+
+
+@dataclass(frozen=True)
+class SizeRequest:
+    """One batch file whose pages have unknown sizes (see `JobStore.size_requests`)."""
+
+    batch_id: str
+    path: Path
+    page_count: int
+    page_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -129,6 +146,43 @@ class JobStore:
         for index, info in enumerate(infos):
             job.pages[page_id(batch.id, index)] = info
         return batch
+
+    def size_requests(self, job: Job) -> list[SizeRequest]:
+        """The batches that have a page of unknown size and a file to read it from: (batch id,
+        file, page count, the ids of the pages to fill). Plain data, so a worker can read the
+        files from it."""
+        found = []
+        for batch in job.batches:
+            if not self.batch_file(job, batch).is_file():
+                continue  # nothing to read: the pages stay "Boyutu bilinmiyor"
+            wanted = tuple(pid for pid in (page_id(batch.id, i) for i in range(batch.page_count))
+                           if pid in job.pages and not job.pages[pid].has_size)
+            if wanted:
+                found.append(SizeRequest(batch.id, self.batch_file(job, batch),
+                                         batch.page_count, wanted))
+        return found
+
+    @staticmethod
+    def read_sizes(requests: Sequence[SizeRequest],
+                   progress: Progress | None = None) -> dict[str, tuple[float, float]]:
+        """The sizes (millimetres) of the pages of `requests`, read from the batch files
+        without rendering. A file that is gone or unreadable is skipped: its pages stay unknown.
+        Touches no job, so a worker thread may run it."""
+        sizes: dict[str, tuple[float, float]] = {}
+        total = sum(r.page_count for r in requests)
+        done = 0
+        for request in requests:
+            try:
+                read = read_page_sizes(request.path)
+            except BatchError:
+                read = []
+            if len(read) == request.page_count:  # a file that is not the scanned one is not trusted
+                for pid in request.page_ids:
+                    sizes[pid] = read[parse_page_id(pid)[1]]
+            done += request.page_count
+            if progress:
+                progress(done, total)
+        return sizes
 
     def save(self, job: Job) -> None:
         self.save_dict(job.id, job_to_dict(job))

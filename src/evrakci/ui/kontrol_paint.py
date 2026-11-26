@@ -8,6 +8,8 @@ these helpers, so a guide tab or a rider looks the same wherever it appears.
 
 from __future__ import annotations
 
+from functools import cache
+
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
@@ -25,6 +27,12 @@ TAB_ICON = 14
 RIDER_ICON = 14
 RIDER_PAD_L = 6  # A .rider padding 0 s2 0 6px
 LIP_H = 6  # A .lip
+# "Looks different" marks under a page (I-04): kind -> (Lucide icon, the word). Text colour only:
+# orange is for Kontrol, and the icon plus the word says it, not the colour.
+ODD_MARKS = {"boyut": ("ruler", "Farklı boyut"),
+             "yatay": ("rectangle-horizontal", "Yatay"),
+             "dikey": ("rectangle-vertical", "Dikey")}
+ODD_ICON = 14  # at 100 % text; grows with the text size (theme.inline_icon)
 BIN = 40  # A .slot.del .bin
 BADGE = 22  # A .slot.sel .chk
 
@@ -331,4 +339,56 @@ def paint_check_badge(painter: QPainter, centre: QPointF) -> None:
     size = 14
     painter.drawPixmap(QRectF(centre.x() - size / 2, centre.y() - size / 2, size, size),
                        _pix("check", "text-on-accent", size, 3.0), QRectF(0, 0, 2 * size, 2 * size))
+    painter.restore()
+
+
+# -- "looks different" mark under a page ------------------------------------------------------
+def _odd_role() -> str:
+    return "text" if hc() else "text-2"  # high contrast: WindowText
+
+
+@cache
+def _odd_pixmap(name: str, colour: str, size: int):
+    return icons.pixmap(name, colour, size, 2.0, 1.75)
+
+
+def odd_mark_width(kind: str) -> int:
+    """Icon, gap and word of the mark, in px at the current text size."""
+    m = theme.manager()
+    word = QFontMetrics(m.font("caption-strong")).horizontalAdvance(ODD_MARKS[kind][1])
+    return m.inline_icon(ODD_ICON) + m.size("s1") + word
+
+
+def odd_caption_lines(number: str, kind: str, width: float) -> int:
+    """1 when the page number and the mark fit side by side in `width`, else 2 (at 150 % text
+    the caption wraps to two short lines)."""
+    m = theme.manager()
+    num = QFontMetrics(m.font("caption-strong")).horizontalAdvance(number)
+    # s2 of slack: the caption of the next page is only 12 px away
+    return 1 if num + m.size("s3") + odd_mark_width(kind) + m.size("s2") <= width else 2
+
+
+def paint_odd_mark(painter: QPainter, rect: QRectF, kind: str, align_left: bool = False) -> None:
+    """The mark: a 14 px icon (ruler for a different size, rectangle for the orientation) and
+    the word in caption weight 600, text colour. Centred in `rect` (a line of the caption), or
+    from its left edge. The word is cut with an ellipsis only if `rect` is narrower than it."""
+    m = theme.manager()
+    name, word = ODD_MARKS[kind]
+    colour = m.hex(_odd_role())
+    size = m.inline_icon(ODD_ICON)
+    font = m.font("caption-strong")
+    metrics = QFontMetrics(font)
+    gap = m.size("s1")
+    room = max(0, int(rect.width()) - size - gap)
+    text = word if metrics.horizontalAdvance(word) <= room else metrics.elidedText(
+        word, Qt.TextElideMode.ElideRight, room)
+    width = size + gap + metrics.horizontalAdvance(text)
+    x = rect.x() if align_left else rect.x() + (rect.width() - width) / 2
+    painter.save()
+    painter.drawPixmap(QRectF(x, rect.center().y() - size / 2, size, size),
+                       _odd_pixmap(name, colour, size), QRectF(0, 0, 2 * size, 2 * size))
+    painter.setFont(font)
+    painter.setPen(QColor(colour))
+    painter.drawText(QRectF(x + size + gap, rect.y(), rect.right() - x - size - gap, rect.height()),
+                     Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
     painter.restore()

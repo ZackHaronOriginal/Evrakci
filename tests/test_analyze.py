@@ -1,9 +1,9 @@
 import pikepdf
 import pypdfium2 as pdfium
 import pytest
-from fakes import empty_page, make_pdf, qr_page, text_page
+from fakes import a5_page, empty_page, landscape_page, make_pdf, qr_page, text_page
 
-from evrakci.pipeline.analyze import BatchError, analyze_pdf, count_pages
+from evrakci.pipeline.analyze import BatchError, analyze_pdf, count_pages, read_page_sizes
 
 
 def test_kinds_detected(tmp_path):
@@ -80,3 +80,69 @@ def test_page_render_error_names_the_page(tmp_path, monkeypatch):
     monkeypatch.setattr(pdfium.PdfPage, "render", flaky)
     with pytest.raises(BatchError, match="Sayfa 2 okunamadı: b.pdf"):
         analyze_pdf(pdf)
+
+
+def test_page_sizes_come_from_the_pdf_in_millimetres(tmp_path):
+    pdf = make_pdf(tmp_path / "b.pdf", [text_page(), a5_page(), landscape_page()])
+    infos = analyze_pdf(pdf)
+    sizes = [(i.width_mm, i.height_mm) for i in infos]
+    assert sizes == [(pytest.approx(210.0, abs=0.2), pytest.approx(297.0, abs=0.2)),
+                     (pytest.approx(148.0, abs=0.2), pytest.approx(210.0, abs=0.2)),
+                     (pytest.approx(297.0, abs=0.2), pytest.approx(210.0, abs=0.2))]
+    assert all(i.has_size for i in infos)
+
+
+def test_read_page_sizes_gives_the_same_sizes_without_rendering(tmp_path, monkeypatch):
+    pdf = make_pdf(tmp_path / "b.pdf", [text_page(), a5_page(), landscape_page()])
+    expected = [(i.width_mm, i.height_mm) for i in analyze_pdf(pdf)]
+
+    def refuse(*_args, **_kwargs):
+        raise AssertionError("a size lookup must not render")
+
+    monkeypatch.setattr(pdfium.PdfPage, "render", refuse)
+    assert read_page_sizes(pdf) == expected
+
+
+def test_a_page_the_pdf_turns_by_itself_is_read_as_displayed(tmp_path):
+    pdf = make_pdf(tmp_path / "b.pdf", [text_page()])
+    turned = tmp_path / "t.pdf"
+    with pikepdf.open(pdf) as source:
+        source.pages[0].Rotate = 90
+        source.save(turned)
+    (width, height), = read_page_sizes(turned)
+    assert (width, height) == pytest.approx((297.0, 210.0), abs=0.2)
+    info = analyze_pdf(turned)[0]
+    assert (info.width_mm, info.height_mm) == (width, height)
+
+
+def test_read_page_sizes_checks_the_file_like_analyze_pdf(tmp_path):
+    with pytest.raises(BatchError, match="Dosya bulunamadı"):
+        read_page_sizes(tmp_path / "yok.pdf")
+    bad = tmp_path / "bad.pdf"
+    bad.write_bytes(b"not a pdf")
+    with pytest.raises(BatchError):
+        read_page_sizes(bad)
+
+
+def test_read_page_sizes_takes_the_pdfium_lock_one_page_at_a_time(tmp_path, monkeypatch):
+    from evrakci.pipeline import analyze
+
+    pdf = make_pdf(tmp_path / "b.pdf", [text_page(), text_page(), text_page(), text_page()])
+    real = analyze.PDFIUM_LOCK
+    held = {"now": 0, "most": 0, "times": 0}
+
+    class Counting:
+        def __enter__(self):
+            real.acquire()
+            held["now"] += 1
+            held["times"] += 1
+            held["most"] = max(held["most"], held["now"])
+
+        def __exit__(self, *_):
+            held["now"] -= 1
+            real.release()
+
+    monkeypatch.setattr(analyze, "PDFIUM_LOCK", Counting())
+    sizes = read_page_sizes(pdf)
+    assert len(sizes) == 4
+    assert held["times"] >= 4 + 2 and held["now"] == 0  # one hold per page, never one for all

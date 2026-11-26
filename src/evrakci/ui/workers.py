@@ -261,11 +261,14 @@ def run_background(owner: QWidget, work: Callable[[Callable[[int, int], None]], 
                    title: str, name: str = "", on_done: Callable[[object], None],
                    on_failed: Callable[[str], None] | None = None,
                    on_cancelled: Callable[[], None] | None = None, cancellable: bool = True,
-                   show_after_ms: int = LOADING_SHOW_MS) -> Background | None:
+                   show_after_ms: int = LOADING_SHOW_MS,
+                   inherit_card: bool = True) -> Background | None:
     """Run `work(progress)` in a worker; apply its result with `on_done(result)` on the window
     thread. Returns None, doing nothing, while another loading job of this owner runs (the
     caller shows BUSY_REASON). `on_failed(message)` gets the error text; `on_cancelled()` runs
-    after a cancel, and then no result is applied."""
+    after a cancel, and then no result is applied. `inherit_card=False` (quiet housekeeping that
+    starts when a loading job ends): the card of the job before is closed at once, not reused,
+    so `show_after_ms` holds."""
     assert_window_thread()
     previous = _current(owner)
     if previous is not None and previous.running:
@@ -273,6 +276,9 @@ def run_background(owner: QWidget, work: Callable[[Callable[[int, int], None]], 
     run = (previous.run + 1) if previous is not None else 1
     task = Task(work)
     inherited = previous.take_over() if previous is not None else None
+    if inherited is not None and not inherit_card:
+        _card(owner).close()
+        inherited = None
     handle = Background(owner, task, title=title, name=name, on_done=on_done,
                         on_failed=on_failed, on_cancelled=on_cancelled,
                         cancellable=cancellable, show_after_ms=show_after_ms, run=run)

@@ -25,13 +25,15 @@ from evrakci.pipeline.exporting import (
     may_delete_after_export,
     plan_names,
 )
-from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
+from evrakci.pipeline.job import Job, apply_page_sizes, job_to_dict, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
 from evrakci.pipeline.render import render_page
 from evrakci.pipeline.review import needs_reading, store_reading
 from evrakci.pipeline.select import (
+    FARKLI_BY,
+    FARKLI_REFERENCE,
     GUVEN_CHECKS,
     GUVEN_LEVELS,
     GUVEN_WORDS,
@@ -233,14 +235,25 @@ def select_pages(args: argparse.Namespace, store: JobStore) -> int:
         params = {"ink": round(args.esik / 100, 6)}
     elif args.olcut == "guven":
         return select_guven(args, job)
+    elif args.olcut == "farkli":
+        # An older job: read the missing sizes in memory, for this count only. The file is not
+        # written, so a window that has the job open is never overwritten.
+        apply_page_sizes(job, store.read_sizes(store.size_requests(job)))
+        by = [name for name in FARKLI_BY if getattr(args, name)] or list(FARKLI_BY)
+        params = {"by": by, "reference": args.karsilastir}
     match = evaluate(job, Criterion(args.olcut, params))
+    unknown = match.reasons.get("bilinmiyor", 0) if args.olcut == "farkli" else 0
     if not match.page_ids:
         print("Eşleşen sayfa yok.")
+        if unknown:
+            print(f"Boyutu bilinmiyor ({unknown})")
         return 0
     position = {pid: n for n, pid in enumerate(job.ordered_page_ids(), start=1)}
     positions = [position[pid] for pid in match.page_ids]
     print(f"{len(positions)} sayfa seçildi.")
     print(f"sayfa {positions_text(positions)}")
+    if unknown:
+        print(f"Boyutu bilinmiyor ({unknown})")
     if args.sil:
         for pid in match.page_ids:
             job.delete_page(pid)
@@ -713,6 +726,12 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
                    help="En çok mürekkep oranı: 0,1–5,0 %% (0,3)")
     q.add_argument("--sil", action="store_true", help="Sayfayı sil")
     q.set_defaults(handler=select_pages)
+    q = criteria.add_parser("farkli", help="Farklı boyut veya yön")
+    q.add_argument("--boyut", action="store_true", help="Boyut")
+    q.add_argument("--yon", action="store_true", help="Yön")
+    q.add_argument("--karsilastir", choices=FARKLI_REFERENCE, default="is",
+                   help="Karşılaştır: Bütün iş / Her belge")
+    q.set_defaults(handler=select_pages, sil=False)
     q = criteria.add_parser("guven", help="Kontrol gerekenler")
     q.add_argument("--neden", action="append", choices=list(GUVEN_NAMES), metavar="NEDEN",
                    help="Kontrol gerekenler: " + ", ".join(GUVEN_NAMES)

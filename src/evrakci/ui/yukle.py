@@ -299,7 +299,7 @@ class YukleScreen(QWidget):
         theme.follow(self, self._restyle, "yukle-screen")
         self.refresh_jobs()
         self._sync_state()
-        QTimer.singleShot(0, self._try_attach)
+        QTimer.singleShot(0, self, self._try_attach)
 
     def _size_inspector(self) -> None:
         """The inspector takes its A width (312, 400 at the largest density) once the splitter
@@ -996,12 +996,12 @@ class YukleScreen(QWidget):
         event.acceptProposedAction()
         if self.window_ is not None and self.window_.current_tab() != "yukle":
             self.window_.show_tab("yukle")
-        QTimer.singleShot(0, partial(self.add_paths, paths))  # after the drag has ended
+        QTimer.singleShot(0, self, partial(self.add_paths, paths))  # after the drag ends
         return True
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if obj is self.splitter and event.type() == event.Type.Show and not self._sized:
-            QTimer.singleShot(0, self._size_inspector)  # after the first layout
+            QTimer.singleShot(0, self, self._size_inspector)  # after the first layout
         if (self.window_ is not None and obj is self.window_.layer
                 and event.type() == event.Type.Resize and self.overlay.isVisible()):
             self.overlay.place()
@@ -1148,7 +1148,7 @@ class YukleScreen(QWidget):
         taskbar = getattr(self.window_, "taskbar", None)
         if taskbar is not None:
             taskbar.error()
-            QTimer.singleShot(4000, lambda: taskbar.clear() if self.task is None else None)
+            QTimer.singleShot(4000, self, lambda: taskbar.clear() if self.task is None else None)
 
     def _clear_error(self) -> None:
         if self._error is not None:

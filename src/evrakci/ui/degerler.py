@@ -297,7 +297,7 @@ class DegerlerScreen(QWidget):
         self.selector.set_view(self._view)
         theme.follow(self, self._restyle, "degerler-screen")
         self.refresh()
-        QTimer.singleShot(0, self._try_attach)
+        QTimer.singleShot(0, self, self._try_attach)
 
     # -- the window: command bar actions, status bar, zoom, toasts ------------------------
     def _try_attach(self) -> None:
@@ -780,7 +780,7 @@ class DegerlerScreen(QWidget):
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         table = getattr(self, "table", None)
         if table is not None and obj is table.viewport() and event.type() == QEvent.Type.Resize:
-            QTimer.singleShot(0, self._fit_columns)
+            QTimer.singleShot(0, self, self._fit_columns)
         elif obj is self.search and event.type() == QEvent.Type.Resize:
             self._fit_search_hint()
         elif obj is self.search and event.type() == QEvent.Type.KeyPress and \

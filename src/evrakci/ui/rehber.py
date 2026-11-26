@@ -156,7 +156,7 @@ class RehberScreen(QWidget):
         self.setTabOrder(self.toc, self.count)
         self.setTabOrder(self.count, self.print_button)
         theme.follow(self, self._restyle, "screen")
-        QTimer.singleShot(0, self._try_attach)
+        QTimer.singleShot(0, self, self._try_attach)
 
     # -- building ----------------------------------------------------------------------------
     def _group(self, title: str, card: QFrame) -> QVBoxLayout:
@@ -571,7 +571,7 @@ class RehberScreen(QWidget):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
-        QTimer.singleShot(0, self._sync_status)
+        QTimer.singleShot(0, self, self._sync_status)
 
     def sizeHint(self) -> QSize:  # noqa: N802
         return QSize(900, 600)

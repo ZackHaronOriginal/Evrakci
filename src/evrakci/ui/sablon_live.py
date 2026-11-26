@@ -129,7 +129,7 @@ class LiveReads:
             return
         if self._read_task is not None:
             self._reread = False  # the live read finishes first, then this starts
-            QTimer.singleShot(100, self.read_all_examples)
+            QTimer.singleShot(100, self, self.read_all_examples)
             return
         job = self._read_input(numbers)
         self._read_template = job.template

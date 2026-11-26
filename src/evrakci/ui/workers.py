@@ -184,8 +184,11 @@ class Background(QObject):
             _card(self._owner).close()
 
     def _dropped(self) -> bool:
-        """The owner was closed: a late result is dropped (rule 6)."""
-        return bool(getattr(self._owner, "_closed", False))
+        """The owner was closed or deleted: a late result is dropped (rule 6)."""
+        owner = self._owner
+        if isinstance(owner, QObject) and not shiboken6.isValid(owner):
+            return True
+        return bool(getattr(owner, "_closed", False))
 
     def _done(self, result: object) -> None:
         stale = self._cancelled or _current(self._owner) is not self

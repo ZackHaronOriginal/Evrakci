@@ -358,7 +358,7 @@ class Inspector(QWidget):
         kind = event.type()
         if (watched is self.scroll.viewport() and kind == QEvent.Type.Resize) \
                 or (watched is self.scroll.widget() and kind == QEvent.Type.LayoutRequest):
-            QTimer.singleShot(0, self._fit)
+            QTimer.singleShot(0, self, self._fit)
         return super().eventFilter(watched, event)
 
     # -- content -------------------------------------------------------------------------

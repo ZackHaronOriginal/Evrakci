@@ -370,7 +370,7 @@ class PreflightCard(QFrame):
             row.clicked.connect(self.action)
             self.col.addWidget(row)
             self.rows.append(row)
-        QTimer.singleShot(0, self.fit)
+        QTimer.singleShot(0, self, self.fit)
 
     def levels(self) -> list[str]:
         return [r.finding.level for r in self.rows]

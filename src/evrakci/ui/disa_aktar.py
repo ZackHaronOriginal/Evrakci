@@ -276,7 +276,7 @@ class DisaAktarScreen(QWidget):
         header.sectionResized.connect(lambda *_: self._header_timer.start())
         theme.follow(self, self._restyle, "screen")
         self.refresh()
-        QTimer.singleShot(0, self._try_attach)
+        QTimer.singleShot(0, self, self._try_attach)
 
     # -- the window -----------------------------------------------------------------------
     def _try_attach(self) -> None:
@@ -333,7 +333,7 @@ class DisaAktarScreen(QWidget):
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if obj is self.results.viewport() and event.type() == QEvent.Type.Resize:
-            QTimer.singleShot(0, self._fit_columns)
+            QTimer.singleShot(0, self, self._fit_columns)
         return False
 
     # -- columns --------------------------------------------------------------------------
@@ -921,7 +921,7 @@ class DisaAktarScreen(QWidget):
             self.go_tab.emit("kontrol")
             kontrol = getattr(self.window_, "kontrol", None)
             if kontrol is not None and hasattr(kontrol, "jump_to_check"):
-                QTimer.singleShot(0, lambda: kontrol.jump_to_check(1))
+                QTimer.singleShot(0, kontrol, lambda: kontrol.jump_to_check(1))
         elif action == "values":
             self.go_tab.emit("degerler")
         elif action == "kontrol":
@@ -1289,7 +1289,7 @@ class DisaAktarScreen(QWidget):
         taskbar = self._taskbar()
         if taskbar is not None:
             taskbar.error()
-            QTimer.singleShot(5000, taskbar.clear)
+            QTimer.singleShot(5000, self, taskbar.clear)
         self._attention()
         self._finish("Dışa aktarma tamamlanamadı", None)
 
@@ -1405,7 +1405,7 @@ class DisaAktarScreen(QWidget):
             if card is not None:  # the build blocks the window for a moment: say so first
                 card.show_loading("Önizleme hazırlanıyor…", name, cancellable=False)
                 card.repaint()
-            QTimer.singleShot(0, lambda: build(html, card))
+            QTimer.singleShot(0, self, lambda: build(html, card))
 
         def build(html: str, card) -> None:
             try:

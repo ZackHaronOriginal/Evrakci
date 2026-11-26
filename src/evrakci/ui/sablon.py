@@ -157,7 +157,7 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
         theme.follow(self, self._restyle, "sablon-screen")
         self._make_zoom(None)
         self.refresh_templates()
-        QTimer.singleShot(0, self._try_attach)
+        QTimer.singleShot(0, self, self._try_attach)
 
     # -- building --------------------------------------------------------------
     def _timer(self, interval: int, slot: Callable[[], None]) -> QTimer:

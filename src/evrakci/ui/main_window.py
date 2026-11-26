@@ -576,7 +576,7 @@ class MainWindow(QMainWindow):
         for key, title in actions.MENUS.items():
             menu = self.menu_row.bar.addMenu(title)
             menu.aboutToShow.connect(partial(self._fill_menu, menu, title))
-            menu.aboutToHide.connect(lambda: QTimer.singleShot(0, self._row_menu_closed))
+            menu.aboutToHide.connect(lambda: QTimer.singleShot(0, self, self._row_menu_closed))
             sub = QMenu(actions.plain_text(title), self.app_menu)
             sub.aboutToShow.connect(partial(self._fill_menu, sub, title))
             item = self.app_menu.addMenu(sub)
@@ -1154,7 +1154,7 @@ class MainWindow(QMainWindow):
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802
         if (obj is self.menu_row.bar and event.type() == QEvent.Type.FocusOut
                 and event.reason() != Qt.FocusReason.PopupFocusReason):
-            QTimer.singleShot(0, self._row_menu_closed)
+            QTimer.singleShot(0, self, self._row_menu_closed)
         return False
 
     def open_job_switcher(self) -> None:
@@ -1715,7 +1715,7 @@ class MainWindow(QMainWindow):
         if self._unsaved_pending():  # write what is queued first, then close from the event loop
             def written(ok: bool) -> None:
                 if ok:
-                    QTimer.singleShot(0, self.close)
+                    QTimer.singleShot(0, self, self.close)
                 else:  # the close is refused: later edits and tasks go on as usual
                     self._closing = False
 
@@ -1730,7 +1730,7 @@ class MainWindow(QMainWindow):
 
     def _work_stopped(self) -> None:
         if self._closing and not self._busy_screens():
-            QTimer.singleShot(0, self.close)
+            QTimer.singleShot(0, self, self.close)
 
 
 __all__ = ["COMMANDS", "LAST_JOB", "TAB_IDS", "TAB_NAMES", "Cmd", "MainWindow", "default_prefs",

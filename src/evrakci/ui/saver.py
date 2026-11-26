@@ -32,6 +32,7 @@ import threading
 import weakref
 from collections.abc import Callable
 
+import shiboken6
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 
 from evrakci.pipeline.store import JobStore
@@ -56,7 +57,7 @@ class _Relay(QObject):
 
     def _deliver(self, token: int, seq: int, error: str) -> None:
         saver = _SAVERS.get(token)
-        if saver is not None:  # a saver that is gone has nobody to tell
+        if saver is not None and shiboken6.isValid(saver):  # a saver that is gone: nobody to tell
             saver._on_result(seq, error)
 
 

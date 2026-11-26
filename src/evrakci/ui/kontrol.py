@@ -174,7 +174,7 @@ class KontrolScreen(QWidget):
         self.registry = registry
         self.binder = KontrolBinder.for_registry(registry)
         self.binder.attach(self)
-        QTimer.singleShot(0, self._sync_binder)  # once the window names this screen
+        QTimer.singleShot(0, self, self._sync_binder)  # once the window names this screen
         prefs = getattr(window, "prefs", None)
         if prefs is not None:
             self.zoom = self._make_zoom(prefs)
@@ -202,7 +202,7 @@ class KontrolScreen(QWidget):
     def hideEvent(self, event) -> None:  # noqa: N802
         super().hideEvent(event)
         # closing the job hides the screen; once the window has let it go, its commands go off
-        QTimer.singleShot(0, self._sync_binder)
+        QTimer.singleShot(0, self, self._sync_binder)
 
     def _make_zoom(self, prefs) -> ZoomController:
         old = getattr(self, "zoom", None)

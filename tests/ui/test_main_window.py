@@ -149,20 +149,47 @@ def test_quit_shortcut_keeps_asking_while_the_save_fails(qtbot, tmp_path, monkey
     assert window._unsaved_pending() and not window._closed
 
 
-def test_closing_or_switching_the_job_after_failed_save(qtbot, tmp_path, monkeypatch):
+def _answer(qtbot, window, button):
+    qtbot.waitUntil(window._question_open, timeout=3000)
+    box = window._close_question
+    box.button(button).click()
+    qtbot.waitUntil(lambda: not box.isVisible(), timeout=3000)
+
+
+def test_closing_the_job_after_failed_save_asks_and_no_stays(qtbot, tmp_path, monkeypatch):
     window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
     window.close_job()
     qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
-    assert window.controller() is not None
     assert window.message.text() == "Kaydedilemedi: salt okunur"
-    assert window._unsaved_pending()  # the retry failed: nothing may drop the edits silently
-    window.close_job()  # the second Ctrl+W retries again and is refused again
-    qtbot.waitUntil(lambda: window.controller().saver.idle and window._close_warned, timeout=3000)
-    qtbot.wait(100)  # the retry's answer has been taken
-    assert window.controller() is not None
+    assert window._close_question.text().startswith("Değişiklikler kaydedilemedi.")
+    _answer(qtbot, window, QMessageBox.StandardButton.No)
+    assert window.controller() is not None and window._unsaved_pending()
+    window.close_job()  # asked again, never silent
+    _answer(qtbot, window, QMessageBox.StandardButton.No)
     state["fail"] = False  # the disk works again: the retry saves and the job closes
     window.close_job()
     qtbot.waitUntil(lambda: window.controller() is None, timeout=3000)
+
+
+def test_closing_the_job_after_failed_save_yes_discards_and_leaves(qtbot, tmp_path, monkeypatch):
+    window, _state = _failed_save_window(qtbot, tmp_path, monkeypatch)
+    window.close_job()
+    _answer(qtbot, window, QMessageBox.StandardButton.Yes)
+    qtbot.waitUntil(lambda: window.controller() is None, timeout=3000)  # never stuck
+
+
+def test_switching_the_job_after_failed_save_asks_yes_switches_no_stays(
+        qtbot, tmp_path, monkeypatch):
+    window, _state = _failed_save_window(qtbot, tmp_path, monkeypatch)
+    old = window.controller()
+    other = JobStore(tmp_path / "jobs").create_job("Diğer", [tmp_path / "t.pdf"])  # unpatched
+    window.yukle.open_job_id(other.id)
+    _answer(qtbot, window, QMessageBox.StandardButton.No)
+    assert window.controller() is old
+    window.yukle.open_job_id(other.id)
+    _answer(qtbot, window, QMessageBox.StandardButton.Yes)
+    qtbot.waitUntil(lambda: window.controller() is not old, timeout=5000)
+    assert window.controller().job.id == other.id
 
 
 def test_a_success_or_new_failed_edit_resets_the_warning(qtbot, tmp_path, monkeypatch):

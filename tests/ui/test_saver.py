@@ -355,8 +355,13 @@ def test_a_failed_write_keeps_the_old_job_open_on_every_try(
     qtbot.waitUntil(lambda: window.message.text() == "Kaydedilemedi: salt okunur", timeout=3000)
     qtbot.wait(100)
     assert window.controller() is old and old.job.name == "Kaydedilemeyen"  # stays open
-    window.yukle.open_job_id(jobs[1].id)  # second attempt: retried, refused again (Q7)
-    qtbot.wait(300)
+    qtbot.waitUntil(window._question_open, timeout=3000)  # Q7: the same Yes/No question
+    window._close_question.button(QMessageBox.StandardButton.No).click()
+    qtbot.waitUntil(lambda: not window._question_open(), timeout=3000)
+    window.yukle.open_job_id(jobs[1].id)  # second attempt: retried, asked again
+    qtbot.waitUntil(window._question_open, timeout=3000)
+    window._close_question.button(QMessageBox.StandardButton.No).click()
+    qtbot.waitUntil(lambda: not window._question_open(), timeout=3000)
     assert window.controller() is old and old.job.name == "Kaydedilemeyen"
     disk.fail = None  # the disk works again: the retry saves and the switch goes ahead
     window.yukle.open_job_id(jobs[1].id)
@@ -571,6 +576,9 @@ def test_after_a_hang_ctrl_s_and_job_switch_are_not_dead_ends(
     qtbot.waitUntil(lambda: window.yukle.can_switch() is None, timeout=5000)  # not BUSY for ever
     assert not window.yukle.swapping and window.controller() is controller
     assert window.yukle.can_switch() is None
+    qtbot.waitUntil(window._question_open, timeout=3000)
+    window._close_question.button(QMessageBox.StandardButton.No).click()
+    qtbot.waitUntil(lambda: not window._question_open(), timeout=3000)
     disk.release()  # the hung write ends and the disk works: the switch retries and goes on
     window.yukle.open_job_id(jobs[1].id)
     qtbot.waitUntil(lambda: window.controller() is not controller, timeout=5000)

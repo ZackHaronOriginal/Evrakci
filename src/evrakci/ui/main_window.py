@@ -1756,6 +1756,9 @@ class MainWindow(QMainWindow):
         if controller is None or not self._unsaved_pending():
             then(True)
             return
+        if self._question_open():  # the question is already up: it is the only way on
+            then(False)
+            return
         saver = controller.saver
         if saver.idle:  # the last write failed: write the job again now
             controller.save_now()
@@ -1769,6 +1772,7 @@ class MainWindow(QMainWindow):
             self._close_warned = True  # after the saver's own signal reset it
             self.message.setText(f"Kaydedilemedi: {error}")
             then(False)
+            self._ask_close_unsaved(then)  # Yes drops the edits and goes on, No stays
 
         saver.when_idle(written)
 
@@ -1798,10 +1802,9 @@ class MainWindow(QMainWindow):
         if self._unsaved_pending():  # write what is queued first, then close from the event loop
             def written(ok: bool) -> None:
                 if ok:
-                    QTimer.singleShot(0, self, self.close)
+                    QTimer.singleShot(0, self, self.close)  # also after the question's Yes
                 else:  # the close is refused: later edits and tasks go on as usual
-                    self._closing = False
-                    self._ask_close_unsaved()
+                    self._closing = False  # _settle_job has asked the question
 
             self._settle_job(written)
             event.ignore()
@@ -1816,12 +1819,12 @@ class MainWindow(QMainWindow):
         dialog = getattr(self, "_close_question", None)
         return dialog is not None and shiboken6.isValid(dialog) and dialog.isVisible()
 
-    def _question_answered(self, code: int) -> None:
+    def _question_answered(self, code: int, then: Callable[[bool], None]) -> None:
         if code == QMessageBox.StandardButton.Yes and shiboken6.isValid(self):
             self._discard_ok = True  # only this answer lets the edits go
-            self.close()
+            then(True)
 
-    def _ask_close_unsaved(self) -> None:
+    def _ask_close_unsaved(self, then: Callable[[bool], None]) -> None:
         """The save failed again: Yes closes anyway (the last changes are lost), No keeps the job
         open. The question does not block the event loop, so a close can never get stuck (B-035);
         the status line keeps the reason and a second close attempt also goes ahead."""
@@ -1833,7 +1836,7 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
         dialog.setDefaultButton(QMessageBox.StandardButton.No)
         dialog.setWindowModality(Qt.WindowModality.WindowModal)
-        dialog.finished.connect(self._question_answered)
+        dialog.finished.connect(lambda code: self._question_answered(code, then))
         self._close_question = dialog
         dialog.open()
 

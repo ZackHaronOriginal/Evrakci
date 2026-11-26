@@ -12,7 +12,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QPointF, QRect, QRectF, QSize, Qt, QUrl, Signal
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSize, Qt, QUrl, Signal
 from PySide6.QtGui import (
     QAction,
     QDesktopServices,
@@ -461,6 +461,8 @@ class ActionButton(QToolButton):
         super().__init__(parent)
         self.action_ = action
         self.hide_disabled = hide_disabled  # shown only while the command can run (İptal et)
+        self.optional_text: str | None = None  # a label shown only while the bar has room (K-8)
+        self.tip_on_focus = False  # keyboard focus shows the tooltip, like hover does (K-8)
         self.icon_name = icon or action.property("lucide") or "square"
         self._gate = None  # a screen's own extra condition (see set_gate)
         self.setAutoRaise(True)
@@ -478,6 +480,30 @@ class ActionButton(QToolButton):
 
     def labelled(self) -> bool:
         return self.toolButtonStyle() != Qt.ToolButtonStyle.ToolButtonIconOnly
+
+    def set_label_shown(self, shown: bool) -> None:
+        """Show or hide the optional label (text beside the icon); a no-op without one."""
+        if self.optional_text is None or shown == self.labelled():
+            return
+        self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon if shown
+                                else Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self.setText(self.optional_text if shown else "")
+        self.setProperty("kind", "command" if shown else None)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.refresh()
+
+    def focusInEvent(self, event) -> None:  # noqa: N802
+        super().focusInEvent(event)
+        if self.tip_on_focus and event.reason() in (
+                Qt.FocusReason.TabFocusReason, Qt.FocusReason.BacktabFocusReason,
+                Qt.FocusReason.ShortcutFocusReason) and self.toolTip():
+            QToolTip.showText(self.mapToGlobal(QPoint(0, self.height())), self.toolTip(), self)
+
+    def focusOutEvent(self, event) -> None:  # noqa: N802
+        super().focusOutEvent(event)
+        if self.tip_on_focus:
+            QToolTip.hideText()
 
     def keyPressEvent(self, event) -> None:  # noqa: N802
         if not press_on_enter(self, event):
@@ -565,7 +591,8 @@ class ActionButton(QToolButton):
 
 
 class CommandBar(QWidget):
-    """A's icon-first command bar (44 px, 36 px buttons, at most three labels)."""
+    """A's icon-first command bar (44 px, 36 px buttons, a few labels). Buttons with an optional
+    label show it only while the bar is wide enough for all the commands (K-8)."""
 
     def __init__(self, name: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -577,15 +604,62 @@ class CommandBar(QWidget):
         self._row.setContentsMargins(m.size("s2"), 0, m.size("s2"), 0)
         self._row.setSpacing(2)
         self._buttons: list[QToolButton] = []
+        self._optional: list[ActionButton] = []  # in the order the labels give way, last first
+        self._bare_width = 0
+        self._fitting = False
 
     def add_action(self, action: QAction, label: bool = False, icon: str | None = None,
-                   text: str | None = None, hide_disabled: bool = False) -> ActionButton:
+                   text: str | None = None, hide_disabled: bool = False,
+                   optional_label: str | None = None, tip_on_focus: bool = False
+                   ) -> ActionButton:
         """An icon button (or icon + label) that triggers `action`; `icon` overrides its Lucide
-        name and `text` its label; `hide_disabled` shows it only while the action is enabled."""
+        name and `text` its label; `hide_disabled` shows it only while the action is enabled;
+        `optional_label` is a label that appears only while the bar has room for it;
+        `tip_on_focus` shows the tooltip when Tab reaches the button."""
         button = ActionButton(action, label, icon, text, self, hide_disabled)
+        button.tip_on_focus = tip_on_focus
+        if optional_label is not None and not label:
+            button.optional_text = optional_label
+            self._optional.append(button)
         self._row.addWidget(button)
         self._buttons.append(button)
         return button
+
+    def _needed(self) -> int:
+        self._row.invalidate()
+        return self._row.minimumSize().width()
+
+    def fit_labels(self) -> None:
+        """Optional labels on while every command still fits the bar's width, off from the
+        last one back until it does."""
+        if not self._optional or self._fitting:
+            return
+        self._fitting = True
+        try:
+            for button in self._optional:
+                button.set_label_shown(False)
+            self._bare_width = self._needed()
+            room = self.width()
+            for button in self._optional:
+                button.set_label_shown(True)
+            for button in reversed(self._optional):
+                if self._needed() <= room:
+                    break
+                button.set_label_shown(False)
+        finally:
+            self._fitting = False
+        self.updateGeometry()
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        """The bar never asks for more than its icons need: labels give way, not the window."""
+        hint = super().minimumSizeHint()
+        if self._optional and self._bare_width:
+            return QSize(self._bare_width, hint.height())
+        return hint
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.fit_labels()
 
     def add_separator(self) -> QFrame:
         line = QFrame(self)
@@ -639,6 +713,7 @@ class CommandBar(QWidget):
                 button.refresh()
             else:
                 self._refresh_more(button)
+        self.fit_labels()
 
 
 # -- the floating menu row (Alt) ------------------------------------------------------------

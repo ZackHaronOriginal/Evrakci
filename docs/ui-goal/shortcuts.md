@@ -127,7 +127,7 @@ the part between the two comments.
 | K | Burada kes | Düzen | cuts here or removes the cut; yazarken kapalı |
 | M | Önceki belgeyle birleştir | Düzen | yazarken kapalı |
 | R / Shift+R | Sağa döndür / Sola döndür | Düzen | yazarken kapalı |
-| Del | Sayfayı sil | Düzen | toggles delete / restore; undoable, the label names the count; yazarken kapalı |
+| Del | Sayfayı sil | Düzen | deletes the chosen pages (then the selection moves to the next page that stays) or restores them when all chosen are deleted; undoable, the label names the count; yazarken kapalı |
 | Enter | Belgeyi onayla | Düzen | marks the document İncelendi and moves on; keypad Enter too; yazarken kapalı |
 | Ctrl+A | Tümünü seç | Düzen | |
 | B | Bu belgeyi seç | Düzen | every page of the current document, not separators or deleted pages; status 'N sayfa seçildi.'; yazarken kapalı |

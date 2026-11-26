@@ -22,6 +22,7 @@ from evrakci.ui.controller import JobController
 
 FILE_NAME = "incelendi.json"
 FORMAT = 1
+SAVE_ERROR = "Onay kaydedilemedi. İş klasörünü, boş yeri ve yazma iznini kontrol edin."
 
 
 def document_key(document: Document) -> str:
@@ -47,6 +48,7 @@ class ReviewStore(QObject):
     """The approved documents of one job; emits `changed` after every change (and undo)."""
 
     changed = Signal()
+    save_failed = Signal(str)  # the text to show, with a way to try again (K-10)
 
     def __init__(self, controller: JobController, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -69,15 +71,21 @@ class ReviewStore(QObject):
         if isinstance(data, dict) and data.get("format") == FORMAT:
             self.keys = {str(k) for k in data.get("documents", []) if isinstance(k, str)}
 
-    def _save(self) -> None:
+    def _save(self) -> bool:
         data = {"format": FORMAT, "documents": sorted(self.keys)}
         try:
             self.path().write_text(json.dumps(data, ensure_ascii=False, indent=1),
                                    encoding="utf-8")
             self.error = ""
+            return True
         except OSError:
-            self.error = "Onay kaydedilemedi; iş klasörüne yazılamıyor."
-            self.controller.status.emit(self.error)
+            self.error = SAVE_ERROR
+            self.save_failed.emit(SAVE_ERROR)
+            return False
+
+    def retry_save(self) -> bool:
+        """Yeniden dene: write the approvals as they are now (nothing is changed or undone)."""
+        return self._save()
 
     def _apply(self, values: dict[str, bool]) -> None:
         for key, value in values.items():

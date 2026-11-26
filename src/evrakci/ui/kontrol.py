@@ -159,6 +159,7 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
         controller.job_changed.connect(self._job_changed)
         controller.undo_stack.indexChanged.connect(self._undo_moved)
         self.reviews.changed.connect(self._reviews_changed)
+        self.reviews.save_failed.connect(self._save_failed)
         QWidget.setTabOrder(self.chips, self.timeline)
         if self.model.rowCount():  # focus the first page without selecting it
             selection.setCurrentIndex(self.model.index(0),
@@ -260,6 +261,25 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
                          available=available if undo else None)
         else:
             self.controller.status.emit(text)
+
+    def _save_failed(self, text: str) -> None:
+        """K-10: the approvals could not be written: a red toast that offers Yeniden dene (the
+        approvals stay in memory; the retry writes them as they are, no undo step)."""
+        toaster = getattr(self._window, "toaster", None)
+        if toaster is None:
+            self.controller.status.emit(text)
+            return
+
+        def retry() -> None:
+            # after the toast has closed itself, so a second failure shows a fresh toast
+            QTimer.singleShot(0, self, self._retry_save)
+
+        toaster.show(text, "Yeniden dene", retry, kind="error", timeout_ms=10000,
+                     key="kontrol.onay-kaydi")
+
+    def _retry_save(self) -> None:
+        if self.reviews.retry_save():
+            self._toast("Onay kaydedildi.", undo=False)
 
     # -- reading the state --------------------------------------------------------------------
     def selected_rows(self) -> list[int]:
@@ -524,19 +544,47 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
                 self._remember("undo-2", text)
             return
         targets = [pid for pid in ids if pid not in job.deleted]
-        emptied = [n for n, d in enumerate(self.controller.documents(), start=1)
+        documents = self.controller.documents()
+        emptied = [(n, self._span(d.page_ids)) for n, d in enumerate(documents, start=1)
                    if set(d.page_ids) <= set(targets)]
+        drawn = bool(self._chosen_ids())
+        in_loupe = self._loupe is not None and self._loupe.is_open()
         label = "Sayfayı sil" if len(targets) == 1 else f"{len(targets)} sayfayı sil"
         if not self.controller.run(label, lambda j: [j.delete_page(p) for p in targets]):
             return
         text = (f"Sayfa {job.position_of(targets[0])} silinecek" if len(targets) == 1
                 else f"{len(targets)} sayfa silinecek")
         self._remember("trash-2", text)
+        if drawn and not in_loupe:
+            self._select_after_delete(targets)
         if emptied:
-            names = ", ".join(f"Belge {n}" for n in emptied)
+            names = ", ".join(f"Belge {n} ({span})" for n, span in emptied)
             self._toast(f"{names}: bütün sayfaları silinecek, belge dışa aktarılmayacak.")
         else:
             self._toast(f"{text}.")
+
+    def _select_after_delete(self, targets: list[str]) -> None:
+        """K-3: the pages just deleted stop being the selection; the next page that stays (else
+        the one before) is selected and current, so the inspector and "Belgeyi onayla" agree
+        with what is drawn. Only the selection moves: the deleted set and the undo step are
+        untouched, and Geri al brings the pages back."""
+        gone = set(targets)
+        rows = sorted(self.model.row_of(pid) for pid in targets)
+
+        def stays(row: int) -> bool:
+            return (self.model.state(row) == "page"
+                    and self.model.page_id(row) not in gone)
+
+        count = self.model.rowCount()
+        row = next((r for r in range(rows[-1] + 1, count) if stays(r)), None)
+        if row is None:
+            row = next((r for r in range(rows[0] - 1, -1, -1) if stays(r)), None)
+        if row is None:
+            return
+        index = self.model.index(row)
+        self.timeline.selectionModel().setCurrentIndex(
+            index, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+        self.timeline.scrollTo(index, TimelineView.ScrollHint.EnsureVisible)
 
     def merge_current(self) -> None:
         """M: join the current document to the one before (removes the cut between them)."""
@@ -546,6 +594,7 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
             return
         document = self.controller.documents()[number - 1]
         first = document.page_ids[0]
+        span = self._span(document.page_ids)  # numbers shift after a merge; pages do not (K-5)
         kind = self.controller.cut_kinds().get(first)
         done = False
         count = len(self.controller.documents())
@@ -567,21 +616,32 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
             self.controller.status.emit("İlk belgenin öncesi yok.")
         if done and len(self.controller.documents()) < count:
             self._remember("merge", f"Belge {number}, Belge {number - 1} ile birleşti")
-            self._toast(f"Belge {number}, Belge {number - 1} ile birleştirildi.")
+            self._toast(f"Belge {number} ({span}), Belge {number - 1} ile birleştirildi.")
 
     def approve_document(self) -> None:
-        """Enter, Belgeyi onayla: the document is İncelendi; go on to the next one."""
+        """Enter, Belgeyi onayla: the document is İncelendi; go on to the next one. The status
+        line says which document was approved and which comes next, and says so when the
+        document still carried a Kontrol flag (K-4): Enter never passes one silently."""
         number = self.current_document()
         if not number:
             self.controller.status.emit("Önce bir sayfa seçin.")
             return
         documents = self.controller.documents()
-        if self.reviews.set_reviewed([documents[number - 1]]):
+        flagged = bool(self.model.checks.get(number))
+        done = self.reviews.set_reviewed([documents[number - 1]])
+        if done:
             self._remember("circle-check", f"Belge {number} onaylandı")
-        if number < len(documents):
+        last = number >= len(documents)
+        if not last:
             self.go_to_document(number + 1)
-        else:
+        if flagged and done:
+            self.controller.status.emit(
+                f"Belge {number} kontrol işaretiyle onaylandı"
+                + ("; bu son belge." if last else "."))
+        elif last:
             self.controller.status.emit(f"Belge {number} onaylandı; bu son belge.")
+        elif done:
+            self.controller.status.emit(f"Belge {number} onaylandı, Belge {number + 1}.")
 
     def open_in_values(self) -> None:
         number = self.current_document()
@@ -983,7 +1043,7 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
         templates = self.templates()
         rows = self.selected_rows()
         ids = [self.model.page_id(r) for r in rows]
-        # The "Seçim" card counts only pages that are drawn selected (ring and check badge);
+        # The "Seçim" card counts only pages that are drawn selected (ring and corner dot);
         # the current page alone is where the commands act, not a selection.
         chosen = sorted(i.row() for i in self.timeline.selectionModel().selectedIndexes())
         if chosen:

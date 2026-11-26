@@ -270,7 +270,9 @@ def test_delete_names_the_count_is_undoable_and_never_silent(qtbot, tmp_path):
     assert "2 sayfayı sil" in action.toolTip()
     _key(window, Qt.Key.Key_Delete)
     assert {"a/4", "a/5"} <= ctl.job.deleted
-    assert "Belge 2: bütün sayfaları silinecek" in window.toaster.current_text()
+    assert "Belge 2 (sayfa 5–6): bütün sayfaları silinecek" in window.toaster.current_text()
+    assert screen.selected_rows() == [7]  # the selection moved on (K-3): nothing contradicts
+    screen.timeline.select_rows(4, 5, 5)  # choose the two deleted pages again
     assert action.text().replace("&", "") == "2 sayfayı geri getir"
     _key(window, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
     assert not ctl.job.deleted
@@ -286,7 +288,9 @@ def test_deleting_a_single_page_toasts_with_undo(qtbot, tmp_path):
     index = screen.model.index(0)
     assert index.data(Roles.STATE) == "deleted"
     assert "silinecek" in index.data(Qt.ItemDataRole.AccessibleTextRole)
-    screen.toggle_delete()  # Del again restores
+    assert screen.selected_rows() == [1]  # K-3: the selection moved to the next page
+    screen.timeline.select_rows(0, 0, 0)  # choose the deleted page again: Del restores it
+    screen.toggle_delete()
     assert not window.controller().job.deleted
 
 

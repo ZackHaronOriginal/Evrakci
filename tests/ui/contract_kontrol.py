@@ -215,7 +215,8 @@ def _effect_merged(c: Ctx) -> None:
 
 @helper("feedback.kontrol_merged")
 def _feedback_merged(c: Ctx) -> None:
-    assert c.win.toaster.current_text() == "Belge 2, Belge 1 ile birleştirildi.", heard(c.win)
+    assert c.win.toaster.current_text() == "Belge 2 (sayfa 5–11), Belge 1 ile birleştirildi.", \
+        heard(c.win)
     assert _toast_undo(c)
     assert _history(c)[0] == "Belge 2, Belge 1 ile birleşti"
     assert any(t.endswith("/ 2") for t in _status(c)), _status(c)
@@ -285,7 +286,9 @@ def _feedback_deleted(c: Ctx) -> None:
     assert c.win.toaster.current_text() == "Sayfa 2 silinecek.", heard(c.win)
     assert _toast_undo(c)
     assert _history(c)[0] == "Sayfa 2 silinecek"
-    assert c.win.registry.action("kontrol.sil").text().replace("&", "") == "Sayfayı geri getir"
+    # K-3: the selection moved on to the next page that stays, so the item offers a delete again
+    assert c.win.kontrol.selected_rows() == [2], c.win.kontrol.selected_rows()
+    assert c.win.registry.action("kontrol.sil").text().replace("&", "") == "Sayfayı sil"
     assert c.win.controller().undo_stack.undoText() == "Sayfayı sil"
 
 

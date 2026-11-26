@@ -16,6 +16,7 @@ TRACK_H = 8  # A .track height
 SEG_GAP = 2  # A .track gap
 VP_OUT_V = 6  # A .vp top/bottom -6px
 VP_OUT_H = 4  # A: viewport ring 4 px wider than its segments on both sides
+KONTROL_NOTCH = 4  # a Kontrol square stands this much taller than the track (second signal, K-7)
 SEG_MAX = 8  # A: a document is a small square (about 8 px) on the track, never a long bar
 
 
@@ -158,6 +159,8 @@ class OverviewStrip(QWidget):
             rect = self._segment(number, track)
             if thin and state == "k":
                 rect = QRectF(rect.center().x() - 1.5, rect.y(), 3, rect.height())
+            if state == "k":  # taller than the others: the shape says it, not the colour alone
+                rect = rect.adjusted(0, -KONTROL_NOTCH, 0, 0)
             colour = {"k": "rider", "done": "accent"}.get(state, "track")
             painter.setPen(Qt.PenStyle.NoPen)
             if state == "k" and hc:  # high contrast: a filled mark, not one more outline

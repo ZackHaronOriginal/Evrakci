@@ -91,6 +91,7 @@ class Cmd(NamedTuple):
     icon: str | None = None
     text: str | None = None
     hide_disabled: bool = False
+    optional_label: str | None = None  # a label shown only while the bar has room (K-8)
 
 
 SEP, GROW = "|", "->"
@@ -106,11 +107,13 @@ COMMANDS: dict[str, tuple[Cmd | str, ...]] = {
               Cmd("app.sekme.kontrol", True, "arrow-right-to-line", "Kontrol'e geç"), SEP,
               Cmd("app.yan_panel")),
     "kontrol": (Cmd("app.geri_al"), Cmd("app.yinele"), SEP,
-                Cmd("kontrol.kes", True, "scissors", "Kes"), Cmd("kontrol.birlestir"),
-                Cmd("kontrol.saga_dondur"), Cmd("kontrol.sil"), SEP,
+                Cmd("kontrol.kes", True, "scissors", "Kes"),
+                Cmd("kontrol.birlestir", optional_label="Birleştir"),
+                Cmd("kontrol.saga_dondur"), Cmd("kontrol.sil", optional_label="Sil"), SEP,
                 Cmd("kontrol.sablon", icon="stamp"), Cmd("kontrol.filtre"),
                 Cmd("kontrol.sec", icon="list-checks"), GROW,
-                Cmd("kontrol.sonraki_kontrol", True), Cmd("kontrol.sonraki_incelenmemis"),
+                Cmd("kontrol.sonraki_kontrol", True),
+                Cmd("kontrol.sonraki_incelenmemis", optional_label="Sonraki incelenmemiş"),
                 Cmd("app.git"), SEP, Cmd("kontrol.onizle"), Cmd("app.yan_panel")),
     "sablonlar": (Cmd("app.geri_al"), Cmd("app.yinele"), SEP,
                   Cmd("sablonlar.kutu_ciz", True, "square-dashed", "Kutu çiz"),
@@ -663,7 +666,8 @@ class MainWindow(QMainWindow):
                     bar.add_stretch()
                 else:
                     bar.add_action(self.registry.action(entry.id), entry.label, entry.icon,
-                                   entry.text, entry.hide_disabled)
+                                   entry.text, entry.hide_disabled, entry.optional_label,
+                                   tip_on_focus=tab == "kontrol")
             bar.add_more(partial(self._fill_more, tab))
 
     def _fill_more(self, tab: str, menu: QMenu) -> None:

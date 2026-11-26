@@ -29,8 +29,9 @@ from evrakci.ui import icons, motion, theme
 
 TOAST_MARGIN = 12
 SHADOW_ROOM = 16
-KIND_ICON = {"info": "info", "success": "circle-check", "kontrol": "triangle-alert"}
-KIND_COLOUR = {"info": "icon", "success": "ok", "kontrol": "check-text"}
+KIND_ICON = {"info": "info", "success": "circle-check", "kontrol": "triangle-alert",
+             "error": "circle-x"}
+KIND_COLOUR = {"info": "icon", "success": "ok", "kontrol": "check-text", "error": "danger"}
 
 
 def announce(widget: QWidget, text: str) -> None:

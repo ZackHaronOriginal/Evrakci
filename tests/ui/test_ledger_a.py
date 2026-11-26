@@ -219,7 +219,6 @@ def test_b029_failed_autosave_shows_the_failed_state_until_a_save_works(qtbot, t
     qtbot.waitUntil(lambda: band.state() == "saved", timeout=3000)
 
 
-@pytest.mark.xfail(strict=True, reason="B-030: an error toast shows the info icon")
 def test_b030_error_toast_has_its_own_icon(qtbot, tmp_path):
     from PySide6.QtWidgets import QLabel, QWidget
 

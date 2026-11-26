@@ -106,6 +106,7 @@ Logged as given; not specced or built now. Several extend rows above (noted).
 | I-54 | Rule-based filters and checks on values: length, number vs text, known formats (e.g. bank account number / IBAN), and check-digit or other calculations to verify a value | I-31, I-32 | later |
 | I-55 | Connect variables to a future CRM-like app: fetch and send data | I-48, I-49 | later |
 | I-56 | Learn from the corrections staff make: every value fixed in Değerler (with its template, box, the reader's text and the confirmed text) is kept as a local example; a learning step after the OCR uses these examples to correct the reader's typical mistakes for that template and box (e.g. I read as 1, 0 as O), so reading gets better with each job. Aim stated with the idea: below 1 % wrong values in the end result. Needs planning: local-only training (no network), how much data is enough, how a learned correction is shown to the reviewer (suggestion, never a silent change), measuring the error rate before and after on synthetic and anonymised data | I-53, I-26, I-30, I-19 | later |
+| I-57 | Password-protected PDFs: ask for the password when a scanned PDF is locked, open it, and keep the password only for that session (owner idea 2026-11-26) | Today a locked PDF is refused with "PDF açılamadı" | Offices that receive locked PDFs | owner | M | Medium: passwords must never be stored or logged | low | Yükle | later |
 
 ## Already deferred: later (already decided)
 
@@ -121,4 +122,3 @@ Decided 2026-11-13 (decisions.md, "Owner answers before close"); they start as "
 
 - Bugs, not ideas: B-003 (PDF/A state differs in list, card, index), B-004 (name pattern not saved with the job), B-006 (no window control for dropping blank pages; I-03 is the filter, not the switch), B-012 (Kontrol "Değerlerde aç" ignores the document), B-013 (variant drawing opens page 1), B-018 (template rename, delete, import, export missing; rename also an open product decision), B-022 (status line not announced), B-023 (toast Geri al acts on its own step: fixed).
 - Open ledger entries that touch ideas: B-025 (no unapprove; wontfix) and B-034 (meaning of İncelendi vs Dışa Aktar) bear on I-11 and I-34.
-| I-57 | Password-protected PDFs: ask for the password when a scanned PDF is locked, open it, and keep the password only for that session (owner idea 2026-11-26) | Today a locked PDF is refused with "PDF açılamadı" | Offices that receive locked PDFs | owner | M | Medium: passwords must never be stored or logged | low | Yükle | later |

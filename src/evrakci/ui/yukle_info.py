@@ -82,12 +82,17 @@ def possessive(number: int) -> str:
 
 
 def batch_edits(job: Job, batch_id: str) -> int:
-    """How many cuts and deletes the job holds on the pages of this batch (what "Partiyi
-    çıkar" takes along; Geri al brings them back)."""
+    """How many edits the job holds on the pages of this batch: everything
+    `Job.remove_batch` drops (cuts, deletes, rotations, filters, templates, read values);
+    Geri al brings them back."""
     batch = job.get_batch(batch_id)
     gone = {page_id(batch.id, i) for i in range(batch.page_count)}
-    return sum(len(edits & gone) for edits in
-               (job.deleted, job.restored, job.manual_cuts, job.removed_cuts))
+    keyed = (job.deleted, job.restored, job.manual_cuts, job.removed_cuts, job.rotations,
+             job.values, job.read_errors, job.value_sources)
+    count = sum(len(set(edits) & gone) for edits in keyed)
+    count += sum(len(f.page_ids & gone) for f in job.filters)
+    count += sum(len(t.page_ids & gone) for t in job.templates)
+    return count
 
 
 def reason(qr_by_batch: list[int]) -> str:

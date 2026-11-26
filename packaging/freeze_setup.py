@@ -3,7 +3,6 @@
 Run through packaging/build.py, which stages licences and bundled tools first.
 """
 
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -47,11 +46,15 @@ include_files.append((str(HERE.parent / "src" / "evrakci" / "ui" / "assets" / "f
                       "lib/evrakci/ui/assets/fonts"))
 
 # Qt's own Turkish texts (OK / Cancel / Yes / No in Qt's dialogs): app.install_qt_translation
-# loads qtbase_tr.qm from the translations folder of the PySide6 wheel, so the build keeps it.
-_pyside = importlib.util.find_spec("PySide6")
-_qt_tr = Path(_pyside.origin).parent / "Qt" / "translations" / "qtbase_tr.qm" if _pyside else None
-if _qt_tr is not None and _qt_tr.is_file():
-    include_files.append((str(_qt_tr), "lib/PySide6/Qt/translations/qtbase_tr.qm"))
+# loads qtbase_tr.qm from the translations folder of the PySide6 package; a missing file fails
+# the build (layout.qt_translation_entry).
+import PySide6  # noqa: E402
+from layout import qt_translation_entry  # noqa: E402
+from PySide6.QtCore import QLibraryInfo  # noqa: E402
+
+include_files.append(qt_translation_entry(
+    Path(PySide6.__file__).parent,
+    Path(QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))))
 
 setup(
     name="Evrakci",

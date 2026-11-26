@@ -381,7 +381,7 @@ class Inspector(QWidget):
         self.qr_row.set(str(info.qr), state="num")
         self.docs_row.set(str(info.documents), state="num")
         if info.checks:
-            self.state_row.set(f"{info.checks} belge Kontrol bekliyor", "triangle-alert",
+            self.state_row.set(f"{info.checks} belge kontrol bekliyor", "triangle-alert",
                                "check-text", "kontrol")
         elif not info.batches:
             self.state_row.set("Henüz parti yok", "info", "text-2")

@@ -57,7 +57,7 @@ def test_removing_a_batch_with_edits_says_the_edits_go_too(qtbot, tmp_path, file
     screen.table.select_batch(first.id)
     screen.remove_batch()
     assert screen.last_message == ("tarama-1.pdf işten çıkarıldı; "
-                                   "sayfalarındaki kesme ve silmeler de gitti.")
+                                   "bu partinin sayfalarındaki düzenlemeler de gitti.")
     screen.controller.undo_stack.undo()  # Geri al brings the edits back with the batch
     assert batch_edits(screen.controller.job, first.id) == 2
 
@@ -87,7 +87,7 @@ def test_an_empty_job_name_asks_again_and_says_why(qtbot, tmp_path, files, monke
     screen.rename_job()
     assert screen.controller.job.name == "Yeni ad"
     assert asked[0][0] == "İşin adı:" and asked[1][0] == "İşin adı:\nİş adı boş olamaz."
-    assert asked[1][1] == ""
+    assert asked[1][1] == "Kasım"
     assert screen.last_message == "İş adı boş olamaz."
 
 
@@ -126,7 +126,7 @@ def test_the_inspector_leads_with_what_needs_action(qtbot, tmp_path, files):
     screen.side.show_job(flagged, None)
     assert screen.side.title.text() == "2 belge kontrol bekliyor"
     assert screen.side.sub.text() == f"3 sayfa, 1 parti, {info.documents} belge bulundu"
-    assert screen.side.state_row.value.text() == "2 belge Kontrol bekliyor"
+    assert screen.side.state_row.value.text() == "2 belge kontrol bekliyor"
 
 
 def test_an_empty_job_says_there_is_no_batch_yet(qtbot, tmp_path, files):
@@ -168,7 +168,8 @@ def test_the_progress_card_has_its_own_cancel_and_the_read_is_announced(qtbot, t
         screen._reading = None
     finally:
         module.announce = original
-    assert spoken == ["Okuma başladı: 5 sayfa", "Okuma %25", "Okuma %50", "Okuma %75"]
+    assert spoken == ["Okuma başladı: 5 sayfa", "Okuma: %25 bitti", "Okuma: %50 bitti",
+                      "Okuma: %75 bitti"]
 
 
 def test_the_card_cancel_stops_the_read_and_a_finished_read_is_announced(qtbot, tmp_path, files):
@@ -311,3 +312,75 @@ def test_the_counting_phase_is_called_counting(qtbot):
 
     assert "Dosyalar sayılıyor" in inspect.getsource(module.YukleScreen._begin)
     assert "inceleniyor" not in inspect.getsource(module)
+
+
+# -- second round ------------------------------------------------------------------------
+def test_removing_a_batch_counts_every_edit_remove_batch_drops(qtbot, tmp_path, files):
+    from evrakci.pipeline.job import FilterApplication
+
+    a, b = files
+    window = _window(qtbot, tmp_path)
+    screen = _open(qtbot, window, [a, b])
+    job = screen.controller.job
+    first = job.batches[0]
+    job.rotations[f"{first.id}/1"] = 90
+    job.filters.append(FilterApplication(frozenset({f"{first.id}/0"}), 2))
+    assert batch_edits(job, first.id) == 2
+    screen.table.select_batch(first.id)
+    screen.remove_batch()
+    assert screen.last_message == ("tarama-1.pdf işten çıkarıldı; "
+                                   "bu partinin sayfalarındaki düzenlemeler de gitti.")
+
+
+def test_a_failed_or_cancelled_read_is_announced(qtbot, tmp_path, files):
+    a, _b = files
+    window = _window(qtbot, tmp_path)
+    _open(qtbot, window, [a])
+    screen = window.yukle
+    spoken: list[str] = []
+    import evrakci.ui.yukle as module
+
+    original = module.announce
+    module.announce = lambda _w, text: spoken.append(text)
+    try:
+        screen._finish(None, None, cancelled=True)
+        assert spoken[-1] == module.CANCELLED_TEXT
+        screen._finish(None, None, error="PDF açılamadı: x.pdf")
+        assert spoken[-1] == screen.last_message and "PDF açılamadı: x.pdf" in spoken[-1]
+    finally:
+        module.announce = original
+
+
+def test_rows_count_a_zero_page_file_and_the_last_file_as_done():
+    reading = _Reading([Path(n) for n in ("a", "b", "c")], [5, 0, 5])
+    reading.done = 7
+    assert [r[2] for r in reading.rows()] == ["okundu", "okundu", "okunuyor"]
+    reading.done = 10  # the read is over: the last file says okundu too
+    assert [r[2] for r in reading.rows()] == ["okundu", "okundu", "okundu"]
+
+
+def test_empty_name_dialog_comes_back_with_the_previous_name(qtbot, tmp_path, files, monkeypatch):
+    a, _b = files
+    window = _window(qtbot, tmp_path)
+    screen = _open(qtbot, window, [a])
+    seen: list[str] = []
+    answers = iter([("  ", True), ("Ad", True)])
+
+    def get_text(_p, _t, _l, *_a, **kw):
+        seen.append(kw.get("text"))
+        return next(answers)
+
+    monkeypatch.setattr(QInputDialog, "getText", staticmethod(get_text))
+    screen.rename_job()
+    assert seen == ["Kasım", "Kasım"]  # the previous name is back in the field
+
+
+def test_cancel_in_the_card_moves_focus_to_the_table(qtbot, tmp_path, files):
+    a, b = files
+    window = _window(qtbot, tmp_path)
+    screen = _open(qtbot, window, [a])
+    screen.add_batches([b])
+    screen.progress.stop_button.setFocus()
+    screen._stop_clicked()
+    assert QApplication.focusWidget() is screen.table
+    qtbot.waitUntil(lambda: not screen.busy(), timeout=10000)

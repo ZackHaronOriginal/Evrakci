@@ -429,8 +429,8 @@ def test_inspector_marks_documents_that_need_a_check_with_the_word_kontrol(qtbot
     flagged = JobSummary(info.name, info.pages, info.qr, info.documents, 7, info.batches,
                          info.reason)
     screen.side.show_job(flagged, None)
-    assert screen.side.state_row.value.text() == "7 belge Kontrol bekliyor"  # R3 Y-6
-    assert screen.side.state_row.accessibleName() == "Durum: 7 belge Kontrol bekliyor"
+    assert screen.side.state_row.value.text() == "7 belge kontrol bekliyor"  # R3 Y-6
+    assert screen.side.state_row.accessibleName() == "Durum: 7 belge kontrol bekliyor"
     assert screen.side.profile.title.text() == "Tarama bilgisi yok"  # never invented
 
 

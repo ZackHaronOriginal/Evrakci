@@ -18,6 +18,20 @@ def freeze_include_files(stage: Path) -> list[tuple[str, str]]:
     return [(str(p), p.name) for p in sorted(stage.iterdir()) if p.name not in AFTER_FREEZE]
 
 
+def qt_translation_entry(pyside_dir: Path, translations: Path,
+                         name: str = "qtbase_tr.qm") -> tuple[str, str]:
+    """(source, target in the folder build) of Qt's Turkish dialog texts. The target keeps the
+    translations folder where QLibraryInfo points for the PySide6 package (lib/PySide6/...),
+    which is where the frozen app looks. A missing file stops the build: without it the
+    OK / Cancel / Yes / No buttons would be English with nothing said."""
+    source = Path(translations) / name
+    if not source.is_file():
+        raise FileNotFoundError(f"{name} not found in {translations}; the build must not ship "
+                                "English dialog buttons")
+    relative = source.resolve().relative_to(Path(pyside_dir).resolve())
+    return str(source), (Path("lib") / "PySide6" / relative).as_posix()
+
+
 def place_after_freeze(stage: Path, build: Path) -> None:
     for name in AFTER_FREEZE:
         if (Path(stage) / name).is_dir():

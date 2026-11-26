@@ -221,8 +221,9 @@ class _Reading:
 
     def rows(self) -> list[tuple[str, int, str]]:
         current = self.current()
-        return [(f.name, n, "okundu" if i < current and n else
-                 "okunuyor" if i <= current else "sirada")
+        finished = self.total > 0 and self.done >= self.total  # the last file is done too
+        return [(f.name, n, "okundu" if finished or i < current else
+                 "okunuyor" if i == current else "sirada")
                 for i, (f, n) in enumerate(zip(self.files, self.pages, strict=True))]
 
 
@@ -322,7 +323,7 @@ class YukleScreen(QWidget):
         self.work.addWidget(self.card, 1)
         self.progress = ProgressCard()
         self.progress.add_cancel_button(actions.key_text("Ctrl+."), "yukle.iptal")
-        self.progress.stop_requested.connect(self.cancel)  # the same command as the bar's
+        self.progress.stop_requested.connect(self._stop_clicked)  # same command as the bar's
         self.progress.hide()
         # What a screen reader is told about a read (start, steps, end): a 1 px label whose
         # name changes and raises an alert; it never takes focus.
@@ -602,7 +603,7 @@ class YukleScreen(QWidget):
             if name.strip():
                 return name.strip()
             self.last_message = EMPTY_NAME_TEXT
-            label, text = f"İşin adı:\n{EMPTY_NAME_TEXT}", ""
+            label = f"İşin adı:\n{EMPTY_NAME_TEXT}"  # the dialog comes back with what was typed
 
     def choose_batch(self) -> None:
         if self.loading():
@@ -771,7 +772,7 @@ class YukleScreen(QWidget):
             self.table.selectRow(min(row, count - 1))
             self.table.setCurrentIndex(self.model.index(min(row, count - 1), 2))
         undo, available = undo_last(controller.undo_stack)
-        gone = "; sayfalarındaki kesme ve silmeler de gitti." if edits else "."
+        gone = "; bu partinin sayfalarındaki düzenlemeler de gitti." if edits else "."
         self._tell(f"{_short_name(batch.file_name)} işten çıkarıldı{gone}", "info", "Geri al",
                    undo, available, spoken=f"{batch.file_name} işten çıkarıldı{gone}")
 
@@ -1208,7 +1209,7 @@ class YukleScreen(QWidget):
             if percent >= step and step not in reading.said:
                 reading.said.add(step)
                 if percent < 100:
-                    announce(self._live, f"Okuma %{step}")
+                    announce(self._live, f"Okuma: %{step} bitti")
 
     def _done(self, result) -> None:
         failed: list[str] = []
@@ -1234,16 +1235,18 @@ class YukleScreen(QWidget):
         if self.progress.isAncestorOf(QApplication.focusWidget()):
             self.table.setFocus()  # İptal et in the card goes away with the card
         self.progress.hide()
-        if error is None and not cancelled:
-            announce(self._live, "Okuma bitti.")
         if self._controller is None and on_done is None:
             self.table.clear()
         if error is not None:
             self._fail(error)
         elif cancelled:
             self._tell(CANCELLED_TEXT, "info")
+        if error is not None or cancelled:  # a failed or cancelled read ends out loud too
+            announce(self._live, self.last_message)
         if on_done is not None:
             on_done(result)
+        if error is None and not cancelled:
+            announce(self._live, "Okuma bitti.")
         if error is None and not cancelled and failed:  # the readable files were kept
             added = len(result) if isinstance(result, list) else len(getattr(result, "batches", ()))
             head = f"{added} parti eklendi.\n" if added else ""
@@ -1276,6 +1279,12 @@ class YukleScreen(QWidget):
             self.progress.title.setText("İptal ediliyor…")
             if self.progress.stop_button is not None:
                 self.progress.stop_button.setEnabled(False)
+
+    def _stop_clicked(self) -> None:
+        """İptal et in the card: cancel, and the card's button goes away, so focus moves to the
+        table at once."""
+        self.cancel()
+        self.table.setFocus()
 
     def _attention(self) -> None:
         """Flash the taskbar button when the window is not the active one (QOL 19)."""

@@ -73,7 +73,7 @@ when the folder stays unwritable (now the only way out is to fix the folder or u
 Done: P-yukle-03 / F-yukle-42 (Del toast names the lost cuts and deletes), F-yukle-16 (an empty job name asks again and says
 "İş adı boş olamaz."), F-yukle-20 (damaged job named, "İş klasörünü kontrol edin."), F-yukle-21 (Durum row: "N belge Kontrol
 bekliyor", "Henüz parti yok"), F-yukle-11 (at most three batches named), F-yukle-40 / 41 (İptal et button in the progress card,
-announcements "Okuma başladı: N sayfa", "Okuma %25/50/75", "Okuma bitti."), F-yukle-24 (read-error bar under the table),
+announcements "Okuma başladı: N sayfa", "Okuma: %25/50/75 bitti", "Okuma bitti."), F-yukle-24 (read-error bar under the table),
 F-yukle-43 ("Yeni iş" label), F-yukle-45 (inspector leads with "N belge kontrol bekliyor"), F-yukle-44 ("Açık iş yok" with saved
 jobs), F-yukle-31 ("Okundu"), F-yukle-29 (static bar under reduced motion), F-yukle-48 (result in the add toast), F-yukle-37
 (Enter, double click and "Partiyi Kontrol'de aç" open Kontrol at the batch), F-yukle-33 ("Dosyalar sayılıyor"), P-yukle-04

@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import QPoint
-from PySide6.QtWidgets import QFileDialog, QMenu
+from PySide6.QtWidgets import QFileDialog, QMenu, QMessageBox
 
 from evrakci.pipeline.templates.model import TemplateError
 
@@ -54,15 +54,19 @@ class TemplateFiles:
             return
         if name == self.template.name:
             return
+        asked = name
         name = self.store.unique_name(name, exclude=self.template.id)
         if self._edit("Şablonu yeniden adlandır", lambda t: setattr(t, "name", name)):
             self.refresh_templates()  # the list is in name order
+            if name != asked:  # the name was taken: say which one it got
+                self._toast(f"Şablon adı: {name}")
 
     def copy_template(self) -> None:
         """Çoğalt: a copy "Ad (kopya)" with every variable and box; the copy opens."""
         if self.template is None:
             return
         self.flush_save()
+        source_name = self.template.name
         try:
             copy = self.store.duplicate(self.template.id)
         except (TemplateError, KeyError, OSError) as error:
@@ -70,6 +74,8 @@ class TemplateFiles:
                                  else "Şablon kopyalanamadı.")
             return
         self._show_template(copy.id)
+        if copy.name != f"{source_name} (kopya)":
+            self._toast(f"Şablon adı: {copy.name}")
 
     def _show_template(self, template_id: str) -> None:
         """Open a template that was just written: the list marks it, the screen loads it."""
@@ -82,15 +88,37 @@ class TemplateFiles:
         self.open_template(template_id)
 
     # -- delete, undoable -------------------------------------------------------------
+    def documents_using(self, template_id: str) -> int:
+        """How many documents of the open job have this template applied."""
+        controller = self.controller()
+        if controller is None:
+            return 0
+        from evrakci.pipeline.cuts import _template_of
+
+        applied = _template_of(controller.job)
+        return sum(1 for d in controller.documents()
+                   if any(applied.get(pid) == template_id for pid in d.page_ids))
+
+    def _confirm(self, text: str) -> bool:
+        answer = QMessageBox.question(self, "Evrakçı", text)
+        return answer == QMessageBox.StandardButton.Yes
+
     def delete_template(self) -> None:
-        """Sil: the file goes, the toast "Geri al" brings back the very same bytes."""
+        """Sil: the file moves to the hidden "silinenler" folder (never unlinked), the toast
+        "Geri al" moves it back. A template the open job uses is asked about first."""
         template = self.template
         if template is None:
             return
-        self.flush_save()
+        self.flush_save()  # unsaved edits go to disk first, or nothing is moved
+        if self._save_error:
+            return  # _flush_save already said so, with the save-failure text
+        used = self.documents_using(template.id)
+        if used and not self._confirm(
+                f"“{template.name}” şablonu bu işte {used} belgede kullanılıyor. "
+                "Yine de silinsin mi?"):
+            return
         try:
-            data = self.store.raw(template.id)
-            self.store.delete(template.id)
+            token = self.store.delete(template.id)
         except (KeyError, OSError):
             self.message.setText("Şablon silinemedi.")
             return
@@ -100,7 +128,7 @@ class TemplateFiles:
         self.refresh_templates()  # opens the next template, or shows the empty screen
 
         def undo() -> None:
-            self._restore_deleted(template_id, data)
+            self._restore_deleted(template_id, token, name)
 
         def available() -> bool:
             return not (self.store.root / f"{template_id}.json").exists()
@@ -108,9 +136,9 @@ class TemplateFiles:
         self._toast(f"“{name}” şablonu silindi.", "Geri al", undo, timeout_ms=UNDO_MS,
                     available=available)
 
-    def _restore_deleted(self, template_id: str, data: bytes) -> None:
+    def _restore_deleted(self, template_id: str, token: str, name: str = "") -> None:
         try:
-            self.store.restore(template_id, data)
+            self.store.undelete(template_id, token, name)
         except (TemplateError, OSError) as error:
             self.message.setText(str(error) if isinstance(error, TemplateError)
                                  else "Şablon geri getirilemedi.")

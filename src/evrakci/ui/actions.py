@@ -325,7 +325,7 @@ SPECS: tuple[ActionSpec, ...] = (
     _a("sablonlar.sablon_cogalt", "Şablonu çoğal&t", "copy", ctx="sablonlar", menu="duzen",
        kw="kopyala şablon"),
     _a("sablonlar.sablon_sil", "Şa&blonu sil", "trash-2", ctx="sablonlar", menu="duzen",
-       tip="Şablonu sil (geri alınabilir)", kw="kaldır şablon"),
+       kw="kaldır şablon"),
     _a("sablonlar.sablon_disa", "Şablonu dışa &aktar…", "download", ctx="sablonlar",
        menu="dosya", kw="kaydet dosya yedek şablon"),
     _a("sablonlar.sablon_ice", "Şa&blonu içe aktar…", "upload", ctx="sablonlar", menu="dosya",

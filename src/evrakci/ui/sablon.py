@@ -458,6 +458,10 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, TemplateFiles, QWidget):
             if item.data(USER) == self.template.id:
                 from evrakci.ui.sablon_nav import ROLE_VALUE
 
+                if item.text() != self.template.name:  # renamed (or undone): the list re-sorts
+                    self.refresh_templates()
+                    return
+
                 count = len(self.template.variables)
                 value = "kaydedilmedi" if self._dirty else f"{count} değişken"
                 item.setText(self.template.name)

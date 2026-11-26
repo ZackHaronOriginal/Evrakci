@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+import time
 import unicodedata
 import uuid
 from collections.abc import Callable
@@ -56,8 +57,10 @@ def _write(path: Path, template: Template) -> None:
     _atomic(path, text.encode("utf-8"))
 
 
+TRASH = "silinenler"  # deleted templates wait here
 MAX_NAME = 100
-INVALID_NAME = "Şablon adı geçersiz."
+INVALID_NAME = ("Şablon adı geçersiz: en çok 100 karakter olabilir; { }, satır sonu ve "
+                "denetim karakterleri olamaz.")
 
 
 def clean_name(name: str) -> str:
@@ -151,45 +154,62 @@ class TemplateStore:
         self.save(copy)
         return copy
 
-    def raw(self, template_id: str) -> bytes:
-        """The file's bytes as they are on disk, for `restore` after a delete."""
+    def delete(self, template_id: str) -> str:
+        """Move the file into the hidden "silinenler" folder (one atomic rename), never unlink
+        it: nothing is gone for good. Returns the name to give `undelete`."""
         path = self._path(template_id)
         if not path.is_file():
             raise KeyError(template_id)
-        return path.read_bytes()
+        trash = self.root / TRASH
+        trash.mkdir(parents=True, exist_ok=True)
+        token = f"{template_id}-{time.time_ns()}.json"
+        os.replace(path, trash / token)
+        return token
 
-    def restore(self, template_id: str, data: bytes) -> None:
-        """Put back what `raw` returned, byte for byte, in one atomic step. Never writes over
-        a file that exists now (a template made meanwhile with that id keeps its place)."""
+    def undelete(self, template_id: str, token: str, name: str = "") -> None:
+        """Move a deleted file back, byte for byte. Never writes over a file that exists now
+        (a template made meanwhile with that id keeps its place)."""
         path = self._path(template_id)
-        if path.exists():
-            raise TemplateError(f"Bu şablon zaten var: {template_id}")
-        _atomic(path, data)
-
-    def delete(self, template_id: str) -> None:
-        path = self._path(template_id)
-        if not path.is_file():
-            raise KeyError(template_id)
-        path.unlink()
+        source = self.root / TRASH / Path(token).name
+        if not source.is_file():
+            raise TemplateError(f"Silinen şablon bulunamadı: {name or template_id}")
+        try:
+            os.link(source, path)  # fails if `path` exists: no overwrite, even in a race
+        except FileExistsError:
+            raise TemplateError(f"Bu şablon zaten var: {name or template_id}") from None
+        except OSError:  # a file system without hard links
+            if path.exists():
+                raise TemplateError(f"Bu şablon zaten var: {name or template_id}") from None
+            os.rename(source, path)
+            return
+        source.unlink()
 
     def export(self, template_id: str, path: Path) -> None:
+        """Write the template to `path` without ever replacing a file: a temporary file in the
+        same folder is written whole, then linked to its name (which fails if it exists)."""
         path = Path(path)
         template = self.load(template_id)
         if not path.parent.is_dir():
             raise TemplateError(f"Klasör bulunamadı: {path.parent}")
         text = json.dumps(template_to_dict(template), ensure_ascii=False, indent=1)
+        handle, temporary = tempfile.mkstemp(dir=path.parent, prefix=".sablon-", suffix=".tmp")
         try:
-            # "x": created only if no file has that name, even if one appears meanwhile.
-            with open(path, "x", encoding="utf-8") as out:
-                try:
-                    out.write(text)
-                except BaseException:
-                    out.close()
-                    path.unlink(missing_ok=True)
-                    raise
-        except FileExistsError:
-            raise TemplateError(
-                f"Bu adla bir dosya zaten var: {path.name}. Başka bir ad seçin.") from None
+            with os.fdopen(handle, "w", encoding="utf-8") as out:
+                out.write(text)
+            os.chmod(temporary, _FILE_MODE)
+            try:
+                os.link(temporary, path)
+            except FileExistsError:
+                raise TemplateError(
+                    f"Bu adla bir dosya zaten var: {path.name}. Başka bir ad seçin.") from None
+            except OSError:  # no hard links here: check, then rename
+                if path.exists():
+                    raise TemplateError(
+                        f"Bu adla bir dosya zaten var: {path.name}. Başka bir ad seçin.") from None
+                os.rename(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
 
     def import_file(self, path: Path) -> Template:
         path = Path(path)
@@ -197,6 +217,10 @@ class TemplateStore:
             raise TemplateError(f"Dosya bulunamadı: {path.name}")
         template = _read(path, path.name)
         template.id = uuid.uuid4().hex[:10]  # never trust an id (or path) from a file
-        template.name = self._unique_name(clean_name(template.name))
+        try:
+            name = clean_name(template.name)
+        except TemplateError as error:
+            raise TemplateError(f"{path.name}: {error}") from None
+        template.name = self._unique_name(name)
         self.save(template)
         return template

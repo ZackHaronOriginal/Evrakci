@@ -88,23 +88,34 @@ def test_rename_is_one_undoable_step_and_the_list_follows(win):
     for bad in ("", "a{b}", "x" * 3000, "a\x00b"):
         screen.rename_template(bad)
     assert screen.store.load(made.id).name == "Faaliyet belgesi"
-    assert screen.message.text() == "Şablon adı geçersiz."
+    assert screen.message.text().startswith("Şablon adı geçersiz:")
 
 
 def test_copy_makes_a_new_file_with_the_same_content_and_opens_it(win):
     window, made = win
     screen = window.sablon
-    before = screen.store.raw(made.id)
+    before = (screen.store.root / f"{made.id}.json").read_bytes()
     screen.copy_template()
     assert screen.template.id != made.id
     assert screen.template.name == "Faaliyet belgesi (kopya)"
     assert [v.name for v in screen.template.variables] == ["Firma", "Sicil_No"]
     assert screen.template.variable("Firma").sections[0].box_mm == (20.0, 30.0, 80.0, 40.0)
-    assert screen.store.raw(made.id) == before  # the original is untouched
+    assert (screen.store.root / f"{made.id}.json").read_bytes() == before
     assert len(_names(screen)) == 2 and screen.undo_stack.count() == 0
 
 
-def test_delete_goes_and_geri_al_brings_back_the_exact_bytes(qtbot, win):
+def _toast_texts(window):
+    toast = window.toaster._current
+    shown = [x.text() for x in toast.findChildren(QLabel)] if toast else []
+    return shown + [p.text for p in window.toaster._queue]  # later toasts wait in the queue
+
+
+def _geri_al(window):
+    toast = window.toaster._current
+    next(b for b in toast.findChildren(QPushButton) if b.text() == "Geri al").click()
+
+
+def test_delete_moves_the_file_to_silinenler_and_geri_al_moves_it_back(qtbot, win):
     window, made = win
     screen = window.sablon
     screen.copy_template()  # a second template so the screen is not left empty
@@ -112,38 +123,147 @@ def test_delete_goes_and_geri_al_brings_back_the_exact_bytes(qtbot, win):
     before = first.read_bytes()
     screen.templates.setCurrentRow(next(r for r in range(screen.templates.count())
                                         if screen.templates.item(r).data(USER) == made.id))
-    assert screen.template.id == made.id
     screen.delete_template()
     assert not first.exists()
-    assert screen.template is not None and screen.template.id != made.id
+    kept = list((screen.store.root / "silinenler").glob(f"{made.id}-*.json"))
+    assert len(kept) == 1 and kept[0].read_bytes() == before  # nothing is gone for good
     assert "Faaliyet belgesi" not in _names(screen)
-    toast = window.toaster._current
-    assert "“Faaliyet belgesi” şablonu silindi." in [x.text() for x in toast.findChildren(QLabel)]
-    undo = next(b for b in toast.findChildren(QPushButton) if b.text() == "Geri al")
-    undo.click()  # the toast's Geri al
-    assert first.read_bytes() == before
-    assert screen.template.id == made.id
+    assert "“Faaliyet belgesi” şablonu silindi." in _toast_texts(window)
+    _geri_al(window)
+    assert first.read_bytes() == before and screen.template.id == made.id
+    assert not list((screen.store.root / "silinenler").glob("*.json"))
     assert not list(screen.store.root.glob(".sablon-*.tmp"))
 
 
-def test_deleting_the_only_template_shows_the_empty_screen_and_undo_returns(win):
+def test_the_deleted_file_survives_the_toast(win):
     window, made = win
     screen = window.sablon
-    before = screen.store.raw(made.id)
     screen.delete_template()
     assert screen.template is None and screen.templates.count() == 0
-    screen._restore_deleted(made.id, before)
-    assert screen.template.id == made.id and screen.store.raw(made.id) == before
+    assert len(list((screen.store.root / "silinenler").glob("*.json"))) == 1
 
 
-def test_restore_never_writes_over_an_existing_file(win):
+def test_delete_refuses_when_the_unsaved_edit_cannot_be_saved(win, monkeypatch):
+    window, made = win
+    screen = window.sablon
+    screen._set_box("Firma", 0, (21.0, 30.0, 81.0, 40.0))  # a light edit: not yet on disk
+    assert screen._dirty
+
+    def fail(template):
+        raise OSError("disk dolu")
+
+    monkeypatch.setattr(screen.store, "save", fail)
+    screen.delete_template()
+    assert (screen.store.root / f"{made.id}.json").is_file()
+    assert not (screen.store.root / "silinenler").exists()
+    assert screen.message.text().startswith("Şablon kaydedilemedi.")
+    assert screen.template is not None
+
+
+def test_undelete_never_writes_over_a_file_and_names_the_template(win):
     from evrakci.pipeline.templates.model import TemplateError
 
     window, made = win
     store = window.sablon.store
-    with pytest.raises(TemplateError):
-        store.restore(made.id, b"{}")
-    assert json.loads(store.raw(made.id))["name"] == "Faaliyet belgesi"
+    token = store.delete(made.id)
+    store.save(made)  # a template with that id appears meanwhile
+    with pytest.raises(TemplateError, match="Bu şablon zaten var: Faaliyet belgesi"):
+        store.undelete(made.id, token, made.name)
+    assert (store.root / "silinenler" / token).is_file()
+
+
+def test_the_delete_tip_no_longer_promises_undo(win):
+    window, _ = win
+    assert "geri alınabilir" not in window.registry.action("sablonlar.sablon_sil").toolTip()
+
+
+def test_deleting_a_template_the_job_uses_asks_first(win, monkeypatch):
+    window, made = win
+    screen = window.sablon
+    controller = screen.controller()
+    pages = [p for d in controller.documents() for p in d.page_ids]
+    controller.job.apply_template(pages, made.id)
+    controller._documents = None
+    asked = []
+    monkeypatch.setattr(screen, "_confirm", lambda text: asked.append(text) or False)
+    screen.delete_template()
+    n = screen.documents_using(made.id)
+    assert n >= 1
+    assert asked == [f"“Faaliyet belgesi” şablonu bu işte {n} belgede kullanılıyor. "
+                     "Yine de silinsin mi?"]
+    assert (screen.store.root / f"{made.id}.json").is_file()  # No: nothing moved
+    monkeypatch.setattr(screen, "_confirm", lambda text: True)
+    screen.delete_template()
+    assert not (screen.store.root / f"{made.id}.json").exists()
+
+
+def test_an_unused_template_is_deleted_without_a_question(win, monkeypatch):
+    window, made = win
+    screen = window.sablon
+    monkeypatch.setattr(screen, "_confirm", lambda text: pytest.fail("asked"))
+    screen.delete_template()
+    assert not (screen.store.root / f"{made.id}.json").exists()
+
+
+def test_a_taken_name_on_rename_or_copy_says_the_final_name(win):
+    window, made = win
+    screen = window.sablon
+    other = screen.store.create("Beyan")
+    screen.refresh_templates()
+    screen._show_template(made.id)
+    screen.rename_template("Beyan")
+    assert screen.template.name == "Beyan (2)"
+    assert "Şablon adı: Beyan (2)" in _toast_texts(window)
+    screen.store.create("Beyan (2) (kopya)")
+    screen.copy_template()
+    assert screen.template.name == "Beyan (2) (kopya) (2)"
+    assert "Şablon adı: Beyan (2) (kopya) (2)" in _toast_texts(window)
+    del other
+
+
+def test_undo_of_a_rename_sorts_the_list_again(win):
+    window, made = win
+    screen = window.sablon
+    screen.store.create("Mavi")
+    screen.refresh_templates()
+    screen._show_template(made.id)
+    assert _names(screen) == ["Faaliyet belgesi", "Mavi"]
+    screen.rename_template("Zeytin")
+    assert _names(screen) == ["Mavi", "Zeytin"]
+    screen.undo_stack.undo()
+    assert _names(screen) == ["Faaliyet belgesi", "Mavi"]
+
+
+def test_import_refused_for_its_name_says_why_and_which_file(win, tmp_path):
+    window, made = win
+    screen = window.sablon
+    bad = tmp_path / "kotu.json"
+    data = json.loads((screen.store.root / f"{made.id}.json").read_text(encoding="utf-8"))
+    data["name"] = "a{b}"
+    bad.write_text(json.dumps(data), encoding="utf-8")
+    screen.import_template(bad)
+    text = screen.message.text()
+    assert text.startswith("kotu.json: Şablon adı geçersiz: en çok 100 karakter")
+    assert "{ }" in text and "denetim karakterleri" in text
+
+
+def test_export_writes_a_temporary_file_and_links_it(win, tmp_path, monkeypatch):
+    import os
+
+    window, made = win
+    screen = window.sablon
+    target = tmp_path / "a.json"
+    seen = []
+    real = os.link
+
+    def link(src, dst, *a, **k):
+        seen.append((os.path.basename(src), os.path.exists(dst), len(open(src, "rb").read())))
+        return real(src, dst, *a, **k)
+
+    monkeypatch.setattr(os, "link", link)
+    screen.export_template(target)
+    assert seen and seen[0][0].startswith(".sablon-") and seen[0][1] is False and seen[0][2] > 0
+    assert target.is_file() and not list(tmp_path.glob(".sablon-*"))
 
 
 def test_export_then_import_gives_a_new_template_and_never_overwrites(win, tmp_path):
@@ -273,7 +393,7 @@ def test_variant_origin_and_invalid_names():
     assert [locative(n) for n in (6, 9, 10, 40, 100, 12)] == ["da", "da", "da", "ta", "de", "de"]
     assert clean_name("  Beyan ") == "Beyan"
     for bad in ("a\x00b", "x" * 3000, "a{b}", "a\nb"):
-        with pytest.raises(TemplateError, match="Şablon adı geçersiz."):
+        with pytest.raises(TemplateError, match="Şablon adı geçersiz"):
             clean_name(bad)
 
 

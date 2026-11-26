@@ -62,8 +62,9 @@ def plan_names(job: Job, templates: Mapping[str, Template | None],
         if len(name) < item.keep:  # a required value would be cut: never silently
             item.checks.append("zorunlu değer dosya adına sığmadı (klasör yolu uzun)")
             name = f"belge_{item.number:03d}"
+            item.name_note = ""  # the fallback name has nothing left of an earlier note
         else:
-            item.checks.append("dosya adı kısaltıldı (klasör yolu uzun)")
+            item.checks.append(NOTE_SHORTENED.lower())
             item.name_note = NOTE_SHORTENED
         item.name = name
     for item, name in zip(items, unique_names([i.name for i in items]), strict=True):
@@ -141,7 +142,7 @@ def export_job(
                 done = ", ".join(p.name for p in paths[: number - 1]) or "yok"
                 for later in items[number - 1:]:
                     later.checks.append("metin katmanı eklenmedi")
-                index_note = _write_index_quietly(items, job, out_dir, exported_at)
+                index_note = _write_index_quietly(items, job, out_dir, exported_at, result)
                 raise ExportError(
                     f"{path.name}: {error}. Tüm belgeler yazıldı; metin katmanı eklenenler: {done}."
                     f" {index_note}"
@@ -159,17 +160,23 @@ def export_job(
         except Exception as error:  # the PDFs are safe; say clearly what is missing
             raise ExportError(f"PDF'ler yazıldı ama index.xlsx yazılamadı: {error}") from None
         result.index_written = True
-        job.last_export = LastExport(
-            exported_at.isoformat(timespec="minutes"), str(out_dir), len(items),
-            result.needing_check)
+        _record_export(job, out_dir, exported_at, result)
     return result
 
 
-def _write_index_quietly(items, job: Job, out_dir: Path, exported_at: datetime) -> str:
+def _record_export(job: Job, out_dir: Path, exported_at: datetime, result: ExportResult) -> None:
+    job.last_export = LastExport(
+        exported_at.isoformat(timespec="minutes"), str(out_dir), len(result.items),
+        result.needing_check)
+
+
+def _write_index_quietly(items, job: Job, out_dir: Path, exported_at: datetime,
+                         result: ExportResult) -> str:
     try:
         write_index(items, job, out_dir / "index.xlsx", exported_at)
     except Exception as error:
         return f"index.xlsx da yazılamadı: {error}"
+    _record_export(job, out_dir, exported_at, result)  # files and index are on disk
     return "index.xlsx yazıldı; metin katmanı eksik olanlar orada işaretli."
 
 

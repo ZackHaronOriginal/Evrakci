@@ -388,6 +388,8 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
             f"{error}. Metin katmanı olmadan yazmak için --metin-katmani-yok kullanın."
         ) from None
     except ExportError as error:
+        if job.last_export is not None:  # files and index.xlsx are on disk (text layer failed)
+            store.save(job)
         raise UserError(str(error)) from None
     finally:
         if with_layer:

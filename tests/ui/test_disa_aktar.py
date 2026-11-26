@@ -712,7 +712,7 @@ def test_the_list_equals_onizle_and_the_files_written(qtbot, tmp_path, capsys):
                  "is", "disa-aktar", ctl.job.id, "--cikti", str(out), "--onizle"])
     assert code == 0 and not out.exists()  # nothing is written
     shown = capsys.readouterr().out.rstrip("\n").split("\n")
-    assert sorted(shown) == sorted(screen.list_text().split("\n"))
+    assert shown == screen.list_text().split("\n")
     with qtbot.waitSignal(screen.finished, timeout=30000):
         screen.export_button.click()
     written = {line.split("\t")[1] for line in shown[1:]}
@@ -988,3 +988,40 @@ def test_preview_page_and_zoom_tooltips_carry_their_keys(qtbot):
     for button in (dialog.previous, dialog.next, dialog.zoom_in, dialog.zoom_out):
         assert button.toolTip().startswith(button.accessibleName() + " (")
         assert button.toolTip().endswith(")")
+
+
+def test_a_failed_text_layer_still_records_the_export_time(qtbot, tmp_path, monkeypatch):
+    from evrakci.pipeline.job import LastExport
+
+    def broken(job, *_a, **_k):
+        job.last_export = LastExport("2026-01-02T03:04", str(tmp_path / "out"), 2, 0)
+        raise module.ExportError("Tüm belgeler yazıldı; metin katmanı eklenenler: yok.")
+
+    monkeypatch.setattr(module, "export_job", broken)
+    screen, ctl, _t = _screen(qtbot, tmp_path)
+    screen.folder.setText(str(tmp_path / "out"))
+    screen.layer.setChecked(False)
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    assert ctl.job.last_export is not None and ctl.job.last_export.at == "2026-01-02T03:04"
+
+
+def test_a_folder_change_that_is_not_typed_syncs_once(qtbot, tmp_path, monkeypatch):
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    screen.show()
+    assert screen._typing is False
+    calls = []
+    original = screen._sync
+    monkeypatch.setattr(screen, "_sync", lambda *a, **k: (calls.append(1), original(*a, **k))[1])
+    screen.folder.setText(str(tmp_path / "out2"))
+    assert len(calls) == 1
+
+
+def test_the_copied_list_is_in_document_order(qtbot, tmp_path):
+    screen, _ctl = _clash_screen(qtbot, tmp_path)
+    rows = screen.model.all_rows()
+    rows[0], rows[-1] = rows[-1], rows[0]  # a list order other than the document order
+    monkey_rows = list(rows)
+    screen.model.all_rows = lambda: monkey_rows
+    names = [line.split("\t")[1] for line in screen.list_text().split("\n")[1:]]
+    assert names == [r.name for r in sorted(monkey_rows, key=lambda r: r.number)]

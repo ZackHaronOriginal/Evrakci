@@ -52,6 +52,16 @@ def test_layer_results_are_recorded_and_failures_name_what_was_done(tmp_path):
         export_job(job, store.batch_files(job), {}, tmp_path / "out", engine=Ok(),
                    add_layer=flaky, tessdata=None)
     assert "belge_002.pdf: disk dolu" in str(error.value) and "belge_001.pdf" in str(error.value)
+    # the files and index.xlsx are on disk: the job records that, with the sheet's time
+    from datetime import datetime
+
+    from evrakci.pipeline.index import format_time
+
+    assert job.last_export is not None and job.last_export.documents == 2
+    summary = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")["Özet"]
+    cells = {row[0].value: row[1].value for row in summary.iter_rows()}
+    assert cells["Dışa aktarma zamanı"] == format_time(
+        datetime.fromisoformat(job.last_export.at))
 
 
 def test_missing_engine_stops_before_anything_is_written(tmp_path):

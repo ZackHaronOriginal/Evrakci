@@ -57,7 +57,7 @@ from evrakci.ui.degerler import DegerlerScreen
 from evrakci.ui.disa_aktar import DisaAktarScreen
 from evrakci.ui.feedback import Toaster
 from evrakci.ui.kontrol import KontrolScreen
-from evrakci.ui.kontrol_actions import NO_JOB_TEXT, KontrolStatus
+from evrakci.ui.kontrol_actions import DIMMABLE, NO_JOB_TEXT, KontrolStatus, menu_bar_entry
 from evrakci.ui.kontrol_chips import TemplateStep
 from evrakci.ui.loading import LoadingCard
 from evrakci.ui.palette import CommandPalette
@@ -594,7 +594,10 @@ class MainWindow(QMainWindow):
             if item is None:
                 menu.addSeparator()
             else:
-                menu.addAction(self.registry.action(item))
+                entry = self.registry.action(item)
+                if item in DIMMABLE and self.registry.context == "kontrol":
+                    entry = menu_bar_entry(self.kontrol, entry, menu)
+                menu.addAction(entry)
             if item == "app.yinele":  # Düzen: the visible undo history right under Yinele
                 menu.addMenu(self._history_menu(menu))
 

@@ -22,7 +22,7 @@ from functools import partial
 
 import shiboken6
 from PySide6.QtCore import QObject
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QWidget, QWidgetAction
 
 from evrakci.ui import actions, icons, theme
@@ -214,6 +214,28 @@ def _dimmed(screen, action_id: str, parent: QWidget, enabled: bool) -> QAction:
     nothing. A copy, so the real action stays enabled and its key still answers in words."""
     item = fallback_action(screen, action_id, parent)
     item.setEnabled(enabled)
+    return item
+
+
+DIMMABLE = {"kontrol.filtre_kaldir": "can_remove_filter",
+            "kontrol.sablon_kaldir": "can_remove_template",
+            "kontrol.bos_geri_getir": "can_restore_empty"}
+
+
+def menu_bar_entry(screen, source: QAction, parent: QWidget) -> QAction:
+    """The registry action for the menu bar. When it would do nothing here it is a dimmed copy
+    (the real action stays enabled, so its key still answers in words), as in the context
+    menu (spec I-08 section 4, HIG-CTL-09)."""
+    action_id = source.objectName()
+    check = DIMMABLE.get(action_id)
+    if screen is None or check is None or not source.isVisible() or getattr(screen, check)():
+        return source
+    keys = source.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
+    item = QAction(source.text().split("\t")[0] + (f"\t{keys}" if keys else ""), parent)
+    item.setObjectName(action_id)
+    item.setIcon(source.icon())
+    item.setToolTip(source.toolTip())
+    item.setEnabled(False)
     return item
 
 

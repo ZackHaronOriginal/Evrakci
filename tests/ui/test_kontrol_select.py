@@ -275,3 +275,42 @@ def test_tab_from_guven_visits_its_reasons_and_pages_before_the_modes(qtbot, tmp
     modes = dialog._mode_radios["replace"]
     assert dialog.pages_value in seen[:seen.index(modes)]
     assert seen[seen.index(modes) + 1] is dialog.ok
+
+
+def test_the_dialog_count_in_add_mode_is_the_size_of_the_union(qtbot, tmp_path):
+    """R-A-8: the row count equals what Seç selects in the chosen mode."""
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    screen.timeline.select_rows(0, 0, 0)  # an odd page (row 0) outside the match "cift"
+    dialog = SelectDialog(window.controller().job, 1, screen._chosen_ids(), "cift", window)
+    qtbot.addWidget(dialog)
+    match = evaluate(window.controller().job, Criterion("cift"))
+    assert dialog.count("cift") == len(match.page_ids)  # replace
+    dialog._mode_radios["add"].setChecked(True)
+    assert dialog.count("cift") == len(match.page_ids) + 1
+    chosen = screen.select_matching(dialog.criterion(), dialog.mode())
+    assert chosen == dialog.count("cift")
+
+
+def test_menu_bar_entries_that_would_do_nothing_are_dimmed(qtbot, tmp_path):
+    """R-A-12 (spec I-08 section 4): dimmed in Araçlar as in the context menu; the key
+    itself still answers in words (the registry action stays enabled)."""
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    screen.timeline.select_rows(0, 0, 0)
+
+    def araclar():
+        menu = next(a.menu() for a in window.menu_row.bar.actions()
+                    if actions.plain_text(a.text()) == "Araçlar")
+        menu.aboutToShow.emit()
+        return {a.objectName(): a for a in menu.actions()}
+
+    items = araclar()
+    for action_id in ("kontrol.filtre_kaldir", "kontrol.sablon_kaldir"):
+        assert action_id in items and not items[action_id].isEnabled(), action_id
+        assert window.registry.action(action_id).isEnabled()
+    job = window.controller().job
+    job.apply_filter(job.ordered_page_ids()[:3], 3)
+    screen.timeline.select_rows(0, 0, 0)
+    screen.sync_availability()
+    assert araclar()["kontrol.filtre_kaldir"].isEnabled()

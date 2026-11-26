@@ -29,7 +29,14 @@ from PySide6.QtWidgets import QMenu, QSplitter, QVBoxLayout, QWidget
 
 from evrakci.pipeline.cuts import template_by_page
 from evrakci.pipeline.export import plan_export
-from evrakci.pipeline.select import Criterion, combine, evaluate, guven_text
+from evrakci.pipeline.select import (
+    Criterion,
+    combine,
+    evaluate,
+    guven_findings,
+    guven_restrict,
+    guven_text,
+)
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
 from evrakci.ui.controller import JobController
@@ -706,9 +713,18 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
             return 0
         self._select_ids(ids)
         if criterion.kind == "guven":
+            if mode != "replace":  # the line counts what ended up selected, not the whole match
+                match = guven_restrict(self.controller.job,
+                                       guven_findings(self.controller.job, self.templates()),
+                                       criterion, ids)
             self.controller.status.emit(guven_text(match))
         elif criterion.kind == "bos":
-            self._toast(f"{len(ids)} boş sayfa seçildi. Silmek için Del.", undo=False)
+            blank = set(match.page_ids)
+            count = sum(1 for pid in ids if pid in blank)
+            if count == len(ids):
+                self._toast(f"{count} boş sayfa seçildi. Silmek için Del.", undo=False)
+            else:  # add mode: the earlier selection is not all blank, so no "Del" hint
+                self._toast(f"{count} boş sayfa seçildi.", undo=False)
         else:
             self._toast(f"{len(ids)} sayfa seçildi.", undo=False)
         return len(ids)

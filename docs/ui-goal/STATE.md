@@ -111,7 +111,9 @@ Updated after every accepted step. A new session or a compacted one reads this f
   perf_kontrol 800 pages within limits; fill 800 pages 11 ms. Decision (Opus): tile marks use the whole-job
   reference; Her belge only in the dialog and CLI. GROUP A BUILT: I-08, I-09, I-03, I-06, I-04.
   Group D review fixes merged (4a8e1dc). Late-callback CI error fixed (5627f63, tests/ui/test_late_callbacks.py).
-  NEXT: group A Opus review; then C I-07 (task spec .claude/gorevler/2026-11-26-c18-i07.md).
+  GROUP A CLOSED: Opus review docs/ui-goal/review-group-a.md (0 S1, 0 S2, 4 S3, 8 S4; suite 2944 passed);
+  fixes R-A-1/2/3/5/8/10/12 merged 2c82730; R-A-4 B-100, R-A-9 B-101, R-A-6/7 Q-28.
+  NEXT: C I-07 (building in a worktree) (task spec .claude/gorevler/2026-11-26-c18-i07.md).
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,

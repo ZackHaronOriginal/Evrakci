@@ -135,7 +135,7 @@ class RehberScreen(QWidget):
         outer.addWidget(self.scroll)
         col.addLayout(self._build_find())
         col.addLayout(self._group("İçindekiler", self._build_toc()))
-        col.addLayout(self._group("Ayıraç sayfası", self._build_print()))
+        col.addLayout(self._group("Ayraç sayfası", self._build_print()))
         col.addStretch(1)
         self.splitter.addWidget(self.side)
         self.card_scroll = CardScroll(self.scroll)  # no pinned button: no hairline
@@ -241,8 +241,8 @@ class RehberScreen(QWidget):
             "QSpinBox::up-button, QSpinBox::down-button { width: 0; height: 0; border: 0;"
             " image: none; }"
             "QSpinBox::up-arrow, QSpinBox::down-arrow { image: none; width: 0; height: 0; }")
-        self.count.setAccessibleName("Kaç adet ayıraç yaprağı")
-        self.count.setToolTip("Yazdırılacak ayıraç yaprağı sayısı (1 ile 200 arası)")
+        self.count.setAccessibleName("Kaç adet ayraç yaprağı")
+        self.count.setToolTip("Yazdırılacak ayraç yaprağı sayısı (1 ile 200 arası)")
         self.count_label.setBuddy(self.count)
         line.addWidget(self.count_label)
         line.addWidget(self.count)
@@ -263,8 +263,8 @@ class RehberScreen(QWidget):
         self.paper_key = paper_key
         key = actions.key_text(actions.spec("rehber.yazdir").shortcuts[0])
         self.print_button = PartsButton("Yazdır", "printer", key, primary=True, large=True,
-                                        accessible=f"Ayıraç sayfasını yazdır ({key})")
-        self.print_button.setToolTip(f"Ayıraç sayfasını yazdır ({key})")
+                                        accessible=f"Ayraç sayfasını yazdır ({key})")
+        self.print_button.setToolTip(f"Ayraç sayfasını yazdır ({key})")
         self.print_button.setProperty("action_id", "rehber.yazdir")
         lay.addWidget(self.print_button)
         self._key_column = (self.count_label, paper_key)
@@ -631,7 +631,7 @@ class RehberScreen(QWidget):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
             return path
         reason = getattr(error, "strerror", None) or str(error)
-        self._tell(f"Ayıraç sayfaları PDF olarak yazılamadı: {reason}. Açık bir PDF "
+        self._tell(f"Ayraç sayfaları PDF olarak yazılamadı: {reason}. Açık bir PDF "
                    "görüntüleyiciyi kapatıp yeniden deneyin.", "Yeniden dene",
                    self.open_separators, kind="error")
         return None
@@ -644,15 +644,15 @@ class RehberScreen(QWidget):
         if not isinstance(printer, QPrinter):
             printer = QPrinter(QPrinter.PrinterMode.HighResolution)
             dialog = self._print_dialog(printer, self)
-            dialog.setWindowTitle("Ayıraç sayfasını yazdır")
+            dialog.setWindowTitle("Ayraç sayfasını yazdır")
             if dialog.exec() != QDialog.DialogCode.Accepted:
                 return None
         sheets = self.count.value()
-        printer.setDocName("Ayıraç sayfaları")
+        printer.setDocName("Ayraç sayfaları")
         try:
             pages = printing.print_separators(printer, sheets)
         except (RuntimeError, ValueError, OSError) as error:
-            self._tell(f"Ayıraç sayfaları yazdırılamadı: {error}. PDF olarak açıp oradan "
+            self._tell(f"Ayraç sayfaları yazdırılamadı: {error}. PDF olarak açıp oradan "
                        "yazdırabilirsiniz.", "PDF olarak aç", self.open_separators)
             return None
         self._tell(f"{sheets} yaprak ({pages} sayfa) yazıcıya gönderildi.", kind="success")

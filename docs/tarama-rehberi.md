@@ -8,16 +8,16 @@ Zımbalı evrak destelerini tarama ve Evrakçı'ya yükleme adımları.
 2. Zımba tellerini **zımba sökücü** ile çıkarın. Tel kalırsa besleyici sıkışır ve tarayıcı camı çizilebilir.
 3. Yırtık, buruşuk veya katlanmış sayfaları düzeltin.
 
-## QR ayıraç sayfaları
+## QR ayraç sayfaları
 
-1. Ayıraçları sağdaki panelden yazdırın (Ctrl+P). Sayıyı yaprak olarak girersiniz: 20 yaprak = 40 sayfa, çünkü QR kod yaprağın iki yüzüne de basılır. Evrakçı yazıcıdan uzun kenardan çift taraflı baskı ister; yazıcı desteklemiyorsa her yaprak iki ayrı sayfa olarak çıkar.
-2. Ayrılması gereken her belgenin önüne bir ayıraç yaprağı koyun. Örneğin 5 sayfalık bir belgeyi, iki yanındaki 2 sayfalık belgelerden ayıraçlarla ayırın.
-3. Taramadan sonra ayıraçları desteden çıkarıp saklayın; tekrar kullanılabilir.
+1. Ayraçları sağdaki panelden yazdırın (Ctrl+P). Sayıyı yaprak olarak girersiniz: 20 yaprak = 40 sayfa, çünkü QR kod yaprağın iki yüzüne de basılır. Evrakçı yazıcıdan uzun kenardan çift taraflı baskı ister; yazıcı desteklemiyorsa her yaprak iki ayrı sayfa olarak çıkar.
+2. Ayrılması gereken her belgenin önüne bir ayraç yaprağı koyun. Örneğin 5 sayfalık bir belgeyi, iki yanındaki 2 sayfalık belgelerden ayraçlarla ayırın.
+3. Taramadan sonra ayraçları desteden çıkarıp saklayın; tekrar kullanılabilir.
 
 ### Bilmeniz gerekenler
 
-- Ayıraç yaprağı yalnızca “burada yeni belge başlıyor” demektir; çıktıya girmez.
-- Hepsi aynı uzunlukta olan belgelerde ayıraç gerekmez: taramadan sonra Kontrol sekmesinde (Ctrl+2) o sayfaları seçip “Filtre: her N sayfa” seçeneğini uygulayın.
+- Ayraç yaprağı yalnızca “burada yeni belge başlıyor” demektir; çıktıya girmez.
+- Hepsi aynı uzunlukta olan belgelerde ayraç gerekmez: taramadan sonra Kontrol sekmesinde (Ctrl+2) o sayfaları seçip “Filtre: her N sayfa” seçeneğini uygulayın.
 - Boş sayfalar hiçbir zaman belge ayırmaz. Çift taraflı taramadaki boş arka yüzleri Kontrol sekmesinde “Boş sayfaları at” anahtarıyla atabilirsiniz.
 
 ## Küçük makbuzlar

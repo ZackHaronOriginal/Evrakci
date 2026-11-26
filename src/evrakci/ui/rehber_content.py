@@ -17,8 +17,8 @@ from evrakci.pipeline.ocr.models import app_dir
 from evrakci.ui import actions
 
 KEYS_TITLE = "Kısayollar"
-# A's empty state: "Sık aranan konular: ayıraç, çözünürlük, zımba, makbuz".
-COMMON_TOPICS = ("ayıraç", "çözünürlük", "zımba", "makbuz")
+# A's empty state: "Sık aranan konular: ayraç, çözünürlük, zımba, makbuz".
+COMMON_TOPICS = ("ayraç", "çözünürlük", "zımba", "makbuz")
 _WORDS_PER_MINUTE = 180
 NOTE_TEXT = "Ctrl+F ile rehberde arayın, Ctrl+tekerlek ile yazıyı büyütün."
 NOTE_DISMISS = "Bir daha gösterme"
@@ -171,7 +171,7 @@ def shortcut_rows() -> list[KeyRow]:
         ([keys("Rehber", "Aramayı temizle")], "Aramayı temizle"),
         ([keys("Görünüm", "Yakınlaştır"), keys("Görünüm", "Uzaklaştır")],
          "Yazıyı büyüt ve küçült (Ctrl+tekerlek de çalışır)"),
-        ([keys("Rehber", "Ayıraç sayfasını yazdır")], "Ayıraç sayfasını yazdır"),
+        ([keys("Rehber", "Ayraç sayfasını yazdır")], "Ayraç sayfasını yazdır"),
         ([keys("Yardım", "Klavye kısayolları")], "Klavye kısayollarını göster"),
         ([keys("Yardım", "Komut ara")], "Komut ara"),
     ]
@@ -290,16 +290,16 @@ def guide_html(guide: Guide, look: Look, note: bool = True) -> str:
              f'<p style="margin-top:0; margin-bottom:{s1}px; font-size:{look.page}px;'
              f' font-weight:600;">{html.escape(guide.title)}</p>']
     if guide.lead:
-        parts.append(f'<p style="margin-top:0; margin-bottom:{s4}px; color:{look.text_2};">'
-                     f"{inline(guide.lead, look)}</p>")
+        parts.append(f'<p style="margin-top:0; margin-bottom:{s4}px;">'
+                     f"{inline(guide.lead, look)}</p>")  # text tier, not text-2 (S-5: 7:1)
     if note:
         parts.append(
             f'<table width="100%" cellspacing="0" cellpadding="{s3}"'
             f' bgcolor="{look.well}" style="margin-top:{s4}px;"><tr>'
             f'<td width="{look.body}"><img src="rehber:info" width="{look.body}"'
             f' height="{look.body}"></td><td>{html.escape(NOTE_TEXT)}</td>'
-            f'<td align="right"><a href="rehber:gizle" style="color:{look.accent};'
-            f' font-weight:600; text-decoration:none;">{html.escape(NOTE_DISMISS)}</a>'
+            f'<td align="right"><a href="rehber:gizle" style="color:{look.text};'
+            f' font-weight:600; text-decoration:underline;">{html.escape(NOTE_DISMISS)}</a>'
             f"</td></tr></table>")
     for section in guide.sections:
         parts.append(

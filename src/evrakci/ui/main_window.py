@@ -1818,7 +1818,7 @@ class MainWindow(QMainWindow):
         if self.loading() or self.yukle.swapping:
             return BUSY_REASON
         if self._busy_screens():
-            return "Dışa aktarma ya da okuma sürüyor; bitince başka bir iş açın."
+            return BUSY_REASON
         return None
 
     def _unsaved_pending(self) -> bool:

@@ -162,7 +162,7 @@ class TemplateList(QListWidget):
 
     def add_template(self, template_id: str, name: str, count: int, pending: bool = False) -> None:
         item = QListWidgetItem()
-        value = "kaydedilmedi" if pending else f"{count} değişken"
+        value = "henüz kaydedilmedi" if pending else f"{count} değişken"
         _row(item, "template", name, value, f"Şablon {name}, {value}")
         item.setData(USER, template_id)
         self.addItem(item)

@@ -336,7 +336,7 @@ rehber	Ctrl+N	app.yeni_is	Yeni iş oluştur…	Dosya > Yeni iş oluştur			yes	o
 rehber	Ctrl+O	app.dosya_ekle	Dosya ekle…	Dosya > Dosya ekle			yes	ok
 rehber	Ctrl+S	app.kaydet	Kaydet	Dosya > Kaydet [state-dependent]			yes	ok
 rehber	Ctrl+E	app.disa_aktar	Dışa aktar…	Dosya > Dışa aktar			yes	ok
-rehber	Ctrl+P	rehber.yazdir	Ayıraç sayfasını yazdır…	Dosya > Ayıraç sayfasını yazdır	PartsButton | bar		yes	ok
+rehber	Ctrl+P	rehber.yazdir	Ayraç sayfasını yazdır…	Dosya > Ayraç sayfasını yazdır	PartsButton | bar		yes	ok
 rehber		rehber.pdf_ac	PDF olarak aç	Dosya > PDF olarak aç	bar		yes	ok
 rehber	Ctrl+W	app.isi_kapat	İşi kapat	Dosya > İşi kapat			yes	ok
 rehber	Ctrl+Q	app.cikis	Çıkış	Dosya > Çıkış			yes	ok

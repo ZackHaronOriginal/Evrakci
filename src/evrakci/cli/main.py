@@ -29,7 +29,7 @@ def _separator(args: argparse.Namespace, store: JobStore) -> int:
     if args.adet < 1:
         raise UserError("Adet en az 1 olmalı.")
     path = make_separator_pdf(args.cikti, sheets=args.adet)
-    print(f"Ayıraç dosyası yazıldı: {path} ({args.adet} yaprak)")
+    print(f"Ayraç dosyası yazıldı: {path} ({args.adet} yaprak)")
     return 0
 
 
@@ -78,7 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="komut", required=True, metavar="KOMUT")
 
-    separator = commands.add_parser("ayirac", help="QR ayıraç sayfası PDF'i yazar")
+    separator = commands.add_parser("ayirac", help="QR ayraç sayfası PDF'i yazar")
     separator.add_argument("cikti", type=Path, metavar="CIKTI.pdf", help="yazılacak PDF")
     separator.add_argument("--adet", type=int, default=10, help="yaprak sayısı (varsayılan 20)")
     separator.set_defaults(handler=_separator)

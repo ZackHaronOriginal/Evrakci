@@ -257,7 +257,7 @@ class Toaster(QObject):
         toast.adjustSize()
         self._place()
         toast.raise_()
-        motion.fade_in(toast, motion.Duration.SLOWER)
+        motion.fade_in(toast, motion.Duration.NONE, animate_=False)  # S-2: no fade (D7)
         if item.timeout_ms > 0:
             self._timer.start(item.timeout_ms)
 

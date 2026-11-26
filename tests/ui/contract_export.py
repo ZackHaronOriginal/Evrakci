@@ -220,7 +220,7 @@ def _effect_rehber_printed(c: Ctx) -> None:
 
 @helper("feedback.rehber_printed")
 def _feedback_rehber_printed(c: Ctx) -> None:
-    assert FakePrintDialog.titles == ["Ayıraç sayfasını yazdır"], FakePrintDialog.titles
+    assert FakePrintDialog.titles == ["Ayraç sayfasını yazdır"], FakePrintDialog.titles
     text = c.win.toaster.current_text()
     assert re.fullmatch(rf"{c.data['sheets']} yaprak \(\d+ sayfa\) yazıcıya "
                         r"gönderildi\.", text), text

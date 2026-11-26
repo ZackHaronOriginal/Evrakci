@@ -26,7 +26,7 @@ LEVELS = {
     "orta": ("signal-medium", "orta", "Orta"),
     "kontrol": ("triangle-alert", "kontrol", "Kontrol"),
     "okunamadi": ("circle-x", "bad", "Okunamadı"),
-    "okunmadi": ("clock", "orta", "Okunmadı"),
+    "okunmadi": ("clock", "orta", "Henüz okunmadı"),
 }
 NEEDS_CHECK = ("kontrol", "okunamadi")
 
@@ -85,7 +85,7 @@ def lines(template: Template, values: dict[str, VariableValue]) -> list[str]:
             if value.suggestion:
                 text += f" (öneri {value.suggestion})"
         else:
-            section = "Bölüm 1" if not value.section else f"Varyant {value.section + 1}"
+            section = "Bölüm 1" if not value.section else f"Bölüm {value.section + 1}"
             text = f"{variable.name} · {section}: {value.value}   %{round(value.confidence * 100)}"
         out.append(text)
     return out

@@ -245,16 +245,16 @@ class TimelineModel(QAbstractListModel):
         return None
 
     def describe(self, row: int) -> str:
-        """"Sayfa 73, Belge 16, kontrol gerekiyor" (tooltip and screen reader text)."""
+        """"Sayfa 73, Belge 16, kontrol bekliyor" (tooltip and screen reader text)."""
         state = self._states[row]
         if state == "separator":
-            return f"Sayfa {row + 1}, QR ayıraç"
+            return f"Sayfa {row + 1}, QR ayraç"
         doc = self._doc_of.get(self._pids[row], 0)
         parts = [f"Sayfa {row + 1}"]
         if doc:
             parts.append(f"Belge {doc}")
             if self.checks.get(doc):
-                parts.append("kontrol gerekiyor")
+                parts.append("kontrol bekliyor")
             parts.append("incelendi" if doc in self.reviewed else "incelenmedi")
         odd = self.odd_kind(row)
         if odd is not None:
@@ -402,6 +402,14 @@ class TimelineDelegate(QStyledItemDelegate):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        if (option.state & QStyle.StateFlag.State_MouseOver) and not selected \
+                and state != "separator":  # S-3: hover tint behind the tile and its number
+            tile = QRectF(page.x() - 8, page.y() - 6, page.width() + 16,
+                          page.height() + mt.caption_h + 6)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(m.color("hover"))
+            painter.drawRoundedRect(tile, m.size("r-control"), m.size("r-control"))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
         if state == "separator":
             kp.paint_separator(painter, page, row + 1)
         elif state in ("deleted", "dropped"):
@@ -518,8 +526,10 @@ class TimelineView(QListView):
         self._last_offset = 0
         self._band: QRect | None = None
         self._press: QPoint | None = None
+        self._hover = -1  # S-3: the page under the mouse
         super().__init__(parent)
         self.thumbnails = thumbnails
+        self.setMouseTracking(True)
         self.setObjectName("timeline")
         self.setAccessibleName("Sayfalar")
         self.setAccessibleDescription(
@@ -847,6 +857,8 @@ class TimelineView(QListView):
                     option.state |= QStyle.StateFlag.State_Selected
                 if has_focus and index == current:
                     option.state |= QStyle.StateFlag.State_HasFocus
+                if r == self._hover:
+                    option.state |= QStyle.StateFlag.State_MouseOver
                 delegate.paint(painter, option, index)
         painter.translate(0, dy)
         if self._band is not None:
@@ -892,7 +904,21 @@ class TimelineView(QListView):
         self._press = event.position().toPoint() + QPoint(0, self.verticalOffset())
         super().mousePressEvent(event)
 
+    def _set_hover(self, row: int) -> None:
+        if row == self._hover:
+            return
+        old, self._hover = self._hover, row
+        for r in (old, row):
+            if 0 <= r < len(self._rects):
+                self.viewport().update(self.visualRect(self.model().index(r, 0)))
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        self._set_hover(-1)
+        super().leaveEvent(event)
+
     def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        index = self.indexAt(event.position().toPoint())
+        self._set_hover(index.row() if index.isValid() else -1)
         super().mouseMoveEvent(event)
         if (self.state() == QAbstractItemView.State.DragSelectingState
                 and self._press is not None and event.buttons() & Qt.MouseButton.LeftButton):

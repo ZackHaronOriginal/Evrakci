@@ -179,6 +179,12 @@ class TitleSaveState(SaveState):
             return 0
         return self._label.sizeHint().width() + self.layout().spacing()
 
+    def words_width(self) -> int:
+        """The width its words take when shown (0 while it is not shown)."""
+        if self.isHidden():
+            return 0
+        return self._label.sizeHint().width() + self.layout().spacing()
+
     def _refresh_icon(self) -> None:
         if not self._glyph:
             return

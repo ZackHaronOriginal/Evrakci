@@ -248,7 +248,7 @@ class ValuesModel(QAbstractTableModel):
             cell = self.cell_at(index)
             name = cell.title if cell is not None else column.title
             if cell is None or cell.value is None:
-                return f"{name}: okunmadı"
+                return f"{name}: henüz okunmadı"
             # D-7: for a value to check, what was read, the level with its percent and the
             # suggestion Enter stores ("Sicil No: 48Z13, Kontrol %41, öneri 48213,
             # 3. karakter belirsiz")

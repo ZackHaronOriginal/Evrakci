@@ -208,7 +208,7 @@ class Syncing:
             saved.set("Şablon kaydedilemedi")
         elif self._dirty:
             saved.set_icon("circle-dashed", "icon")
-            saved.set("Şablon kaydedilmedi")
+            saved.set("Şablon henüz kaydedilmedi")
         else:
             saved.set_icon("circle-check", "ok")
             stamp = f" {self._saved_at:%H:%M}" if self._saved_at else ""

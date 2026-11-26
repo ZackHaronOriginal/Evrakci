@@ -60,7 +60,7 @@ def test_why_names_the_variant_and_the_swaps():
     cell = make_cell(VAR, VariableValue("", 0.0, None, True, "34-0172-K/8",
                                          (SectionReading(0, "34-0I72-K/B", 0.4),
                                           SectionReading(1, "34-0172-K/8", 0.55))))
-    assert cell.why() == "Varyant 2 ile okundu: I yerine 1, B yerine 8."
+    assert cell.why() == "Bölüm 2 ile okundu: I yerine 1, B yerine 8."
 
 
 def test_column_kinds_and_words():

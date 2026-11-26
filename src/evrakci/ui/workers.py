@@ -33,7 +33,7 @@ from evrakci.ui.loading import LoadingCard, assert_window_thread
 LOADING_SHOW_MS = 300  # no loading card for work that finishes sooner
 LOADING_MIN_MS = 400  # once shown, the card stays at least this long (never a flash)
 REPORT_EVERY = 0.1  # seconds between redraws of the loading bar
-BUSY_REASON = "Bir iş sürüyor; bitince açın."
+BUSY_REASON = "Dışa aktarma ya da okuma sürüyor; bitince başka bir iş açın."  # S-6: one sentence
 CANCELLED_TEXT = "İptal edildi; hiçbir şey değişmedi."
 _clock = time.monotonic  # the tests replace it
 

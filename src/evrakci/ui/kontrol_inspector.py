@@ -437,7 +437,7 @@ class Inspector(QWidget):
         self.values_button.setAccessibleName(f"Belge {info.number} Değerlerde aç")
         self.setAccessibleDescription(
             f"Belge {info.number}, {self.sub.text()}. "
-            + ("Kontrol gerekiyor. " if info.check else "")
+            + ("Kontrol bekliyor. " if info.check else "")
             + ("İncelendi." if info.reviewed else "İncelenmedi."))
 
     def show_selection(self, info: SelectionInfo | None) -> None:

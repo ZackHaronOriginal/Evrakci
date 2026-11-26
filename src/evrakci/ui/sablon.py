@@ -463,7 +463,7 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, TemplateFiles, QWidget):
                     return
 
                 count = len(self.template.variables)
-                value = "kaydedilmedi" if self._dirty else f"{count} değişken"
+                value = "henüz kaydedilmedi" if self._dirty else f"{count} değişken"
                 item.setText(self.template.name)
                 item.setData(ROLE_VALUE, value)
                 item.setData(Qt.ItemDataRole.AccessibleTextRole,

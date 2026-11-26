@@ -497,7 +497,8 @@ def _effect_read_stopped(c: Ctx) -> None:
 @helper("feedback.degerler_read_stopped")
 def _feedback_read_stopped(c: Ctx) -> None:
     d = _d(c)
-    assert re.fullmatch(r"Okuma durduruldu: \d+ belge okundu ve kaydedildi, kalanlar okunmadı\.",
+    assert re.fullmatch(r"Okuma durduruldu: \d+ belge okundu ve kaydedildi, "
+                        r"kalanlar henüz okunmadı\.",
                         c.win.toaster.current_text()), heard(c.win)
     assert not d.progress.isVisible() and not d.cancel_button.isVisible()
     assert d.read_button.isEnabled(), "the read buttons did not come back"

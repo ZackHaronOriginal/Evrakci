@@ -64,7 +64,7 @@ SPLITTER = "kontrol.govde"
 ZOOM_KEY = "kontrol"
 ZOOM_TARGET = "Küçük resim boyutu"
 ODD_MARKS_KEY = "kontrol_farkli_isaretle"  # the view switch "Farklı görünenleri işaretle" (on)
-REASONS = {"qr": "QR ayıraç sayfası ayırdı.", "filter": "QR ayıraç yok, filtre kesti.",
+REASONS = {"qr": "QR ayraç sayfası ayırdı.", "filter": "QR ayraç yok, filtre kesti.",
            "manual": "Elle kesildi.", "start": "İşin ilk belgesi."}
 SAVE_KEY = "kontrol.onay-kaydi"  # the red toast of a failed approval save
 DELETE_KEY = "kontrol.sil"  # delete / restore toasts: the newest replaces the earlier one
@@ -888,7 +888,7 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
         loupe.open(self.model.rowCount(), self._render_page, row, self._loupe_title,
                    kontrol=self._loupe_kontrol, doc_start=self._loupe_doc_start)
         if self._window is not None and hasattr(self._window, "register_zoom"):
-            self._window.register_zoom("kontrol", loupe.zoom, "Önizleme")
+            self._window.register_zoom("kontrol", loupe.zoom, "Önizle")
 
     def close_loupe(self) -> None:
         if self._loupe is not None:
@@ -909,7 +909,7 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
     def _loupe_title(self, row: int) -> str:
         """The page's place for the loupe's head: "Belge 16, Ekspertiz Raporu, 2. sayfa"."""
         if self.model.state(row) == "separator":
-            return "QR ayıraç"
+            return "QR ayraç"
         number = self.model.doc_of_row(row)
         if not number:
             return ""

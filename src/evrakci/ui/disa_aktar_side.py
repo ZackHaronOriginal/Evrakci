@@ -7,6 +7,7 @@ At large text the cards scroll in their own area above the pinned action, as the
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QAccessible, QAccessibleEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -80,6 +81,7 @@ class SidePanel(QWidget):
     pattern_committed = Signal(str)
     pattern_edited = Signal()
     choose_clicked = Signal()
+    chars_refused = Signal(str)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -177,8 +179,6 @@ class SidePanel(QWidget):
         self.options.setSpacing(0)
         self.layer = self._option("Metin katmanı ekle (OCR)", True)
         self.separate = self._option("Kontrol gerekenleri ayrı klasöre koy", True, wrap=True)
-        self.index_box = self._option("index.xlsx her zaman yazılır", True)
-        self.index_box.setEnabled(False)
         # A draws this one live and checked. The core always takes the characters Windows
         # refuses out of a name, so unticking it says why it stays on (PROPOSALS E2).
         self.chars_box = self._option("Geçersiz karakterleri değiştir", True)
@@ -266,7 +266,6 @@ class SidePanel(QWidget):
         for widget in (self.folder, self.choose_button, self.pattern, self.variable_button,
                        self.layer, self.separate):
             widget.setEnabled(not locked)
-        self.index_box.setEnabled(False)
         self.chars_box.setEnabled(not locked)  # A: live (it stays on; see _chars_toggled)
 
     def set_variables(self, names: list[str]) -> None:
@@ -304,3 +303,6 @@ class SidePanel(QWidget):
         box.blockSignals(False)
         QToolTip.showText(box.mapToGlobal(box.rect().bottomLeft()), CHARS_LOCKED, box)
         self.chars_note = CHARS_LOCKED
+        if QAccessible.isActive():  # the box's description is the reason: read it now (E-7)
+            QAccessible.updateAccessibility(QAccessibleEvent(box, QAccessible.Event.Alert))
+        self.chars_refused.emit(CHARS_LOCKED)

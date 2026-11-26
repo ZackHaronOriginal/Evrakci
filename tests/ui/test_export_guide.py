@@ -51,7 +51,7 @@ def test_export_refuses_a_folder_with_an_earlier_export(qtbot, tmp_path):
     screen.layer.setChecked(False)
     assert screen.state() == "blocked"
     assert not screen.export_button.isEnabled()
-    assert "boş değil" in screen.folder_hint_text()
+    assert "Klasörde 1 PDF var (eski.pdf)" in screen.folder_hint_text()
     screen.export()  # a key press (Ctrl+E) does nothing either
     assert screen.task is None
     assert sorted(p.name for p in (tmp_path / "out").iterdir()) == ["eski.pdf"]

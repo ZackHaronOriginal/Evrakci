@@ -508,7 +508,7 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 |---|---|---|---|---|
 | Yükle | Open Yükle. Setup: a read is running. Press Ctrl+.. | progress title changes to 'İptal ediliyor…', then the screen returns to the batch list; queued files get the toast 'Sıradaki N dosya eklenmedi; önceki okuma iptal edildi.' with 'Yine de ekle' / when not applicable, PROPOSED: Şu an durdurulacak bir iş yok. | M-28, M-29 | [ ] |
 | Değerler | Open Değerler. Setup: a read is running. Press Ctrl+.. | progress band disappears; the read buttons return / when not applicable, PROPOSED: Şu an durdurulacak bir iş yok. | M-28, M-29 | [ ] |
-| Dışa Aktar | Open Dışa Aktar. Setup: an export is running. Press Ctrl+.. | banner 'Durduruluyor; o ana kadar yazılanlar kalır…', then the outcome banner / when not applicable, PROPOSED: Şu an durdurulacak bir iş yok. | M-28, M-29 | [ ] |
+| Dışa Aktar | Open Dışa Aktar. Setup: an export is running. Press Ctrl+.. | banner 'Durduruluyor; geçerli dosya bitince durur. O ana kadar yazılanlar kalır…', then the outcome banner / when not applicable, PROPOSED: Şu an durdurulacak bir iş yok. | M-28, M-29 | [ ] |
 
 ## Ctrl+A
 

@@ -78,7 +78,7 @@ def test_folder_with_an_earlier_export_is_refused(tmp_path):
     store, job = _job(tmp_path)
     (tmp_path / "out").mkdir()
     (tmp_path / "out" / "eski.pdf").write_bytes(b"x")
-    with pytest.raises(ExportError, match="boş bir klasör"):
+    with pytest.raises(ExportError, match="aynı adlı dosya var: eski.pdf"):
         export_job(job, store.batch_files(job), {}, tmp_path / "out", with_layer=False)
 
 

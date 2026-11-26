@@ -30,7 +30,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.pipeline.cuts import _template_of, document_template, record_read_error
+from evrakci.pipeline.cuts import (
+    _template_of,
+    current_values,
+    document_template,
+    record_read_error,
+)
 from evrakci.pipeline.job import Job, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.render import render_page
@@ -88,6 +93,7 @@ VIEW_KEY = "degerler.gorunum"  # the chosen view (prefs.view_state)
 TEMPLATE_KEY = "degerler.sablon"  # the chosen template
 ZOOM_DEFAULT = 200  # A's status bar: "%200"
 UNDO_TEXT = "Değeri onayla"
+TOAST_KEY = "degerler.kaydedildi"  # a newer confirmation replaces an older one
 
 
 class SlackComboBox(QComboBox):
@@ -1288,8 +1294,10 @@ class DegerlerScreen(QWidget):
             self.refresh()
             self._sample_progress()
             if flagged and stored:  # the confirmation names the value (Q-12); one per Enter
-                self._toast(f"{stored} kaydedildi ({'okunan' if read else 'öneri'}).",
-                            controller, before + 1, "success", replace=True)
+                kept = current_values(controller.job, row.document).get(cell.key)
+                if kept is not None and kept.value:  # what was stored, after cleaning
+                    self._toast(f"{kept.value} kaydedildi ({'okunan' if read else 'öneri'}).",
+                                controller, before + 1, "success", key=TOAST_KEY)
         self._advance(*anchor)
 
     def accept_selected(self, *_args) -> None:
@@ -1325,7 +1333,7 @@ class DegerlerScreen(QWidget):
         self._sample_progress()
 
     def _toast(self, text: str, controller: JobController, index: int, kind: str,
-               replace: bool = False) -> None:
+               key: str | None = None) -> None:
         """A completed event with Geri al (only while that step is still the last one: same
         index and same command, so Ctrl+Z and a new edit cannot reuse it, B-023)."""
         stack = controller.undo_stack
@@ -1339,7 +1347,7 @@ class DegerlerScreen(QWidget):
                 toaster.show(text, kind=kind, timeout_ms=10000)
             else:
                 toaster.show(text, "Geri al", undo, kind=kind, timeout_ms=10000,
-                             available=available, replace=replace)
+                             available=available, key=key)
         else:
             self._say(text)
 

@@ -810,6 +810,30 @@ def test_f46_shift_enter_does_nothing_without_a_different_read(qtbot, setup):
     assert ctl.undo_stack.index() == before
 
 
+def test_f46_a_confirmation_replaces_only_its_own_kind_and_each_geri_al_undoes_its_step(
+        qtbot, window):
+    win, sicil = window
+    screen = _three_kontrol(win, sicil)
+    ctl, toaster = win.controller(), win.toaster
+    toaster.show("Kaydedilemedi.", kind="error")
+    screen.select_value(1, sicil.key)
+    screen.table.setFocus()
+    QTest.keyClick(screen.table, Qt.Key.Key_Return)
+    first = ctl.undo_stack.index()
+    QTest.keyClick(screen.table, Qt.Key.Key_Return)
+    second = ctl.undo_stack.index()
+    assert second == first + 1
+    texts = [toaster.current_text()] + [p.text for p in toaster._queue]
+    assert texts.count("Kaydedilemedi.") == 1  # the error is still shown or queued
+    confirmations = [t for t in texts if "kaydedildi (öneri)" in t]
+    assert confirmations == ["48213 kaydedildi (öneri)."]  # only the last one remains
+    queued = [p for p in toaster._queue if p.key]
+    assert len(queued) == 1 and queued[0].available()  # B-023: it undoes its own step
+    queued[0].on_action()
+    assert ctl.undo_stack.index() == second - 1
+    assert not queued[0].available()  # a Geri al of an older step would not act any more
+
+
 # -- F-degerler-01: N / Sonraki kontrol through the action must step, not restart ------------
 def _three_kontrol(win, sicil):
     ctl = win.controller()

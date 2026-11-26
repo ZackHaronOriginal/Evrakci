@@ -12,9 +12,9 @@ from PySide6.QtWidgets import QApplication
 
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.store import TemplateStore
+from evrakci.ui import kontrol_overview, theme
 from evrakci.ui import kontrol_paint as kp
-from evrakci.ui import theme
-from evrakci.ui.kontrol_overview import KONTROL_NOTCH, TRACK_H, OverviewStrip
+from evrakci.ui.kontrol_overview import TRACK_H, OverviewStrip
 from evrakci.ui.kontrol_review import SAVE_ERROR
 from evrakci.ui.main_window import MainWindow
 from evrakci.ui.prefs import Prefs
@@ -186,7 +186,7 @@ def test_k5_the_merge_toast_names_the_pages(qtbot, tmp_path):
     screen = window.kontrol
     screen.go_to_document(2)
     screen.merge_current()
-    assert window.toaster.current_text() == "Belge 2 (sayfa 5–6), Belge 1 ile birleştirildi."
+    assert window.toaster.current_text() == "Belge 2, Belge 1 ile birleştirildi (sayfa 5–6)."
 
 
 # -- K-7: the overview's second signal ---------------------------------------------------------
@@ -201,7 +201,12 @@ def test_k7_a_kontrol_square_stands_taller_than_the_track(qtbot, qapp):
     first, second = strip._segment(1, track), strip._segment(2, track)
     above = int(track.y()) - 2  # inside the notch, above the track
     assert second.height() == TRACK_H
-    assert KONTROL_NOTCH >= 3
+    assert not hasattr(kontrol_overview, "KONTROL_NOTCH")  # the notch is the s1 token
+    notch = theme.manager().size("s1")
+    assert image.pixelColor(int(second.center().x()), int(track.y()) - notch) != \
+        image.pixelColor(int(first.center().x()), int(track.y()) - notch)
+    assert image.pixelColor(int(second.center().x()), int(track.y()) - notch - 2) == \
+        image.pixelColor(int(first.center().x()), int(track.y()) - notch - 2)
     assert image.pixelColor(int(second.center().x()), above) != \
         image.pixelColor(int(first.center().x()), above)
 
@@ -318,3 +323,165 @@ def test_k9_the_zoom_slider_drives_the_loupe_while_it_is_open(qtbot, tmp_path):
     assert entry[0] is screen.loupe().zoom and entry[1] == "Önizleme"
     screen.close_loupe()
     qtbot.waitUntil(lambda: window._zoom["kontrol"][0] is screen.zoom, timeout=2000)
+
+
+# -- review round 1 ------------------------------------------------------------------------------
+def _fail_writes(monkeypatch):
+    real = Path.write_text
+    state = {"fail": True}
+
+    def write(self, *args, **kwargs):
+        if state["fail"] and self.name == "incelendi.json":
+            raise OSError("disk full")
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", write)
+    return state
+
+
+def test_r1_two_deletes_in_a_row_show_the_newest_message_at_once(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+    screen.go_to_row(0)
+    _key(window, Qt.Key.Key_Delete)
+    assert window.toaster.current_text() == "Sayfa 1 silinecek."
+    _key(window, Qt.Key.Key_Delete)  # the selection moved on: this deletes page 2
+    assert window.toaster.current_text() == "Sayfa 2 silinecek."
+    assert window.toaster.pending() == 0
+    window.toaster._current.action_button.click()  # Geri al belongs to its own step
+    assert ctl.job.deleted == {"a/0"}
+
+
+def test_r1_a_restore_replaces_the_delete_toast(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    screen.go_to_row(0)
+    screen.toggle_delete()
+    screen.timeline.select_rows(0, 0, 0)
+    screen.toggle_delete()
+    assert window.toaster.current_text() == "Sayfa 1 geri getirildi."
+    assert window.toaster.pending() == 0
+
+
+def test_r1_an_error_toast_does_not_wait_behind_an_info_toast(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    window.toaster.show("Bilgi bir")
+    window.toaster.show("Bilgi iki")
+    window.toaster.show("Hata", kind="error")
+    assert window.toaster.current_text() == "Hata"
+
+
+def test_r1_a_failed_approve_is_not_worded_as_a_success(qtbot, tmp_path, monkeypatch):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    said = []
+    screen.controller.status.connect(said.append)
+    _fail_writes(monkeypatch)
+    screen.go_to_document(1)
+    _key(window, Qt.Key.Key_Return)
+    assert said[-1] == SAVE_ERROR
+    assert not any("onaylandı" in text for text in said)
+    assert all("onaylandı" not in change.text for _i, change in screen._history)
+    assert window.toaster.current_text() == SAVE_ERROR  # shown at once, not queued
+    assert screen.current_document() == 2  # the flow goes on
+
+
+def test_r1_the_title_band_keeps_the_failure_until_a_write_works(qtbot, tmp_path, monkeypatch):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    state = _fail_writes(monkeypatch)
+    screen.go_to_document(1)
+    _key(window, Qt.Key.Key_Return)
+    band = window.job_switch.save_state
+    assert band.state() == "failed" and band.toolTip() == SAVE_ERROR
+    window.toaster.dismiss()  # the toast is gone, the failure is not
+    window._saved()  # the job's own write succeeds meanwhile: still failed for the approvals
+    assert band.state() == "failed"
+    state["fail"] = False
+    band._retry.click()
+    assert band.state() == "saved"
+    assert window.toaster.current_text() != SAVE_ERROR
+
+
+def test_r1_recovery_removes_the_red_toast(qtbot, tmp_path, monkeypatch):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    state = _fail_writes(monkeypatch)
+    screen.go_to_document(1)
+    _key(window, Qt.Key.Key_Return)
+    assert window.toaster.current_text() == SAVE_ERROR
+    state["fail"] = False
+    screen.go_to_document(2)
+    _key(window, Qt.Key.Key_Return)  # the next approval writes both: the failure is over
+    assert window.toaster.current_text() != SAVE_ERROR
+    assert window.job_switch.save_state.state() == "saved"
+
+
+def test_r1_closing_with_unsaved_approvals_retries_and_asks(qtbot, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    state = _fail_writes(monkeypatch)
+    screen.go_to_document(1)
+    _key(window, Qt.Key.Key_Return)
+    window.toaster.dismiss()
+    window.close_job()  # Ctrl+W: the retry fails again, the same question as for the job
+    qtbot.waitUntil(window._question_open, timeout=3000)
+    box = window._close_question
+    assert box.text() == ("Değişiklikler kaydedilemedi. Yine de kapatılsın mı? "
+                          "Son değişiklikler kaybolur.")
+    box.button(QMessageBox.StandardButton.No).click()
+    qtbot.waitUntil(lambda: not box.isVisible(), timeout=3000)
+    assert window.controller() is not None
+    state["fail"] = False  # the disk works: the retry saves, and the job closes silently
+    window.close_job()
+    qtbot.waitUntil(lambda: window.controller() is None, timeout=3000)
+
+
+def test_r1_yes_lets_unsaved_approvals_go_and_the_window_closes(qtbot, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    _fail_writes(monkeypatch)
+    screen.go_to_document(1)
+    _key(window, Qt.Key.Key_Return)
+    assert window._unsaved_pending()
+    assert window.close() is False
+    qtbot.waitUntil(window._question_open, timeout=3000)
+    window._close_question.button(QMessageBox.StandardButton.Yes).click()
+    qtbot.waitUntil(lambda: window._closed, timeout=3000)
+
+
+def test_r1_select_all_and_del_leaves_no_selection_and_says_the_count(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    said = []
+    screen.controller.status.connect(said.append)
+    screen.select_all()
+    screen.toggle_delete()
+    assert screen._chosen_ids() == []
+    assert said[-1] == "10 sayfa silinecek."
+    assert screen.controller.job.deleted  # the pages are deleted, undoably
+    screen.controller.undo_stack.undo()
+    assert not screen.controller.job.deleted
+
+
+def test_r1_the_merge_sentence_and_the_overview_tooltip_texts(qtbot, tmp_path, monkeypatch):
+    from PySide6.QtWidgets import QToolTip
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    screen.go_to_document(3)
+    screen.merge_current()
+    assert window.toaster.current_text() == "Belge 3, Belge 2 ile birleştirildi (sayfa 8–11)."
+    shown = []
+    monkeypatch.setattr(QToolTip, "showText", lambda pos, text, *a: shown.append(text))
+    screen.strip.set_state(3, {2}, set())
+    track = screen.strip.track_rect()
+    from PySide6.QtGui import QMouseEvent
+    point = screen.strip._segment(2, track).center()
+    event = QMouseEvent(QMouseEvent.Type.MouseMove, point, screen.strip.mapToGlobal(point),
+                        Qt.MouseButton.NoButton, Qt.MouseButton.NoButton,
+                        Qt.KeyboardModifier.NoModifier)
+    screen.strip.mouseMoveEvent(event)
+    assert shown[-1] == "Belge 2, Kontrol bekliyor"

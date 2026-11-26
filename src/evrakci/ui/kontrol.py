@@ -52,7 +52,7 @@ from evrakci.ui.kontrol_dialogs import FilterDialog, GoToDialog, SelectDialog
 from evrakci.ui.kontrol_inspector import Change, DocumentInfo, Inspector, SelectionInfo
 from evrakci.ui.kontrol_overview import OverviewStrip
 from evrakci.ui.kontrol_paint import CUT_ICONS, CUT_WORDS
-from evrakci.ui.kontrol_review import ReviewStore
+from evrakci.ui.kontrol_review import SAVE_ERROR, ReviewStore
 from evrakci.ui.kontrol_saved import SavedFiltersMixin
 from evrakci.ui.loupe import Loupe
 from evrakci.ui.thumbnails import ThumbnailService, job_renderer, to_qimage
@@ -66,6 +66,8 @@ ZOOM_TARGET = "Küçük resim boyutu"
 ODD_MARKS_KEY = "kontrol_farkli_isaretle"  # the view switch "Farklı görünenleri işaretle" (on)
 REASONS = {"qr": "QR ayıraç sayfası ayırdı.", "filter": "QR ayıraç yok, filtre kesti.",
            "manual": "Elle kesildi.", "start": "İşin ilk belgesi."}
+SAVE_KEY = "kontrol.onay-kaydi"  # the red toast of a failed approval save
+DELETE_KEY = "kontrol.sil"  # delete / restore toasts: the newest replaces the earlier one
 THUMB_DELAY_MS = 150  # re-render thumbnails once zooming pauses
 
 
@@ -160,6 +162,7 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
         controller.undo_stack.indexChanged.connect(self._undo_moved)
         self.reviews.changed.connect(self._reviews_changed)
         self.reviews.save_failed.connect(self._save_failed)
+        self.reviews.save_recovered.connect(self._save_recovered)
         QWidget.setTabOrder(self.chips, self.timeline)
         if self.model.rowCount():  # focus the first page without selecting it
             selection.setCurrentIndex(self.model.index(0),
@@ -253,19 +256,24 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
             self.timeline.load_thumbnails()
         self.timeline.viewport().update()
 
-    def _toast(self, text: str, undo: bool = True) -> None:
+    def _toast(self, text: str, undo: bool = True, key: str | None = None) -> None:
         toaster = getattr(self._window, "toaster", None)
         if toaster is not None:
             callback, available = undo_last(self.controller.undo_stack)
             toaster.show(text, "Geri al" if undo else None, callback if undo else None,
-                         available=available if undo else None)
+                         available=available if undo else None, key=key)
         else:
             self.controller.status.emit(text)
 
     def _save_failed(self, text: str) -> None:
         """K-10: the approvals could not be written: a red toast that offers Yeniden dene (the
-        approvals stay in memory; the retry writes them as they are, no undo step)."""
-        toaster = getattr(self._window, "toaster", None)
+        approvals stay in memory; the retry writes them as they are, no undo step). The title
+        band keeps showing the failure after the toast is gone, until a write succeeds."""
+        window = self._window
+        shown = getattr(window, "review_save_failed", None)
+        if callable(shown):
+            shown(self.reviews)
+        toaster = getattr(window, "toaster", None)
         if toaster is None:
             self.controller.status.emit(text)
             return
@@ -274,12 +282,20 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
             # after the toast has closed itself, so a second failure shows a fresh toast
             QTimer.singleShot(0, self, self._retry_save)
 
-        toaster.show(text, "Yeniden dene", retry, kind="error", timeout_ms=10000,
-                     key="kontrol.onay-kaydi")
+        toaster.show(text, "Yeniden dene", retry, kind="error", timeout_ms=10000, key=SAVE_KEY)
 
     def _retry_save(self) -> None:
         if self.reviews.retry_save():
             self._toast("Onay kaydedildi.", undo=False)
+
+    def _save_recovered(self) -> None:
+        """A later write succeeded: the red toast and the title band's failure go away."""
+        toaster = getattr(self._window, "toaster", None)
+        if toaster is not None:
+            toaster.dismiss_key(SAVE_KEY)
+        done = getattr(self._window, "review_save_recovered", None)
+        if callable(done):
+            done()
 
     # -- reading the state --------------------------------------------------------------------
     def selected_rows(self) -> list[int]:
@@ -542,6 +558,7 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
                 text = (f"Sayfa {job.position_of(ids[0])} geri getirildi" if len(ids) == 1
                         else f"{len(ids)} sayfa geri getirildi")
                 self._remember("undo-2", text)
+                self._toast(f"{text}.", key=DELETE_KEY)
             return
         targets = [pid for pid in ids if pid not in job.deleted]
         documents = self.controller.documents()
@@ -555,19 +572,23 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
         text = (f"Sayfa {job.position_of(targets[0])} silinecek" if len(targets) == 1
                 else f"{len(targets)} sayfa silinecek")
         self._remember("trash-2", text)
-        if drawn and not in_loupe:
-            self._select_after_delete(targets)
+        if drawn and not in_loupe and not self._select_after_delete(targets):
+            # nothing is left to move to: no page stays selected, so nothing contradicts the
+            # inspector; the deleted count is said in the status line too
+            self.timeline.selectionModel().clearSelection()
+            self.controller.status.emit(f"{text}.")
         if emptied:
             names = ", ".join(f"Belge {n} ({span})" for n, span in emptied)
-            self._toast(f"{names}: bütün sayfaları silinecek, belge dışa aktarılmayacak.")
+            self._toast(f"{names}: bütün sayfaları silinecek, belge dışa aktarılmayacak.",
+                        key=DELETE_KEY)
         else:
-            self._toast(f"{text}.")
+            self._toast(f"{text}.", key=DELETE_KEY)
 
-    def _select_after_delete(self, targets: list[str]) -> None:
+    def _select_after_delete(self, targets: list[str]) -> bool:
         """K-3: the pages just deleted stop being the selection; the next page that stays (else
         the one before) is selected and current, so the inspector and "Belgeyi onayla" agree
         with what is drawn. Only the selection moves: the deleted set and the undo step are
-        untouched, and Geri al brings the pages back."""
+        untouched, and Geri al brings the pages back. False when no page is left to move to."""
         gone = set(targets)
         rows = sorted(self.model.row_of(pid) for pid in targets)
 
@@ -580,11 +601,12 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
         if row is None:
             row = next((r for r in range(rows[0] - 1, -1, -1) if stays(r)), None)
         if row is None:
-            return
+            return False
         index = self.model.index(row)
         self.timeline.selectionModel().setCurrentIndex(
             index, QItemSelectionModel.SelectionFlag.ClearAndSelect)
         self.timeline.scrollTo(index, TimelineView.ScrollHint.EnsureVisible)
+        return True
 
     def merge_current(self) -> None:
         """M: join the current document to the one before (removes the cut between them)."""
@@ -616,7 +638,7 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
             self.controller.status.emit("İlk belgenin öncesi yok.")
         if done and len(self.controller.documents()) < count:
             self._remember("merge", f"Belge {number}, Belge {number - 1} ile birleşti")
-            self._toast(f"Belge {number} ({span}), Belge {number - 1} ile birleştirildi.")
+            self._toast(f"Belge {number}, Belge {number - 1} ile birleştirildi ({span}).")
 
     def approve_document(self) -> None:
         """Enter, Belgeyi onayla: the document is İncelendi; go on to the next one. The status
@@ -629,12 +651,15 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
         documents = self.controller.documents()
         flagged = bool(self.model.checks.get(number))
         done = self.reviews.set_reviewed([documents[number - 1]])
-        if done:
+        failed = done and self.reviews.unsaved  # taken in memory, but not on disk
+        if done and not failed:
             self._remember("circle-check", f"Belge {number} onaylandı")
         last = number >= len(documents)
         if not last:
             self.go_to_document(number + 1)
-        if flagged and done:
+        if failed:  # never worded as if it had worked: the failure text, and the red toast
+            self.controller.status.emit(SAVE_ERROR)
+        elif flagged and done:
             self.controller.status.emit(
                 f"Belge {number} kontrol işaretiyle onaylandı"
                 + ("; bu son belge." if last else "."))

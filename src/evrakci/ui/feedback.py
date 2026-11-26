@@ -206,10 +206,23 @@ class Toaster(QObject):
             self._queue = deque(p for p in self._queue if p.key != key)
             if self._current is not None and self._current_key == key:
                 self.dismiss()
-        self._queue.append(_Pending(text, action_text, on_action, kind, timeout_ms, available,
-                                    spoken, key))
+        pending = _Pending(text, action_text, on_action, kind, timeout_ms, available, spoken,
+                           key)
+        if kind == "error":  # a failure is never kept waiting behind other toasts
+            self._queue.appendleft(pending)
+            if self._current is not None:
+                self.dismiss()  # shows the first in the queue: this one
+                return
+        else:
+            self._queue.append(pending)
         if self._current is None:
             self._next()
+
+    def dismiss_key(self, key: str) -> None:
+        """Take away the toast with `key`, visible or waiting (its cause is gone)."""
+        self._queue = deque(p for p in self._queue if p.key != key)
+        if self._current is not None and self._current_key == key:
+            self.dismiss()
 
     def current_text(self) -> str:
         return self._current.accessibleName() if self._current is not None else ""

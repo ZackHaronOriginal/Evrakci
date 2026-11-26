@@ -49,6 +49,7 @@ class ReviewStore(QObject):
 
     changed = Signal()
     save_failed = Signal(str)  # the text to show, with a way to try again (K-10)
+    save_recovered = Signal()  # a later write succeeded: the failure is over
 
     def __init__(self, controller: JobController, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -76,12 +77,20 @@ class ReviewStore(QObject):
         try:
             self.path().write_text(json.dumps(data, ensure_ascii=False, indent=1),
                                    encoding="utf-8")
-            self.error = ""
-            return True
         except OSError:
             self.error = SAVE_ERROR
             self.save_failed.emit(SAVE_ERROR)
             return False
+        failed = self.unsaved
+        self.error = ""
+        if failed:
+            self.save_recovered.emit()
+        return True
+
+    @property
+    def unsaved(self) -> bool:
+        """The approvals in memory are not on disk (the last write failed)."""
+        return self.error == SAVE_ERROR
 
     def retry_save(self) -> bool:
         """Yeniden dene: write the approvals as they are now (nothing is changed or undone)."""
@@ -105,7 +114,9 @@ class ReviewStore(QObject):
     # Changing
     def set_reviewed(self, documents: Iterable[Document], value: bool = True,
                      text: str = "Belgeyi onayla") -> bool:
-        """Approve (or un-approve) documents as one undoable step; False when nothing changes."""
+        """Approve (or un-approve) documents as one undoable step; False when nothing changes.
+        After True, `unsaved` says whether the write failed (the step is still taken and undoable;
+        the caller must not report it as saved)."""
         keys = [document_key(d) for d in documents]
         keys = [k for k in keys if (k in self.keys) != value]
         if not keys:

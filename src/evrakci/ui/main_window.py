@@ -59,6 +59,7 @@ from evrakci.ui.feedback import Toaster
 from evrakci.ui.kontrol import KontrolScreen
 from evrakci.ui.kontrol_actions import DIMMABLE, NO_JOB_TEXT, KontrolStatus, menu_bar_entry
 from evrakci.ui.kontrol_chips import SAVE_FAILED, TemplateStep
+from evrakci.ui.kontrol_review import SAVE_ERROR
 from evrakci.ui.loading import LoadingCard
 from evrakci.ui.palette import CommandPalette
 from evrakci.ui.prefs import Prefs
@@ -1571,7 +1572,28 @@ class MainWindow(QMainWindow):
     def _saved(self, when: datetime | None = None) -> None:
         self._close_warned = False
         self._discard_ok = False
+        if self._reviews_unsaved():  # the job is written, the approvals are not: still failed
+            self.review_save_failed(self.kontrol.reviews)
+            return
         self.job_switch.save_state.set_saved(when or datetime.now())
+
+    def _reviews_unsaved(self) -> bool:
+        """The approvals made on Kontrol are in memory only (their last write failed)."""
+        screen = self.kontrol
+        return (screen is not None and shiboken6.isValid(screen)
+                and screen.reviews.unsaved)
+
+    def review_save_failed(self, reviews) -> None:
+        """Title band: "Kaydedilemedi" with Yeniden dene, until a write of the approvals works."""
+        self._close_warned = False
+        self._discard_ok = False
+        self.job_switch.save_state.set_failed(SAVE_ERROR, reviews.retry_save)
+
+    def review_save_recovered(self) -> None:
+        """The approvals are on disk now: the failure leaves the title band."""
+        controller = self.controller()
+        if controller is not None and controller.saver.clean:
+            self._saved()  # else the job's own write ends in _saved or _save_failed
 
     def _save_failed(self, error: str) -> None:
         self._close_warned = False  # a new failed edit: the next close warns again
@@ -1804,7 +1826,11 @@ class MainWindow(QMainWindow):
         something is queued, or the last write failed (B-035): every attempt retries the save, and
         only the owner's Yes to the close question (`_discard_ok`) lets unsaved edits go."""
         controller = self.controller()
-        if controller is None or controller.frozen or controller.saver.clean:
+        if controller is None or controller.frozen:
+            return False
+        if self._reviews_unsaved() and not self._discard_ok:
+            return True
+        if controller.saver.clean:
             return False
         saver = controller.saver
         return not (self._discard_ok and (saver.idle or saver.stalled))
@@ -1821,6 +1847,16 @@ class MainWindow(QMainWindow):
             return
         if self._question_open():  # the question is already up: it is the only way on
             then(False)
+            return
+        if self._reviews_unsaved() and not self.kontrol.reviews.retry_save():
+            # the approvals still cannot be written: the same question as for the job
+            self._close_warned = True
+            self.message.setText(SAVE_ERROR)
+            then(False)
+            self._ask_close_unsaved(then)
+            return
+        if not self._unsaved_pending():  # the retry worked and nothing else is queued
+            then(True)
             return
         saver = controller.saver
         if saver.idle:  # the last write failed: write the job again now

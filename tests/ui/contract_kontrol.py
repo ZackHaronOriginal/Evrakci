@@ -215,7 +215,7 @@ def _effect_merged(c: Ctx) -> None:
 
 @helper("feedback.kontrol_merged")
 def _feedback_merged(c: Ctx) -> None:
-    assert c.win.toaster.current_text() == "Belge 2 (sayfa 5–11), Belge 1 ile birleştirildi.", \
+    assert c.win.toaster.current_text() == "Belge 2, Belge 1 ile birleştirildi (sayfa 5–11).", \
         heard(c.win)
     assert _toast_undo(c)
     assert _history(c)[0] == "Belge 2, Belge 1 ile birleşti"

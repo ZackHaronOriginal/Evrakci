@@ -14,7 +14,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from evrakci.pipeline.export import sources_text
+from evrakci.pipeline.export import CHECK_SUBFOLDER, sources_text
 from evrakci.pipeline.templates.model import TemplateError, pattern_names
 
 NUMBER_SUFFIX = re.compile(r" \((\d+)\)$")  # what `unique_names` adds on a clash
@@ -59,6 +59,9 @@ def folder_state(text: str) -> FolderState:
                                True)
         entries = list(path.iterdir())
         old = [p for p in entries if p.suffix.lower() == ".pdf" or p.name.lower() == "index.xlsx"]
+        sub = path / CHECK_SUBFOLDER  # old PDFs there are an earlier export's too
+        if sub.is_dir():
+            old += [p for p in sub.iterdir() if p.suffix.lower() == ".pdf"]
         if old:
             return FolderState("full", "Klasör boş değil. Boş bir klasör seçin.", "err", True)
         if not os.access(path, os.W_OK):
@@ -132,7 +135,7 @@ def file_rows(job, items, names: Iterable[str] | None = None) -> list[FileRow]:
             state = "bilgi"
         elif item.template_name is None:
             state, why = "bilgi", "Şablon yok, numaralı ad"
-        shown = written[index] if written is not None else f"{item.name}.pdf"
+        shown = written[index] if written is not None else item.relative
         stem = shown[:-4] if shown.lower().endswith(".pdf") else shown
         if tail and stem.endswith(tail):
             pre, mid = stem[:-len(tail)], tail
@@ -196,8 +199,12 @@ _ENGEL = {  # folder kind: (title, detail, link, action)
 }
 
 
+DELETE_WARNING = "Yazıldıktan sonra bu iş silinir; yalnızca dışa aktarılan dosyalar kalır."
+
+
 def findings(summary: Summary, folder: FolderState,
-             problem: tuple[str, list[str]] = ("", [])) -> list[Finding]:
+             problem: tuple[str, list[str]] = ("", []),
+             deletes_job: bool = False) -> list[Finding]:
     """The rows of "Ön kontrol", engel first. Only an engel stops the export; a kontrol never
     does (the file is written and flagged in index.xlsx)."""
     rows: list[Finding] = []
@@ -234,6 +241,8 @@ def findings(summary: Summary, folder: FolderState,
              else f"{summary.kontrol} belgede kontrol gereken bir durum var."),
             "Yine de yazılır; index.xlsx'te işaretlenir.", summary.kontrol, "Sonraki kontrol",
             "next_check"))
+    if deletes_job and not summary.kontrol:  # a Kontrol document keeps the job
+        rows.append(Finding("bilgi", DELETE_WARNING))
     if summary.eksik:
         more = len(summary.eksik_vars) - 1
         which = summary.eksik_vars[0] if summary.eksik_vars else ""

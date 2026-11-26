@@ -29,6 +29,27 @@ from evrakci.ui.disa_aktar_parts import HintLine, PartsButton, scale
 SIDE_W = 368  # A: the aside column at 100 % text (440 at 150 %)
 
 
+class _ClickLabel(QLabel):
+    """The wrapped text of a check box row: a click on it ticks the box."""
+
+    def __init__(self, text: str, box: QCheckBox) -> None:
+        super().__init__(text)
+        self._box = box
+        self.setWordWrap(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton and self._box.isEnabled():
+            self._box.setFocus(Qt.FocusReason.MouseFocusReason)
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        inside = self.rect().contains(event.position().toPoint())
+        if event.button() == Qt.MouseButton.LeftButton and inside and self._box.isEnabled():
+            self._box.toggle()
+        super().mouseReleaseEvent(event)
+
+
 def side_width() -> int:
     return SIDE_W if scale() < 1.4 else 440
 
@@ -155,6 +176,7 @@ class SidePanel(QWidget):
         self.options.setContentsMargins(0, m.size("s1"), 0, m.size("s1"))
         self.options.setSpacing(0)
         self.layer = self._option("Metin katmanı ekle (OCR)", True)
+        self.separate = self._option("Kontrol gerekenleri ayrı klasöre koy", True, wrap=True)
         self.index_box = self._option("index.xlsx her zaman yazılır", True)
         self.index_box.setEnabled(False)
         # A draws this one live and checked. The core always takes the characters Windows
@@ -199,17 +221,28 @@ class SidePanel(QWidget):
         col.addWidget(card)
         return group, inner
 
-    def _option(self, text: str, checked: bool) -> QCheckBox:
+    def _option(self, text: str, checked: bool, wrap: bool = False) -> QCheckBox:
+        """A check box row. With `wrap` the label is a word-wrapped text beside the box (a long
+        label must not make the panel wider than its column at large text)."""
         m = theme.manager()
-        box = QCheckBox(text)
+        box = QCheckBox("" if wrap else text)
+        if wrap:
+            box.setAccessibleName(text)
         box.setChecked(checked)
         box.setMinimumHeight(m.size("row-h") if scale() < 1.4 else 48)
         box.setContentsMargins(m.size("s4"), 0, m.size("s4"), 0)
-        wrap = QWidget()
-        row = QHBoxLayout(wrap)
+        wrap_row = QWidget()
+        row = QHBoxLayout(wrap_row)
         row.setContentsMargins(m.size("s4"), 0, m.size("s4"), 0)
-        row.addWidget(box, 1)
-        self.options.addWidget(wrap)
+        if wrap:
+            label = _ClickLabel(text, box)
+            box.setContentsMargins(0, 0, 0, 0)
+            row.setSpacing(0)
+            row.addWidget(box)
+            row.addWidget(label, 1)
+        else:
+            row.addWidget(box, 1)
+        self.options.addWidget(wrap_row)
         return box
 
     def _restyle(self) -> None:
@@ -231,7 +264,7 @@ class SidePanel(QWidget):
         """Writing: the settings cannot change (A: dimmed, with a note on top)."""
         self.lock_note.setVisible(locked)
         for widget in (self.folder, self.choose_button, self.pattern, self.variable_button,
-                       self.layer):
+                       self.layer, self.separate):
             widget.setEnabled(not locked)
         self.index_box.setEnabled(False)
         self.chars_box.setEnabled(not locked)  # A: live (it stays on; see _chars_toggled)

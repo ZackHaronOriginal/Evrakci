@@ -22,6 +22,8 @@ class SettingsError(ValueError):
 class Settings:
     # "sakla" (never delete), "disa-aktarinca-sil" (after a full export), or a number of days.
     retention: str = KEEP
+    # Documents that still need a check go into the subfolder "Kontrol gerekenler" at export.
+    check_subfolder: bool = True
 
     def __post_init__(self) -> None:
         value = self.retention
@@ -54,7 +56,10 @@ def load_settings(path: Path | None = None) -> Settings:
         value = data.get("saklama", KEEP)
         if not isinstance(value, str):
             raise SettingsError(f"Geçersiz saklama ayarı: {value!r}")
-        return Settings(value)
+        separate = data.get("kontrol_ayri_klasor", True)
+        if not isinstance(separate, bool):
+            raise SettingsError(f"Geçersiz ayar: kontrol_ayri_klasor: {separate!r}")
+        return Settings(value, separate)
     except (OSError, ValueError) as error:
         raise SettingsError(f"Ayar dosyası okunamadı: {path} ({error})") from error
 
@@ -64,6 +69,8 @@ def save_settings(settings: Settings, path: Path | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
     temporary.write_text(
-        json.dumps({"saklama": settings.retention}, ensure_ascii=False), encoding="utf-8"
+        json.dumps({"saklama": settings.retention,
+                    "kontrol_ayri_klasor": settings.check_subfolder},
+                   ensure_ascii=False), encoding="utf-8"
     )
     os.replace(temporary, path)

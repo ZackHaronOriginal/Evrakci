@@ -14,6 +14,7 @@ from pathlib import Path
 import pikepdf
 
 from evrakci.pipeline.export import (
+    CHECK_SUBFOLDER,
     NOTE_SHORTENED,
     ExportItem,
     clash_note,
@@ -48,15 +49,27 @@ class ExportResult:
         return sum(1 for item in self.items if item.checks)
 
 
-def plan_names(job: Job, templates: Mapping[str, Template | None],
-               out_dir: Path) -> list[ExportItem]:
+def plan_names(job: Job, templates: Mapping[str, Template | None], out_dir: Path,
+               check_subfolder: bool = True) -> list[ExportItem]:
     """The documents with the names that will be written into `out_dir` (cut to fit the folder
-    path, made unique) and `name_note` saying why a name differs from the pattern. The window's
-    list, the CLI and `export_job` all use this, so the preview equals the files written.
-    Raises ValueError (Turkish message) when the folder path is too long for any name."""
+    path, made unique per folder) and `name_note` saying why a name differs from the pattern.
+    With `check_subfolder`, documents that need a check get `folder` = "Kontrol gerekenler".
+    The window's list, the CLI and `export_job` all use this, so the preview equals the files
+    written. Raises ValueError (Turkish message) when the folder path is too long for any name."""
     items = plan_export(job, templates)
-    fitted = fit_names([i.name for i in items], Path(out_dir))
-    for item, name in zip(items, fitted, strict=True):
+    out_dir = Path(out_dir)
+    original = [i.name for i in items]
+    separate = {n for n, i in enumerate(items) if i.checks} if check_subfolder else set()
+    while True:  # a name cut by the path limit gets a check, which moves it one folder deeper
+        fitted = _fit(original, separate, out_dir)
+        moved = {n for n, (a, b) in enumerate(zip(original, fitted, strict=True))
+                 if a != b and n not in separate} if check_subfolder else set()
+        if not moved:
+            break
+        separate |= moved
+    for n, (item, name) in enumerate(zip(items, fitted, strict=True)):
+        if n in separate:
+            item.folder = CHECK_SUBFOLDER
         if name == item.name:
             continue
         if len(name) < item.keep:  # a required value would be cut: never silently
@@ -67,11 +80,22 @@ def plan_names(job: Job, templates: Mapping[str, Template | None],
             item.checks.append(NOTE_SHORTENED.lower())
             item.name_note = NOTE_SHORTENED
         item.name = name
-    for item, name in zip(items, unique_names([i.name for i in items]), strict=True):
-        if name != item.name:
-            item.name_note = clash_note(name[len(item.name):])
-        item.name = name
+    for folder in dict.fromkeys(i.folder for i in items):  # clashes are per folder
+        group = [i for i in items if i.folder == folder]
+        for item, name in zip(group, unique_names([i.name for i in group]), strict=True):
+            if name != item.name:
+                item.name_note = clash_note(name[len(item.name):])
+            item.name = name
     return items
+
+
+def _fit(names: list[str], separate: set[int], out_dir: Path) -> list[str]:
+    """Names cut to fit their own folder: the export folder, or its check subfolder."""
+    main = fit_names(names, out_dir)
+    if not separate:
+        return main
+    deep = fit_names(names, out_dir / CHECK_SUBFOLDER)
+    return [deep[n] if n in separate else main[n] for n in range(len(names))]
 
 
 def export_job(
@@ -84,13 +108,14 @@ def export_job(
     engine=None,
     add_layer=add_text_layer,
     tessdata=None,
+    check_subfolder: bool = True,
 ) -> ExportResult:
     """Raises EngineUnavailable before writing anything if the text layer cannot be made."""
     out_dir = Path(out_dir)
     if out_dir.exists() and not out_dir.is_dir():
         raise ExportError(f"Hedef bir klasör değil, bir dosya: {out_dir}. Bir klasör seçin.")
     try:
-        items = plan_names(job, templates, out_dir)
+        items = plan_names(job, templates, out_dir, check_subfolder)
     except ValueError as error:
         raise ExportError(str(error)) from None
     if with_layer and items:
@@ -105,13 +130,13 @@ def export_job(
     report = progress or (lambda stage, done, total: None)
     report("write", 0, len(items))
     def written_so_far() -> str:
-        names = sorted(p.name for p in out_dir.glob("*.pdf")) if out_dir.is_dir() else []
+        names = sorted(p.name for p in out_dir.glob("**/*.pdf")) if out_dir.is_dir() else []
         return ", ".join(names) or "yok"
 
     try:
         paths = write_documents(
             [i.document for i in items], batch_files, job.rotations, out_dir,
-            names=[i.name for i in items],
+            names=[i.relative[:-4] for i in items],
             progress=lambda done, total: report("write", done, total),
         )
     except FileExistsError as error:

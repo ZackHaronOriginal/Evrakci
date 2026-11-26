@@ -430,17 +430,23 @@ def _job_templates(args: argparse.Namespace, job: Job) -> dict[str, Template | N
     return found
 
 
+def _check_subfolder(args: argparse.Namespace) -> bool:
+    """Documents to check go into their own subfolder: the setting, unless --kontrol-ayri-yok."""
+    return not args.kontrol_ayri_yok and _settings().check_subfolder
+
+
 def preview_names(args: argparse.Namespace, store: JobStore) -> int:
     """`--onizle`: the names an export into --cikti would write (Kaynak, new name, note), the
     same lines as the window's "Ad listesini kopyala"; nothing is written."""
     job = load_job(store, args.id)
     try:
-        items = plan_names(job, _job_templates(args, job), Path(args.cikti))
+        items = plan_names(job, _job_templates(args, job), Path(args.cikti),
+                           _check_subfolder(args))
     except ValueError as error:
         raise UserError(str(error)) from None
     print(PREVIEW_HEADER)
     for item in items:
-        print(preview_line(sources_text(item.sources), f"{item.name}.pdf", item.name_note))
+        print(preview_line(sources_text(item.sources), item.relative, item.name_note))
     return 0
 
 
@@ -465,6 +471,7 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
             job, store.batch_files(job), _job_templates(args, job), Path(args.cikti),
             with_layer=with_layer, progress=progress, engine=default_engine() if with_layer
             else None, add_layer=add_text_layer, tessdata=tessdata,
+            check_subfolder=_check_subfolder(args),
         )
     except EngineUnavailable as error:
         raise UserError(
@@ -484,7 +491,7 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
         positions = [job.position_of(pid) for pid in item.document.page_ids]
         checks = f" [kontrol: {', '.join(item.checks)}]" if item.checks else ""
         name_note = f" [ad: {item.name_note}]" if item.name_note else ""
-        print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}"
+        print(f"{item.relative}: sayfa {positions_text(positions)}{notes.get(path, '')}"
               f"{name_note}{checks}")
     needing = result.needing_check
     listing = " Liste: index.xlsx" if paths else ""
@@ -879,6 +886,11 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
         "--metin-katmani-yok",
         action="store_true",
         help="aranabilir metin katmanı ve PDF/A olmadan yaz",
+    )
+    p.add_argument(
+        "--kontrol-ayri-yok",
+        action="store_true",
+        help="kontrol gerekenleri ayrı klasöre koyma",
     )
     p.add_argument(
         "--onizle",

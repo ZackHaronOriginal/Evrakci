@@ -14,7 +14,7 @@ MAX_LENGTH = 120
 # Windows' classic path limit, with a little room; ".pdf.gecici" is the text-layer temp file.
 PATH_LIMIT = 250
 _LONGEST_SUFFIX = " (999).pdf.gecici"
-_FORBIDDEN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+FORBIDDEN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')  # what Windows does not allow in a name
 _DEVICES = ["con", "prn", "aux", "nul", "conin$", "conout$"]
 _NUMBERED = [f"{p}{n}" for p in ("com", "lpt") for n in [*range(1, 10), "¹", "²", "³"]]
 _RESERVED = set(_DEVICES + _NUMBERED)
@@ -26,7 +26,7 @@ def _clean_text(text: str) -> str:
     """NFC, every kind of space as one space, characters Windows forbids removed."""
     name = unicodedata.normalize("NFC", text)
     name = re.sub(r"\s", " ", name)  # tabs and line breaks become spaces first
-    return _FORBIDDEN.sub("", name)
+    return FORBIDDEN.sub("", name)
 
 
 def _finish(name: str) -> tuple[str, int | None]:

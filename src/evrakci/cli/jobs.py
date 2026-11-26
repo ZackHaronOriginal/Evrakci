@@ -741,6 +741,6 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument(
         "--onizle",
         action="store_true",
-        help="hiçbir şey yazmadan dosya adlarını göster: kaynak, yeni ad, not",
+        help="Adları karşılaştır",
     )
     p.set_defaults(handler=export)

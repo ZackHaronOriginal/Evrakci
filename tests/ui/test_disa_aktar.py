@@ -717,3 +717,43 @@ def test_the_list_equals_onizle_and_the_files_written(qtbot, tmp_path, capsys):
         screen.export_button.click()
     written = {line.split("\t")[1] for line in shown[1:]}
     assert written == {p.name for p in out.glob("*.pdf")}
+
+
+def test_typing_a_folder_plans_once_after_a_pause(qtbot, tmp_path, monkeypatch):
+    screen, ctl, _ = _screen(qtbot, tmp_path)
+    screen.show()
+    calls = []
+    original = screen._plan
+    monkeypatch.setattr(screen, "_plan", lambda c: (calls.append(1), original(c))[1])
+    qtbot.keyClicks(screen.folder, str(tmp_path / "out"))
+    assert calls == []  # keystrokes alone do not plan on the window thread
+    qtbot.waitUntil(lambda: bool(calls), timeout=3000)
+    qtbot.wait(450)
+    assert len(calls) == 1
+    screen.folder.setText(str(tmp_path / "other"))  # a programmatic change plans at once
+    assert len(calls) == 2
+
+
+def test_kaynak_gives_way_first_and_sayfalar_stays_in_view_at_150(qtbot, tmp_path):
+    from evrakci.ui import theme
+    from evrakci.ui.disa_aktar_table import FilesModel
+
+    manager = theme.manager()
+    old = manager.text_scale()
+    manager.set_text_scale(150)
+    try:
+        screen, ctl, _ = _screen(qtbot, tmp_path)
+        screen.resize(1366, 768)
+        screen.show()
+        screen.set_compare_names(True)
+        qtbot.wait(50)
+        table = screen.results
+        header = table.horizontalHeader()
+        pages = FilesModel.PAGES
+        total = sum(header.sectionSize(c) for c in range(FilesModel.COLUMNS)
+                    if not header.isSectionHidden(c))
+        assert not header.isSectionHidden(pages)
+        assert total <= table.viewport().width() + 1  # no sideways scroll: Sayfalar is whole
+        assert header.sectionSize(1) <= header.sectionSize(0)  # Kaynak narrows before Durum
+    finally:
+        manager.set_text_scale(old)

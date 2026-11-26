@@ -262,6 +262,10 @@ class DisaAktarScreen(QWidget):
         self.export_button.clicked.connect(self.export)
         self.again_button.clicked.connect(self.again)
 
+        self._replan_timer = QTimer(self)
+        self._replan_timer.setSingleShot(True)
+        self._replan_timer.setInterval(300)
+        self._replan_timer.timeout.connect(self._replan_folder)
         self._header_timer = QTimer(self)
         self._header_timer.setSingleShot(True)
         self._header_timer.setInterval(300)
@@ -358,7 +362,8 @@ class DisaAktarScreen(QWidget):
     def _fit_columns(self) -> None:
         """The name column gets what its longest name needs, and the room the others leave.
         When that does not fit, the Şablon column (also in each row's tooltip) steps aside
-        first, then Durum narrows (its reason caption elides); only then does the table
+        first, then Kaynak (elided, its tip has the full name), then Durum (its reason caption
+        elides); Sayfalar always stays whole; only then does the table
         scroll sideways. The names are never cut (GOAL §3.3)."""
         header = self.results.horizontalHeader()
         view = self.results.viewport().width()
@@ -378,23 +383,23 @@ class DisaAktarScreen(QWidget):
             wanted = getattr(self, "_source_w", 0) or header.sectionSize(1)
             self._source_w = wanted  # room again: Kaynak widens back
             header.resizeSection(1, max(header.sectionSize(1), wanted))
+        pages_wanted = header.sectionSize(pages)
         source_w = 0 if header.isSectionHidden(1) else header.sectionSize(1)
-        fixed = header.sectionSize(0) + header.sectionSize(pages) + source_w
-        hide_template = fixed + template_w + need > view
+        hide_template = (header.sectionSize(0) + pages_wanted + source_w + template_w + need
+                         > view)
         self.results.setColumnHidden(last, hide_template)
         if not hide_template:
             header.resizeSection(last, template_w)
-        others = fixed + (0 if hide_template else template_w)
-        if others + need > view and source_w:  # Kaynak narrows first (cut in the middle)
-            source_w = max(round(110 * scale()), source_w - (others + need - view))
+        others = (0 if hide_template else template_w)
+        deficit = header.sectionSize(0) + pages_wanted + source_w + others + need - view
+        if deficit > 0 and source_w:  # Kaynak yields first (cut in the middle, full in its tip)
+            source_w = max(round(80 * scale()), source_w - deficit)
             header.resizeSection(1, source_w)
-            others = header.sectionSize(0) + header.sectionSize(pages) + source_w + (
-                0 if hide_template else template_w)
-        if others + need > view:
-            status_min = round(170 * scale())
-            header.resizeSection(0, max(status_min, view - need - header.sectionSize(pages)
-                                        - source_w))
-            others = header.sectionSize(0) + header.sectionSize(pages) + source_w
+            deficit = header.sectionSize(0) + pages_wanted + source_w + others + need - view
+        if deficit > 0:  # then Durum narrows (its reason caption elides)
+            header.resizeSection(0, max(round(140 * scale()), header.sectionSize(0) - deficit))
+        others = header.sectionSize(0) + header.sectionSize(pages) + source_w + (
+            0 if hide_template else template_w)
         header.resizeSection(FilesModel.NAME, max(need, view - others))
         header.blockSignals(False)
 
@@ -805,15 +810,26 @@ class DisaAktarScreen(QWidget):
     def _folder_edited(self, _text: str) -> None:
         self._folder_touched = True
         self._folder_error = False
+        self._typing = True  # the textChanged that follows is a keystroke: plan after a pause
+
+    def _replan_folder(self) -> None:
+        self._replan_timer.stop()
+        if self.task is None and not self._written:
+            self._plan(self.controller())  # names are cut to fit the folder path
+            self._shown_findings = None
+            self._sync()
 
     def _folder_changed(self, text: str) -> None:
         self._folder = folder_state(text)
         self.folder.setToolTip(text.strip())  # the field shows the end of a long path
         if text.strip():
             self._folder_error = False
-        if self.task is None and not self._written:
-            self._plan(self.controller())  # names are cut to fit the folder path
-            self._shown_findings = None
+        if getattr(self, "_typing", False):  # planning 800 documents takes ~100 ms
+            self._typing = False
+            self._replan_timer.start()  # last value wins
+            self._sync()
+            return
+        self._replan_folder()
         self._sync()
 
     def choose_folder(self) -> None:
@@ -1035,6 +1051,7 @@ class DisaAktarScreen(QWidget):
         if self._written:
             self.again()
             return
+        self._replan_timer.stop()
         self._plan(controller)
         self._folder = folder_state(self.folder.text())
         self._outcome = None

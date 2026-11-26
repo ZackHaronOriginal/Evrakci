@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
@@ -14,7 +13,7 @@ from evrakci.pipeline.cuts import (
     document_template,
 )
 from evrakci.pipeline.job import Job, parse_page_id
-from evrakci.pipeline.naming import build_name_kept, unique_names
+from evrakci.pipeline.naming import FORBIDDEN, build_name_kept, unique_names
 from evrakci.pipeline.templates.model import (
     Template,
     TemplateError,
@@ -22,7 +21,6 @@ from evrakci.pipeline.templates.model import (
     template_revision,
 )
 
-FORBIDDEN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')  # what Windows does not allow in a name
 NOTE_INVALID = "Geçersiz karakter silindi"
 NOTE_SHORTENED = "Dosya adı kısaltıldı (klasör yolu uzun)"
 

@@ -108,15 +108,17 @@ def test_e5_a_stopped_export_says_the_text_layer_is_unfinished(qtbot, tmp_path, 
 
 
 def test_e5_the_progress_card_has_a_durdur_button(qtbot, tmp_path, monkeypatch):
+    import threading
+
     real = module.export_job
-    seen = {}
+    reached, clicked = threading.Event(), threading.Event()
 
     def holding(*args, progress=None, **kwargs):
         def report(stage, done, total):
             progress(stage, done, total)
-            if done >= 1 and "stop" not in seen:
-                seen["stop"] = True
-                screen.run_banner.stop_button.click()
+            if done >= 1 and not reached.is_set():
+                reached.set()  # the worker waits here until the window thread has clicked
+                clicked.wait(10)
 
         return real(*args, progress=report, **kwargs)
 
@@ -124,7 +126,13 @@ def test_e5_the_progress_card_has_a_durdur_button(qtbot, tmp_path, monkeypatch):
     screen, _ctl, _t = _screen(qtbot, tmp_path)
     assert screen.run_banner.stop_button.text() == "Durdur"
     assert screen.run_banner.stop_button.property("action_id") == "disa_aktar.durdur"
-    _export(qtbot, screen, tmp_path)
+    screen.folder.setText(str(tmp_path / "out"))
+    screen.layer.setChecked(False)
+    with qtbot.waitSignal(screen.finished, timeout=60000):
+        screen.export_button.click()
+        qtbot.waitUntil(reached.is_set, timeout=30000)
+        screen.run_banner.stop_button.click()  # on the window thread, as a person would
+        clicked.set()
     assert screen.outcome.title.text() == "Dışa aktarma durduruldu"
 
 

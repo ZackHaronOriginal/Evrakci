@@ -34,7 +34,6 @@ ODD_MARKS = {"boyut": ("ruler", "Farklı boyut"),
              "dikey": ("rectangle-vertical", "Dikey")}
 ODD_ICON = 14  # at 100 % text; grows with the text size (theme.inline_icon)
 BIN = 40  # A .slot.del .bin
-BADGE = 22  # A .slot.sel .chk
 
 
 def hc() -> bool:
@@ -257,7 +256,9 @@ def tint_scan(painter: QPainter, target: QRectF) -> None:
 
 
 def paint_separator(painter: QPainter, rect: QRectF, position: int) -> None:
-    """A .sepage: a narrow well tile with the QR pictogram and "Ayraç 76" written upwards."""
+    """A .sepage: a narrow well tile with the QR pictogram. Its name ("Ayraç 76") is a normal
+    caption under the tile like the other pages' numbers, not text turned on its side (K-8)."""
+    del position
     m = theme.manager()
     painter.save()
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -266,21 +267,9 @@ def paint_separator(painter: QPainter, rect: QRectF, position: int) -> None:
     painter.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), m.size("r-paper"),
                             m.size("r-paper"))
     size = m.size("icon-md")
-    font = m.font("caption-num")
-    text = f"Ayraç {position}"
-    text_w = QFontMetrics(font).horizontalAdvance(text)
-    gap = m.size("s3")
-    total = size + gap + text_w
-    top = rect.center().y() - total / 2
-    painter.drawPixmap(QRectF(rect.center().x() - size / 2, top, size, size),
+    painter.drawPixmap(QRectF(rect.center().x() - size / 2, rect.center().y() - size / 2,
+                              size, size),
                        _pix("qr-code", "text-2", size), QRectF(0, 0, 2 * size, 2 * size))
-    painter.setFont(font)
-    painter.setPen(m.color("text-2"))
-    painter.translate(rect.center().x(), top + size + gap + text_w)
-    painter.rotate(-90)
-    line = QFontMetrics(font).height()
-    painter.drawText(QRectF(0, -line / 2, text_w + 2, line),
-                     Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
     painter.restore()
 
 
@@ -326,19 +315,19 @@ def paint_hatch(painter: QPainter, rect: QRectF) -> None:
     painter.restore()
 
 
-def paint_check_badge(painter: QPainter, centre: QPointF) -> None:
-    """A .slot.sel .chk: a 22 px accent disc with a 2 px layer ring and a white check."""
+def paint_select_dot(painter: QPainter, centre: QPointF) -> None:
+    """The mark of a selected page (Fluent 2: accent outline plus a corner dot): a solid accent
+    disc of the s3 token with a 2 px layer ring. It is not a check: the check is İncelendi
+    only (K-2, F-kontrol-21)."""
     m = theme.manager()
+    radius = m.size("s3") / 2
     painter.save()
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setPen(Qt.PenStyle.NoPen)
     painter.setBrush(m.color("layer"))
-    painter.drawEllipse(centre, BADGE / 2 + 2, BADGE / 2 + 2)
+    painter.drawEllipse(centre, radius + 2, radius + 2)
     painter.setBrush(m.color("accent"))
-    painter.drawEllipse(centre, BADGE / 2, BADGE / 2)
-    size = 14
-    painter.drawPixmap(QRectF(centre.x() - size / 2, centre.y() - size / 2, size, size),
-                       _pix("check", "text-on-accent", size, 3.0), QRectF(0, 0, 2 * size, 2 * size))
+    painter.drawEllipse(centre, radius, radius)
     painter.restore()
 
 

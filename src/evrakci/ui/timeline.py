@@ -377,7 +377,7 @@ def flow(groups: list[Group], states: list[str], metrics: Metrics,
 
 # -- delegate -----------------------------------------------------------------------------------
 class TimelineDelegate(QStyledItemDelegate):
-    """Paints one page slot: paper (scan or placeholder), selection ring and check badge,
+    """Paints one page slot: paper (scan or placeholder), selection ring and corner dot,
     focus ring, the page number under it; a separator tile; a page that will be deleted."""
 
     def __init__(self, thumbnails: ThumbnailService | None = None, parent=None) -> None:
@@ -417,17 +417,26 @@ class TimelineDelegate(QStyledItemDelegate):
             kp.paint_paper(painter, page)
             self._scan(painter, index, page, row, 1.0)
         radius = m.size("r-paper")
-        if selected:  # A .slot.sel: 2 px accent ring with a 3 px layer gap + check badge
+        if selected:  # 2 px accent ring with a 3 px layer gap + a corner dot (K-2)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.setPen(QPen(m.color("accent"), 2))
             painter.drawRoundedRect(page.adjusted(-4, -4, 4, 4), radius + 4, radius + 4)
-            kp.paint_check_badge(painter, QPointF(page.x() + 3, page.y() + 3))
+            kp.paint_select_dot(painter, QPointF(page.x() + 3, page.y() + 3))
         if focused:  # A .slot.foc: D11 ring outside the selection ring
             style.paint_ring(painter, page.adjusted(-10, -10, 10, 10), radius + 8)
         if state != "separator":
             self._caption(painter, QRectF(page.x() - 8, page.bottom(), page.width() + 16,
                                           mt.caption_h), row, state, selected,
                           index.data(Roles.ODD))
+        else:  # "Ayraç 4" under the tile; it may be wider than the narrow tile (K-8)
+            text = f"Ayraç {row + 1}"
+            font = m.font("caption-strong" if selected else "caption-num")
+            width = max(page.width() + 16, QFontMetrics(font).horizontalAdvance(text) + 8)
+            painter.setFont(font)
+            painter.setPen(m.color("text-accent" if selected else "text-2"))
+            painter.drawText(QRectF(page.center().x() - width / 2, page.bottom() + 6, width,
+                                    QFontMetrics(font).height()),
+                             Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, text)
         painter.restore()
 
     def _scan(self, painter: QPainter, index, page: QRectF, row: int, dim: float) -> None:
@@ -515,7 +524,8 @@ class TimelineView(QListView):
         self.setAccessibleName("Sayfalar")
         self.setAccessibleDescription(
             "Belgeler sırayla. Oklar sayfa değiştirir, Shift ile seçim genişler, "
-            "Boşluk önizler, Enter belgeyi onaylar.")
+            "Boşluk önizler, Enter belgeyi onaylar. K keser, M birleştirir, Del siler, "
+            "R döndürür.")
         self.setViewMode(QListView.ViewMode.ListMode)
         self.setLayoutMode(QListView.LayoutMode.SinglePass)
         self.setUniformItemSizes(True)
@@ -651,7 +661,7 @@ class TimelineView(QListView):
     def visualRect(self, index) -> QRect:  # noqa: N802
         if not index.isValid() or index.row() >= len(self._rects):
             return QRect()
-        # room for the selection ring, check badge and focus ring around the sheet
+        # room for the selection ring, corner dot and focus ring around the sheet
         return self._slot(index.row()).adjusted(-11, -11, 11, 0).translated(
             0, -self.verticalOffset())
 

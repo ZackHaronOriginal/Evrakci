@@ -104,40 +104,38 @@ def test_b022_status_line_message_is_announced(qtbot, tmp_path):
 def test_b023_geri_al_on_the_older_toast_never_undoes_another_step(qtbot, tmp_path):
     """B-023: the older toast's Geri al must never undo a step other than the one it names.
 
-    Bound changed on purpose (Phase 0 run lead): the triage version expected a selective undo
-    of the older step (a/0 restored, a/1 still deleted). The undo stack is linear, so that is
-    a new feature, not a fix; the S1 harm was undoing the NEWER step while the toast named the
-    older one. Decided behaviour: once a newer step exists the older toast's Geri al does
-    nothing. Selective undo is a Phase 5 idea.
+    Bound changed on purpose (Phase 0 run lead): the undo stack is linear, so the older toast's
+    Geri al does nothing once a newer step exists. Since Q-10 (review) a delete toast is keyed:
+    the newer one replaces the older at once instead of waiting behind it; a stale button that
+    is still in hand stays harmless.
     """
     window = _window(qtbot, tmp_path, {"a": "pppp"})
     screen, ctl = window.kontrol, window.controller()
     _go(screen, 0)
     screen.toggle_delete()  # toast 1: page a/0
+    stale = [b for b in window.toaster._current.findChildren(QPushButton) if b.text() == "Geri al"]
+    assert stale
     _go(screen, 1)
-    screen.toggle_delete()  # toast 2 waits in the queue: page a/1
-    assert window.toaster.pending() == 1
-    for button in window.toaster._current.findChildren(QPushButton):
-        if button.text() == "Geri al":
-            button.click()
+    screen.toggle_delete()  # toast 2 replaces toast 1 at once: page a/1
+    assert window.toaster.pending() == 0
+    for button in stale:
+        button.click()
     assert {"a/0", "a/1"} <= ctl.job.deleted  # neither the newer nor any other step undone
 
 
-def test_b023_geri_al_on_a_queued_toast_never_undoes_a_newer_step(qtbot, tmp_path):
+def test_b023_geri_al_on_a_replaced_toast_never_undoes_a_newer_step(qtbot, tmp_path):
     window = _window(qtbot, tmp_path, {"a": "pppp"})
     screen, ctl = window.kontrol, window.controller()
     _go(screen, 0)
     screen.toggle_delete()  # step 1, toast 1
-    _go(screen, 1)
-    screen.toggle_delete()  # step 2, toast 2 waits in the queue
-    index = ctl.undo_stack.index()
     older = window.toaster._current
     buttons = [b for b in older.findChildren(QPushButton) if b.text() == "Geri al"]
-    assert buttons  # toast 1 is shown first, while its step is no longer the newest
-    window.toaster.dismiss()  # toast 2 is shown now: it is the newest step
+    _go(screen, 1)
+    screen.toggle_delete()  # step 2, toast 2 replaces toast 1
+    index = ctl.undo_stack.index()
+    assert window.toaster.current_text() == "Sayfa 2 silinecek."
     button = next(b for b in window.toaster._current.findChildren(QPushButton)
                   if b.text() == "Geri al")
-    assert ctl.undo_stack.index() == index
     for b in buttons:  # pressing the stale button does nothing
         b.click()
     assert ctl.undo_stack.index() == index
@@ -219,7 +217,6 @@ def test_b029_failed_autosave_shows_the_failed_state_until_a_save_works(qtbot, t
     qtbot.waitUntil(lambda: band.state() == "saved", timeout=3000)
 
 
-@pytest.mark.xfail(strict=True, reason="B-030: an error toast shows the info icon")
 def test_b030_error_toast_has_its_own_icon(qtbot, tmp_path):
     from PySide6.QtWidgets import QLabel, QWidget
 

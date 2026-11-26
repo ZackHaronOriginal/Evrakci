@@ -492,7 +492,7 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
 | Yükle | Open Yükle. Setup: a batch is selected and no text field has focus. Press Del. | toast '<dosya> işten çıkarıldı.' (with '; bu partinin sayfalarındaki düzenlemeler de gitti.' when the batch had edits) with Geri al; selection moves to the neighbouring row / when not applicable, PROPOSED: Önce bir parti seçin. | M-25 | [ ] |
-| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; at least one page selected. Press Del. | toast 'Sayfa 7 silinecek.' / '3 sayfa silinecek.' with Geri al; a document that loses all pages: 'Belge 4: bütün sayfaları silinecek, belge dışa aktarılmayacak.'; the item reads '3 sayfayı sil' / 'Sayfayı geri getir'; restore: side history 'Sayfa 7 geri getirildi' Not applicable: only separator pages selected: status line 'Ayraç sayfaları zaten dışa aktarılmaz. Kesimi kaldırmak için M.'; nothing selected: status line 'Önce sayfaları seçin.' (M-31, fixed) | M-30, M-33 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; at least one page selected. Press Del. | toast 'Sayfa 7 silinecek.' / '3 sayfa silinecek.' with Geri al; a document that loses all pages: 'Belge 4 (sayfa 7–9): bütün sayfaları silinecek, belge dışa aktarılmayacak.'; the selection moves to the next page that stays (else the one before), so the item reads '3 sayfayı sil' / 'Sayfayı geri getir' only while deleted pages are the ones chosen; restore: side history 'Sayfa 7 geri getirildi' and a toast 'Sayfa 7 geri getirildi.'; a delete or restore toast replaces the earlier one at once Not applicable: only separator pages selected: status line 'Ayraç sayfaları zaten dışa aktarılmaz. Kesimi kaldırmak için M.'; nothing selected: status line 'Önce sayfaları seçin.' (M-31, fixed) | M-30, M-33 | [ ] |
 | Şablonlar | Open Şablonlar. Setup: a variable is chosen; no text field has focus; the template list does not have focus. Press Del. | box: toast '“Firma” değişkeninin 2. bölümü silindi.' with Geri al; variable: toast '“Firma” değişkeni silindi (2 kutu).' with Geri al; selection moves to a neighbour / when not applicable, PROPOSED: Önce bir değişken ya da kutu seçin. | M-35 | [ ] |
 
 ## F2
@@ -535,7 +535,7 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus (single character key: off when Ayarlar > Tek tuşlu kısayollar is off). Press M. | toast 'Belge 5, Belge 4 ile birleştirildi.' with Geri al; document count drops; side history 'Belge 5, Belge 4 ile birleşti' Not applicable: first document: 'İlk belgenin öncesi yok.'; a filter cut: 'Bu kesimi filtre yaptı; filtreyi değiştirin (F).'; no current page: status line 'Önce bir sayfa seçin.' (M-32, fixed). INTENDED for no job: 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' | M-30 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus (single character key: off when Ayarlar > Tek tuşlu kısayollar is off). Press M. | toast 'Belge 5, Belge 4 ile birleştirildi (sayfa 12–19).' with Geri al; document count drops; side history 'Belge 5, Belge 4 ile birleşti' Not applicable: first document: 'İlk belgenin öncesi yok.'; a filter cut: 'Bu kesimi filtre yaptı; filtreyi değiştirin (F).'; no current page: status line 'Önce bir sayfa seçin.' (M-32, fixed). INTENDED for no job: 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' | M-30 | [ ] |
 
 ## R
 
@@ -553,14 +553,14 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; focus not on a button (Enter belongs to the button). Press Return. | side history 'Belge 5 onaylandı'; status '58 / 96 incelendi' grows; the next document is highlighted; on the last document the status line says 'Belge 96 onaylandı; bu son belge.' | M-30 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; focus not on a button (Enter belongs to the button). Press Return. | side history 'Belge 5 onaylandı'; status '58 / 96 incelendi' grows; the next document is highlighted; the status line says 'Belge 5 onaylandı, Belge 6.' (a document still carrying a Kontrol flag: 'Belge 5 kontrol işaretiyle onaylandı.'); on the last document 'Belge 96 onaylandı; bu son belge.' | M-30 | [ ] |
 | Değerler | Open Değerler. Setup: the values table has focus on a value; no text field or button has focus (Enter belongs to an open cell editor). Press Return. | row updates (Güven, İncelendi mark), next value highlighted; when none is left to check: 'Kontrol gereken değer kalmadı; N değer incelenmedi. Enter sıradakini onaylar.' or 'Bu görünümdeki bütün değerler incelendi.'; status counts update / when not applicable, PROPOSED: Önce bir değer seçin. | M-41 | [ ] |
 
 ## Enter
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; focus not on a button (Enter belongs to the button). Press Enter. | side history 'Belge 5 onaylandı'; status '58 / 96 incelendi' grows; the next document is highlighted; on the last document the status line says 'Belge 96 onaylandı; bu son belge.' | M-30 | [ ] |
+| Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; focus not on a button (Enter belongs to the button). Press Enter. | side history 'Belge 5 onaylandı'; status '58 / 96 incelendi' grows; the next document is highlighted; the status line says 'Belge 5 onaylandı, Belge 6.' (a document still carrying a Kontrol flag: 'Belge 5 kontrol işaretiyle onaylandı.'); on the last document 'Belge 96 onaylandı; bu son belge.' | M-30 | [ ] |
 | Değerler | Open Değerler. Setup: the values table has focus on a value; no text field or button has focus (Enter belongs to an open cell editor). Press Enter. | row updates (Güven, İncelendi mark), next value highlighted; when none is left to check: 'Kontrol gereken değer kalmadı; N değer incelenmedi. Enter sıradakini onaylar.' or 'Bu görünümdeki bütün değerler incelendi.'; status counts update / when not applicable, PROPOSED: Önce bir değer seçin. | M-41 | [ ] |
 
 ## F

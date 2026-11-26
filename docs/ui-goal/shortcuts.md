@@ -29,7 +29,14 @@ registry actions appear on this page, and `--check` and `--contract` report 0 pr
   the sheet when `?` is unbound. These actions are `single_key=True`, and `validate()` checks that the
   flag matches the keys.
 - **Unconnected commands are disabled.** A command whose screen has not hooked a slot is greyed
-  out, so a key never silently does nothing.
+  out.
+- **A key that cannot act speaks (Q-09, 2026-11-26).** A greyed command has a reason
+  (`src/evrakci/ui/refusals.py`, one sentence per command and state). The reason is the tooltip of
+  the greyed menu item and button, it shows beside the entry in the palette, and pressing the key
+  (or choosing the entry in the palette) puts the same sentence in the status bar. The command
+  stays disabled, so the key does nothing else. Two quiet exceptions, decided: Esc with nothing to
+  dismiss (M-45) and the arrows with no box chosen (M-40). Enter and Space belong to a focused
+  button, so with a button focused they do not speak.
 - **Every key is visible.** A key shows in the tooltip as "Label (Key)", generated with
   `QKeySequence.toString(NativeText)`, and in the menu, the shortcut sheet and the command palette.
 - **Menu access keys** are ASCII A–Z without I, and unique within each menu for each tab.
@@ -48,15 +55,15 @@ the part between the two comments.
 
 <!-- page-specific:start -->
 - `B`: page-specific: select this document (Bu belgeyi seç on Kontrol), draw a box (Kutu çiz on Şablonlar)
-- `Alt+Up`: page-specific: move the selected item up (Partiyi on Yükle, Değişkeni on Şablonlar)
-- `Alt+Down`: page-specific: move the selected item down (Partiyi on Yükle, Değişkeni on Şablonlar)
+- `Alt+Up`: page-specific: move the selected item up (Partiyi on Yükle, Değişkeni or Bölümü on Şablonlar)
+- `Alt+Down`: page-specific: move the selected item down (Partiyi on Yükle, Değişkeni or Bölümü on Şablonlar)
 - `Ctrl+.`: page-specific: stop what is running; the label names the job (reading, export)
 - `Ctrl+P`: page-specific: print the tab's own object (index on Dışa Aktar, separator sheet on Rehber)
 - `Del`: page-specific: delete the selected thing, undoable (Parti, Sayfa, Kutu)
 - `Enter`: page-specific: confirm and move on (Belgeyi onayla on Kontrol, Onayla ve sonrakine geç on Değerler)
 - `Return`: page-specific: same as Enter (main keyboard row)
-- `Esc`: page-specific: dismiss without losing work (clear selection, Vazgeç, clear search)
-- `F2`: page-specific: edit the selected item's name or value by hand (Yeniden adlandır, Elle yaz)
+- `Esc`: page-specific: dismiss without losing work (Seçimi kaldır on Kontrol, Vazgeç on Değerler, Aramayı temizle on Rehber)
+- `F2`: page-specific: edit the selected item's name or value by hand (İşi yeniden adlandır on Yükle, Elle yaz on Değerler)
 - `R`: page-specific: Sağa döndür on Kontrol, Okunana dön on Değerler
 - `K`: page-specific: Burada kes on Kontrol, Kontrol'de aç on Değerler
 - `N`: page-specific: next one to check (Sonraki kontrol on Kontrol and Değerler, Sonraki zayıf örnek on Şablonlar)
@@ -79,24 +86,24 @@ the part between the two comments.
 | Ctrl+1 … Ctrl+6 | Yükle, Kontrol, Şablonlar, Değerler, Dışa Aktar, Rehber | Git | |
 | Ctrl+Tab / Ctrl+Shift+Tab | Sonraki sekme / Önceki sekme | Git | Ctrl+Shift+Backtab is also registered (Qt reports Shift+Tab as Backtab) |
 | F6 / Shift+F6 | Sonraki bölge / Önceki bölge | — (palette, sheet) | |
-| Ctrl+G | Belgeye veya sayfaya git… | Git | the same meaning on every tab |
+| Ctrl+G | Belgeye veya sayfaya git… | Git | on every tab (B-027): Kontrol and Değerler open the dialog on their list; Şablonlar makes the chosen document the Örnek; Dışa Aktar chooses its file row; Yükle and Rehber have no document list and say "Belgeye gitmek için Kontrol sekmesini açın (Ctrl+2)." |
 | Ctrl+N | Yeni iş oluştur… | Dosya | |
 | Ctrl+O | Dosya ekle… | Dosya | |
 | Ctrl+S | Kaydet | Dosya | saves the template on Şablonlar; confirms autosave elsewhere |
 | Ctrl+E | Dışa aktar… | Dosya | |
 | Ctrl+W | İşi kapat | Dosya | |
 | Ctrl+Q | Çıkış | Dosya | |
-| Ctrl+Z | Geri al | Düzen | one action, routed to the current tab's undo stack |
+| Ctrl+Z | Geri al | Düzen | one action, routed to the current tab's undo stack; off on Rehber (it shows nothing of the job, B-055) and says so |
 | Ctrl+Y / Ctrl+Shift+Z | Yinele | Düzen | |
-| Ctrl+F | Bul… | Düzen | every tab but Rehber's empty case: Değerler and Rehber their search field, Yükle the job list's search ("Tüm işler"), Kontrol "Belgeye veya sayfaya git", Şablonlar the variable list (type a name), Dışa Aktar the file list (type a file name). Phase 4 |
+| Ctrl+F | Bul… | Düzen | every tab but Rehber's empty case: Değerler and Rehber their search field, Yükle the job list's search ("Tüm işler"), Kontrol "Belgeye veya sayfaya git" (the item is labelled that on Kontrol, M-03), Şablonlar the variable list (type a name), Dışa Aktar the file list (type a file name). Phase 4 |
 | F3 / Shift+F3 | Sonraki sonuç / Önceki sonuç | Düzen | |
 | Ctrl+Num+ (also Ctrl++ and Ctrl+=) | Yakınlaştır | Görünüm | the tooltip shows Ctrl+Num+; Ctrl+wheel is handled by the view |
 | Ctrl+- / Ctrl+Num- | Uzaklaştır | Görünüm | |
-| Ctrl+0 | Sığdır | Görünüm | |
+| Ctrl+0 | Sığdır | Görünüm | reads "Varsayılan boyut" (tooltip "Varsayılan boyuta dön (Ctrl+0)") on Kontrol and Rehber, where it puts thumbnails and guide text back to 100 % (M-20) |
 | Ctrl+Shift+Num+ / Ctrl+Shift+Num- | Yazı boyutunu büyüt / küçült | Görünüm | also in Ayarlar |
 | F11 | Tam ekran | Görünüm | checkable |
 | F9 | Yan paneli gizle / göster | Görünüm | A's panel-right button at the end of every command bar; the tooltip names the tab's panel ("Ayrıntı panelini gizle (F9)", "Kaynak panelini …", "Ayarlar panelini …", "Yan paneli …"); disabled while a screen has no side panel (Phase 3) |
-| F5 | Yenile | — (palette, sheet) | |
+| F5 | Yenile | Görünüm | off on Kontrol and Rehber, with the reason "Bu sekmede yenilenecek bir şey yok." (B-028) |
 | Ctrl+, | Ayarlar… | Araçlar | |
 | F1 | Yardım konuları | Yardım | |
 | Shift+F1 (also Ctrl+/ and ?) | Klavye kısayolları | Yardım | `?` is yazarken kapalı |
@@ -109,7 +116,7 @@ the part between the two comments.
 |---|---|---|---|
 | Alt+Up / Alt+Down | Partiyi yukarı taşı / aşağı taşı | Düzen | |
 | Del | Partiyi çıkar | Düzen | undoable; yazarken kapalı |
-| F2 | Yeniden adlandır | Düzen | |
+| F2 | İşi yeniden adlandır | Düzen | renames the job (M-27) |
 | Ctrl+Shift+O | Dosya Gezgini'nde göster | Dosya | |
 | Ctrl+. | İptal et | Araçlar | stops reading |
 

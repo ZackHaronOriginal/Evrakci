@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest import mock
 
 from contract_helpers import (
-    NOJOB,
     PLANS,
     Ctx,
     Plan,
@@ -289,36 +288,22 @@ def _na_yukle_nothing_running_says(c: Ctx) -> None:  # INTENDED (M-28, Q-08)
 PLANS["yukle.yukari"] = Plan(
     pre="pre.yukle_move_up", effect="effect.yukle_moved_up", feedback="feedback.yukle_moved",
     na_pre="pre.none", broken="broken.yukle_first_selected", na="na.yukle_first_says",
-    na_window="job",
-    xfail={"na": "M-25 Q-08: already first: Alt+Up is disabled and silent; INTENDED status "
-                 f"line {PARTI_ILK!r}"})
+    na_window="job")
 PLANS["yukle.asagi"] = Plan(
     pre="pre.yukle_move_down", effect="effect.yukle_moved_down", feedback="feedback.yukle_moved",
     na_pre="pre.none", broken="broken.yukle_first_selected", na="na.yukle_last_says",
-    na_window="job",
-    xfail={"na": "M-25 Q-08: already last: Alt+Down is disabled and silent; INTENDED status "
-                 f"line {PARTI_SON!r}"})
+    na_window="job")
 PLANS["yukle.cikar"] = Plan(
     pre="pre.yukle_remove", effect="effect.yukle_removed", feedback="feedback.yukle_removed",
     na_pre="pre.none", broken="broken.yukle_nothing_selected", na="na.yukle_pick_says",
-    na_window="job",
-    xfail={"na": "M-25 Q-08: no batch selected: Del is disabled and silent; INTENDED status "
-                 f"line {PARTI_SEC!r}"})
+    na_window="job")
 PLANS["yukle.yeniden_adlandir"] = Plan(
     pre="pre.yukle_rename", effect="effect.yukle_renamed", feedback="feedback.yukle_renamed",
-    na_pre="pre.none", na="na.says_no_job",
-    xfail={"na": "M-26: no job: F2 is disabled and silent; INTENDED status line " + NOJOB
-                 + "; conflicts with test_yukle_a.py::"
-                   "test_yukle_actions_are_connected_and_follow_the_selection; owner Q-09"})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["yukle.gezginde_goster"] = Plan(
     pre="pre.yukle_show", effect="effect.yukle_shown", feedback="feedback.yukle_shown",
-    na_pre="pre.none", na="na.says_no_job",
-    xfail={"na": "M-26: no job: Ctrl+Shift+O is disabled and silent; INTENDED status line "
-                 + NOJOB + "; conflicts with test_yukle_a.py::"
-                   "test_yukle_actions_are_connected_and_follow_the_selection; owner Q-09"})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["yukle.iptal"] = Plan(
     pre="pre.yukle_reading", effect="effect.yukle_cancelled", feedback="feedback.yukle_cancelled",
     na_pre="pre.none", broken="broken.yukle_nothing_running", na="na.yukle_nothing_running_says",
-    na_window="job",
-    xfail={"na": "M-28 Q-08: nothing running: Ctrl+. is disabled and silent; INTENDED status "
-                 f"line {NOTHING_RUNNING!r}"})
+    na_window="job")

@@ -131,9 +131,23 @@ class Syncing:
         else:
             delete.setText(spec.text)
             delete.setToolTip(actions.tooltip_for(spec))
+        # Alt+Up/Down move the chosen section in the try order when a variable has several
+        # boxes, else the variable in the list: the items say which (M-38).
+        section = (has_box and variable is not None and len(variable.sections) > 1)
+        for action_id, word, label in (("sablonlar.yukari", "yukarı", "Bölümü yuka&rı taşı"),
+                                       ("sablonlar.asagi", "aşağı", "Bölümü &aşağı taşı")):
+            move = registry.action(action_id)
+            spec = registry.spec(action_id)
+            if section:
+                move.setText(label)
+                move.setToolTip(f"Bölümü {word} taşı ({actions.key_text(spec.shortcuts[0])})")
+            else:
+                move.setText(spec.text)
+                move.setToolTip(actions.tooltip_for(spec))
         # Only this tab's route: MainWindow and the other tabs own Ctrl+S elsewhere.
         registry.set_enabled_for("app.kaydet", "sablonlar", has)
         self.side.save.setEnabled(has)
+        registry.refresh_reasons()  # a try-all started or ended: the reasons read it
 
     def _sync_status(self) -> None:
         if not self._status:

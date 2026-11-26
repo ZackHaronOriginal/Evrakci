@@ -58,7 +58,7 @@ from evrakci.pipeline.settings import (
 )
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import disa_aktar_print as print_view
-from evrakci.ui import theme
+from evrakci.ui import refusals, theme
 from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.controller import JobController
 from evrakci.ui.degerler_parts import StatusItem
@@ -82,6 +82,15 @@ STAGES = {"write": "dosyalar yazılıyor", "layer": "metin katmanı ekleniyor"}
 HEADER_KEY = "disa_aktar/dosyalar"
 SPLITTER_NAME = "disa_aktar"
 STOP_HINT = ("Durdur (Ctrl+.) ile durdurursanız yazılan dosyalar kalır, index.xlsx yazılmaz.")
+
+
+def _covers(pages: str, number: int) -> bool:
+    """Whether a file's "Sayfalar" text ("12" or "12–15") holds page `number`."""
+    first, _dash, last = pages.partition("–")
+    try:
+        return int(first) <= number <= int(last or first)
+    except ValueError:
+        return False
 
 
 def open_path(path: Path) -> None:
@@ -808,6 +817,51 @@ class DisaAktarScreen(QWidget):
         if not self.results.currentIndex().isValid() and self.model.rowCount():
             self.results.setCurrentIndex(self.model.index(0, FilesModel.NAME))
 
+    def go_to_file(self) -> None:
+        """Ctrl+G: the Belgeye veya sayfaya git dialog; the file row of that document (or of
+        the document holding that page) is chosen in the list (M-01)."""
+        from evrakci.ui.kontrol_dialogs import GoToDialog
+
+        controller = self.controller()
+        if controller is None:
+            say = getattr(self.window(), "say_no_job", None)
+            if say is not None:
+                say()
+            return
+        rows = self.model.all_rows()
+        if not rows:
+            self._say_status(refusals.NO_DOCUMENT)
+            return
+        pages = len(controller.job.ordered_page_ids())
+        current = self.results.currentIndex()
+        here = self.model.row_at(current.row()) if current.isValid() else None
+        dialog = GoToDialog(max(r.number for r in rows), pages, "belge",
+                            here.number if here is not None else 1, self)
+        if dialog.exec():
+            number, kind = dialog.value(), dialog.kind()
+            if kind == "sayfa":
+                found = next((r.number for r in rows if _covers(r.pages, number)), 0)
+                if found:
+                    self._choose_number(found)
+                else:
+                    self._say_status(refusals.PAGE_NOT_SHOWN.format(number=number))
+            else:
+                self._choose_number(number)
+        self.results.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _choose_number(self, number: int) -> None:
+        row = self.model.row_of(lambda r: r.number == number)
+        if row >= 0:
+            self.results.setCurrentIndex(self.model.index(row, FilesModel.NAME))
+            return
+        self._say_status(refusals.DOCUMENT_NOT_SHOWN.format(number=number))
+
+    def _say_status(self, text: str) -> None:
+        window = self.window()
+        message = getattr(window, "message", None)
+        if message is not None:
+            message.setText(text)
+
     # -- actions of the window -------------------------------------------------------------
     def can_export(self) -> bool:
         """Whether this screen's state lets an export start (not empty, blocked or running)."""
@@ -834,6 +888,7 @@ class DisaAktarScreen(QWidget):
             r.set_enabled("disa_aktar.gezginde_goster", self._reveal_target() is not None)
             r.set_enabled("disa_aktar.index_ac",
                           self._index_written and self._index_path().is_file())
+            r.refresh_reasons()  # the export started or ended: the reasons read the state
         finally:
             self._syncing_actions = False
 

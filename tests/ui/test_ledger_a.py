@@ -172,8 +172,6 @@ def test_b024_failed_render_is_not_shown_as_loading(qtbot, tmp_path, monkeypatch
     assert painted == []  # a failed page needs its own error state, not "Yükleniyor"
 
 
-@pytest.mark.xfail(strict=True, reason="B-027: Ctrl+G is routed on Kontrol and Değerler only; "
-                                       "disabled on the other four tabs")
 @pytest.mark.parametrize("tab", ["yukle", "sablonlar", "disa_aktar", "rehber"])
 def test_b027_ctrl_g_answers_on_every_tab(qtbot, tmp_path, tab):
     window = _window(qtbot, tmp_path, {"a": "pppp"})
@@ -181,8 +179,6 @@ def test_b027_ctrl_g_answers_on_every_tab(qtbot, tmp_path, tab):
     assert window.registry.is_enabled("app.git")
 
 
-@pytest.mark.xfail(strict=True, reason="B-028: F5 is enabled on Kontrol and Rehber but does "
-                                       "nothing there")
 @pytest.mark.parametrize("tab", ["kontrol", "rehber"])
 def test_b028_f5_is_disabled_where_it_does_nothing(qtbot, tmp_path, tab):
     window = _window(qtbot, tmp_path, {"a": "pppp"})

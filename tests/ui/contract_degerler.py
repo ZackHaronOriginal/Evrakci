@@ -16,7 +16,6 @@ from contract_helpers import (
     PLANS,
     Ctx,
     Plan,
-    _says,
     assert_focus_ring,
     heard,
     helper,
@@ -32,15 +31,8 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton
 from evrakci.ui import degerler
 from evrakci.ui.degerler_model import confirm
 
-P_PICK_VALUE = "Önce bir değer seçin."  # PROPOSED (Q-08)
-P_PICK_ROWS = "Önce satırları seçin."  # PROPOSED (Q-08)
-P_PICK_TEMPLATE = "Önce şablonu olan bir belge seçin."  # PROPOSED (Q-08)
-P_NOTHING_RUNNING = "Şu an durdurulacak bir iş yok."  # PROPOSED (Q-08)
+P_NOTHING_RUNNING = "Şu an durdurulacak bir iş yok."
 NO_CHECK = "Kontrol bekleyen değer yok."
-for _name, _text in (("pick_value", P_PICK_VALUE), ("pick_rows", P_PICK_ROWS),
-                     ("pick_template", P_PICK_TEMPLATE),
-                     ("deg_nothing_running", P_NOTHING_RUNNING), ("no_check", NO_CHECK)):
-    _says(f"degerler_{_name}", _text)
 
 _Sel = QItemSelectionModel.SelectionFlag
 
@@ -299,6 +291,15 @@ def _na_quiet(c: Ctx) -> None:
     assert c.win.message.text() == c.snap["status"] and not c.win.toaster.current_text()
 
 
+@helper("na.degerler_revert_says")
+def _na_revert_says(c: Ctx) -> None:
+    """R on a value that was never corrected says so (Q-09) and changes nothing."""
+    now = _snap(c)
+    for name in ("index", "cur", "reviewed", "selected"):
+        assert now[name] == c.snap[name], name
+    assert said(c.win, "Düzeltilmiş bir değer yok."), heard(c.win)
+
+
 @helper("pre.degerler_one_row_selected")
 def _pre_one_row_selected(c: Ctx) -> None:
     pick(c, 1, 3, rows=(1,))
@@ -524,28 +525,23 @@ def _plan(pre, effect, feedback, **kw):
 for _id in ("degerler.onayla",):
     PLANS[_id] = _plan("pre.degerler_flagged", "effect.degerler_accepted",
                        "feedback.degerler_accepted", na_pre="pre.none",
-                       na="na.says.degerler_pick_value",
-                       xfail={"na": _M41.format(why="no current value", text=P_PICK_VALUE)})
+                       na="na.says_no_job")
 PLANS["degerler.okunanla_onayla"] = _plan(
     "pre.degerler_flagged", "effect.degerler_read_accepted",
-    "feedback.degerler_read_accepted", na_pre="pre.none", na="na.says.degerler_pick_value",
-    xfail={"na": _M41.format(why="no current value", text=P_PICK_VALUE)})
+    "feedback.degerler_read_accepted", na_pre="pre.none", na="na.says_no_job")
 PLANS["degerler.secilenleri_onayla"] = _plan(
     "pre.degerler_two_rows", "effect.degerler_rows_accepted", "feedback.degerler_rows_accepted",
-    na_pre="pre.none", na="na.says.degerler_pick_rows",
-    xfail={"na": _M41.format(why="nothing selected", text=P_PICK_ROWS)})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["degerler.elle_yaz"] = _plan(
     "pre.degerler_value", "effect.degerler_editor_open", "feedback.degerler_editor_open",
-    na_pre="pre.none", na="na.says.degerler_pick_value",
-    xfail={"na": _M41.format(why="no current value", text=P_PICK_VALUE)})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["degerler.okunana_don"] = _plan(
     "pre.degerler_corrected", "effect.degerler_reverted", "feedback.degerler_reverted",
     na_pre="pre.none", na_window="job_degerler", broken="broken.degerler_uncorrected",
-    na="na.degerler_quiet")
+    na="na.degerler_revert_says")
 PLANS["degerler.varyant"] = _plan(
     "pre.degerler_variant", "effect.degerler_variant", "feedback.degerler_variant",
-    na_pre="pre.none", na="na.says.degerler_pick_template",
-    xfail={"na": _M41.format(why="no row with a template", text=P_PICK_TEMPLATE)})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["degerler.vazgec"] = _plan(
     "pre.degerler_three_rows", "effect.degerler_one_row", "feedback.degerler_one_row",
     na_pre="pre.none", na_window="job_degerler", broken="broken.degerler_one_row",
@@ -558,26 +554,19 @@ PLANS["degerler.kontrolde_ac"] = _plan(
     na_pre="pre.none", na="na.degerler_stays_on_tab")
 PLANS["degerler.tum_sayfa"] = _plan(
     "pre.degerler_page_view", "effect.degerler_page_view_open",
-    "feedback.degerler_page_view_open", na_pre="pre.none", na="na.says.degerler_pick_value",
-    xfail={"na": _M41.format(why="no current row", text=P_PICK_VALUE)})
+    "feedback.degerler_page_view_open", na_pre="pre.none", na="na.says_no_job")
 PLANS["degerler.sonraki_kontrol"] = _plan(
     "pre.degerler_before_check", "effect.degerler_at_check", "feedback.degerler_at_check",
     na_pre="pre.none", na_window="job_degerler", broken="broken.degerler_no_check",
-    na="na.degerler_no_check_says",
-    xfail={"na": "M-42: no value waiting: N is disabled, so 'Kontrol bekleyen değer yok.' "
-                 "is unreachable by key; INTENDED: the key stays on and shows it"})
+    na="na.degerler_no_check_says")
 PLANS["degerler.onceki_kontrol"] = _plan(
     "pre.degerler_after_check", "effect.degerler_at_check", "feedback.degerler_at_check",
     na_pre="pre.none", na_window="job_degerler", broken="broken.degerler_no_check",
-    na="na.degerler_no_check_says",
-    xfail={"na": "M-42: no value waiting: Shift+N is disabled, so 'Kontrol bekleyen değer "
-                 "yok.' is unreachable by key; INTENDED: the key stays on and shows it"})
+    na="na.degerler_no_check_says")
 PLANS["degerler.durdur"] = _plan(
     "pre.degerler_reading", "effect.degerler_read_stopped", "feedback.degerler_read_stopped",
     na_pre="pre.none", na_window="job_degerler", broken="broken.degerler_nothing_running",
-    na="na.degerler_stop_says",
-    xfail={"na": "M-28 Q-08: nothing running: Ctrl+. is disabled and silent; INTENDED status "
-                 f"line {P_NOTHING_RUNNING!r}"})
+    na="na.degerler_stop_says")
 PLANS["degerler.sonraki_deger", "degerler", "Tab"] = _plan(
     "pre.degerler_before_check", "effect.degerler_next_value", "feedback.degerler_value_moved",
     na_pre="pre.none", na_window="job_degerler", broken="broken.degerler_last_value",

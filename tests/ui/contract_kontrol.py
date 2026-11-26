@@ -796,7 +796,7 @@ def _plan(pre, effect, feedback, **kw):
 
 PLANS["kontrol.tumunu_sec"] = _plan(
     "pre.kontrol_one_page", "effect.kontrol_all_selected", "feedback.kontrol_all_selected",
-    na_pre="pre.none", na="na.says_no_job", xfail={"na": _M30})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["kontrol.secimi_kaldir"] = _plan(
     "pre.kontrol_three_selected", "effect.kontrol_cleared", "feedback.kontrol_cleared",
     na_pre="pre.none", na_window="job", broken="broken.kontrol_selection_none_current_set",
@@ -843,10 +843,10 @@ PLANS["kontrol.sablon_kaldir"] = _plan(
     broken="broken.kontrol_nothing_selected", na="na.kontrol_pick_pages_says")
 PLANS["kontrol.sec"] = _plan(
     "pre.kontrol_select_dialog", "effect.kontrol_odd_selected", "feedback.kontrol_odd_selected",
-    na_pre="pre.none", na="na.says_no_job", xfail={"na": _M30})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["kontrol.kayitli_filtreler"] = _plan(
     "pre.kontrol_chips", "effect.kontrol_chip_focused", "feedback.kontrol_chip_focused",
-    na_pre="pre.none", na="na.says_no_job", xfail={"na": _M30})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["kontrol.belgeyi_sec"] = _plan(
     "pre.kontrol_doc_page5", "effect.kontrol_document_selected",
     "feedback.kontrol_document_selected", na_pre="pre.none", na_window="job",

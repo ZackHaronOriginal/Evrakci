@@ -48,7 +48,10 @@ def test_every_action_has_text_and_a_tooltip_with_its_shortcut(qtbot, tmp_path):
         action = window.registry.action(spec.id)
         assert action.text(), spec.id
         assert action.toolTip(), spec.id
-        if spec.shortcuts:
+        reason = window.registry.disabled_reason(spec.id)
+        if reason:  # greyed with a reason (Q-09): the tooltip is the reason
+            assert action.toolTip() == reason, spec.id
+        elif spec.shortcuts:
             assert actions.key_text(spec.shortcuts[0]) in action.toolTip(), spec.id
 
 
@@ -387,9 +390,9 @@ def test_f9_hides_and_shows_the_side_panel(qtbot, tmp_path):
     assert action.toolTip() == "Kaynak panelini göster (F9)"
     _key(window, Qt.Key.Key_F9)
     assert not window.degerler.side.isHidden()
-    window.show_tab("kontrol")  # no job open: nothing to hide
+    window.show_tab("kontrol")  # no job open: nothing to hide, and the tooltip says why (Q-09)
     assert not action.isEnabled()
-    assert action.toolTip() == "Ayrıntı panelini gizle (F9)"
+    assert action.toolTip() == "Önce Yükle sekmesinden bir iş açın (Ctrl+1)."
 
 
 def test_theme_switch_restyles_the_screens_token_sheets(qtbot, tmp_path, look):

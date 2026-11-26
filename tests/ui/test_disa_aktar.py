@@ -466,12 +466,13 @@ def test_command_bar_status_and_panel_button(qtbot, tmp_path):
     window, screen = _window(qtbot, tmp_path)
     screen.folder.setText(str(tmp_path / "out"))
     bar = window.command_bar("disa_aktar")
-    tips = [b.toolTip() for b in bar.buttons()]
-    assert "index.xlsx'i aç" in tips  # A's sheet button sits before "Dosya Gezgini'nde göster"
-    assert tips.index("index.xlsx'i aç") < next(i for i, t in enumerate(tips)
-                                                if t.startswith("Dosya Gezgini'nde göster"))
-    sheet = next(b for b in bar.buttons() if b.toolTip() == "index.xlsx'i aç")
+    sheet = bar.button_for("disa_aktar.index_ac")  # A's sheet button sits before "Dosya Gezgini"
+    show = bar.button_for("disa_aktar.gezginde_goster")
+    assert bar.buttons().index(sheet) < bar.buttons().index(show)
     assert not sheet.isEnabled()
+    # greyed (nothing written, no folder yet): the buttons' tooltips are the reasons (Q-09)
+    assert sheet.toolTip() == "Henüz yazılmış bir dizin dosyası yok."
+    assert show.toolTip() == "Gösterilecek bir klasör yok."
     status = screen.status_items["state"]
     assert "yazılabilir" in status.label.text()
     assert window.inspector("disa_aktar") is screen.side

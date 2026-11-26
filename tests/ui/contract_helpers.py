@@ -444,7 +444,7 @@ def _feedback_region(c: Ctx) -> None:
 
 
 # -- the job, saving, closing ----------------------------------------------------------------
-PROPOSED_NO_DOCS = "Bu sekmede belge listesi yok. Kontrol sekmesinde Ctrl+G ile belgeye gidin."
+NO_DOCS_HERE = "Belgeye gitmek için Kontrol sekmesini açın (Ctrl+2)."
 
 
 @helper("na.says_no_job")
@@ -484,8 +484,9 @@ def _effect_go_to_document_2(c: Ctx) -> None:
         assert win.degerler.current_value()[0] == 2
     elif c.tab == "sablonlar":  # INTENDED (M-01): a document number picks that Örnek
         assert win.sablon.example == 2
-    elif c.tab == "disa_aktar":  # INTENDED (M-01): the file row of that document
-        assert win.disa_aktar.results.currentIndex().row() == 1
+    elif c.tab == "disa_aktar":  # M-01: the file row of that document (the list is by name)
+        index = win.disa_aktar.results.currentIndex()
+        assert win.disa_aktar.model.row_at(index.row()).number == 2
 
 
 @helper("feedback.go_to_document_2")
@@ -512,7 +513,7 @@ def _pre_job_tab_no_dialog(c: Ctx) -> None:
 
 @helper("effect.go_to_says_no_documents")
 def _effect_go_to_says_no_documents(c: Ctx) -> None:  # INTENDED (M-01, Q-08)
-    assert said(c.win, PROPOSED_NO_DOCS), f"nothing said: {heard(c.win)!r}"
+    assert said(c.win, NO_DOCS_HERE), f"nothing said: {heard(c.win)!r}"
 
 
 @helper("feedback.go_to_says_no_documents")
@@ -621,8 +622,10 @@ def _broken_export_blocked(c: Ctx) -> None:
 
 
 @helper("na.export_blocked_says_why")
-def _na_export_blocked_says_why(c: Ctx) -> None:  # INTENDED (M-13): the existing toast
-    assert "Dışa aktarılamıyor:" in c.win.toaster.current_text(), heard(c.win)
+def _na_export_blocked_says_why(c: Ctx) -> None:  # M-13: the key says why in the status bar
+    assert said(c.win, "Dışa aktarılamıyor: Hedef klasör boş değil."), heard(c.win)
+    assert not c.win.registry.is_enabled("app.disa_aktar"), "the blocked export must not start"
+    assert [p.name for p in c.data["full"].iterdir()] == ["eski.pdf"], "something was written"
 
 
 @helper("pre.job_open_state")
@@ -665,12 +668,14 @@ def _says(name: str, text: str) -> None:
 
 _says("rehber_save", "Rehber'de kaydedilecek bir şey yok.")  # PROPOSED (Q-08)
 _says("no_template_save", "Kaydedilecek bir şablon yok. Önce bir şablon oluşturun.")
+_says("rehber_undo", "Rehber'de geri alınacak bir şey yok.")
+_says("rehber_redo", "Rehber'de yinelenecek bir şey yok.")
 _says("nothing_to_undo", "Geri alınacak bir şey yok.")  # PROPOSED (Q-08)
 _says("nothing_to_redo", "Yinelenecek bir şey yok.")  # PROPOSED (Q-08)
 _says("no_results", "Bu sekmede aranacak sonuç yok.")  # PROPOSED (Q-08)
 _says("no_zoom", "Bu sekmede yakınlaştırılacak bir şey yok.")  # PROPOSED (Q-08)
 _says("no_variable", "Aranacak değişken yok.")  # PROPOSED (Q-08)
-_says("no_hits", "Sonuç yok")
+_says("no_hits", "Sonuç yok.")
 
 
 # -- new job, add files, quit ----------------------------------------------------------------
@@ -885,6 +890,22 @@ def _feedback_undo_item(c: Ctx) -> None:
     assert "Geri al: Deneme A" in win.registry.action("app.geri_al").toolTip()
     if c.tab == "rehber":  # INTENDED (M-17): the step is announced, Rehber shows no job content
         assert said(win, "Geri alındı: Deneme B."), heard(win)
+
+
+@helper("effect.rehber_undo_refused")
+def _effect_rehber_undo_refused(c: Ctx) -> None:
+    """B-055 stays: Rehber shows nothing of the job, so Ctrl+Z does not undo it unseen; the key
+    says so and the stack has not moved."""
+    assert said(c.win, "Rehber'de geri alınacak bir şey yok."), heard(c.win)
+    assert _stack(c).index() == c.snap["index"]
+    assert not c.win.registry.is_enabled("app.geri_al")
+
+
+@helper("effect.rehber_redo_refused")
+def _effect_rehber_redo_refused(c: Ctx) -> None:
+    assert said(c.win, "Rehber'de yinelenecek bir şey yok."), heard(c.win)
+    assert _stack(c).index() == c.snap["index"]
+    assert not c.win.registry.is_enabled("app.yinele")
 
 
 @helper("feedback.redo_item")
@@ -1374,20 +1395,14 @@ PLANS["app.git"] = Plan(pre="pre.go_to_first_document", effect="effect.go_to_doc
 for _tab in ("yukle", "rehber"):
     PLANS["app.git", _tab] = Plan(
         pre="pre.job_tab_no_dialog", effect="effect.go_to_says_no_documents",
-        feedback="feedback.go_to_says_no_documents", na="na.says_no_job", na_pre="pre.none",
-        xfail={k: "M-01 Q-08: Ctrl+G is disabled here; INTENDED status line 'PROPOSED: Bu "
-                  "sekmede belge listesi yok...'" for k in ("effect", "via")})
+        feedback="feedback.go_to_says_no_documents", na="na.says_no_job", na_pre="pre.none")
 for _tab in ("sablonlar", "disa_aktar"):
     PLANS["app.git", _tab] = Plan(
         pre="pre.go_to_first_document", effect="effect.go_to_document_2",
-        feedback="feedback.go_to_document_2", na="na.says_no_job", na_pre="pre.none",
-        xfail={k: "M-01: Ctrl+G is disabled on this tab; INTENDED to route the go-to dialog"
-               for k in ("effect", "via")})
+        feedback="feedback.go_to_document_2", na="na.says_no_job", na_pre="pre.none")
 PLANS["app.git", "kontrol"] = Plan(
     pre="pre.go_to_first_document", effect="effect.go_to_document_2",
-    feedback="feedback.go_to_document_2", na="na.says_no_job", na_pre="pre.none",
-    xfail={"na": "M-30: no job: Kontrol keys are disabled and silent (Ctrl+G is not in "
-                 "M-30's key list)"})
+    feedback="feedback.go_to_document_2", na="na.says_no_job", na_pre="pre.none")
 PLANS["app.git", "degerler"] = Plan(
     pre="pre.go_to_first_document", effect="effect.go_to_document_2",
     feedback="feedback.go_to_document_2", na="na.says_no_job", na_pre="pre.none")
@@ -1400,26 +1415,18 @@ PLANS["app.disa_aktar"] = Plan(
     na="na.says_no_job", na_pre="pre.none")
 PLANS["app.isi_kapat"] = Plan(
     pre="pre.job_open_state", window="fresh", effect="effect.job_closed",
-    feedback="feedback.job_closed", na="na.says_no_job", na_pre="pre.none",
-    xfail={"na": "M-15: no job: Ctrl+W is disabled and silent"})
+    feedback="feedback.job_closed", na="na.says_no_job", na_pre="pre.none")
 
 PLANS["app.kaydet", "rehber"] = Plan(
-    pre="pre.none", effect="effect.says.rehber_save", feedback="feedback.none",
-    na="na.says.rehber_save", na_pre="pre.none",
-    xfail={k: "M-09 Q-08: Ctrl+S is off on Rehber with no word; INTENDED status line "
-              "'PROPOSED: Rehber'de kaydedilecek bir şey yok.'" for k in ("effect", "via", "na")})
+    pre="pre.none", effect="effect.says.rehber_save", feedback="feedback.none_needed",
+    na="na.says.rehber_save", na_pre="pre.none")
 PLANS["app.kaydet", "sablonlar"] = Plan(
     pre="pre.saveable", effect="effect.written_now", feedback="feedback.saved_said",
-    na="na.says.no_template_save", na_pre="pre.none",
-    xfail={"na": "M-11: no template: Ctrl+S is disabled; INTENDED to show the existing text "
-                 "'Kaydedilecek bir şablon yok...'; conflicts with "
-                 "test_sablon_window.py::test_nothing_is_usable_without_a_template; owner Q-09"})
+    na="na.says.no_template_save", na_pre="pre.none")
 PLANS["app.disa_aktar", "disa_aktar"] = Plan(
     pre="pre.export_ready", window="fresh", effect="effect.export_written",
     feedback="feedback.export_done", na_window="fresh", na_pre="pre.none",
-    broken="broken.export_blocked", na="na.export_blocked_says_why",
-    xfail={"na": "M-13: blocked or running: Ctrl+E is disabled; INTENDED to show the toast "
-                 "'Dışa aktarılamıyor: ...'"})
+    broken="broken.export_blocked", na="na.export_blocked_says_why")
 PLANS["app.yeni_is"] = Plan(
     pre="pre.new_job_pickers", window="fresh", effect="effect.new_job_opened",
     feedback="feedback.new_job_opened", na_pre="pre.none", na_window="empty",
@@ -1436,27 +1443,17 @@ PLANS["app.cikis"] = Plan(
 # its step is INTENDED to be announced (M-17); with nothing to undo the key is INTENDED to say so.
 PLANS["app.geri_al"] = Plan(
     pre="pre.undo_steps", snap="snap.stack", effect="effect.undone",
-    feedback="feedback.undo_item", na_pre="pre.none", na="na.says.nothing_to_undo",
-    xfail={"na": "M-16 Q-08: nothing to undo: Ctrl+Z is disabled and silent"})
+    feedback="feedback.undo_item", na_pre="pre.none", na="na.says.nothing_to_undo")
 PLANS["app.yinele"] = Plan(
     pre="pre.redo_steps", snap="snap.stack", effect="effect.redone",
-    feedback="feedback.redo_item", na_pre="pre.none", na="na.says.nothing_to_redo",
-    xfail={"na": "M-16 Q-08: nothing to redo: the key is disabled and silent"})
+    feedback="feedback.redo_item", na_pre="pre.none", na="na.says.nothing_to_redo")
 PLANS["app.geri_al", "rehber"] = Plan(
-    pre="pre.undo_steps", snap="snap.stack", effect="effect.undone",
-    feedback="feedback.undo_item", na_pre="pre.none", na="na.says.nothing_to_undo",
-    xfail={"effect": "M-17 Q-08: Ctrl+Z on Rehber undoes out of sight; INTENDED status line "
-                     "'PROPOSED: Geri alındı: <adım>.'",
-           "via": "M-17 Q-08: the step is not announced on Rehber",
-           "na": "M-16 Q-08: nothing to undo: Ctrl+Z is disabled and silent"})
+    pre="pre.undo_steps", snap="snap.stack", effect="effect.rehber_undo_refused",
+    feedback="feedback.none_needed", na_pre="pre.none", na="na.says.rehber_undo")
 for _key in ("Ctrl+Y", "Ctrl+Shift+Z"):
     PLANS["app.yinele", "rehber", _key] = Plan(
-        pre="pre.redo_steps", snap="snap.stack", effect="effect.redone",
-        feedback="feedback.redo_item", na_pre="pre.none", na="na.says.nothing_to_redo",
-        xfail={"effect": "M-17 Q-08: redo on Rehber happens out of sight; INTENDED status line "
-                         "'PROPOSED: Yinelendi: <adım>.'",
-               "via": "M-17 Q-08: the step is not announced on Rehber",
-               "na": "M-16 Q-08: nothing to redo: the key is disabled and silent"})
+        pre="pre.redo_steps", snap="snap.stack", effect="effect.rehber_redo_refused",
+        feedback="feedback.none_needed", na_pre="pre.none", na="na.says.rehber_redo")
 
 # find: each tab finds what it lists (page-specific, shortcuts.md)
 PLANS["app.bul"] = Plan(
@@ -1464,13 +1461,10 @@ PLANS["app.bul"] = Plan(
     na_pre="pre.none", na="na.says_no_job")
 PLANS["app.bul", "kontrol"] = Plan(
     pre="pre.find_start", effect="effect.find", feedback="feedback.find",
-    na_pre="pre.none", na="na.says_no_job",
-    xfail={"effect": "M-03: Ctrl+F is labelled 'Bul…' but opens the go-to dialog",
-           "via": "M-03: the palette item is labelled 'Bul…' but opens the go-to dialog"})
+    na_pre="pre.none", na="na.says_no_job")
 PLANS["app.bul", "sablonlar"] = Plan(
     pre="pre.find_start", effect="effect.find", feedback="feedback.find",
-    na_pre="pre.none", na="na.says.no_variable",
-    xfail={"na": "M-05 Q-08: no template: focus moves to an empty list, nothing said"})
+    na_pre="pre.none", na="na.says.no_variable")
 PLANS["app.bul", "degerler"] = Plan(
     pre="pre.find_start", effect="effect.find", feedback="feedback.find",
     na_pre="pre.none", na="na.says_no_job")
@@ -1487,25 +1481,18 @@ PLANS["app.bul", "disa_aktar"] = Plan(
 # F3 / Shift+F3: only Rehber has results; elsewhere INTENDED to say so (M-07, Q-08)
 PLANS["app.sonraki_sonuc"] = Plan(
     pre="pre.none", effect="effect.hit_next", feedback="feedback.hit_shown",
-    na_pre="pre.none", na="na.says.no_results",
-    xfail={k: "M-07 Q-08: F3 is disabled and silent on this tab; INTENDED status line "
-              "'PROPOSED: Bu sekmede aranacak sonuç yok.'" for k in ("effect", "via", "na")})
+    na_pre="pre.none", na="na.says.no_results")
 PLANS["app.onceki_sonuc"] = Plan(
     pre="pre.none", effect="effect.hit_previous", feedback="feedback.hit_shown",
-    na_pre="pre.none", na="na.says.no_results",
-    xfail={k: "M-07 Q-08: Shift+F3 is disabled and silent on this tab; INTENDED status line "
-              "'PROPOSED: Bu sekmede aranacak sonuç yok.'" for k in ("effect", "via", "na")})
+    na_pre="pre.none", na="na.says.no_results")
 PLANS["app.sonraki_sonuc", "rehber"] = Plan(
     pre="pre.search_hits", snap="snap.hit", effect="effect.hit_next",
     feedback="feedback.hit_shown", na_pre="pre.none", na_window="job",
-    broken="broken.no_hits_rehber", na="na.says.no_hits",
-    xfail={"na": "M-08: no query or no hits: F3 is disabled; INTENDED to announce 'Sonuç yok'"})
+    broken="broken.no_hits_rehber", na="na.says.no_hits")
 PLANS["app.onceki_sonuc", "rehber"] = Plan(
     pre="pre.search_hits", snap="snap.hit", effect="effect.hit_previous",
     feedback="feedback.hit_shown", na_pre="pre.none", na_window="job",
-    broken="broken.no_hits_rehber", na="na.says.no_hits",
-    xfail={"na": "M-08: no query or no hits: Shift+F3 is disabled; INTENDED to announce "
-                 "'Sonuç yok'"})
+    broken="broken.no_hits_rehber", na="na.says.no_hits")
 
 # zoom: the tab's own zoom; Yükle and Dışa Aktar have none and are INTENDED to say so (M-18)
 for _id, _eff in (("app.yakinlastir", "effect.zoom_in"), ("app.uzaklastir", "effect.zoom_out"),
@@ -1516,21 +1503,15 @@ for _id, _eff in (("app.yakinlastir", "effect.zoom_in"), ("app.uzaklastir", "eff
     for _tab in ("yukle", "disa_aktar"):
         PLANS[_id, _tab] = Plan(
             pre="pre.none", effect="effect.says.no_zoom", feedback="feedback.none_needed",
-            na_pre="pre.none", na="na.says.no_zoom",
-            xfail={k: "M-18 Q-08: the zoom keys are disabled and silent here; INTENDED status "
-                      "line 'PROPOSED: Bu sekmede yakınlaştırılacak bir şey yok.'"
-                   for k in ("effect", "via", "na")})
+            na_pre="pre.none", na="na.says.no_zoom")
     PLANS[_id, "sablonlar"] = Plan(
         pre="pre.zoom_mid", snap="snap.zoom", effect=_eff, feedback="feedback.zoom_shown",
-        na_pre="pre.none", na="na.says.no_zoom",
-        xfail={"na": "M-19 Q-08: no template or page: the zoom keys are disabled and silent"})
+        na_pre="pre.none", na="na.says.no_zoom")
 for _tab in ("kontrol", "rehber"):
     PLANS["app.sigdir", _tab] = Plan(
         pre="pre.zoom_mid", snap="snap.zoom", effect="effect.zoom_fit",
         feedback="feedback.zoom_reset_named", na_pre="pre.none", na_window="job",
-        broken="broken.zoom_at_limit", na="na.zoom_unchanged",
-        xfail={k: "M-20 Q-08: 'Sığdır' resets to 100 % and does not fit; INTENDED tooltip "
-                  "'PROPOSED: Varsayılan boyuta dön (Ctrl+0)'" for k in ("effect", "via")})
+        broken="broken.zoom_at_limit", na="na.zoom_unchanged")
 
 # text size, full screen, side panel
 for _id in ("app.yazi_buyut", "app.yazi_kucult"):
@@ -1542,10 +1523,7 @@ PLANS["app.yan_panel"] = Plan(snap="snap.panel", effect="effect.panel_toggled",
                               feedback="feedback.panel_tooltip")
 PLANS["app.yan_panel", "kontrol"] = Plan(
     snap="snap.panel", effect="effect.panel_toggled", feedback="feedback.panel_tooltip",
-    na_pre="pre.none", na="na.says_no_job",
-    xfail={"na": "M-21: no job: Kontrol has no side panel and F9 is disabled, silent; "
-                 "conflicts with test_shell.py::test_f9_hides_and_shows_the_side_panel; "
-                 "owner Q-09"})
+    na_pre="pre.none", na="na.says_no_job")
 
 # refresh
 PLANS["app.yenile"] = Plan(pre="pre.refresh_change", effect="effect.refreshed",
@@ -1553,10 +1531,7 @@ PLANS["app.yenile"] = Plan(pre="pre.refresh_change", effect="effect.refreshed",
 for _tab in ("kontrol", "rehber"):
     PLANS["app.yenile", _tab] = Plan(
         pre="pre.none", effect="effect.refresh_off_with_reason", feedback="feedback.none_needed",
-        na_pre="pre.none", na_window="job", na="na.same_as_effect",
-        xfail={k: "M-22 Q-08 (B-028): F5 is enabled and does nothing; INTENDED disabled with "
-                  "tooltip 'PROPOSED: Bu sekmede yenilenecek bir şey yok.'"
-               for k in ("effect", "via", "na")})
+        na_pre="pre.none", na_window="job", na="na.same_as_effect")
 PLANS["app.yenile", "disa_aktar"] = Plan(
     pre="pre.refresh_change", effect="effect.refreshed", feedback="feedback.refreshed",
     na_pre="pre.none", na="na.says_no_job")

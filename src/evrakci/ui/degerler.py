@@ -48,7 +48,7 @@ from evrakci.pipeline.review import (
 )
 from evrakci.pipeline.templates.model import Template, template_revision
 from evrakci.pipeline.templates.read import read_document
-from evrakci.ui import icons, theme
+from evrakci.ui import icons, refusals, theme
 from evrakci.ui.actions import tooltip_for
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.controller import JobController
@@ -844,6 +844,7 @@ class DegerlerScreen(QWidget):
                 say()
             return
         if not self.rows:
+            self._say(refusals.NO_DOCUMENT)
             return
         current = self.model.row_at(self.table.currentIndex().row()) \
             if self.table.currentIndex().isValid() else None
@@ -860,7 +861,7 @@ class DegerlerScreen(QWidget):
                 return
             number = row.number
         if not self.select_value(number, ""):
-            self._say(f"Belge {number} bu görünümde yok.")
+            self._say(refusals.DOCUMENT_NOT_SHOWN.format(number=number))
         self.table.setFocus()
 
     def _say(self, text: str) -> None:
@@ -1398,10 +1399,8 @@ class DegerlerScreen(QWidget):
         r = self.window_.registry
         r.set_enabled("degerler.okunana_don", enabled)
         action = r.action("degerler.okunana_don")
-        if enabled or value is None or not value.edited or self._view == "ornek":
-            action.setToolTip(tooltip_for(r.spec("degerler.okunana_don")))
-        else:
-            action.setToolTip("Bu değer elle yazıldı; okunmuş bir değer yok.")
+        action.setToolTip(tooltip_for(r.spec("degerler.okunana_don")))  # the registry's reason
+        r.refresh_reasons()  # replaces it while the key cannot act (refusals.py)
 
     def _apply_edit(self, row: Row, key: str, text: str) -> None:
         """A value typed in the table (Enter, Tab, or leaving the editor)."""
@@ -1557,6 +1556,7 @@ class DegerlerScreen(QWidget):
         for action_id, enabled in state.items():
             r.set_enabled(action_id, enabled)
         self._sync_revert(row, cell)
+        r.refresh_reasons()  # a task started or ended: the reasons (tooltips) read it
 
     def _label_accept(self, dual: bool) -> None:
         """Enter's action says "Öneriyle onayla" while the value has a differing reading to

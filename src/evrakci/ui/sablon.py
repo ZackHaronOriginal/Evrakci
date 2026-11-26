@@ -45,7 +45,7 @@ from evrakci.pipeline.templates.model import (
 )
 from evrakci.pipeline.templates.read import flagged_count
 from evrakci.pipeline.templates.store import TemplateStore
-from evrakci.ui import theme
+from evrakci.ui import refusals, theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.controller import JobController
 from evrakci.ui.feedback import undo_last
@@ -1037,9 +1037,43 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
 
     def find_variable(self) -> None:
         """Ctrl+F: the variable list, ready for typing a name (the list jumps to it)."""
+        if not self.variables.topLevelItemCount():  # nothing to find: say so (M-05)
+            self.message.setText(refusals.NO_VARIABLE_TO_FIND)
+            return
         self.variables.setFocus(Qt.FocusReason.ShortcutFocusReason)
         if self.variables.currentItem() is None and self.variables.topLevelItemCount():
             self.variables.setCurrentItem(self.variables.topLevelItem(0))
+
+    def go_to_example(self) -> None:
+        """Ctrl+G: the Belgeye veya sayfaya git dialog; the document (or the one holding the
+        page) becomes the example the boxes are drawn on (M-01)."""
+        from evrakci.ui.kontrol_dialogs import GoToDialog
+
+        controller = self.controller()
+        if controller is None:
+            say = getattr(self.window(), "say_no_job", None)
+            if say is not None:
+                say()
+            return
+        documents = self._documents()
+        if not documents:
+            self.message.setText(refusals.NO_DOCUMENT)
+            return
+        job = controller.job
+        dialog = GoToDialog(len(documents), len(job.ordered_page_ids()), "belge",
+                            max(1, self.example), self)
+        if dialog.exec():
+            number = dialog.value()
+            if dialog.kind() == "sayfa":
+                number = next((n for n, d in enumerate(documents, start=1)
+                               if job.position_of(d.page_ids[0]) <= number
+                               <= job.position_of(d.page_ids[-1])), 0)
+            if number:
+                self.set_example(number)
+            else:
+                self.message.setText(refusals.PAGE_NOT_SHOWN.format(
+                    number=dialog.value()))
+        self.examples.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def save(self) -> None:
         """Ctrl+S and "Şablonu kaydet": saves now and says so."""

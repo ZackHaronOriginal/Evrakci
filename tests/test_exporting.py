@@ -147,7 +147,12 @@ def test_plan_names_equals_the_names_export_job_writes(tmp_path):
     from evrakci.pipeline.exporting import plan_names
 
     store, job, templates = _named_job(tmp_path)
-    out = tmp_path / ("d" * 150)  # a long folder path: the names are cut, then clash
+    from evrakci.pipeline import naming
+
+    # a long folder path that still leaves 40 units for a name (the temp folder itself is
+    # much deeper on Windows): the names are cut, then clash
+    room = naming.PATH_LIMIT - len(str(tmp_path.resolve())) - len(naming._LONGEST_SUFFIX) - 2
+    out = tmp_path / ("d" * (room - 40))
     planned = plan_names(job, templates, out)
     result = export_job(job, store.batch_files(job), templates, out, with_layer=False)
     assert [f"{i.name}.pdf" for i in planned] == [p.name for p in result.paths]

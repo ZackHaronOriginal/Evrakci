@@ -135,3 +135,30 @@ def test_refresh_stays_quick_at_1000_documents(qtbot, tmp_path):
     screen.accept_current()  # one undoable edit + refresh + move on
     assert time.perf_counter() - started < 3.0
     assert screen.current_value() == (8, "k1")
+
+
+def test_page_of_and_source_follow_the_core_helpers():
+    """I-06: Row.page_of is select.value_page, and a cell's box is values.box_section."""
+    from evrakci.pipeline.cuts import compute_documents
+    from evrakci.pipeline.select import value_page
+    from evrakci.pipeline.templates.values import box_section
+
+    job, template = _job(3)
+    last = Variable("Tarih", [Section(1, (1, 1, 5, 5)), Section(-1, (1, 1, 5, 5))], key="k3")
+    template.variables.append(last)
+    two = (SectionReading(0, "1.1.26", 0.3), SectionReading(1, "1.1.2026", 0.55))
+    values = [VariableValue("1.1.2026", 0.95, 1, False),
+              VariableValue("", 0.0, None, True, "1.1.2026", two),
+              VariableValue("", 0.0, None, True, "", (SectionReading(0, "", 0.0),)),
+              VariableValue("", 0.0, None, True, "1.1.2026", ())]
+    for document, value in zip(compute_documents(job), values, strict=False):
+        stored = current_values(job, document)
+        stored["k3"] = value
+    rows = build_rows(job, compute_documents(job), {template.id: template})
+    for row in rows:
+        for cell in row.cells:
+            if cell.value is None:
+                continue
+            assert cell.source == box_section(cell.value)
+            assert row.page_of(cell) == value_page(
+                template, cell.key, cell.source, len(row.document.page_ids))

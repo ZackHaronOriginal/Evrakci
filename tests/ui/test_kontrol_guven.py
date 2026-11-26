@@ -9,6 +9,7 @@ import pytest
 from test_kontrol_a import _window
 
 from evrakci.pipeline.cuts import compute_documents, record_values
+from evrakci.pipeline.select import Criterion
 from evrakci.pipeline.templates.model import Section, Template, Variable
 from evrakci.pipeline.templates.values import SectionReading, VariableValue
 from evrakci.ui.degerler_model import build_rows, count
@@ -165,3 +166,54 @@ def test_dialog_fits_1366x768_at_150_percent_for_every_criterion(qtbot, tmp_path
             dialog.close()
     finally:
         manager.set_text_scale(old)
+
+
+def test_status_line_counts_the_pages_that_ended_up_selected(qtbot, tmp_path):
+    """R-A-1: within / add narrow the line to the final selection, not the whole match."""
+    window = _window(qtbot, tmp_path, spec=SPEC)
+    _prepare(window)
+    screen = window.kontrol
+    status = []
+    window.controller().status.connect(status.append)
+    criterion = Criterion("guven")
+    screen.timeline.select_rows(0, 6, 6)  # documents 1 and 2 only
+    screen.select_matching(criterion, "within")
+    assert status[-1] == "2 belge seçildi: Kontrol 1, Okunamadı 1"
+    screen.timeline.select_rows(0, 0, 0)
+    screen.select_matching(criterion, "within")
+    assert status[-1] == "1 belge seçildi: Kontrol 1"
+    screen.timeline.select_rows(0, 6, 6)
+    screen.select_matching(criterion, "replace")
+    assert status[-1] == "3 belge seçildi: Kontrol 1, Okunamadı 1, Okunmadı 1, Eksik sayfa 1"
+
+
+def test_the_window_and_the_command_line_select_the_same_pages_to_check(
+        qtbot, tmp_path, capsys):
+    """R-A-10: one job through both sides: the window's rows are the CLI's `sayfa` line."""
+    from evrakci.cli import main
+    from evrakci.pipeline.store import JobStore
+    from evrakci.pipeline.templates.store import TemplateStore
+
+    window = _window(qtbot, tmp_path, spec=SPEC)
+    templates = TemplateStore(tmp_path / "tpl")
+    template = templates.create("Rapor")
+    sicil = template.add_variable("Sicil_No", required=True)
+    tarih = template.add_variable("Tarih")
+    templates.save(template)
+    job = window.controller().job
+    job.apply_template(job.ordered_page_ids(), template.id)
+    job.apply_filter(job.ordered_page_ids()[-2:], 3)
+    for document, level in zip(compute_documents(job)[:4], (KONTROL, OKUNAMADI, ORTA, EMIN),
+                               strict=True):
+        record_values(job, document, template.id,
+                      {sicil.key: level, tarih.key: EMIN})
+    JobStore(tmp_path / "jobs").save(job)
+    assert window.kontrol.templates()  # the window reads the same template store
+    window.kontrol.select_matching(Criterion("guven"))
+    rows = _rows(window)
+    assert rows
+    capsys.readouterr()
+    assert main(["--kok", str(tmp_path / "jobs"), "--sablon-kok", str(tmp_path / "tpl"),
+                 "is", "sec", job.id, "guven"]) == 0
+    line = next(x for x in capsys.readouterr().out.splitlines() if x.startswith("sayfa "))
+    assert [int(n) - 1 for n in line.removeprefix("sayfa ").split(", ")] == rows

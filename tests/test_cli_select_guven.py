@@ -52,3 +52,12 @@ def test_cli_says_when_nothing_was_read(tmp_path, capsys):
     capsys.readouterr()
     assert run("sec", job_id, "guven") == 0
     assert "Değerler henüz okunmadı" in capsys.readouterr().out
+
+
+def test_help_has_no_text_outside_the_string_table(tmp_path, capsys):
+    """R-A-5: the --neden help carries no "(varsayılan: ...)" suffix."""
+    run, _job_id = setup(tmp_path, capsys)
+    capsys.readouterr()
+    run("sec", "x", "guven", "--help")
+    out = capsys.readouterr().out
+    assert "Kontrol gerekenler:" in out and "varsayılan" not in out

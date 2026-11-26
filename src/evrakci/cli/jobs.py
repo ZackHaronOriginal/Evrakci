@@ -208,9 +208,14 @@ def apply_filter(args: argparse.Namespace, store: JobStore) -> int:
 def remove_filter(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
     start, end = parse_range(args.aralik)
-    job.remove_filter([page_id_at(job, position) for position in range(start, end + 1)])
+    page_ids = [page_id_at(job, position) for position in range(start, end + 1)]
+    filtered = {pid for f in job.filters for pid in f.page_ids}
+    count = sum(1 for pid in page_ids if pid in filtered)
+    if not count:
+        raise UserError("Bu sayfalarda filtre yok.")
+    job.remove_filter(page_ids)
     store.save(job)
-    print(f"Filtre kaldırıldı, {end - start + 1} sayfa.")
+    print(f"Filtre kaldırıldı, {count} sayfa.")
     return 0
 
 
@@ -734,8 +739,7 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     q.set_defaults(handler=select_pages, sil=False)
     q = criteria.add_parser("guven", help="Kontrol gerekenler")
     q.add_argument("--neden", action="append", choices=list(GUVEN_NAMES), metavar="NEDEN",
-                   help="Kontrol gerekenler: " + ", ".join(GUVEN_NAMES)
-                   + " (varsayılan: Orta hariç hepsi)")
+                   help="Kontrol gerekenler: " + ", ".join(GUVEN_NAMES))
     q.add_argument("--sayfalar", choices=("deger", "belge"), default="deger",
                    help="Sayfalar: deger (Değerin sayfası), belge (Belgenin bütün sayfaları)")
     q.set_defaults(handler=select_pages)

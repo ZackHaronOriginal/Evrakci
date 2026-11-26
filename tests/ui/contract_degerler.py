@@ -16,7 +16,6 @@ from contract_helpers import (
     PLANS,
     Ctx,
     Plan,
-    _says,
     assert_focus_ring,
     heard,
     helper,
@@ -32,15 +31,8 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton
 from evrakci.ui import degerler
 from evrakci.ui.degerler_model import confirm
 
-P_PICK_VALUE = "Önce bir değer seçin."  # PROPOSED (Q-08)
-P_PICK_ROWS = "Önce satırları seçin."  # PROPOSED (Q-08)
-P_PICK_TEMPLATE = "Önce şablonu olan bir belge seçin."  # PROPOSED (Q-08)
-P_NOTHING_RUNNING = "Şu an durdurulacak bir iş yok."  # PROPOSED (Q-08)
+P_NOTHING_RUNNING = "Şu an durdurulacak bir iş yok."
 NO_CHECK = "Kontrol bekleyen değer yok."
-for _name, _text in (("pick_value", P_PICK_VALUE), ("pick_rows", P_PICK_ROWS),
-                     ("pick_template", P_PICK_TEMPLATE),
-                     ("deg_nothing_running", P_NOTHING_RUNNING), ("no_check", NO_CHECK)):
-    _says(f"degerler_{_name}", _text)
 
 _Sel = QItemSelectionModel.SelectionFlag
 
@@ -305,7 +297,7 @@ def _na_revert_says(c: Ctx) -> None:
     now = _snap(c)
     for name in ("index", "cur", "reviewed", "selected"):
         assert now[name] == c.snap[name], name
-    assert said(c.win, "Okunana dönecek düzeltilmiş bir değer yok."), heard(c.win)
+    assert said(c.win, "Düzeltilmiş bir değer yok."), heard(c.win)
 
 
 @helper("pre.degerler_one_row_selected")

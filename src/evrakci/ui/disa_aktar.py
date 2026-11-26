@@ -58,7 +58,7 @@ from evrakci.pipeline.settings import (
 )
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import disa_aktar_print as print_view
-from evrakci.ui import theme
+from evrakci.ui import refusals, theme
 from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.controller import JobController
 from evrakci.ui.degerler_parts import StatusItem
@@ -830,7 +830,7 @@ class DisaAktarScreen(QWidget):
             return
         rows = self.model.all_rows()
         if not rows:
-            self._say_status("Gidilecek bir belge yok.")
+            self._say_status(refusals.NO_DOCUMENT)
             return
         pages = len(controller.job.ordered_page_ids())
         current = self.results.currentIndex()
@@ -840,8 +840,13 @@ class DisaAktarScreen(QWidget):
         if dialog.exec():
             number, kind = dialog.value(), dialog.kind()
             if kind == "sayfa":
-                number = next((r.number for r in rows if _covers(r.pages, number)), 0)
-            self._choose_number(number)
+                found = next((r.number for r in rows if _covers(r.pages, number)), 0)
+                if found:
+                    self._choose_number(found)
+                else:
+                    self._say_status(refusals.PAGE_NOT_SHOWN.format(number=number))
+            else:
+                self._choose_number(number)
         self.results.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _choose_number(self, number: int) -> None:
@@ -849,7 +854,7 @@ class DisaAktarScreen(QWidget):
         if row >= 0:
             self.results.setCurrentIndex(self.model.index(row, FilesModel.NAME))
             return
-        self._say_status(f"Belge {number} bu görünümde yok.")
+        self._say_status(refusals.DOCUMENT_NOT_SHOWN.format(number=number))
 
     def _say_status(self, text: str) -> None:
         window = self.window()
@@ -883,6 +888,7 @@ class DisaAktarScreen(QWidget):
             r.set_enabled("disa_aktar.gezginde_goster", self._reveal_target() is not None)
             r.set_enabled("disa_aktar.index_ac",
                           self._index_written and self._index_path().is_file())
+            r.refresh_reasons()  # the export started or ended: the reasons read the state
         finally:
             self._syncing_actions = False
 

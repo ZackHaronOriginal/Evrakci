@@ -45,7 +45,7 @@ from evrakci.pipeline.templates.model import (
 )
 from evrakci.pipeline.templates.read import flagged_count
 from evrakci.pipeline.templates.store import TemplateStore
-from evrakci.ui import theme
+from evrakci.ui import refusals, theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.controller import JobController
 from evrakci.ui.feedback import undo_last
@@ -1038,7 +1038,7 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
     def find_variable(self) -> None:
         """Ctrl+F: the variable list, ready for typing a name (the list jumps to it)."""
         if not self.variables.topLevelItemCount():  # nothing to find: say so (M-05)
-            self.message.setText("Aranacak değişken yok.")
+            self.message.setText(refusals.NO_VARIABLE_TO_FIND)
             return
         self.variables.setFocus(Qt.FocusReason.ShortcutFocusReason)
         if self.variables.currentItem() is None and self.variables.topLevelItemCount():
@@ -1057,7 +1057,7 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
             return
         documents = self._documents()
         if not documents:
-            self.message.setText("Gidilecek bir belge yok.")
+            self.message.setText(refusals.NO_DOCUMENT)
             return
         job = controller.job
         dialog = GoToDialog(len(documents), len(job.ordered_page_ids()), "belge",
@@ -1070,6 +1070,9 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
                                <= job.position_of(d.page_ids[-1])), 0)
             if number:
                 self.set_example(number)
+            else:
+                self.message.setText(refusals.PAGE_NOT_SHOWN.format(
+                    number=dialog.value()))
         self.examples.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def save(self) -> None:

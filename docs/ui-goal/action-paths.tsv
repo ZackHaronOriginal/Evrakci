@@ -247,7 +247,7 @@ degerler	Ctrl+Enter	degerler.secilenleri_onayla	Seçilenleri onayla	Düzen > Se�
 degerler	F2	degerler.elle_yaz	Elle yaz	Düzen > Elle yaz	_OnceButton | bar Diğer komutlar	value row	yes	ok
 degerler	R	degerler.okunana_don	Okunana dön	Düzen > Okunana dön [state-dependent]	bar Diğer komutlar [state-dependent]	value row [state-dependent]	yes	ok
 degerler	V	degerler.varyant	Yeni varyant çiz	Düzen > Yeni varyant çiz	_OnceButton | bar Diğer komutlar	value row	yes	ok
-degerler	Esc	degerler.vazgec	Seçimi kaldır	Düzen > Seçimi kaldır	bar Diğer komutlar		yes	ok
+degerler	Esc	degerler.vazgec	Vazgeç	Düzen > Vazgeç	bar Diğer komutlar		yes	ok
 degerler	Ctrl+A	degerler.tumunu_sec	Tümünü seç	Düzen > Tümünü seç	bar Diğer komutlar	value row	yes	ok
 degerler	Space	degerler.tum_sayfa	Tüm sayfayı göster	Görünüm > Tüm sayfayı göster	QToolButton | bar Diğer komutlar	value row	yes	ok
 degerler	N	degerler.sonraki_kontrol	Sonraki kontrol	Git > Sonraki kontrol	bar	value row	yes	ok

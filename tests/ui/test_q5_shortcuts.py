@@ -97,11 +97,72 @@ def test_degerler_keys_with_a_job_but_nothing_chosen_say_what_to_pick(win):
     screen._sync_actions()
     settle()
     win.title_tabs.setFocus(Qt.FocusReason.TabFocusReason)
-    cases = (("Return", "degerler.onayla", refusals.PICK_VALUE),
-             ("Ctrl+Return", "degerler.secilenleri_onayla", refusals.PICK_ROWS))
+    cases = (("Return", "degerler.onayla", "Önce bir değer seçin."),
+             ("Shift+Return", "degerler.okunanla_onayla", "Önce bir değer seçin."),
+             ("Ctrl+Return", "degerler.secilenleri_onayla", "Önce satırları seçin."),
+             ("F2", "degerler.elle_yaz", "Önce bir değer seçin."),
+             ("Space", "degerler.tum_sayfa", "Önce bir değer seçin."),
+             ("V", "degerler.varyant", "Önce şablonu olan bir belge seçin."))
     for key, action_id, text in cases:
         win.message.setText("")
         assert not win.registry.is_enabled(action_id), action_id
         assert win.registry.action(action_id).toolTip() == text
         press(win, key)
         assert win.message.text() == text, (key, win.message.text())
+
+
+def test_ctrl_g_with_a_page_no_file_row_holds_says_so_on_disa_aktar(win, monkeypatch):
+    reset(win, "disa_aktar")
+    screen = win.disa_aktar
+    rows = screen.model.all_rows()
+    monkeypatch.setattr(screen.model, "all_rows", lambda: rows[:1])
+    page = 1 + max(int(r.pages.partition("–")[2] or r.pages) for r in rows)
+    page = min(page, len(win.controller().job.ordered_page_ids()))
+    ctx = _answer(win, "sayfa", page)
+    win.message.setText("")
+    try:
+        press(win, "Ctrl+G")
+    finally:
+        for undo in ctx.undo:
+            undo()
+    assert win.message.text() == f"Sayfa {page} bu görünümde yok."
+
+
+def test_ctrl_g_with_a_page_no_example_holds_says_so_on_sablonlar(win, monkeypatch):
+    reset(win, "sablonlar")
+    docs = win.sablon._documents()
+    monkeypatch.setattr(win.sablon, "_documents", lambda: docs[:1])
+    page = len(win.controller().job.ordered_page_ids())
+    ctx = _answer(win, "sayfa", page)
+    win.sablon.message.setText("")
+    try:
+        press(win, "Ctrl+G")
+    finally:
+        for undo in ctx.undo:
+            undo()
+    assert win.sablon.message.text() == f"Sayfa {page} bu görünümde yok."
+
+
+def test_reasons_are_the_approved_wording():
+    assert refusals.NO_HITS == "Sonuç yok."
+    assert refusals.NO_CORRECTED_VALUE == "Düzeltilmiş bir değer yok."
+    assert refusals.NO_DOCUMENT == "Gidilecek bir belge yok."
+    assert refusals.NO_VARIABLE_TO_FIND == "Aranacak değişken yok."
+
+
+def test_button_tooltips_follow_the_reason_when_the_state_it_reads_changes(win, monkeypatch):
+    """A read is running (reason 'Okuma sürüyor.'); it ends and no document has a template: the
+    button stays greyed all along, yet its tooltip moves to the new reason."""
+    reset(win, "degerler")
+    screen = win.degerler
+    button = win.command_bar("degerler").button_for("degerler.oku")
+    monkeypatch.setattr(screen, "task", object())
+    screen._sync_actions()
+    assert not button.isEnabled() and button.toolTip() == "Okuma sürüyor."
+    monkeypatch.setattr(screen, "task", None)
+    monkeypatch.setattr(screen, "rows", [])
+    screen._sync_actions()
+    assert not button.isEnabled()
+    assert button.toolTip() == "Okunacak, şablonu olan bir belge yok."
+    monkeypatch.undo()
+    screen._sync_actions()

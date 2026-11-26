@@ -147,6 +147,7 @@ class Syncing:
         # Only this tab's route: MainWindow and the other tabs own Ctrl+S elsewhere.
         registry.set_enabled_for("app.kaydet", "sablonlar", has)
         self.side.save.setEnabled(has)
+        registry.refresh_reasons()  # a try-all started or ended: the reasons read it
 
     def _sync_status(self) -> None:
         if not self._status:

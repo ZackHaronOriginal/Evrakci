@@ -1405,6 +1405,7 @@ class MainWindow(QMainWindow):
         self.degerler._sync_actions()
         self.sablon._sync_actions()
         self.disa_aktar._sync_actions()
+        self.registry.refresh_reasons()  # the reasons read "loading": tooltips follow
 
     def _retire_thumbnails(self) -> None:
         """Stop and release the old job's thumbnail service (no callback into a dead view)."""

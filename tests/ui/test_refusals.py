@@ -95,9 +95,10 @@ def test_every_greyed_key_says_its_reason_in_the_status_bar(windows, tab, window
             reset(win, tab)
             win.title_tabs.setFocus(Qt.FocusReason.TabFocusReason)  # no field, no button
             settle()
-            reason = win.registry.disabled_reason(spec.id)
-            if not reason or win.registry.is_enabled(spec.id):
+            if win.registry.is_enabled(spec.id):
                 continue
+            reason = win.registry.disabled_reason(spec.id)
+            assert reason, f"{tab} ({window_kind}): {spec.id} {key} is greyed with no reason"
             win.message.setText("")
             win.sablon.message.setText("")
             press(win, key)
@@ -108,7 +109,31 @@ def test_every_greyed_key_says_its_reason_in_the_status_bar(windows, tab, window
             assert not win.registry.is_enabled(spec.id), "the key must not enable the command"
     assert not silent, f"{tab} ({window_kind}): {silent}"
     assert QApplication.activeModalWidget() is None
-    assert pressed or tab in ("rehber",) or window_kind == "job", (tab, window_kind)
+    assert pressed, f"{tab} ({window_kind}): no greyed key was pressed"
+
+
+# One literal per tab, so a changed or lost text is noticed (the window has no job open).
+LITERALS = {
+    "yukle": ("Ctrl+Shift+O", "Önce Yükle sekmesinden bir iş açın (Ctrl+1)."),
+    "kontrol": ("K", "Önce Yükle sekmesinden bir iş açın (Ctrl+1)."),
+    "sablonlar": ("Ctrl+T", "Denemek için bir şablon ve açık bir iş gerekir."),
+    "degerler": ("Ctrl+.", "Şu an durdurulacak bir iş yok."),
+    "disa_aktar": ("Ctrl+P", "Yazdırılacak dizin sayfası yok."),
+    "rehber": ("Ctrl+S", "Rehber'de kaydedilecek bir şey yok."),
+}
+
+
+@pytest.mark.parametrize("tab", TAB_IDS)
+def test_a_greyed_key_says_the_approved_sentence(windows, tab):
+    win = windows("empty")
+    reset(win, tab)
+    key, text = LITERALS[tab]
+    win.title_tabs.setFocus(Qt.FocusReason.TabFocusReason)
+    settle()
+    win.message.setText("")
+    win.sablon.message.setText("")
+    press(win, key)
+    assert text in (win.message.text(), win.sablon.message.text()), (tab, key)
 
 
 def test_the_reason_goes_back_to_the_normal_tooltip_when_the_command_can_act(windows):

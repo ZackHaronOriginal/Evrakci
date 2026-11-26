@@ -675,7 +675,7 @@ _says("nothing_to_redo", "Yinelenecek bir şey yok.")  # PROPOSED (Q-08)
 _says("no_results", "Bu sekmede aranacak sonuç yok.")  # PROPOSED (Q-08)
 _says("no_zoom", "Bu sekmede yakınlaştırılacak bir şey yok.")  # PROPOSED (Q-08)
 _says("no_variable", "Aranacak değişken yok.")  # PROPOSED (Q-08)
-_says("no_hits", "Sonuç yok")
+_says("no_hits", "Sonuç yok.")
 
 
 # -- new job, add files, quit ----------------------------------------------------------------

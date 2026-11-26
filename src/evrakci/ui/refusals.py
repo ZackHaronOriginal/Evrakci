@@ -15,9 +15,11 @@ from evrakci.ui.workers import BUSY_REASON
 
 GO_TO_ELSEWHERE = "Belgeye gitmek için Kontrol sekmesini açın (Ctrl+2)."
 NO_DOCUMENT = "Gidilecek bir belge yok."
+DOCUMENT_NOT_SHOWN = "Belge {number} bu görünümde yok."
+PAGE_NOT_SHOWN = "Sayfa {number} bu görünümde yok."
 NO_VARIABLE_TO_FIND = "Aranacak değişken yok."
 NO_RESULTS_HERE = "Bu sekmede aranacak sonuç yok."
-NO_HITS = "Sonuç yok"
+NO_HITS = "Sonuç yok."
 NOTHING_TO_SAVE_HERE = "Rehber'de kaydedilecek bir şey yok."
 NO_TEMPLATE_TO_SAVE = "Kaydedilecek bir şablon yok. Önce bir şablon oluşturun."
 NOTHING_TO_UNDO = "Geri alınacak bir şey yok."
@@ -52,7 +54,7 @@ NO_INDEX_PAGE = "Yazdırılacak dizin sayfası yok."
 NO_LIST_TO_COPY = "Kopyalanacak bir ad listesi yok."
 NO_INDEX_FILE = "Henüz yazılmış bir dizin dosyası yok."
 NO_NAMES_TO_COMPARE = "Karşılaştırılacak ad yok."
-NO_CORRECTED_VALUE = "Okunana dönecek düzeltilmiş bir değer yok."
+NO_CORRECTED_VALUE = "Düzeltilmiş bir değer yok."
 TYPED_BY_HAND = "Bu değer elle yazıldı; okunmuş bir değer yok."
 NO_PAGE_FOR_READS = "Okumaları göstermek için bir şablon ve bir örnek sayfa gerekir."
 READ_FIRST = "Önce değerleri okuyun."
@@ -99,10 +101,8 @@ def _export(window, tab: str) -> str | None:
     screen = window.disa_aktar
     if screen._state == "running":
         return "Dışa aktarma sürüyor."
-    blocked = [f for f in screen._findings if f.level == "engel"]
-    if blocked:
-        return "Dışa aktarılamıyor: " + blocked[0].title
-    return "Dışa aktarılamıyor."
+    blocked = [f for f in screen._findings if f.level == "engel"] or screen._findings
+    return "Dışa aktarılamıyor: " + blocked[0].title if blocked else None
 
 
 def _close(window, tab: str) -> str | None:

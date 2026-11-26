@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.pipeline.ocr.models import data_dir
 from evrakci.pipeline.separator import make_separator_pdf
-from evrakci.ui import actions, theme
+from evrakci.ui import actions, refusals, theme
 from evrakci.ui import rehber_print as printing
 from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import make_icon
@@ -450,7 +450,7 @@ class RehberScreen(QWidget):
     def step(self, direction: int) -> None:
         """F3 / Shift+F3 / Enter: the next or previous hit, wrapping round."""
         if not self._hits:
-            self._announce_text("Sonuç yok")
+            self._announce_text(refusals.NO_HITS)
             return
         at = self.text.current()
         self._goto((at + direction) % len(self._hits) if at >= 0 else 0)

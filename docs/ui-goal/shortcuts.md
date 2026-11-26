@@ -62,7 +62,7 @@ the part between the two comments.
 - `Del`: page-specific: delete the selected thing, undoable (Parti, Sayfa, Kutu)
 - `Enter`: page-specific: confirm and move on (Belgeyi onayla on Kontrol, Onayla ve sonrakine geç on Değerler)
 - `Return`: page-specific: same as Enter (main keyboard row)
-- `Esc`: page-specific: dismiss without losing work (Seçimi kaldır on Kontrol and Değerler, Aramayı temizle on Rehber)
+- `Esc`: page-specific: dismiss without losing work (Seçimi kaldır on Kontrol, Vazgeç on Değerler, Aramayı temizle on Rehber)
 - `F2`: page-specific: edit the selected item's name or value by hand (İşi yeniden adlandır on Yükle, Elle yaz on Değerler)
 - `R`: page-specific: Sağa döndür on Kontrol, Okunana dön on Değerler
 - `K`: page-specific: Burada kes on Kontrol, Kontrol'de aç on Değerler
@@ -185,7 +185,7 @@ list and the inspector fields.
 | F2 | Elle yaz | Düzen | |
 | R | Okunana dön | Düzen | puts a corrected or confirmed value back to what the machine read (Kontrol, with the reading as the suggestion); dimmed for a hand-typed value and in Örnek; undoable; yazarken kapalı |
 | V | Yeni varyant çiz | Düzen | yazarken kapalı |
-| Esc | Seçimi kaldır | Düzen | closes the page view or trims a multi-row selection (M-43); it does not drop a change; "Geri al" is only Ctrl+Z; yazarken kapalı (the editor keeps its own Esc) |
+| Esc | Vazgeç | Düzen | drops the change; "Geri al" is only Ctrl+Z; yazarken kapalı (the editor keeps its own Esc) |
 | Ctrl+A | Tümünü seç | Düzen | |
 | Space | Tüm sayfayı göster | Görünüm | the same key as the Kontrol loupe; yazarken kapalı |
 | N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | yazarken kapalı |

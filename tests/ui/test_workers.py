@@ -9,7 +9,7 @@ import threading
 import time
 
 import pytest
-from PySide6.QtCore import QThread, QTimer
+from PySide6.QtCore import QCoreApplication, QEvent, QThread, QTimer
 from PySide6.QtWidgets import QApplication, QWidget
 from saving import wait_saved
 
@@ -33,6 +33,10 @@ def test_window_thread_keeps_running_while_a_job_loads(qtbot, owner, tmp_path, m
     store = JobStore(tmp_path / "jobs")
     release = threading.Event()
     monkeypatch.setattr(JobStore, "load", lambda self, job_id: release.wait(1.5) or "yüklendi")
+    # B-114: windows left by earlier tests are deleted at the first event-loop turn (100 ms on a
+    # busy CI runner late in the suite); clear that backlog first so only the load is measured
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    QCoreApplication.processEvents()
     ticks: list[float] = []
     collected = dict(gc_guard.stats)
     timer = QTimer(owner)

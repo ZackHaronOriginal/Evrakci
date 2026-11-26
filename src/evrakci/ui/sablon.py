@@ -51,6 +51,7 @@ from evrakci.ui.controller import JobController
 from evrakci.ui.feedback import undo_last
 from evrakci.ui.sablon_canvas import CANVAS_DPI, BoxSpec, PageCanvas, pixels_to_mm
 from evrakci.ui.sablon_empty import EmptyState
+from evrakci.ui.sablon_files import TemplateFiles
 from evrakci.ui.sablon_inspector import InspectorPanel
 from evrakci.ui.sablon_live import LiveReads
 from evrakci.ui.sablon_nav import USER, NavPane
@@ -83,7 +84,7 @@ def _widths() -> tuple[int, int]:
     return (360 if m.effective_density() == "comfortable" else 264, m.size("inspector-w"))
 
 
-class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
+class SablonScreen(LiveReads, Syncing, WeakExamples, TemplateFiles, QWidget):
     drawing_changed = Signal(bool)
     snap_changed = Signal(bool)
 
@@ -219,12 +220,16 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
         self.variables.section_moved.connect(self.move_section_to)
         self.variables.variable_moved.connect(self.move_variable_to)
         self.variables.customContextMenuRequested.connect(self._variable_menu)
+        self.templates.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.templates.customContextMenuRequested.connect(self.template_context_menu)
         self.examples.currentIndexChanged.connect(
             lambda i: self.set_example(self.examples.itemData(i) or 0))
         self.pages.currentIndexChanged.connect(
             lambda i: self.set_page_number(self.pages.itemData(i) or 1))
         canvas = self.canvas
         canvas.box_drawn.connect(self.add_box)
+        canvas.draw_too_small.connect(lambda: self.message.setText(
+            "Kutu çok küçük; daha büyük sürükleyin."))
         canvas.box_selected.connect(self._canvas_selected)
         canvas.box_changed.connect(self._canvas_changed)
         canvas.drawing_cancelled.connect(lambda: self.set_drawing(False))
@@ -275,6 +280,11 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
             "sablonlar.kutu_sil": self.delete_selected,
             "sablonlar.kutu_cogalt": self.duplicate_box,
             "sablonlar.degisken_ekle": self.ask_variable,
+            "sablonlar.sablon_adlandir": self.rename_template,
+            "sablonlar.sablon_cogalt": self.copy_template,
+            "sablonlar.sablon_sil": self.delete_template,
+            "sablonlar.sablon_disa": self.export_template,
+            "sablonlar.sablon_ice": self.import_template,
             "sablonlar.yukari": lambda: self.move_selected(-1),
             "sablonlar.asagi": lambda: self.move_selected(1),
             "sablonlar.okumalari_goster": self.set_show_reads,
@@ -286,7 +296,8 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
         for action_id, slot in own.items():
             r.connect(action_id, slot)
         layout = window.status_slot(KEY).layout()
-        for name, part in (("example", StatusPart()), ("box", StatusPart()),
+        for name, part in (("draw", StatusPart("scan", "accent")), ("example", StatusPart()),
+                           ("box", StatusPart()),
                            ("cursor", StatusPart()), ("hint", StatusPart()),
                            ("saved", StatusPart("circle-dashed", "icon")),
                            ("check", StatusPart("triangle-alert", "rider-edge"))):
@@ -373,13 +384,15 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
         elif self.template is None:
             self.templates.setCurrentRow(0)  # opens the first template
         if damaged:  # a file that cannot be read is named, not skipped in silence (B-017)
-            self.message.setText("Şablon dosyası okunamadı: " + ", ".join(sorted(damaged)))
+            self.message.setText("Şablon dosyası okunamadı: " + ", ".join(sorted(damaged))
+                                 + refusals.DAMAGED_NEXT)
         self._sync_all()
 
-    def _ask_text(self, title: str, label: str, ok: str) -> str | None:
+    def _ask_text(self, title: str, label: str, ok: str, value: str = "") -> str | None:
         dialog = QInputDialog(self)
         dialog.setWindowTitle(title)
         dialog.setLabelText(label)
+        dialog.setTextValue(value)
         dialog.setOkButtonText(ok)
         dialog.setCancelButtonText("Vazgeç")
         if dialog.exec() == QInputDialog.DialogCode.Accepted and dialog.textValue().strip():
@@ -390,7 +403,11 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
         name = self._ask_text("Yeni şablon", "Şablonun adı", "Oluştur")
         if name:
             self.flush_save()
-            self.template = self.store.create(name)  # the list then marks it as the open one
+            try:
+                self.template = self.store.create(name)  # the list then marks it as the open one
+            except TemplateError as error:
+                self.message.setText(str(error))
+                return
             self.refresh_templates()
             self.open_template(self.template.id)
 
@@ -400,8 +417,9 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
             loaded = self.store.load(template_id)
         except (TemplateError, KeyError) as error:
             # the file was damaged or deleted after the list was drawn (F-sablonlar-08)
-            self.message.setText(str(error) if isinstance(error, TemplateError)
-                                 else f"Şablon dosyası okunamadı: {template_id}")
+            self.message.setText((str(error) if isinstance(error, TemplateError)
+                                  else f"Şablon dosyası okunamadı: {template_id}")
+                                 + refusals.DAMAGED_NEXT)
             self._restore_template_row()
             return
         self.template = loaded
@@ -440,8 +458,13 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
             if item.data(USER) == self.template.id:
                 from evrakci.ui.sablon_nav import ROLE_VALUE
 
+                if item.text() != self.template.name:  # renamed (or undone): the list re-sorts
+                    self.refresh_templates()
+                    return
+
                 count = len(self.template.variables)
                 value = "kaydedilmedi" if self._dirty else f"{count} değişken"
+                item.setText(self.template.name)
                 item.setData(ROLE_VALUE, value)
                 item.setData(Qt.ItemDataRole.AccessibleTextRole,
                              f"Şablon {self.template.name}, {value}")
@@ -535,9 +558,9 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
             self.variables.setCurrentItem(item)
         self.variables.blockSignals(False)
         self.nav.set_empty(self.template is None)
-        if self.template is not None and not self.template.variables:
-            self.nav.foot.setText("Bu şablonda henüz değişken yok. Eklemek için + düğmesine ya "
-                                  "da Ctrl+Shift+N tuşlarına basın.")
+        empty = self.template is not None and not self.template.variables
+        self.variables.set_hint("Bu şablonda henüz değişken yok. Eklemek için + düğmesine ya "
+                                "da Ctrl+Shift+N tuşlarına basın." if empty else "")
         self.variables.viewport().update()
 
     def current_variable(self):
@@ -579,6 +602,9 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
             sections[index] = Section(page, old.box_mm, old.example)
 
         if self._edit("Kutunun sayfası", change):
+            count = self._page_count()
+            if page != -1 and count and page > count:  # kept, but not silently (Ş-4)
+                self.message.setText(f"Örnekte {count} sayfa var.")
             wanted = self._page_count() if page == -1 else page
             if self.example and 1 <= wanted <= self._page_count() and wanted != self.page_number:
                 self.set_page_number(wanted)
@@ -728,10 +754,9 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
             return
         try:
             image = self._render(self.page_number, CANVAS_DPI)
-        except Exception as error:  # a missing or damaged scan: say so, keep working
+        except Exception:  # a missing or damaged scan: say so, keep working
             self.canvas.set_page(None)
-            self.message.setText(f"Sayfa gösterilemedi: {error}. Yükle sekmesinden işi kontrol "
-                                 "edin.")
+            self.message.setText(refusals.READ_FAILED)  # no raw path (F-sablonlar-18)
             return
         self.canvas.set_page(image, CANVAS_DPI)
 
@@ -783,6 +808,8 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
         if self._edit("Kutu ekle", lambda t: t.add_section(name, section)):
             self.select_section(name, index)
             self.read_example()
+            if not self.canvas.keep_drawing:  # one box, then the tool is off (Shift keeps it)
+                self.set_drawing(False)
 
     def _canvas_changed(self, name: str, index: int, box: tuple) -> None:
         """A box moved, resized or nudged on the canvas."""
@@ -897,9 +924,11 @@ class SablonScreen(LiveReads, Syncing, WeakExamples, QWidget):
             return
         self._drawing = value
         self.canvas.set_drawing(value)
+        self.canvas.keep_drawing = False
         if value and self.template is not None and not self.variable_name:
             self.message.setText("Çizmeden önce soldan bir değişken seçin.")
         self.drawing_changed.emit(value)
+        self._sync_status()
 
     def is_snapping(self) -> bool:
         return bool(self.canvas.snap)

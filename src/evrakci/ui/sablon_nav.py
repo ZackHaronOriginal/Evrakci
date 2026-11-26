@@ -203,6 +203,25 @@ class VariableTree(QTreeWidget):
         self.setAccessibleName("Değişkenler ve bölümler")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
+    hint = ""  # shown inside the card while there is no variable (Ş-5)
+
+    def set_hint(self, text: str) -> None:
+        self.hint = text
+        self.fit_height()
+        self.viewport().update()
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        super().paintEvent(event)
+        if self.hint and not self.topLevelItemCount():
+            painter = QPainter(self.viewport())
+            m = theme.manager()
+            painter.setFont(m.font("caption"))
+            painter.setPen(m.color("text-2"))
+            pad = m.size("s3")
+            painter.drawText(self.viewport().rect().adjusted(pad, 0, -pad, 0),
+                             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+                             | Qt.TextFlag.TextWordWrap, self.hint)
+
     def fill(self, template: Template | None) -> None:
         self.clear()
         if template is None:
@@ -237,11 +256,14 @@ class VariableTree(QTreeWidget):
             total += 1 + self.topLevelItem(i).childCount()
         return total
 
+    def _rows(self) -> int:
+        return max(3 if self.hint else 1, self.row_count())
+
     def fit_height(self) -> None:
-        self.setFixedHeight(max(1, self.row_count()) * theme.manager().size("row-h"))
+        self.setFixedHeight(self._rows() * theme.manager().size("row-h"))
 
     def sizeHint(self) -> QSize:  # noqa: N802
-        return QSize(0, max(1, self.row_count()) * theme.manager().size("row-h"))
+        return QSize(0, self._rows() * theme.manager().size("row-h"))
 
     def dropEvent(self, event) -> None:  # noqa: N802
         """Never let Qt move the rows: work out what the drop means and ask the screen."""

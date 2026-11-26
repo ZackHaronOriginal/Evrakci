@@ -185,6 +185,11 @@ sablonlar	Ctrl+D	sablonlar.kutu_cogalt	Kutuyu çoğalt	Düzen > Kutuyu çoğalt 
 sablonlar	Ctrl+Shift+N	sablonlar.degisken_ekle	Değişken ekle	Düzen > Değişken ekle	QToolButton | bar | panel Diğer	box menu | variable row	yes	ok
 sablonlar	Alt+Up	sablonlar.yukari	Değişkeni yukarı taşı	Düzen > Değişkeni yukarı taşı [state-dependent]	bar Diğer komutlar [state-dependent] | panel Diğer [state-dependent]	box menu [state-dependent] | variable row [state-dependent]	yes	ok
 sablonlar	Alt+Down	sablonlar.asagi	Değişkeni aşağı taşı	Düzen > Değişkeni aşağı taşı [state-dependent]	bar Diğer komutlar [state-dependent] | panel Diğer [state-dependent]	box menu [state-dependent] | variable row [state-dependent]	yes	ok
+sablonlar		sablonlar.sablon_adlandir	Şablonu yeniden adlandır…	Düzen > Şablonu yeniden adlandır	bar Diğer komutlar		yes	ok
+sablonlar		sablonlar.sablon_cogalt	Şablonu çoğalt	Düzen > Şablonu çoğalt	bar Diğer komutlar		yes	ok
+sablonlar		sablonlar.sablon_sil	Şablonu sil	Düzen > Şablonu sil	bar Diğer komutlar		yes	ok
+sablonlar		sablonlar.sablon_disa	Şablonu dışa aktar…	Dosya > Şablonu dışa aktar	bar Diğer komutlar		yes	ok
+sablonlar		sablonlar.sablon_ice	Şablonu içe aktar…	Dosya > Şablonu içe aktar	bar Diğer komutlar		yes	ok
 sablonlar		sablonlar.okumalari_goster	Okumaları sayfada göster	Görünüm > Okumaları sayfada göster	bar	page menu	yes	ok
 sablonlar	Left	sablonlar.kaydir	Kutuyu 0,25 mm kaydır		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok
 sablonlar	Up	sablonlar.kaydir	Kutuyu 0,25 mm kaydır		direct manipulation: drag body/handles, drag to draw, inspector spin boxes		no	ok

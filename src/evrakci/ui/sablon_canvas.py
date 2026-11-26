@@ -173,11 +173,16 @@ class BoxItem(QGraphicsItem):
         if self.selected:
             painter.setPen(QPen(paper, 2))
             painter.drawRoundedRect(outline.adjusted(-2, -2, 2, 2), 3, 3)
-        pen = QPen(ink, 2)
+        if self.selected:  # a faint accent fill: the chosen box is told from the others (Ş-5)
+            wash = QColor(m.color("accent"))
+            wash.setAlpha(46)
+            painter.setBrush(wash)
+        pen = QPen(ink, 3 if self.selected else 2)
         if self.spec.dashed:
             pen.setDashPattern([3, 2])
         painter.setPen(pen)
         painter.drawRoundedRect(outline, 2, 2)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
         if self.selected:
             painter.setPen(QPen(ink, 1.5))
             painter.setBrush(paper)
@@ -185,7 +190,8 @@ class BoxItem(QGraphicsItem):
                 painter.drawRect(QRectF(corner.x() - HANDLE / 2, corner.y() - HANDLE / 2,
                                         HANDLE, HANDLE))
             painter.setBrush(Qt.BrushStyle.NoBrush)
-        self._badge(painter, dev, ink, paper)
+        if self.selected or self.spec.index == 0:  # 30 sections do not stack 30 badges
+            self._badge(painter, dev, ink, paper)
         if self.focused and self.selected:
             paint_ring(painter, dev.adjusted(-8, -8, 8, 8), 4)
         if self.show_reading:
@@ -233,6 +239,7 @@ class PageCanvas(QGraphicsView):
     """An example page with the template's boxes; zoom, pan, snap, handles and nudge."""
 
     box_drawn = Signal(tuple)  # millimetres, from "Kutu çiz"
+    draw_too_small = Signal()  # a drag shorter than MIN_BOX_MM: said, not ignored (F-sablonlar-34)
     box_selected = Signal(str, int)  # a click on a box ("", -1: on the bare page)
     box_changed = Signal(str, int, tuple)  # moved, resized or nudged
     drawing_cancelled = Signal()  # Esc while "Kutu çiz" is on
@@ -257,6 +264,7 @@ class PageCanvas(QGraphicsView):
         self.setAccessibleName("Örnek sayfa")
         self.dpi = CANVAS_DPI
         self.drawing = False
+        self.keep_drawing = False  # Shift was held for the box just drawn: the tool stays on
         self.snap = False
         self.show_reads = False
         self._image = None
@@ -617,7 +625,10 @@ class PageCanvas(QGraphicsView):
                 self.scene().removeItem(self._rubber)
                 self._rubber = None
             if rect.width() >= self._px(MIN_BOX_MM) and rect.height() >= self._px(MIN_BOX_MM):
+                self.keep_drawing = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
                 self.box_drawn.emit(pixels_to_mm(rect, self.dpi))
+            elif rect.width() > 2 or rect.height() > 2:  # a plain click draws nothing, no word
+                self.draw_too_small.emit()
             return
         if self._drag is not None:
             _kind, item, _start, before, _corner = self._drag
@@ -711,6 +722,7 @@ class PageCanvas(QGraphicsView):
         if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and plain and self.drawing:
             # "Kutu çiz" (B) then Enter: a 40 x 10 mm box where the pointer last was over the
             # sheet, or in the middle of what is in view; then arrows, Ctrl+arrows adjust it.
+            self.keep_drawing = bool(mods & Qt.KeyboardModifier.ShiftModifier)
             self.place_default_box()
             event.accept()
             return

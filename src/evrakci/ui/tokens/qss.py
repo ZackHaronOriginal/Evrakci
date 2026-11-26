@@ -72,6 +72,8 @@ QToolButton { background: transparent; color: {{text}}; border: 1px solid transp
 QToolButton:hover { background: {{hover}}; border-color: {{hover-edge}}; }
 QToolButton:pressed { background: {{pressed}}; }
 QToolButton:checked { background: {{selected}}; }
+QToolButton[accentOn="true"]:checked, QToolButton[accentOn="true"]:checked:hover {
+    background: {{accent}}; border-color: {{accent}}; color: {{text-on-accent}}; }
 QToolButton:disabled { color: {{text-disabled}}; }
 QToolButton[kind="icon"], QToolBar#commandBar QToolButton, QWidget#commandBar QToolButton {
     min-width: {{icon-btn}}; min-height: {{icon-btn}}; max-height: {{icon-btn}}; padding: 0; }

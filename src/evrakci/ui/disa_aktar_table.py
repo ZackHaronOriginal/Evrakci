@@ -245,7 +245,7 @@ class FilesDelegate(QStyledItemDelegate):
         x += size + 6  # A .st gap
         font = self._font("body-strong" if strong else "body")
         painter.setFont(font)
-        painter.setPen(m.color(role))
+        painter.setPen(m.color(ink or theme.word_role(role)))
         advance = QFontMetricsF(font).horizontalAdvance(word)
         painter.drawText(QRectF(x, rect.top(), rect.right() - x, rect.height()),
                          Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, word)
@@ -253,7 +253,7 @@ class FilesDelegate(QStyledItemDelegate):
             x += advance + m.size("s2")
             caption = self._font("caption")
             painter.setFont(caption)
-            painter.setPen(m.color(ink or "text-2"))
+            painter.setPen(m.color(ink or "text"))
             painter.drawText(QRectF(x, rect.top(), max(0.0, rect.right() - x), rect.height()),
                              Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                              QFontMetricsF(caption).elidedText(

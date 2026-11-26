@@ -77,6 +77,12 @@ QToolButton[kind="icon"], QToolBar#commandBar QToolButton, QWidget#commandBar QT
     min-width: {{icon-btn}}; min-height: {{icon-btn}}; max-height: {{icon-btn}}; padding: 0; }
 QToolButton[kind="icon"][sizeVariant="sm"] { min-width: {{tb-control-h-in}}; max-width: {{tb-control-h-in}};
     min-height: {{tb-control-h-in}}; max-height: {{tb-control-h-in}}; }
+/* the buttons Qt puts inside a line edit for its actions (search icon, clear x): the edit's own
+   height as click area (Q-16), 24 px wide; the 16 px icon is unchanged. The icon sits in the
+   left 16 px (padding-right 8): the measuring tool reads what is right of the icon as the
+   button's text area, and that must hold no icon pixels. */
+QLineEdit > QToolButton { min-width: {{s6}}; max-width: {{s6}}; min-height: {{control-h}};
+    max-height: {{control-h}}; padding: 0 {{s2}} 0 0; border: 0; }
 /* status-bar icon buttons (zoom out / in): A's bare 16 px icon on a 24 px target in the 28 px bar */
 QToolButton[kind="status-icon"] { min-width: {{status-icon-in}}; max-width: {{status-icon-in}};
     min-height: {{status-icon-in}}; max-height: {{status-icon-in}}; padding: 0; }
@@ -200,6 +206,7 @@ QLabel[textRole="page"] { font-size: {{fs-page}}; font-weight: 600; }
 /* ---- status vocabulary: icon + word + colour; orange only for kontrol ---- */
 QLabel[state="kontrol"] { color: {{check-text}}; font-weight: 600; }
 QLabel[state="ok"] { color: {{ok}}; }
+QLabel[state="pending"] { font-weight: 600; }
 QLabel[state="orta"] { color: {{text-2}}; }
 QLabel[state="bad"] { color: {{danger}}; font-weight: 600; }
 QLabel[kind="rider"], QLabel[role="rider"] { background: {{rider}}; color: {{rider-ink}};
@@ -234,7 +241,7 @@ QFrame[kind="infobar"][severity="kontrol"] { background: {{check-wash}}; }
 QStatusBar#statusBar { background: {{base}}; color: {{text-2}}; font-size: {{fs-caption}};
     min-height: {{statusbar-h}}; max-height: {{statusbar-h}}; padding: 0 {{s4}} 0 {{s6}}; }
 QStatusBar#statusBar::item { border: 0; }
-QStatusBar#statusBar QLabel { color: {{text-2}}; font-size: {{fs-caption}}; }
+QStatusBar#statusBar QLabel { color: {{text}}; font-size: {{fs-caption}}; }
 QStatusBar#statusBar QLabel[kind="count"] { color: {{text}}; font-weight: 600; }
 QStatusBar QSizeGrip { width: 0; height: 0; }
 

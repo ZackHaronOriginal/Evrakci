@@ -180,7 +180,7 @@ def undo_last(stack) -> tuple[Callable[[], None], Callable[[], bool]]:
 
 
 class Toaster(QObject):
-    """Shows one toast at a time at the window's bottom-right; later ones wait."""
+    """Shows one toast at a time at the window's bottom-left; later ones wait."""
 
     def __init__(self, window: QWidget) -> None:
         super().__init__(window)
@@ -260,7 +260,7 @@ class Toaster(QObject):
                     win.width() - 2 * TOAST_MARGIN + 2 * SHADOW_ROOM)
         layout = toast.layout()
         height = max(size.height(), layout.totalHeightForWidth(width) if layout else 0)
-        toast.setGeometry(win.width() - TOAST_MARGIN + SHADOW_ROOM - width,
+        toast.setGeometry(TOAST_MARGIN - SHADOW_ROOM,
                           bottom - height + SHADOW_ROOM, width, height)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802

@@ -904,7 +904,7 @@ class MainWindow(QMainWindow):
         _reveal(target)
         return True
 
-    def focus_work_area(self) -> None:
+    def focus_work_area(self, reason: Qt.FocusReason = Qt.FocusReason.ShortcutFocusReason) -> None:
         """Ctrl+1…6 and Ctrl+Tab put focus on the tab's main region (the timeline, the
         values table, the canvas, the batch or file list, the guide text), so arrows,
         Home/End and PgDn act there at once; an empty state's first control otherwise."""
@@ -917,7 +917,7 @@ class MainWindow(QMainWindow):
         target = max(views, key=lambda w: w.width() * w.height()) if views else (
             order[0] if order else None)
         if target is not None:
-            target.setFocus(Qt.FocusReason.ShortcutFocusReason)
+            target.setFocus(reason)
             _reveal(target)
 
     def focus_region(self, step: int) -> None:
@@ -1710,6 +1710,10 @@ class MainWindow(QMainWindow):
             if self.frame is not None:
                 self.frame.attach()
                 self.frame.set_dark(theme.manager().theme() == "dark")
+            # A fresh window starts in its work area, not on the title tabs, where the focus
+            # would sit with no ring (a window becoming active shows none; D11, Q-16). The
+            # reason is the window's own, so no ring appears either.
+            self.focus_work_area(Qt.FocusReason.ActiveWindowFocusReason)
         super().showEvent(event)
 
     def changeEvent(self, event) -> None:  # noqa: N802

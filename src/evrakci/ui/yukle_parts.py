@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 from evrakci.ui import actions, icons, theme
 from evrakci.ui.chrome import ElidedLabel, RecentJobRow, make_icon
 from evrakci.ui.loading import ProgressCard  # noqa: F401  (moved; Yükle imports it from here)
-from evrakci.ui.widgets import add_clear_button
+from evrakci.ui.widgets import add_clear_button, centre_action_buttons
 
 PDF_LIMIT = 5000  # a dropped folder tree is read this far; more is almost certainly a mistake
 SHOWN_FILES = 5  # file rows in the drop overlay
@@ -376,6 +376,7 @@ class EmptyPage(QWidget):
         self.search.setAccessibleName("İş adı ara")
         add_clear_button(self.search)  # a 24 px target (WCAG 2.5.8)
         self.search.addAction(make_icon("search"), QLineEdit.ActionPosition.LeadingPosition)
+        centre_action_buttons(self.search)
         self.search.textChanged.connect(self.rebuild)
         self.search.returnPressed.connect(self._open_first)
         self.search.down.connect(self._focus_first)

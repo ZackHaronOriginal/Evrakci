@@ -43,12 +43,17 @@ def test_toast_shows_one_and_queues(window):
     assert t.current_text() == ""
 
 
-def test_toast_placed_bottom_right_inside_window(window):
+def test_toast_placed_bottom_left_inside_window(window):
+    """Owner 2026-11-26 (Q-16 decisions): bottom left, so the main button at the bottom right
+    ("Belgeyi onayla", "Kontrol'e geç", "Yazdır") is never covered."""
     t = Toaster(window)
     t.show("Merhaba", timeout_ms=0)
-    box = t._current.frame.mapTo(window, t._current.frame.rect().bottomRight())
-    assert box.x() <= window.width() - 12 + 1 and box.y() <= window.height() - 12 + 1
-    assert box.x() > window.width() // 2
+    frame = t._current.frame
+    top_left = frame.mapTo(window, frame.rect().topLeft())
+    bottom_right = frame.mapTo(window, frame.rect().bottomRight())
+    assert 0 <= top_left.x() <= 12 + 1 and bottom_right.y() <= window.height() - 12 + 1
+    assert bottom_right.x() < window.width() // 2 + frame.width()
+    assert top_left.x() < window.width() // 2
 
 
 def test_toast_action_runs_and_closes(window):

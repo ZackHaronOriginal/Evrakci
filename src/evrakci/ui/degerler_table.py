@@ -440,13 +440,13 @@ def paint_level(painter: QPainter, rect: QRectF, level: str, percent: int | None
     x += icon_size + 6  # A .st gap
     font = fonts.strong if strong else fonts.body
     painter.setFont(font)
-    painter.setPen(m.color(role))
+    painter.setPen(m.color(ink or theme.word_role(role)))
     width = QFontMetricsF(font).horizontalAdvance(word)
     painter.drawText(QRectF(x, rect.top(), rect.right() - x, rect.height()),
                      Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, word)
     if percent is not None and level not in ("okunamadi", "okunmadi"):
         painter.setFont(fonts.num)
-        painter.setPen(m.color(ink or "text-2"))
+        painter.setPen(m.color(ink or "text"))
         gap = QFontMetricsF(font).horizontalAdvance(" ")
         painter.drawText(QRectF(x + width + gap, rect.top(), rect.right() - x - width - gap,
                                 rect.height()),
@@ -645,7 +645,7 @@ class ValuesDelegate(QStyledItemDelegate):
                                               / 2 - size / 2, size, size), m.hex(ink or role))
             rect = rect.adjusted(size + 6, 0, 0, 0)
         if cell.level == "okunamadi" or not cell.main:
-            self._text(painter, rect, "boş", self.fonts.body, m.color(ink or "text-2"),
+            self._text(painter, rect, "boş", self.fonts.body, m.color(ink or "text"),
                        column.right)
             return
         style = column.style if column.kind == "var" else column_kind([cell.main])

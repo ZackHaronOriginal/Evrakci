@@ -107,7 +107,10 @@ class KvRow(QWidget):
     def set(self, text: str, icon: str | None = None, role: str = "icon",
             state: str | None = None, extra: str = "") -> None:
         self.value.setText(text)
-        self.value.setProperty("state", state)
+        # The "…" of a count still being read is drawn semibold (state "pending", QSS): in the
+        # regular weight its three dots antialias to 1.7:1 and, on a slow machine (CI), to
+        # 1.0:1 (Q-16, DEC-CON-01).
+        self.value.setProperty("state", "pending" if text == "…" else state)
         self.value.setFont(theme.manager().font("body-strong" if state == "kontrol"
                                                 else "num" if state == "num" else "body"))
         self.value.style().unpolish(self.value)

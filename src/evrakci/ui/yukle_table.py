@@ -313,7 +313,7 @@ class BatchDelegate(QStyledItemDelegate):
                             QRectF(rect.center().x() - 8, rect.center().y() - 8, 16, 16),
                             m.hex(ink or "text-2"))
         elif column == STATUS and not total:
-            self._status(painter, inner, item, ink)
+            self._status(painter, inner, item, ink, selected)
         else:
             self._cell(painter, inner, item, column, ink)
         painter.restore()
@@ -325,7 +325,7 @@ class BatchDelegate(QStyledItemDelegate):
         strong = total and column in (PAGES, QR)
         font = m.font("body-strong") if strong else (
             m.font("num") if column in (NO, PAGES, QR) else m.font("body"))
-        quiet = (total and not strong) or (item.kind == "pending" and column == FILE)
+        quiet = item.kind == "pending" and column == FILE  # the Toplam row reads at the text tier
         colour = m.color(ink or ("text-2" if quiet else "text"))
         shown = QFontMetricsF(font).elidedText(text, Qt.TextElideMode.ElideRight, rect.width())
         painter.setFont(font)
@@ -333,7 +333,7 @@ class BatchDelegate(QStyledItemDelegate):
         align = Qt.AlignmentFlag.AlignRight if column in RIGHT else Qt.AlignmentFlag.AlignLeft
         painter.drawText(rect, Qt.AlignmentFlag.AlignVCenter | align, shown)
 
-    def _status(self, painter, rect: QRectF, item: Item, ink) -> None:
+    def _status(self, painter, rect: QRectF, item: Item, ink, selected: bool = False) -> None:
         m = theme.manager()
         name, role, strong, word = STATUSES[item.status]
         role = ink or role
@@ -342,7 +342,8 @@ class BatchDelegate(QStyledItemDelegate):
                     m.hex(role))
         font = m.font("body-strong" if strong else "body")
         painter.setFont(font)
-        painter.setPen(m.color(role))
+        # the word of a selected row is in `text` (Kontrol orange on the fill is 6.1:1, below 7:1)
+        painter.setPen(m.color(ink or ("text" if selected else theme.word_role(role))))
         x = rect.left() + size + 6  # A .st gap
         room = max(0.0, rect.right() - x)
         painter.drawText(QRectF(x, rect.top(), room, rect.height()),

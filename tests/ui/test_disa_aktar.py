@@ -757,3 +757,121 @@ def test_kaynak_gives_way_first_and_sayfalar_stays_in_view_at_150(qtbot, tmp_pat
         assert header.sectionSize(1) <= header.sectionSize(0)  # Kaynak narrows before Durum
     finally:
         manager.set_text_scale(old)
+
+
+# -- I-38: print preview, repeated header row, footer -------------------------------------
+def _pdf_pages(path):
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(str(path))
+    try:
+        return [pdf[i].get_textpage().get_text_range() for i in range(len(pdf))]
+    finally:
+        pdf.close()
+
+
+def _rows60():
+    return [("Kontrol" if n % 7 == 0 else "Bekliyor", n, f"belge_{n:03d}.pdf", "2", "Rapor", "")
+            for n in range(1, 61)]
+
+
+def test_printed_list_repeats_header_and_footer_on_every_page(qtbot, tmp_path):
+    from PySide6.QtPrintSupport import QPrinter
+
+    from evrakci.ui import disa_aktar_print as view
+
+    html = view.index_html("Örnek iş", _rows60(), 60, 120, view.PLAN_SUBTITLE)
+    assert "<thead>" in html and view.PLAN_SUBTITLE in html
+    out = tmp_path / "altmis.pdf"
+    printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+    printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+    printer.setOutputFileName(str(out))
+    count = view.paint_document(printer, view.make_document(html), "Örnek iş", "20.11.2026 14:32")
+    assert count >= 2
+    pages = _pdf_pages(out)
+    assert len(pages) == count
+    for n, text in enumerate(pages, start=1):
+        for word in ("Durum", "No", "Dosya adı", "Sayfalar", "Şablon", "Not"):
+            assert word in text, (n, word)
+        assert f"Sayfa {n} / {count}" in text
+        assert "Örnek iş" in text and "20.11.2026 14" in text  # the test font maps ":" oddly
+    assert "belge_060.pdf" in pages[-1]
+
+
+def test_subtitle_says_plan_or_record():
+    from evrakci.pipeline.job import LastExport
+    from evrakci.ui import disa_aktar_print as view
+
+    assert view.subtitle(None) == "Dışa aktarma planı, henüz yazılmadı"
+    last = LastExport("2026-11-20T14:32", "/x", 3, 0)
+    assert view.subtitle(last) == "Dışa aktarıldı: 20.11.2026 14:32"
+
+
+def test_ctrl_p_opens_the_preview_enter_prints_escape_closes(qtbot, tmp_path, monkeypatch):
+    import PySide6.QtPrintSupport as qt_print
+    from PySide6.QtTest import QTest
+    from PySide6.QtWidgets import QDialog
+
+    window, screen = _window(qtbot, tmp_path)
+    out = tmp_path / "yazdir.pdf"
+
+    class Fake:
+        def __init__(self, printer, parent=None):
+            printer.setOutputFormat(qt_print.QPrinter.OutputFormat.PdfFormat)
+            printer.setOutputFileName(str(out))
+
+        def setWindowTitle(self, _title):  # noqa: N802
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(qt_print, "QPrintDialog", Fake)
+    screen.results.setFocus()
+    QTest.keyClick(window, Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier)
+    qtbot.waitUntil(lambda: screen._preview is not None, timeout=10000)
+    dialog = screen._preview
+    assert dialog.windowTitle() == "Baskı önizleme" and dialog.isVisible()
+    buttons = dialog.findChildren(QAbstractButton)
+    texts = {b.text() or b.toolTip() for b in buttons}
+    assert {"Yazdır…", "Kapat", "Sığdır", "Önceki sayfa", "Sonraki sayfa"} <= texts
+    assert all(b.accessibleName() or b.text() for b in buttons)
+    assert dialog.page_label.text() == "Sayfa 1 / 1"
+    QTest.keyClick(dialog, Qt.Key.Key_Return)
+    assert out.is_file() and "Sayfa 1 / 1" in _pdf_pages(out)[0]
+    QTest.keyClick(dialog, Qt.Key.Key_Escape)
+    qtbot.waitUntil(lambda: screen._preview is None)
+    assert window.focusWidget() is screen.results
+
+
+def test_preview_pages_and_zoom_keys_have_buttons(qtbot):
+    from PySide6.QtTest import QTest
+
+    from evrakci.ui import disa_aktar_print as view
+
+    dialog = view.PrintPreviewDialog(
+        view.index_html("İş", _rows60(), 60, 120, view.PLAN_SUBTITLE), "İş")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.activateWindow()
+    qtbot.waitUntil(lambda: dialog.isActiveWindow() and dialog.page_count() >= 2)
+    assert dialog.page_label.text() == f"Sayfa 1 / {dialog.page_count()}"
+    assert not dialog.previous.isEnabled() and dialog.next.isEnabled()
+    QTest.keyClick(dialog, Qt.Key.Key_PageDown)
+    assert dialog.current_page() == 2 and dialog.previous.isEnabled()
+    dialog.previous.click()
+    assert dialog.current_page() == 1
+    dialog.next.click()
+    QTest.keyClick(dialog, Qt.Key.Key_PageUp)
+    assert dialog.current_page() == 1
+    dialog.fit_page()
+    before = dialog.preview.zoomFactor()
+    QTest.keyClick(dialog, Qt.Key.Key_Plus, Qt.KeyboardModifier.ControlModifier)
+    assert dialog.preview.zoomFactor() > before
+    QTest.keyClick(dialog, Qt.Key.Key_Minus, Qt.KeyboardModifier.ControlModifier)
+    assert dialog.preview.zoomFactor() == pytest.approx(before)
+    dialog.zoom_bigger()
+    QTest.keyClick(dialog, Qt.Key.Key_0, Qt.KeyboardModifier.ControlModifier)
+    assert dialog.preview.zoomFactor() == pytest.approx(before)
+    dialog.close_button.click()
+    assert not dialog.isVisible()

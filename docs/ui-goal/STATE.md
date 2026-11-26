@@ -94,9 +94,12 @@ Updated after every accepted step. A new session or a compacted one reads this f
   saved after export in window and CLI), printed No column; evidence tests/test_job_format.py, test_index.py,
   test_exporting.py, tests/ui/test_disa_aktar.py (104 passed). D step 15 I-40 DONE (merged): "Kontrol gerekenler" sheet + CLI line;
   evidence tests/test_index.py, test_exporting.py, test_cli_jobs.py, tests/ui/test_disa_aktar.py; tests/ui 1967 passed.
-  Next D: step 16 I-39 (rename preview), step 17 I-38 (print preview).
+  D step 16 I-39 DONE (merged): rename preview with Kaynak (scan file) column off by default, Adı değişenler
+  filter, Ad listesini kopyala (Ctrl+Shift+C), core plan_names/notes (window == CLI --onizle); folder typing
+  replans after 300 ms; evidence tests/test_export.py, test_cli_names.py, tests/ui/test_disa_aktar.py.
+  Next D: step 17 I-38 (print preview).
   CI GREEN on b3e182a (all jobs incl. Windows, clean installs, CLA); B-092 fixed (probe colour), B-089 crash gone.
-  D16 I-39: an agent stopped mid-way by the usage limit; partial uncommitted work in its worktree (branch d16). B-092 attempt b895e1e: check CI. Then A §0 + I-09
+  IN PROGRESS: A I-06 (branch a06): built; fix round making the Sayfaları seç dialog two columns (fits 768 at 150 %). B-092 attempt b895e1e: check CI. Then A §0 + I-09
   (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no

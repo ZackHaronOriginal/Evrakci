@@ -222,3 +222,21 @@ def test_toast_text_meets_the_contrast_tier_in_every_theme(qtbot, tmp_path, mode
         window.toaster.dismiss()
     finally:
         manager.set_mode(before)
+
+
+def test_a_reading_row_is_at_least_the_control_height_at_every_text_size(qtbot):
+    """AUD-HIT-03: the reading rows (the mouse path of "Okuma seç") grow with the text size."""
+    from evrakci.ui import theme
+    from evrakci.ui.degerler_side import ReadingItem, ReadingRow
+
+    manager = theme.manager()
+    old = manager.text_scale()
+    try:
+        for scale in (100, 150):
+            manager.set_text_scale(scale)
+            row = ReadingRow(ReadingItem("Bölüm 1", "48213", (), 92, False))
+            qtbot.addWidget(row)
+            row.show()
+            assert row.minimumHeight() >= max(32, manager.size("control-h"))
+    finally:
+        manager.set_text_scale(old)

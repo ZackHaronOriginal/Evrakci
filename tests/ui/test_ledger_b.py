@@ -126,8 +126,6 @@ def test_b003_pdfa_failure_is_one_rule_in_list_and_outcome_count(tmp_path):
     assert result.needing_check == sum(1 for r in rows if r.state == "kontrol")
 
 
-@pytest.mark.xfail(strict=True, reason="B-005: 'Dışa aktarılan iş ... saklansın' but the day "
-                   "limit also deletes never-exported jobs (store.delete_older_than)")
 def test_b005_day_limit_keeps_a_job_that_was_never_exported(qtbot, tmp_path):
     from evrakci.app import build_window
 
@@ -140,6 +138,38 @@ def test_b005_day_limit_keeps_a_job_that_was_never_exported(qtbot, tmp_path):
     window = build_window(tmp_path / "jobs", tmp_path / "tpl", tmp_path / "ayar.json")
     qtbot.addWidget(window)
     assert [j.id for j in JobStore(tmp_path / "jobs").list_jobs()] == [old.id]
+
+
+def test_b005_window_start_deletes_only_the_exported_old_job(qtbot, tmp_path):
+    from evrakci.app import build_window
+    from evrakci.pipeline.job import LastExport
+
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    done, never = store.create_job("a", [pdf]), store.create_job("b", [pdf])
+    done.last_export = LastExport("2026-01-01T10:00:00", "/tmp/o", 1, 0)
+    store.save(done)
+    stamp = time.time() - 40 * 86400
+    for job in (done, never):
+        os.utime(tmp_path / "jobs" / job.id / "job.json", (stamp, stamp))
+    save_settings(Settings("30"), tmp_path / "ayar.json")
+    qtbot.addWidget(build_window(tmp_path / "jobs", tmp_path / "tpl", tmp_path / "ayar.json"))
+    assert [j.id for j in store.list_jobs()] == [never.id]
+
+
+def test_b005_default_setting_deletes_nothing_at_window_start(qtbot, tmp_path):
+    from evrakci.app import build_window
+    from evrakci.pipeline.job import LastExport
+
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    done = store.create_job("a", [pdf])
+    done.last_export = LastExport("2026-01-01T10:00:00", "/tmp/o", 1, 0)
+    store.save(done)
+    stamp = time.time() - 400 * 86400
+    os.utime(tmp_path / "jobs" / done.id / "job.json", (stamp, stamp))
+    qtbot.addWidget(build_window(tmp_path / "jobs", tmp_path / "tpl", tmp_path / "ayar.json"))
+    assert [j.id for j in store.list_jobs()] == [done.id]
 
 
 def test_b006_a_window_command_exists_for_dropping_blank_pages():

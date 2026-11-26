@@ -134,6 +134,15 @@ Updated after every accepted step. A new session or a compacted one reads this f
   I-28 89035ee, I-47 a+b 82c436f (review-group-b.md); C I-07 f590a5f (review-group-c.md, fixes f939c94); D I-35 2f9e5e4,
   I-38 c148240, I-39 b3d2db0, I-40 b3e182a, B-003 (review-group-d.md, fixes 4a8e1dc); I-01 dropped by the owner.
   CI GREEN on ce6509c (last code commit): CI, Linux build, Windows installer, CLA all success.
+  NEW QUEUE from the owner's answers of 2026-11-26 evening (decisions.md last entries), one worktree step each:
+   R1 Q-32: zoom −/+ 24 px as a written AUD-HIT-02 exception in tools/ui_measure.py; drop the two known-fails rows.
+   R2 Q-33: retention keeps a job edited after its last export (job_state != last_export.state), window + CLI, tests (HIGH).
+   R3 screen proposals Q-10/11/13/14/15 (scratchpad q10-q15-plain.md; re-derive from docs/ui-goal/audit/*-proposals.md and
+      *-findings.md if gone): one step per screen (Kontrol, Yükle, Değerler, Şablonlar, Dışa Aktar + Rehber), then the shared
+      S-2..S-6 look items; K-1 waits for the owner. Q-01, Q-12 and items already built are skipped.
+   R4 SignPath readiness: list SignPath's open-source requirements, check the repo, create what is missing.
+   R5 Q-35: one-page versioning proposal for the owner.
+   R6 B-104: CI uploads crops of failing contrast rows (3452a9f); compare with local pixels.
   WAITING ON THE OWNER ONLY: OWNER-QUEUE.md open rows (Q-07, Q-10, Q-11, Q-13, Q-14, Q-15 rest, Q-17, Q-18, Q-19, Q-20,
   Q-24, Q-31, Q-32, Q-33, Q-34). Watch CI for stale known-fails rows (B-104) and remove them.
   Triage notes (not in git): scratchpad q08-triage.md, q10-q15-plain.md, q02-q16-plain.md; re-derive from the audit

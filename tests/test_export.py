@@ -122,6 +122,23 @@ def test_name_notes_say_why_a_name_differs_from_the_pattern():
     assert items[3].name_note == ""
 
 
+def test_the_belge_fallback_name_does_not_keep_an_earlier_name_note():
+    from pathlib import Path
+
+    from evrakci.pipeline.exporting import plan_names
+
+    t = make_template()
+    k_no, k_unvan, _k_not = (v.key for v in t.variables)
+    job = job_from_kinds({"a": "pp"})
+    job.apply_template(["a/0"], "t1")
+    job.apply_filter(job.ordered_page_ids(), 1)
+    record_values(job, compute_documents(job)[0], "t1",
+                  {k_no: ok("1" * 40 + "/"), k_unvan: ok("x")})  # removed char: a note
+    assert plan_names(job, {"t1": t}, Path("/k"))[0].name_note == "Geçersiz karakter silindi"
+    item = plan_names(job, {"t1": t}, Path("/" + "k" * 200))[0]
+    assert item.name == "belge_001" and item.name_note == ""
+
+
 def test_plan_names_marks_a_name_cut_by_a_long_folder_path():
     from pathlib import Path
 

@@ -133,6 +133,7 @@ class DisaAktarScreen(QWidget):
         self._flushed = None  # the controller whose write just ended (export() goes on)
         self.out_dir: Path | None = None
         self._exporting: tuple[JobController, object] | None = None
+        self._typing = False
         self._written = False  # the table shows what was written, not the preview
         self._written_for: JobController | None = None
         self._job_gone = False  # the export deleted its job: the window closed it, keep the card
@@ -818,20 +819,19 @@ class DisaAktarScreen(QWidget):
         if self.task is None and not self._written:
             self._plan(self.controller())  # names are cut to fit the folder path
             self._shown_findings = None
-            self._sync()
+        self._sync()
 
     def _folder_changed(self, text: str) -> None:
         self._folder = folder_state(text)
         self.folder.setToolTip(text.strip())  # the field shows the end of a long path
         if text.strip():
             self._folder_error = False
-        if getattr(self, "_typing", False):  # planning 800 documents takes ~100 ms
+        if self._typing:  # planning 800 documents takes ~100 ms
             self._typing = False
             self._replan_timer.start()  # last value wins
             self._sync()
             return
         self._replan_folder()
-        self._sync()
 
     def choose_folder(self) -> None:
         start = self.folder.text().strip()
@@ -993,8 +993,9 @@ class DisaAktarScreen(QWidget):
     def list_text(self) -> str:
         """The whole list as tab separated text (Kaynak, Yazılacak dosya adı, Not), the same
         lines `--onizle` prints; the header line comes first."""
+        rows = sorted(self.model.all_rows(), key=lambda r: r.number)  # document order
         return "\n".join([PREVIEW_HEADER] + [preview_line(r.source, r.name, r.note)
-                                             for r in self.model.all_rows()])
+                                             for r in rows])
 
     def copy_list(self) -> None:
         """Ctrl+Shift+C: the name list on the clipboard, ready for Excel."""
@@ -1277,6 +1278,11 @@ class DisaAktarScreen(QWidget):
         return True
 
     def _failed(self, message: str) -> None:
+        if self._exporting is not None:
+            controller, job = self._exporting
+            if job.last_export is not None:  # a text layer failure still wrote files and index
+                controller.job.last_export = job.last_export
+                controller.save_now()
         exists = self.out_dir is not None and self.out_dir.exists()
         self._outcome = {"kind": "failed", "title": "Dışa aktarma tamamlanamadı",
                          "message": message, "folder": exists, "closable": True}

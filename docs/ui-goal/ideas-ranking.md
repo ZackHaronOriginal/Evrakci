@@ -122,3 +122,30 @@ Decided 2026-11-13 (decisions.md, "Owner answers before close"); they start as "
 
 - Bugs, not ideas: B-003 (PDF/A state differs in list, card, index), B-004 (name pattern not saved with the job), B-006 (no window control for dropping blank pages; I-03 is the filter, not the switch), B-012 (Kontrol "Değerlerde aç" ignores the document), B-013 (variant drawing opens page 1), B-018 (template rename, delete, import, export missing; rename also an open product decision), B-022 (status line not announced), B-023 (toast Geri al acts on its own step: fixed).
 - Open ledger entries that touch ideas: B-025 (no unapprove; wontfix) and B-034 (meaning of İncelendi vs Dışa Aktar) bear on I-11 and I-34.
+
+## Ranking result and shipping check (Phase 5 exit, 2026-11-26)
+
+The owner ranked by Q-06 (decisions.md "Build first"): those rows are the "must" set; every other row is unranked or "later" by the owner (I-48..I-57), and I-01 was dropped. Each build-first row, checked against git history and its group review:
+
+| Idea | Shipped (commit) | Reviewed in |
+|---|---|---|
+| I-03 | ef93cbb | review-group-a.md |
+| I-04 | 50f8021 | review-group-a.md |
+| I-06 | 867ce8b | review-group-a.md |
+| I-08 | ed7bd69 | review-group-a.md |
+| I-09 | 6afc1e5 | review-group-a.md |
+| I-17 | 4e0d900 | review-group-b.md |
+| I-19 | fb66733 | review-group-b.md |
+| I-21 | 473aa88 | review-group-b.md |
+| I-22 | 60a0fa2 | review-group-b.md |
+| I-23 | 2f68421 | review-group-b.md |
+| I-28 | 89035ee | review-group-b.md |
+| I-47 | 82c436f (a and b) | review-group-b.md |
+| I-07 | f590a5f | review-group-c.md |
+| I-35 | 2f9e5e4 | review-group-d.md |
+| I-38 | c148240 | review-group-d.md |
+| I-39 | b3d2db0 | review-group-d.md |
+| I-40 | b3e182a | review-group-d.md |
+| I-01 | dropped by the owner (2026-11-20) | decisions.md |
+
+No row was ranked "should"; none moved. Open bugs that touch these ideas are in bugs.md with a severity and a reason (none S1 or S2).

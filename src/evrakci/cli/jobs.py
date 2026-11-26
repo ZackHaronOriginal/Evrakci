@@ -264,9 +264,13 @@ def select_saved(args: argparse.Namespace, store: JobStore,
     except TemplateError as error:
         raise UserError(str(error)) from None
     if not chosen and extra is None:
-        print("Hiçbir filtre açık değil")
+        print("Kayıtlı filtre yok")
         return 0
     every = {t.id: t for t in template_store(args).list()}  # what the window's chips see
+    if any(c.kind == "farkli" for c in (*chosen, *([extra] if extra else []))):
+        # An older job: read the missing sizes in memory, as the window does when it opens the
+        # job and as `is sec farkli` does; the file is not written.
+        apply_page_sizes(job, store.read_sizes(store.size_requests(job)))
     criteria = [Criterion(f.kind, f.params) for f in chosen]
     result = select_by_filters(job, [*criteria, *([extra] if extra else [])], every)
     broken = [chosen[n].name for n in result.unknown_at if n < len(chosen)]

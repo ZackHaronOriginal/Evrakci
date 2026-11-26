@@ -285,7 +285,7 @@ class FilterChip(QAbstractButton):
         elif inert:
             fill, edge, text, icon = None, "stroke-soft", "text-disabled", "icon-disabled"
         else:
-            fill, edge, text, icon = ("hover" if self._hover else None), "stroke", "text", "icon"
+            fill, edge, text, icon = ("hover" if self._hover else None), "edge", "text", "icon"
         painter.setPen(QPen(m.color(edge), 1))
         painter.setBrush(m.color(fill) if fill else Qt.BrushStyle.NoBrush)
         painter.drawRoundedRect(rect, radius, radius)

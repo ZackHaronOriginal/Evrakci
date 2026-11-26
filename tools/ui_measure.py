@@ -2,7 +2,7 @@
 
     QT_QPA_PLATFORM=offscreen python tools/ui_measure.py --out report.tsv
     ... --tab kontrol --theme dark --text 150 --size 1366x768 --fails-only
-    ... --enforce      # exit 1 when a rule with "enforced": true fails (none is yet)
+    ... --enforce      # exit 1 when a rule with "enforced": true fails (known fails tolerated)
 
 For 6 tabs x {light, dark, hc} x {1366x768, 1920x1080} x text {100, 150} it builds the demo window
 like tools/screenshots.py does (fresh in each theme and text size, custom title band forced),
@@ -111,6 +111,7 @@ from evrakci.ui import style, theme  # noqa: E402
 from evrakci.ui.tokens import generated as tokens  # noqa: E402
 
 RULES_PATH = ROOT / "docs/ui-goal/rules.json"
+KNOWN_FAILS_PATH = ROOT / "docs/ui-goal/baseline/known-fails.tsv"
 COLUMNS = ("tab", "theme", "size", "text", "widget", "class", "rule", "value", "limit", "result",
            "severity")
 SETTLE_MS = 300
@@ -132,6 +133,33 @@ def measured_rules(rules: list[dict]) -> dict[str, dict]:
         if measure.startswith("tool:") and not rule.get("rows_under"):
             owners[measure[5:]] = rule
     return owners
+
+
+# Exemptions (decisions.md, "Window-scroll rule (Q-16)", owner 2026-11-26): a page that needs to
+# scroll as a whole is an exception to the window-scroll rule. The Rehber reader and the Şablonlar
+# canvas (PageCanvas, painted as one surface, its inner widget has no name or ring of its own).
+WINDOW_SCROLL_EXEMPT = {"Reader": "Rehber reader scrolls as a whole",
+                        "PageCanvas": "Şablonlar canvas scrolls as a whole"}
+CANVAS_EXEMPT_RULES = ("AUD-A11Y-01", "DEC-FOC-01")
+
+
+def exempt_row(rule_id: str, path: str) -> bool:
+    """True for a row the tool does not judge (the Şablonlar canvas surface, see above)."""
+    return rule_id in CANVAS_EXEMPT_RULES and "/PageCanvas/" in f"{path}/"
+
+
+def load_known_fails(path: Path = KNOWN_FAILS_PATH) -> set[tuple[str, str]]:
+    """(rule id, widget path) pairs --enforce tolerates; file columns: rule, widget, reason."""
+    if not path.exists():
+        return set()
+    known = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.startswith("#") or line.startswith("rule\t"):
+            continue
+        cols = line.split("\t")
+        if len(cols) >= 2:
+            known.add((cols[0], cols[1]))
+    return known
 
 
 # -- colours ------------------------------------------------------------------------------
@@ -787,7 +815,7 @@ def chk_window_scroll(i: dict, p: dict, ctx: Ctx) -> Res | None:
     found = []
     for scroller in w.findChildren(QAbstractScrollArea):
         if (not scroller.isVisible() or isinstance(scroller, QAbstractItemView)
-                or scroller.window() is not w):
+                or scroller.window() is not w or type(scroller).__name__ in WINDOW_SCROLL_EXEMPT):
             continue
         port = scroller.viewport()
         if port.width() * port.height() * 2 < area:
@@ -857,6 +885,8 @@ def measure_tree(app: QApplication, ctx: Ctx, rules: list[dict], tab: str) -> li
                 if result is None:
                     continue
                 value, limit, verdict = result
+                if exempt_row(rule["id"], part_path):
+                    continue
                 rows.append((tab, ctx.theme, size, str(ctx.text), part_path, info["cls"],
                              rule["id"], value, limit, verdict, rule["severity"]))
     return rows
@@ -922,9 +952,23 @@ def format_summary(rows: list[Row], rules: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def enforced_failures(rows: list[Row], rules: list[dict]) -> int:
+def enforced_fail_rows(rows: list[Row], rules: list[dict],
+                       known: set[tuple[str, str]] = frozenset()) -> list[Row]:
+    """Failing rows of enforced rules that are not on the known-fail list."""
     enforced = {r["id"] for r in rules if r.get("enforced")}
-    return sum(1 for row in rows if row[6] in enforced and row[9] == "fail")
+    return [row for row in rows if row[6] in enforced and row[9] == "fail"
+            and (row[6], row[4]) not in known]
+
+
+def enforced_failures(rows: list[Row], rules: list[dict],
+                      known: set[tuple[str, str]] = frozenset()) -> int:
+    return len(enforced_fail_rows(rows, rules, known))
+
+
+def stale_known_fails(rows: list[Row], known: set[tuple[str, str]]) -> list[tuple[str, str]]:
+    """Known-fail entries that no longer fail (a fix landed): the list can shrink."""
+    failing = {(row[6], row[4]) for row in rows if row[9] == "fail"}
+    return sorted(known - failing)
 
 
 def to_tsv(rows: list[Row], header: str = "") -> str:
@@ -943,6 +987,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--fails-only", action="store_true")
     ap.add_argument("--enforce", action="store_true")
     ap.add_argument("--rules", type=Path, default=RULES_PATH)
+    ap.add_argument("--known-fails", type=Path, default=KNOWN_FAILS_PATH,
+                    help="rule/widget pairs --enforce tolerates (Q6 fixes pending)")
     ap.add_argument("--out", type=Path, help="write the TSV here (default: standard output)")
     return ap.parse_args(argv)
 
@@ -968,7 +1014,16 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.write(text)
     print(format_summary(rows, rules))
     print(f"seconds: {time.monotonic() - started:.0f}")
-    return 1 if args.enforce and enforced_failures(rows, rules) else 0
+    if not args.enforce:
+        return 0
+    known = load_known_fails(args.known_fails)
+    for rule_id, widget in stale_known_fails(rows, known) if not args.tab else []:
+        print(f"known-fail no longer fails (remove it): {rule_id}\t{widget}")
+    failed = enforced_fail_rows(rows, rules, known)
+    for row in failed[:20]:
+        print(f"ENFORCED FAIL {row[6]} {row[0]}/{row[1]}/{row[2]}/{row[3]} {row[4]}: {row[7]}")
+    print(f"enforced fails: {len(failed)} (tolerated known fails: {len(known)} entries)")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

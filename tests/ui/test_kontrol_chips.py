@@ -8,6 +8,7 @@ import re
 import time
 from pathlib import Path
 
+import pytest
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtTest import QTest
@@ -360,6 +361,27 @@ def test_a_select_by_result_can_be_saved_as_a_chip_with_undo(qtbot, tmp_path, mo
     assert [c.info.name for c in screen.chips.chips] == ["Tekler"]
 
 
+@pytest.mark.parametrize("mode", ["add", "within"])
+def test_only_a_replace_result_can_be_saved(qtbot, tmp_path, monkeypatch, mode):
+    window, _template_ = _make(qtbot, tmp_path, ("Tekler", "tek", {}))
+    screen = window.kontrol
+    screen.timeline.select_rows(0, 3, 0)  # something to add to or to stay within
+    monkeypatch.setattr(SelectDialog, "mode", lambda self: mode)
+    _select_by(screen, monkeypatch, "tek")
+    assert screen.chips.save.isHidden()
+    monkeypatch.setattr(SelectDialog, "mode", lambda self: "replace")
+    _select_by(screen, monkeypatch, "tek")
+    assert not screen.chips.save.isHidden()
+
+
+def test_a_result_of_this_documents_pages_is_not_offered_for_saving(qtbot, tmp_path, monkeypatch):
+    window, _template_ = _make(qtbot, tmp_path, ("Tekler", "tek", {}))
+    screen = window.kontrol
+    _select_by(screen, monkeypatch, "belge")
+    assert _chosen(window)  # the pages are selected, the chip would be another job's document
+    assert screen.chips.save.isHidden()
+
+
 def test_a_new_selection_takes_the_save_button_away(qtbot, tmp_path, monkeypatch):
     window, _template_ = _make(qtbot, tmp_path, ("Tekler", "tek", {}))
     screen = window.kontrol
@@ -458,6 +480,36 @@ def test_chips_are_32_px_high_pill_shaped_and_at_least_13_px(qtbot, tmp_path):
         assert chip.property("focusRadius") == 16
     source = (Path(theme.__file__).parent / "kontrol_chips.py").read_text(encoding="utf-8")
     assert not re.search(r"#[0-9a-fA-F]{3,8}\b", source)  # tokens only, no hex colours
+
+
+def _luminance(rgb) -> float:
+    lin = [
+        c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in (v / 255 for v in rgb)
+    ]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+@pytest.mark.parametrize("name", ["light", "dark", "hc"])
+def test_the_off_chip_outline_has_3_to_1_contrast_with_the_row(qtbot, tmp_path, name):
+    manager = theme.manager()
+    before = manager.mode()
+    manager.set_mode(name)
+    try:
+        window, _template_ = _make(qtbot, tmp_path, ("Tekler", "tek", {}))
+        chip = _chip(window, "Tekler")
+        assert not chip.isChecked()
+        window.show()
+        qtbot.wait(30)
+        image = chip.grab().toImage()
+        edge = image.pixelColor(image.width() // 2, 0)  # top edge of the pill, mid width
+        edge_rgb = (edge.red(), edge.green(), edge.blue())
+        for ground in ("layer",):  # the work layer the row sits on
+            ground_hex = manager.hex(ground)
+            rgb = tuple(int(ground_hex[i : i + 2], 16) for i in (1, 3, 5))
+            hi, lo = sorted((_luminance(edge_rgb), _luminance(rgb)), reverse=True)
+            assert (hi + 0.05) / (lo + 0.05) >= 3.0, (name, ground)
+    finally:
+        manager.set_mode(before)
 
 
 def test_eight_chips_wrap_at_150_percent_and_keep_their_names(qtbot, tmp_path):

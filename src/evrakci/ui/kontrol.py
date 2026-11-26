@@ -697,8 +697,12 @@ class KontrolScreen(SavedFiltersMixin, QWidget):
         if not dialog.exec():
             self.timeline.setFocus()
             return
-        if self.select_matching(dialog.criterion(), dialog.mode()):
-            self._remember_result(dialog.criterion(), self._chosen_ids())
+        criterion, mode = dialog.criterion(), dialog.mode()
+        saveable = mode == "replace" and criterion.kind != "belge"
+        if self.select_matching(criterion, mode) and saveable:
+            # Only a plain replace of a kind that does not name this job's document can come
+            # back later as a chip that selects the same thing.
+            self._remember_result(criterion, self._chosen_ids())
 
     def select_matching(self, criterion: Criterion, mode: str = "replace") -> int:
         """Select the pages that meet `criterion`, joined with the selection by `mode`

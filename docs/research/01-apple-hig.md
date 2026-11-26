@@ -1,5 +1,7 @@
 # 01 — Apple Human Interface Guidelines: what transfers to Evrakçı
 
+Paraphrased summary; read the linked Apple pages for the original text.
+
 Scope: Apple HIG (current, change-logged through 2026), read from Apple's own JSON content endpoints for each HIG page [1]–[13] plus the WWDC25 design-system talks [14][15]. Everything marked "(unverified)" could not be confirmed from a primary page in this session.
 
 ## TL;DR
@@ -19,14 +21,14 @@ Scope: Apple HIG (current, change-logged through 2026), read from Apple's own JS
 
 **Older framing.** Clarity, deference, depth (iOS 7–era). Still visible in the current text: content comes first and controls recede.
 
-**2025 framing.** The WWDC25 "Get to know the new design system" talk presents a design system built on hierarchy, harmony and consistency, where every element "from the tiniest control to the largest surface" is "considered in relation to the whole" [14]. The "hierarchy / harmony / consistency" triad is my summary of that talk's headings (unverified wording). Concretely it adds:
+**2025 framing.** The WWDC25 "Get to know the new design system" talk presents a design system built on hierarchy, harmony and consistency, where every element, from the smallest control to the largest surface, is judged by how it fits the whole [14]. The hierarchy / harmony / consistency triad is my own summary of that talk (unverified wording). Concretely it adds:
 
-- **Liquid Glass** is a dynamic material forming a "distinct functional layer for controls and navigation elements — like tab bars and sidebars — that floats above the content layer" [11]. Two variants: *regular* (blurs and adjusts luminosity; use when there is a lot of text, e.g. alerts, sidebars, popovers) and *clear* (highly translucent, only over media; add a 35 % dark dimming layer if the content behind is bright) [11].
+- **Liquid Glass** is a dynamic material that forms a separate functional layer for controls and navigation (tab bars, sidebars) floating above the content layer [11]. Two variants: *regular* (blurs and adjusts luminosity; use when there is a lot of text, e.g. alerts, sidebars, popovers) and *clear* (highly translucent, only over media; add a 35 % dark dimming layer if the content behind is bright) [11].
 - **Don't use Liquid Glass in the content layer**; use standard materials there. Use it sparingly even on custom controls [11].
 - Colour on glass: apply accent colour to the **background** of a primary action rather than to its label; never tint the background of many controls [9].
 - **Concentricity.** Three shape types: fixed radius, capsule (radius = half the container height), and concentric (radius = parent radius minus padding). Nested shapes should share a centre, so inner radius = outer radius − padding [14].
-- **Density on macOS.** Mini, Small and Medium controls keep rounded rectangles for "compact, high-density layouts like inspector panels"; Large controls become capsules and a new X-Large size exists for emphasis in spacious areas [14].
-- Apple's typography note: type is "now bolder and left-aligned" in alerts and onboarding [14].
+- **Density on macOS.** Mini, Small and Medium controls keep rounded rectangles, which suit compact, dense layouts such as inspector panels; Large controls become capsules and a new X-Large size exists for emphasis in spacious areas [14].
+- Apple's typography note: text in alerts and onboarding is now bolder and left-aligned [14].
 
 **Relevance for Qt.** Real-time background blur/refraction is expensive and unreliable in QtWidgets and Qt Quick across Windows/Linux, and it harms legibility for older users. Reject the glass effect; keep the *structure*: a quiet content layer (page thumbnails, tables) and a distinct, flat control layer (toolbar, sidebar), separated by a hairline or a subtle tone step, not by translucency. Apple itself falls back to more opaque glass when Reduce Transparency/Increase Contrast is on [11] — a flat opaque surface is the accessible baseline.
 
@@ -36,7 +38,7 @@ What Apple publishes (layout page [4], split views [5], sidebars [12], toolbars 
 
 - Order by importance: most important at top and leading side. Align to make things scannable; indent to show subordination; group by whitespace, containers or separators; use progressive disclosure (disclosure triangles, menus, nested views) [4].
 - macOS: **avoid controls or critical information at the bottom of a window or of a sidebar**, because users move windows partly off-screen [4][12]. (Relevant to 1366x768 PCs with a taskbar; keep primary actions top or right/trailing.)
-- Large displays let you "present more content in fewer nested levels and with less need for modality, while maintaining a comfortable information density" [16].
+- On large displays, Apple says you can show more content with fewer nested levels and less modality while keeping density comfortable [16].
 - Let people resize, hide and show panes; offer menu + shortcut + toolbar button to restore hidden ones [5][16].
 - Apple does **not** publish a numeric macOS margin/spacing grid in the HIG text I read (only tvOS safe areas 60/80 pt, visionOS 60 pt centres). Common practice of 8 pt multiples and a 20 pt window margin is general knowledge (unverified).
 
@@ -44,7 +46,7 @@ What Apple publishes (layout page [4], split views [5], sidebars [12], toolbars 
 
 **Sidebars [12].** No more than **two levels** of hierarchy; deeper data → add a content list column between sidebar and detail. Let users hide it (button or View-menu command) and don't hide it by default (discoverability). Sidebar row height, text and glyph size come in **small / medium / large** (user setting). Icons use the accent colour by default; fixed colours sparingly and only where colour carries meaning. Group with disclosure controls; allow customisation.
 
-**Toolbars [13].** Group items by logical section; choose items deliberately to avoid overflow; overflow menu is automatic, don't add one; "More" menu for rarely used actions; allow customisation in apps used for long sessions. Prefer symbols over text except for words like Edit. Window titles: concise, **under ~15 characters**, never the app name. Reduce toolbar backgrounds and tints.
+**Toolbars [13].** Group items by logical section; choose items deliberately to avoid overflow; overflow menu is automatic, don't add one; "More" menu for rarely used actions; allow customisation in apps used for long sessions. Prefer symbols over text, except for standard words such as Edit. Window titles: concise, **under ~15 characters**, never the app name. Reduce toolbar backgrounds and tints.
 
 **Pro-app pattern (Final Cut Pro, Logic, Pages/Numbers/Keynote, Preview, Photos).** Verified only for Keynote [5]. The others follow the same three-zone pattern as general knowledge (unverified in this session): source/navigation sidebar on the left → large content canvas/list/timeline in the centre → contextual inspector on the right (Pages/Numbers/Keynote "Format" pane; Final Cut and Logic inspectors; Preview and Photos sidebar + content), with toolbar on top, optional status/info strip at the bottom. Inspector content swaps with the selection; panels hide with a keyboard shortcut.
 
@@ -82,7 +84,7 @@ Line height / size ≈ 1.23 for body (16/13). For long passages Apple recommends
 
 **Tracking (macOS SF Pro, per 1/1000 em) [1]:** 10 pt +12, 11 pt +6, 12 pt 0, 13 pt −6 (−0.08 pt), 14 pt −11, 15 pt −16, 16 pt −20, 17 pt −26, 20 pt −23, 22 pt −12, 24 pt +3. Small sizes get *positive* tracking (looser), mid sizes slightly negative. A running Mac app applies this automatically; replicate only in mockups or when using a non-system font. Qt: `QFont.setLetterSpacing(PercentageSpacing/AbsoluteSpacing)` can mimic it, but with a different face (Segoe UI Variable / Inter) don't copy SF's values.
 
-**Dynamic-type behaviour worth copying.** Keep hierarchy when text scales; "prioritize important content" — enlarge content text, not tab titles; keep truncation minimal; reduce columns and stack inline items when text is large; keep primary elements at top [1]. Accessibility guidance: let people enlarge text by **at least 200 %** [2].
+**Dynamic-type behaviour worth copying.** Keep hierarchy when text scales; put important content first, enlarging content text rather than tab titles; keep truncation minimal; reduce columns and stack inline items when text is large; keep primary elements at top [1]. Accessibility guidance: let people enlarge text by **at least 200 %** [2].
 
 **Weight use.** Regular for body; Medium/Semibold for emphasis and column headers; Bold sparingly; one emphasised level per row. Numerals: SF has tabular figures (use for value columns) (unverified in this session).
 
@@ -91,7 +93,7 @@ Line height / size ≈ 1.23 for body (16/13). For long passages Apple recommends
 - Use **semantic** dynamic colours (label, secondary/tertiary/quaternary label, separator, window background, control background, alternating row backgrounds, selected-content background vs. *unemphasised* selected-content background for non-key windows, keyboard-focus ring, link, placeholder) rather than hard-coded values; Apple warns documented RGB values change between releases [9]. Don't repurpose a label colour as a background or vice versa [9].
 - Primary/secondary/tertiary background levels = overall view / grouped content / content within grouped content [9].
 - **Accent colour** tints buttons, selection highlight and sidebar icons; the user can override it in system settings; fixed-colour sidebar icons are the exception [9]. Don't use the same colour for different meanings (e.g. brand colour for both interactive and non-interactive text) [9].
-- Provide **light, dark and increased-contrast** variants of every custom colour, with the increased-contrast variant "significantly" more differentiated [9].
+- Provide **light, dark and increased-contrast** variants of every custom colour, with the increased-contrast variant clearly more differentiated [9].
 - Don't convey information by colour alone; add labels or glyph shapes; red-green and blue-orange are the problem pairs [9][10].
 - Dark Mode: dimmer backgrounds, brighter foregrounds; not simple inversion. Minimum **4.5:1**; for custom small text strive for **7:1** [10]. Soften pure-white content backgrounds so they don't glow. Don't offer an app-specific appearance setting — follow the system [10]. Test Dark + Increase Contrast + Reduce Transparency together; dark text on dark can get *worse* [10].
 - Vibrancy: system vibrant colours on materials keep contrast stable; thicker materials give more contrast for fine text, thinner keep context [11].
@@ -117,18 +119,18 @@ Rules [15b: SF Symbols page]:
 |---|---|---|---|
 | Default control size | 44x44 pt | 28x28 pt | [2] |
 | Minimum control size | 28x28 pt | 20x20 pt | [2] |
-| Hit region rule of thumb | ≥ 44x44 pt (all) | same text, applies "whether … fingertip, a pointer…" | [3] |
+| Hit region rule of thumb | ≥ 44x44 pt (all) | same rule, applies applies to any input device, finger or pointer | [3] |
 | Padding around bezeled controls | ~12 pt | ~12 pt | [2] |
 | Padding around unbordered controls | ~24 pt | ~24 pt | [2] |
 
-macOS control size tiers: **Mini, Small, Medium (regular), Large, X-Large** (the last two new in the 2025 design system; Mini/Small/Medium stay rounded rectangles) [14]. Exact push-button heights are not in the HIG text I read; AppKit values I recall are 16 / 19 / 22 pt for mini / small / regular, 28 pt for large (unverified). Treat 22 pt as Apple's *dense* default and note that Apple's own "default control size" for pointer accessibility is 28 pt [2].
+macOS control size tiers: **Mini, Small, Medium (regular), Large, X-Large** (the last two new in the 2025 design system; Mini/Small/Medium stay rounded rectangles) [14]. Exact push-button heights are not in the HIG text I read; AppKit values I recall are 16 / 19 / 22 pt for mini / small / regular, 28 pt for large (unverified). Treat 22 pt as Apple's *dense* default and note that Apple's default control size for pointer accessibility is 28 pt [2].
 
 **Buttons [3].**
 - Roles: Normal, Primary (default, responds to Return, accent-filled), Cancel, Destructive (red). Never give the primary role to a destructive action.
 - **One or two prominent buttons per view.** Distinguish the preferred option by *style*, not size; equal-size buttons signal a coherent set.
 - Always provide a press state for custom buttons.
-- Push buttons: trailing ellipsis when the button opens further input ("Edit…"). Square (gradient) buttons: symbol-only, adjacent to the view they affect (add/remove row), not in toolbars. At most one help button per window, in a lower corner opposite the dismissal buttons. Tooltips on hover in macOS.
-- Labels: verb-led, few words ("Add to Cart").
+- Push buttons: trailing ellipsis when the button opens further input (for example Edit…). Square (gradient) buttons: symbol-only, adjacent to the view they affect (add/remove row), not in toolbars. At most one help button per window, in a lower corner opposite the dismissal buttons. Tooltips on hover in macOS.
+- Labels: start with a verb and use few words.
 
 **Text fields [text-fields page, 17].** Size matches expected content; evenly spaced, vertically stacked, consistent widths; logical tab order; validate on blur for email/numbers (before leaving field for passwords); number formatters locale-aware; expansion tooltip for clipped text; placeholder plus a separate label.
 
@@ -139,24 +141,24 @@ macOS control size tiers: **Mini, Small, Medium (regular), Large, X-Large** (the
 **Feedback [18].** Match interruption level to importance: passive status in context for routine info, interrupting alert only for data-loss risk. Warn before *unexpected and irreversible* data loss; don't warn when loss is the expected result. Confirm completion only for significant tasks. When a command can't run, say why. Provide feedback in more than one channel (colour + text + sound/haptic).
 
 **Progress [8].**
-- Prefer determinate; report accurately; even out the pace ("90 % in 5 seconds and the last 10 % in 5 minutes … feel[s] deceptive").
+- Prefer determinate; report accurately; even out the pace (a bar that races to 90 % and then crawls feels deceptive).
 - Keep it moving; a stationary indicator reads as frozen; if stalled, explain.
 - Switch indeterminate → determinate when possible; never switch spinner ↔ bar.
-- Show a specific description, not "Loading" or "Authenticating".
+- Show a specific description rather than a generic one such as a bare loading or authenticating label.
 - Consistent location. Provide Cancel; add Pause if cancelling loses progress; confirm if cancelling loses progress.
 - macOS supports an indeterminate bar as well as a spinner.
 
 **Alerts [6].**
 - Sparingly; not for information-only messages, not at launch, not for common undoable actions even if destructive.
-- Title: specific, complete, ≤ 2 lines; never "Error" or "Error 329347 occurred"; sentence → sentence case + period; fragment → title case, no period. Message only if it adds value.
-- At most **three buttons**; one- or two-word verb titles ("Erase", "Convert"); avoid OK unless purely informational; avoid Yes/No; always "Cancel" for cancel.
+- Title: specific, complete, ≤ 2 lines; never a bare error word or an error code alone; sentence → sentence case + period; fragment → title case, no period. Message only if it adds value.
+- At most **three buttons**; one- or two-word verb titles that name the result; avoid OK unless purely informational; avoid Yes/No; use the word Cancel for cancelling.
 - Default button on trailing side (or top of a stack); Cancel on leading side. A Cancel button should not be the default. If you want people to read, make **no** button default.
 - Destructive style only when the user did *not* deliberately choose the destructive action; if they chose "Empty Trash", the confirmation button is a normal default so Return confirms.
 - Esc or Cmd-. cancels.
 - macOS alerts can have an icon, accessory view, and a "Don't ask again" suppression checkbox [6].
-- Assistive-Access guidance: "ask for confirmation twice" for hard-to-recover actions like deleting a file [10].
+- Assistive-Access guidance: confirm twice before hard-to-recover actions such as deleting a file [10].
 
-**Undo/redo [7].** People will press undo repeatedly "until something changes" — so (1) name the target in the menu ("Undo Typing", "Redo Bold"), (2) show/scroll to the result, even off-screen, (3) don't limit the number of undos unnecessarily; users expect to undo everything since opening or saving, (4) consider "revert all/batch", (5) only add toolbar undo/redo buttons when necessary, using the system symbols. macOS: top of Edit menu, Cmd-Z and Shift-Cmd-Z.
+**Undo/redo [7].** People press undo repeatedly until they see something change, so (1) name the target in the menu (for example Undo Typing), (2) show/scroll to the result, even off-screen, (3) don't limit the number of undos unnecessarily; users expect to undo everything since opening or saving, (4) consider "revert all/batch", (5) only add toolbar undo/redo buttons when necessary, using the system symbols. macOS: top of Edit menu, Cmd-Z and Shift-Cmd-Z.
 
 **Motion [19].** Purposeful, brief and cancellable; avoid motion on frequent interactions; never make users wait for an animation; motion must not be the only channel. No numeric durations published for macOS; Apple gives 30–60 fps as the game target only.
 

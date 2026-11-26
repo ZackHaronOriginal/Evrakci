@@ -85,7 +85,9 @@ Updated after every accepted step. A new session or a compacted one reads this f
   A §0 + I-09 DONE (merged): pipeline/select.py, Sayfaları seç dialog (S), B, Ctrl+Space (B-081 fixed),
   Alt+Left/Right with Git menu items, CLI is sec belge|tek|cift; evidence tests/test_select.py,
   test_cli_select.py, tests/ui/test_kontrol_select.py; 1232 passed on touched files; audits 0. Ledger B-095.
-  Next A: I-03 (blank pages), then I-06, I-04.
+  A I-03 DONE (merged): Boş sayfalar criterion with threshold and live count, Boş sayfaları at switch
+  (B-006 fixed), CLI is sec bos --esik; evidence tests/test_select_bos.py, test_cli_select_bos.py,
+  tests/ui/test_kontrol_bos.py (369 passed on touched files); audits 0. Next A: I-06, then I-04.
   D step 13 DONE (merged): B-003 fixed, PDF/A failure is Bilgi everywhere (ExportItem.pdfa_note); evidence
   tests/test_exporting.py, test_index.py, test_cli_jobs.py, test_ledger_b.py::test_b003; full suite 2713 passed.
   D step 14 I-35 DONE (merged): index.xlsx "Belge no" first column + Özet sheet, Job.last_export (format 2,
@@ -93,7 +95,8 @@ Updated after every accepted step. A new session or a compacted one reads this f
   test_exporting.py, tests/ui/test_disa_aktar.py (104 passed). D step 15 I-40 DONE (merged): "Kontrol gerekenler" sheet + CLI line;
   evidence tests/test_index.py, test_exporting.py, test_cli_jobs.py, tests/ui/test_disa_aktar.py; tests/ui 1967 passed.
   Next D: step 16 I-39 (rename preview), step 17 I-38 (print preview).
-  IN PROGRESS: A I-03 (worktree branch a03). B-092 attempt b895e1e: check CI. Then A §0 + I-09
+  CI GREEN on b3e182a (all jobs incl. Windows, clean installs, CLA); B-092 fixed (probe colour), B-089 crash gone.
+  D16 I-39: an agent stopped mid-way by the usage limit; partial uncommitted work in its worktree (branch d16). B-092 attempt b895e1e: check CI. Then A §0 + I-09
   (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no

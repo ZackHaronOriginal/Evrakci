@@ -57,11 +57,14 @@ def test_app_applies_the_day_limit_at_start(qtbot, tmp_path):
     import time
 
     from evrakci.app import build_window
+    from evrakci.pipeline.job import LastExport
     from evrakci.pipeline.settings import Settings, save_settings
 
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     store = JobStore(tmp_path / "jobs")
     old = store.create_job("Eski", [pdf])
+    old.last_export = LastExport("2026-01-01T10:00:00", "/tmp/o", 1, 0)
+    store.save(old)
     stamp = time.time() - 40 * 86400
     os.utime(tmp_path / "jobs" / old.id / "job.json", (stamp, stamp))
     save_settings(Settings("30"), tmp_path / "ayar.json")

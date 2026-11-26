@@ -6,6 +6,7 @@ import pytest
 from fakes import make_pdf, text_page
 
 from evrakci.cli import main
+from evrakci.pipeline.job import LastExport
 from evrakci.pipeline.settings import Settings, SettingsError, load_settings, save_settings
 from evrakci.pipeline.store import JobStore
 
@@ -20,14 +21,36 @@ def test_settings_round_trip_and_validation(tmp_path):
             Settings(bad)
 
 
+def mark_exported(store, job):
+    job.last_export = LastExport("2026-01-01T10:00:00", "/tmp/o", 1, 0)
+    store.save(job)
+
+
+def age(tmp_path, job, days):
+    stamp = time.time() - days * 86400
+    os.utime(tmp_path / "jobs" / job.id / "job.json", (stamp, stamp))
+
+
 def test_delete_older_than_uses_mtime(tmp_path):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     store = JobStore(tmp_path / "jobs")
     old, new = store.create_job("eski", [pdf]), store.create_job("yeni", [pdf])
-    ten_days_ago = time.time() - 10 * 86400
-    os.utime(tmp_path / "jobs" / old.id / "job.json", (ten_days_ago, ten_days_ago))
+    mark_exported(store, old)
+    mark_exported(store, new)
+    age(tmp_path, old, 10)
     assert store.delete_older_than(7) == [old.id]
     assert [j.id for j in store.list_jobs()] == [new.id]
+
+
+def test_delete_older_than_keeps_a_never_exported_job(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    never, done = store.create_job("hic", [pdf]), store.create_job("disa", [pdf])
+    mark_exported(store, done)
+    age(tmp_path, never, 400)
+    age(tmp_path, done, 400)
+    assert store.delete_older_than(7) == [done.id]
+    assert [j.id for j in store.list_jobs()] == [never.id]
 
 
 def cli(tmp_path, *args):
@@ -65,12 +88,14 @@ def test_day_limit_applied_on_listing(tmp_path, monkeypatch, capsys):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     store = JobStore(tmp_path / "jobs")
     job = store.create_job("eski", [pdf])
-    long_ago = time.time() - 40 * 86400
-    os.utime(tmp_path / "jobs" / job.id / "job.json", (long_ago, long_ago))
+    never = store.create_job("hic", [pdf])
+    mark_exported(store, job)
+    age(tmp_path, job, 40)
+    age(tmp_path, never, 40)
     capsys.readouterr()
     assert cli(tmp_path, "is", "listele") == 0
     assert f"Saklama süresi doldu, silindi: {job.id}" in capsys.readouterr().err
-    assert store.list_jobs() == []
+    assert [j.id for j in store.list_jobs()] == [never.id]
 
 
 def test_delete_after_export_only_on_success(tmp_path, monkeypatch, capsys):
@@ -139,6 +164,7 @@ def test_retention_only_deletes_real_jobs(tmp_path):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     store = JobStore(tmp_path / "jobs")
     job = store.create_job("eski", [pdf])
+    mark_exported(store, job)
     stranger = tmp_path / "jobs" / "baska"
     stranger.mkdir()
     (stranger / "job.json").write_text("{}", encoding="utf-8")

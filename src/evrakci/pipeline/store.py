@@ -259,10 +259,11 @@ class JobStore:
         now: float | None = None,
         on_error: Callable[[str], None] | None = None,
     ) -> list[str]:
-        """Delete Evrakçı jobs whose job.json was last changed more than `days` days ago.
+        """Delete exported Evrakçı jobs whose job.json was last changed more than `days` days ago.
 
-        Only real job folders are touched: not links, and only when job.json is a readable
-        Evrakçı job whose id matches its folder. Anything else is left alone.
+        A job that was never exported (last_export is None) is never deleted here. Only real
+        job folders are touched: not links, and only when job.json is a readable Evrakçı job
+        whose id matches its folder. Anything else is left alone.
         """
         if not self.root.is_dir():
             return []
@@ -275,7 +276,8 @@ class JobStore:
                     continue
                 if path.stat().st_mtime >= limit:
                     continue
-                if self.load(folder.name).id != folder.name:
+                job = self.load(folder.name)
+                if job.id != folder.name or job.last_export is None:
                     continue
             except (JobFileError, KeyError, OSError):
                 continue

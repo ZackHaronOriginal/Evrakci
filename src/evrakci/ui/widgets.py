@@ -301,12 +301,12 @@ STATES = {
     # state: (icon, token, word)
     "ok": ("ok", "ok", "Tamam"),
     "check": ("warn", "check_ink", "Kontrol"),
-    "none": ("no", "ink_2", "Okunmadı"),
+    "none": ("no", "ink_2", "Henüz okunmadı"),
 }
 
 
 class StateLabel(QWidget):
-    """Icon + word state text: Tamam (ok), Kontrol (check), Okunmadı (none)."""
+    """Icon + word state text: Tamam (ok), Kontrol (check), Henüz okunmadı (none)."""
 
     def __init__(self, state: str = "none", text: str | None = None, parent=None) -> None:
         super().__init__(parent)

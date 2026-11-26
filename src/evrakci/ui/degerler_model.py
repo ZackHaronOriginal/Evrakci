@@ -45,7 +45,7 @@ LEVELS: dict[str, tuple[str, str, str, bool]] = {
     "orta": ("signal-medium", "text-2", "Orta", False),
     "kontrol": ("triangle-alert", "check-text", "Kontrol", True),
     "okunamadi": ("circle-x", "danger", "Okunamadı", True),
-    "okunmadi": ("clock", "text-2", "Okunmadı", False),
+    "okunmadi": ("clock", "text-2", "Henüz okunmadı", False),
 }
 RANK = {"emin": 0, "orta": 1, "okunmadi": 2, "kontrol": 3, "okunamadi": 4}
 NEEDS_CHECK = ("kontrol", "okunamadi")
@@ -117,7 +117,7 @@ def emin_count(rows: list[Row]) -> int:
 
 def section_name(section: int | None) -> str:
     """Section 0 is the template's own box; later ones are its variants (as in Şablonlar)."""
-    return "Bölüm 1" if not section else f"Varyant {section + 1}"
+    return "Bölüm 1" if not section else f"Bölüm {section + 1}"
 
 
 def page_range(first: int, last: int) -> str:
@@ -244,7 +244,7 @@ class Cell:
                 self.level == "okunamadi" or not self.value.flagged):
             return "Zorunlu değer boş: dosya adı için bir değer yazın."
         if self.level == "okunamadi":
-            return "Kutuda okunacak yazı bulunamadı: değeri elle yazın ya da yeni bir kutu çizin."
+            return "Kutuda okunacak yazı bulunamadı: değeri elle yazın ya da yeni bir bölüm çizin."
         if self.value.flagged and self.suggestion:
             parts = [f"{a} yerine {b}" for a, b in swaps(self.text, self.suggestion)]
             where = section_name(self.source)

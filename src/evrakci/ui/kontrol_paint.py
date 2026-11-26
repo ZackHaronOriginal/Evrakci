@@ -19,7 +19,7 @@ from evrakci.ui import icons, theme
 # Cut kind -> (Lucide icon, colour role). "start" (the job's first document) has no cut.
 CUT_ICONS = {"qr": ("qr-code", "cut-qr"), "filter": ("funnel", "cut-filter"),
              "manual": ("scissors", "cut-manual")}
-CUT_WORDS = {"qr": "QR ayıraç", "filter": "Filtre", "manual": "Elle kesim", "start": "İşin başı"}
+CUT_WORDS = {"qr": "QR ayraç", "filter": "Filtre", "manual": "Elle kesim", "start": "İşin başı"}
 TAB_SLANT = 8  # A .gtab clip-path: 8 px slants
 TAB_RADIUS = 3  # A .gtab::before border-radius 3px 3px 0 0
 TAB_PAD_L, TAB_PAD_R, TAB_GAP = 14, 16, 6  # A .gtab padding 0 16 0 14, gap 6
@@ -77,12 +77,12 @@ def paint_rider(painter: QPainter, rect: QRectF) -> None:
 
 
 class RiderLabel(QWidget):
-    """The rider as a widget (inspector head, loupe); accessible as "Kontrol gerekiyor"."""
+    """The rider as a widget (inspector head, loupe); accessible as "Kontrol bekliyor"."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.setAccessibleName("Kontrol gerekiyor")
+        self.setAccessibleName("Kontrol bekliyor")
         self.setToolTip("Bu belge kontrol bekliyor")
 
     def sizeHint(self) -> QSize:  # noqa: N802

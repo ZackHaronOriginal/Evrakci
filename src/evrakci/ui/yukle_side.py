@@ -1,7 +1,7 @@
 """Yükle's inspector (final-a/yukle.html .inspector): Settings-style cards about the open job.
 
 Head: "Açık iş" with a … menu, the page count as the one page-size title, "4 parti, 96 belge
-bulundu" and one sentence on how the batches will be split. Then "Ön kontrol" (QR ayıraç,
+bulundu" and one sentence on how the batches will be split. Then "Ön kontrol" (QR ayraç,
 Belge, Durum) and "Tarama profili". Pinned at the bottom: the primary "Kontrol'e geç" and the
 subtle "İşi kapat"; while a batch is read the primary is disabled and a note says when it opens.
 """
@@ -277,7 +277,7 @@ class Inspector(QWidget):
         counts_col.setContentsMargins(0, m.size("s1"), 0, m.size("s1"))
         counts_col.setSpacing(0)
         self.qr_row, self.docs_row, self.state_row = (
-            KvRow("QR ayıraç"), KvRow("Belge"), KvRow("Durum"))
+            KvRow("QR ayraç"), KvRow("Belge"), KvRow("Durum"))
         for row in (self.qr_row, self.docs_row, self.state_row):
             counts_col.addWidget(row)
         col.addWidget(counts)

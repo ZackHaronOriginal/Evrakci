@@ -320,7 +320,7 @@ def test_k9_the_zoom_slider_drives_the_loupe_while_it_is_open(qtbot, tmp_path):
     screen = window.kontrol
     screen.open_loupe(0)
     entry = window._zoom["kontrol"]
-    assert entry[0] is screen.loupe().zoom and entry[1] == "Önizleme"
+    assert entry[0] is screen.loupe().zoom and entry[1] == "Önizle"
     screen.close_loupe()
     qtbot.waitUntil(lambda: window._zoom["kontrol"][0] is screen.zoom, timeout=2000)
 

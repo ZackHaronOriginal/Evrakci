@@ -755,20 +755,10 @@ class DegerlerScreen(QWidget):
         self.template_combo.blockSignals(False)
         self._template_id = self.template_combo.currentData()
 
-    def _update_search_hint(self, template: Template | None) -> None:
-        """A's "Firma, sicil no ara": the template's first two variables, words first."""
-        if template is None:
-            self._search_hints = ["Ara"]
-            self._fit_search_hint()
-            return
-        kinds = {c.key: c.style for c in self.model.columns if c.kind == "var"}
-        names = sorted(template.variables, key=lambda v: kinds.get(v.key, "code") != "text")
-        shown = [display_name(v.name) for v in names[:2]]
-        words = [shown[0]] + [tr_lower(n) for n in shown[1:]] if shown else []
-        # Longest first; the first one that fits the field is shown, never an elided hint.
-        self._search_hints = [f"{', '.join(words)} ara"] if len(words) > 1 else []
-        self._search_hints += [f"{words[0]} ara"] if words else []
-        self._search_hints += ["Değerlerde ara", "Ara"]
+    def _update_search_hint(self, _template: Template | None = None) -> None:
+        """"Değerlerde ara" (S-6): the search covers every value, so it names no column; "Ara"
+        when the field is too narrow for it."""
+        self._search_hints = ["Değerlerde ara", "Ara"]
         self._fit_search_hint()
 
     def _fit_search_hint(self) -> None:
@@ -1362,7 +1352,7 @@ class DegerlerScreen(QWidget):
                               f"Kaynak kesiti: {cell.title}, {shown.lower()}")
         card = side.value
         if cell.value is None:
-            card.show_value("okunmadı", "text-2")
+            card.show_value("henüz okunmadı", "text-2")
             card.level.set("okunmadi", None)
         elif cell.needs_check:
             card.show_flagged(cell.text, cell.uncertain, cell.suggestion, cell.suggestion_marks)
@@ -1814,7 +1804,8 @@ class DegerlerScreen(QWidget):
         current = self.table.currentIndex()
         row = self.model.row_at(current.row()) if current.isValid() else None
         if self.rows and not any(r.read for r in self.rows):
-            items["unread"].set("", str(len(self.rows)), " belgede şablon var, değer okunmadı")
+            items["unread"].set("", str(len(self.rows)),
+                                " belgede şablon var, değer henüz okunmadı")
             items["unread"].show()
             return
         if not self.rows:
@@ -2009,7 +2000,8 @@ class DegerlerScreen(QWidget):
     def _read_cancelled(self) -> None:
         self._store_rest(self._results)
         count_ = self._read_stored
-        self._finish(f"Okuma durduruldu: {count_} belge okundu ve kaydedildi, kalanlar okunmadı.",
+        self._finish(f"Okuma durduruldu: {count_} belge okundu ve kaydedildi, "
+                     f"kalanlar henüz okunmadı.",
                      "info", "icon", toast=True)
 
     def _finish(self, message: str, icon: str, colour: str, toast: bool = False) -> None:

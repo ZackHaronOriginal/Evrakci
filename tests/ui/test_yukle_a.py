@@ -95,10 +95,10 @@ class _Drag:
 
 # -- pure counts ------------------------------------------------------------------------
 def test_reason_names_the_batches_without_separators():
-    assert reason([27, 26, 24, 0]).startswith("3 parti QR ayıraçlı; 4. partide ayıraç yok")
-    assert reason([3, 2]) == "2 partinin hepsi QR ayıraçlı."
-    assert "Partide QR ayıraç yok" in reason([0])
-    assert reason([0, 4, 0]).startswith("1 parti QR ayıraçlı; 1. ve 3. partilerde")
+    assert reason([27, 26, 24, 0]).startswith("3 parti QR ayraçlı; 4. partide ayraç yok")
+    assert reason([3, 2]) == "2 partinin hepsi QR ayraçlı."
+    assert "Partide QR ayraç yok" in reason([0])
+    assert reason([0, 4, 0]).startswith("1 parti QR ayraçlı; 1. ve 3. partilerde")
     assert reason([]).startswith("Henüz parti yok")
 
 
@@ -162,7 +162,7 @@ def test_table_rows_total_and_status_words(qtbot, tmp_path, pdfs):
     # status is an icon and a word, never colour alone
     assert all(icon and word for icon, _role, _strong, word in STATUSES.values())
     index = screen.model.index(1, FILE)
-    assert "Parti 2: tarama-2.pdf, 2 sayfa, 0 QR ayıraç, Kontrol" == index.data(
+    assert "Parti 2: tarama-2.pdf, 2 sayfa, 0 QR ayraç, Kontrol" == index.data(
         Qt.ItemDataRole.AccessibleTextRole)
     assert screen.table.selected_batch() == screen.controller.job.batches[0].id
 
@@ -387,7 +387,7 @@ def test_inspector_shows_the_preflight_counts_and_the_profile(qtbot, tmp_path, p
         screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
     side = screen.side
     assert side.title.text() == "7 sayfa" and side.sub.text() == "3 parti, 2 belge bulundu"
-    assert side.reason.text().startswith("1 parti QR ayıraçlı; 2. ve 3. partilerde ayıraç yok")
+    assert side.reason.text().startswith("1 parti QR ayraçlı; 2. ve 3. partilerde ayraç yok")
     assert side.qr_row.value.text() == "1" and side.docs_row.value.text() == "2"
     assert side.state_row.value.text() == "Hazır"
     assert side.profile.title.text() == "100 dpi, gri tonlamalı"
@@ -771,7 +771,7 @@ def test_screen_is_usable_at_large_text_without_clipping_the_file_column(qtbot, 
     assert header.sectionSize(FILE) > 200  # A's colgroup stays in px, Dosya takes the rest
     assert header.sectionSize(GRIP) == 44
     assert screen.side.qr_row.key.width() >= screen.side.qr_row.key.fontMetrics().horizontalAdvance(
-        "QR ayıraç")
+        "QR ayraç")
 
 
 def test_thousand_pages_open_quickly(qtbot, tmp_path):

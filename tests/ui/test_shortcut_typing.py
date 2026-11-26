@@ -49,7 +49,7 @@ FIELDS: dict[str, tuple[str, ...]] = {
                   "Kutu Y (mm)", "Kutu genişliği (mm)", "Kutu yüksekliği (mm)"),
     "degerler": ("Değerlerde ara", "Sicil No düzenle"),  # the cell editor opens with F2
     "disa_aktar": ("Hedef klasör", "Dosya adı kalıbı"),
-    "rehber": ("Rehberde ara", "Kaç adet ayıraç yaprağı"),
+    "rehber": ("Rehberde ara", "Kaç adet ayraç yaprağı"),
 }
 WINDOW = {"yukle": "job", "kontrol": "job", "sablonlar": "job_sablon",
           "degerler": "job_degerler", "disa_aktar": "job_disa", "rehber": "job_disa"}

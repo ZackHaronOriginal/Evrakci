@@ -94,7 +94,7 @@ def _heading_row() -> tuple[QWidget, QLabel, QLabel]:
     row.setSpacing(m.size("s2"))
     title = QLabel("Partiler")
     title.setFont(m.font("body-strong"))
-    hint = QLabel("Sürükleyin ya da Alt+↑ / Alt+↓ ile sıralayın.")
+    hint = QLabel("Sürükleyin ya da Alt+Yukarı / Alt+Aşağı ile sıralayın.")
     hint.setProperty("textRole", "secondary")
     hint.setStyleSheet(f"font-size: {m.size('fs-caption')}px;")
     row.addWidget(title, 0, Qt.AlignmentFlag.AlignBaseline)

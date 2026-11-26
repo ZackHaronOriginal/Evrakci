@@ -37,7 +37,7 @@ from evrakci.ui.yukle_info import BatchSummary
 
 MIME = "application/x-evrakci-batch"
 GRIP, NO, FILE, PAGES, QR, STATUS = range(6)
-TITLES = {GRIP: "", NO: "No", FILE: "Dosya", PAGES: "Sayfa", QR: "QR ayıraç", STATUS: "Durum"}
+TITLES = {GRIP: "", NO: "No", FILE: "Dosya", PAGES: "Sayfa", QR: "QR ayraç", STATUS: "Durum"}
 RIGHT = (NO, PAGES, QR)
 # A's colgroup (yukle.html) at 100 % text; Dosya takes the rest
 WIDTHS = {GRIP: 44, NO: 56, PAGES: 96, QR: 116, STATUS: 148}
@@ -159,9 +159,9 @@ class BatchModel(QAbstractTableModel):
 
     def _spoken(self, item: Item, column: int) -> str:
         if item.kind == "total":
-            qr = "okunuyor" if item.qr is None else f"{item.qr} QR ayıraç"
+            qr = "okunuyor" if item.qr is None else f"{item.qr} QR ayraç"
             return f"Toplam: {item.parties} parti, {item.pages} sayfa, {qr}"
-        qr = "QR ayıraçlar okunuyor" if item.qr is None else f"{item.qr} QR ayıraç"
+        qr = "QR ayraçlar okunuyor" if item.qr is None else f"{item.qr} QR ayraç"
         return (f"Parti {item.number}: {item.name}, {item.pages} sayfa, {qr}, "
                 f"{STATUSES[item.status][3]}")
 
@@ -297,6 +297,10 @@ class BatchDelegate(QStyledItemDelegate):
                     and self.view.selectionModel().isRowSelected(index.row(), QModelIndex()))
         hc = m.theme() == "hc"  # a selected row is a Highlight fill with HighlightText
         ink = "text-on-accent" if hc and selected else None
+        hovered = (not selected and item.kind == "batch" and not hc
+                   and index.row() == self.view._hover_row)  # S-3 (HC: no tint, Highlight = pick)
+        if hovered:
+            painter.fillRect(rect, m.color("hover"))
         if selected:
             painter.fillRect(rect, m.color("accent" if hc else "selected"))
             if column == 0:
@@ -314,7 +318,7 @@ class BatchDelegate(QStyledItemDelegate):
                             QRectF(rect.center().x() - 8, rect.center().y() - 8, 16, 16),
                             m.hex(ink or "text-2"))
         elif column == STATUS and not total:
-            self._status(painter, inner, item, ink, selected)
+            self._status(painter, inner, item, ink, selected or hovered)
         else:
             self._cell(painter, inner, item, column, ink)
         painter.restore()
@@ -366,6 +370,7 @@ class BatchTable(QTableView):
     batch_activated = Signal(str)  # Enter or double click on a batch row: its id
 
     def __init__(self, parent=None) -> None:
+        self._hover_row = -1
         super().__init__(parent)
         m = theme.manager()
         self.setHorizontalHeader(BatchHeader(self))
@@ -501,7 +506,22 @@ class BatchTable(QTableView):
                      and self.model().items[index.row()].kind == "batch")
         self.viewport().setCursor(Qt.CursorShape.SizeAllCursor if over_grip
                                   else Qt.CursorShape.ArrowCursor)
+        self._set_hover(index.row() if index.isValid() else -1)
         super().mouseMoveEvent(event)
+
+    def _set_hover(self, row: int) -> None:
+        """S-3: the row under the mouse gets the hover tint (whole row, batch rows only)."""
+        if row == self._hover_row:
+            return
+        old, self._hover_row = self._hover_row, row
+        for r in (old, row):
+            if r >= 0:
+                self.viewport().update(0, self.rowViewportPosition(r), self.viewport().width(),
+                                       self.rowHeight(r))
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        self._set_hover(-1)
+        super().leaveEvent(event)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         super().paintEvent(event)

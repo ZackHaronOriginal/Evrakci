@@ -102,18 +102,18 @@ def reason(qr_by_batch: list[int]) -> str:
     without = [i for i, qr in enumerate(qr_by_batch, start=1) if qr == 0]
     with_qr = len(qr_by_batch) - len(without)
     if not without:
-        return ("Parti QR ayıraçlı." if len(qr_by_batch) == 1
-                else f"{len(qr_by_batch)} partinin hepsi QR ayıraçlı.")
+        return ("Parti QR ayraçlı." if len(qr_by_batch) == 1
+                else f"{len(qr_by_batch)} partinin hepsi QR ayraçlı.")
     if with_qr == 0:
-        return ("Partilerde QR ayıraç yok; belgeleri Kontrol'de filtreyle ya da elle bölün."
+        return ("Partilerde QR ayraç yok; belgeleri Kontrol'de filtreyle ya da elle bölün."
                 if len(qr_by_batch) > 1
-                else "Partide QR ayıraç yok; belgeleri Kontrol'de filtreyle ya da elle bölün.")
+                else "Partide QR ayraç yok; belgeleri Kontrol'de filtreyle ya da elle bölün.")
     if len(without) > SHOWN_BATCHES:  # name a few, count the rest: "2., 3., 5. ve 37 partide"
         named = ", ".join(f"{n}." for n in without[:SHOWN_BATCHES])
         left = f"{named} ve {len(without) - SHOWN_BATCHES} partide"
     else:
         left = f"{ordinals(without)} {'partide' if len(without) == 1 else 'partilerde'}"
-    return (f"{with_qr} parti QR ayıraçlı; {left} ayıraç yok, "
+    return (f"{with_qr} parti QR ayraçlı; {left} ayraç yok, "
             "Kontrol'de filtreyle bölebilirsiniz.")
 
 

@@ -189,19 +189,30 @@ class TitleBand(QWidget):
     def fit(self) -> None:
         """Every tab with its icon and name while they fit (A's strip, unchanged at 100 %);
         otherwise as many as fit, in order and always with the selected one, and the rest in
-        the "»" menu (option b). Once tabs overflow, they give way to the whole job name
-        first (A's 150 % render shows it in full at 1366 px). When the name still does not
-        fit, the save state drops its words, and only then does the name elide (full name
-        in its tooltip and accessible name)."""
+        the "»" menu (option b). Once tabs overflow they keep priority over the job name (S-4):
+        the name takes the room the tabs leave. When the whole name does not fit, the save
+        state drops its words, and only then does the name elide (full name in its tooltip and
+        accessible name)."""
         widths = getattr(self, "_widths", None) or self.tabs.full_widths()
         room = self.width() - self._rest()
         name = self._name_room()
         count = len(widths)
+        save = getattr(self.job_switch, "save_state", None)
+        words = save.words_width() if save is not None else 0
+        compact_now = save is not None and save.is_compact()
         if sum(widths) <= room or count == 0:
             shown = set(range(count))
             used = sum(widths)
+            squeezed = used + name > room
         else:
+            # The save state gives up its words before any tab does, so the tabs count with
+            # that room; a long name keeps at most a fifth of the band, the tabs get the rest
+            # and the name elides to what is left (S-4).
+            room += 0 if compact_now else words
             room -= (self.overflow.width() or theme.manager().title_band().control_height) + FOOT
+            plain = self.job_switch.name
+            keep = min(max(0, plain.sizeHint().width() - plain.minimumSizeHint().width()),
+                       self.width() // 5)
             current = max(0, self.tabs.currentIndex())
             shown: set[int] = set()
             used = widths[current]
@@ -209,10 +220,11 @@ class TitleBand(QWidget):
             for index in range(count):  # the first tabs in order, around the selected one
                 if index == current:
                     continue
-                if used + widths[index] + name > room:
+                if used + widths[index] + keep > room:
                     break
                 shown.add(index)
                 used += widths[index]
+            squeezed = True  # tabs overflow: the words are not worth the room they take
         self.tabs.set_shown(shown)
         overflow = len(shown) < count
         if self._foot_gap.sizeHint().width() != (FOOT if overflow else 0):
@@ -220,9 +232,8 @@ class TitleBand(QWidget):
                                       QSizePolicy.Policy.Minimum)
             self._row.invalidate()
         self.overflow.setVisible(overflow)
-        save = getattr(self.job_switch, "save_state", None)
         if save is not None and hasattr(save, "set_compact"):
-            save.set_compact(used + name > room)
+            save.set_compact(squeezed)
         self.update()  # the right foot follows the strip
 
     def _fill_overflow(self) -> None:

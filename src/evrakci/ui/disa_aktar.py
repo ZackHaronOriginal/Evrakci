@@ -650,7 +650,7 @@ class DisaAktarScreen(QWidget):
 
     def _left_out_note(self) -> str:
         """Why the pre-flight's page count is smaller than the status bar's (which counts
-        every scanned page): " (2 ayıraç sayfası hariç)", or a general note when blank or
+        every scanned page): " (2 ayraç sayfası hariç)", or a general note when blank or
         deleted pages are also left out; "" when the counts agree."""
         controller = self.controller()
         if controller is None or not self._summary.documents:
@@ -662,8 +662,8 @@ class DisaAktarScreen(QWidget):
             return ""
         separators = sum(1 for info in job.pages.values() if info.is_separator)
         if separators == missing:
-            return f" ({missing} ayıraç sayfası hariç)"
-        return f" ({missing} sayfa yazılmaz: ayıraç, boş ya da silinmiş)"
+            return f" ({missing} ayraç sayfası hariç)"
+        return f" ({missing} sayfa yazılmaz: ayraç, boş ya da silinmiş)"
 
     def _sync_files(self, state: str) -> None:
         head, model = self.files_head, self.model
@@ -1214,7 +1214,7 @@ class DisaAktarScreen(QWidget):
         if others:  # a read is running: it would find the job gone (delete after export)
             toaster = self._toaster()
             if toaster is not None:
-                toaster.show("Dışa aktarma ya da okuma sürüyor; bitince başka bir iş açın.",
+                toaster.show(BUSY_REASON,
                              kind="info")
             return
         if self._written:

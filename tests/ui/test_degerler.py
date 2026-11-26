@@ -105,7 +105,7 @@ def test_the_first_kontrol_value_is_current_and_described(qtbot, setup):
     assert card.suggestion.text == "48213" and card.suggestion.marks == (3,)
     assert card.level.level == "kontrol" and card.level.percent == 55
     assert "1 karakter belirsiz" in card.level.accessibleName()
-    assert card.why.text() == "Varyant 2 ile okundu: I yerine 1."
+    assert card.why.text() == "Bölüm 2 ile okundu: I yerine 1."
     assert screen.side.source.title.text() == "Sicil No"
     assert screen.side.source.meta.text() == "Belge 2, sayfa 2 · zorunlu"
 
@@ -125,7 +125,7 @@ def test_search_filters_and_its_empty_state_clears_it(qtbot, setup):
 def test_the_search_hint_names_the_template_s_words(qtbot, setup):
     ctl, templates, _, _ = setup
     screen = _screen(qtbot, ctl, templates)
-    assert screen.search.placeholderText() == "Firma, sicil no ara"
+    assert screen.search.placeholderText() == "Değerlerde ara"
     assert screen.template_combo.currentText() == "Kapasite Raporu"
 
 
@@ -1124,7 +1124,7 @@ def test_i19_two_readings_are_listed_and_the_suggestion_is_tagged(qtbot, tmp_pat
     card = screen.side.value
     assert card.readings_label.text() == "Tüm okumalar" and not card.readings_box.isHidden()
     rows = card.reading_rows
-    assert [r.name.text() for r in rows] == ["Bölüm 1", "Varyant 2"]
+    assert [r.name.text() for r in rows] == ["Bölüm 1", "Bölüm 2"]
     assert [r.text.text for r in rows] == ["482I3", "48213"]
     assert rows[0].text.marks == (3,)
     assert [r.percent.text() for r in rows] == ["%41", "%55"]

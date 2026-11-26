@@ -358,7 +358,7 @@ def test_inspector_explains_why_a_document_starts_here(qtbot, tmp_path):
     number = screen.current_document()
     assert side.title.text() == f"Belge {number}"
     assert side.cut_row.value.text() == "Filtre, her 2 sayfada"
-    assert side.reason.text() == "QR ayıraç yok, filtre kesti."
+    assert side.reason.text() == "QR ayraç yok, filtre kesti."
     assert side.previous_row.value.text().startswith(f"Belge {number - 1}, ")
     assert side.state_row.value.text() == "İncelenmedi"
     assert side.selection_label.text() == "Seçim: 1 sayfa (sayfa 10)"
@@ -680,7 +680,7 @@ def test_a_long_template_name_does_not_widen_the_inspector(qtbot):
     for name in ("Ekspertiz Raporu Ek Belgeler Dosyası 2024", "E" * 45):
         side.show_document(DocumentInfo(
             number=3, template=name, first=2, last=9, pages=8,
-            reason="QR ayıraç yok, filtre kesti.",
+            reason="QR ayraç yok, filtre kesti.",
             cut_icon=None, cut_role="text-2", cut_text="Filtre, her 2 sayfada",
             previous="Belge 2, 1 sayfa", check=False, reviewed=False))
         QApplication.processEvents()

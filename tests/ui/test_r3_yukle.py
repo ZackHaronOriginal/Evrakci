@@ -140,10 +140,10 @@ def test_an_empty_job_says_there_is_no_batch_yet(qtbot, tmp_path, files):
 
 # -- Y-7 ---------------------------------------------------------------------------------
 def test_the_qr_sentence_names_at_most_three_batches():
-    assert reason([5, 0, 0]).startswith("1 parti QR ayıraçlı; 2. ve 3. partilerde ayıraç yok")
+    assert reason([5, 0, 0]).startswith("1 parti QR ayraçlı; 2. ve 3. partilerde ayraç yok")
     many = reason([9] + [0] * 40)
-    assert "2., 3., 4. ve 37 partide ayıraç yok" in many and len(many) < 120
-    assert reason([9, 0, 0, 0, 0]).startswith("1 parti QR ayıraçlı; 2., 3., 4. ve 1 partide")
+    assert "2., 3., 4. ve 37 partide ayraç yok" in many and len(many) < 120
+    assert reason([9, 0, 0, 0, 0]).startswith("1 parti QR ayraçlı; 2., 3., 4. ve 1 partide")
 
 
 # -- Y-8 ---------------------------------------------------------------------------------

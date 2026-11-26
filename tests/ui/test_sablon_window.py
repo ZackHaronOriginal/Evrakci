@@ -132,7 +132,7 @@ def test_the_status_bar_slot_reads_as_the_mockup(qtbot, window):
     assert not parts["cursor"].isVisible()
     assert parts["box"].text() == "Kutu x 20,25  y 30,0 mm"
     assert parts["hint"].text() == "Kaydır: ok tuşları 0,25 mm, Shift 1 mm"
-    assert parts["saved"].text() == "Şablon kaydedilmedi"  # until the short pause has passed
+    assert parts["saved"].text() == "Şablon henüz kaydedilmedi"  # until the short pause has passed
     qtbot.waitUntil(lambda: parts["saved"].text().startswith("Şablon kaydedildi"), timeout=5000)
     screen.canvas.cursor_moved.emit((84.5, 41.0))
     screen.canvas.clearFocus()

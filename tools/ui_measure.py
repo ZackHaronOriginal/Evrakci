@@ -298,6 +298,9 @@ THIN_INK = 60     # fewer ink pixels than this: the picture alone cannot name th
 MIN_INK = 3       # fewer than this and the picture has no text at all
 
 
+LAST_SAMPLE: dict = {}  # the last sample_colours inputs and choice, for test messages (B-104)
+
+
 def sample_colours(ctx: Ctx, rect: QRect, declared: int | None = None) -> tuple[int, int] | None:
     """(background, text) as 0xRRGGBB from the rendered window, see the module docstring.
 
@@ -331,6 +334,11 @@ def sample_colours(ctx: Ctx, rect: QRect, declared: int | None = None) -> tuple[
                 strongest, strongest_ratio = colour, ratio
         if n >= 2 and ratio > best_ratio:
             best, best_ratio = colour, ratio
+    LAST_SAMPLE.clear()
+    LAST_SAMPLE.update(background=f"{background:06x}", best=None if best is None else f"{best:06x}",
+                       best_ratio=round(best_ratio, 2), ink=ink,
+                       declared=None if declared is None else f"{declared & 0xFFFFFF:06x}",
+                       top=[(f"{c & 0xFFFFFF:06x}", n) for c, n in hist.most_common(8)])
     if ink >= THIN_INK and best is not None and best_ratio >= INK_RATIO:
         if declared is not None and _blend_of(best, declared & 0xFFFFFF, background):
             # thin glyphs: the most frequent ink is the declared colour mixed with the
@@ -370,7 +378,12 @@ def _blend_of(colour: int, declared: int, background: int, slack: float = 0.12) 
         if ok and fractions and all(0 < t <= 1.03 for t in fractions) \
                 and max(fractions) - min(fractions) <= slack:
             return True
-    return False
+    # subpixel smoothing (seen on CI: ".pdf" sampled as #6e6997 for a grey text colour) tints
+    # the edge pixels, so the channels move apart; their brightness still lies between the
+    # background and the declared colour
+    lum_c, lum_d, lum_b = _luminance(colour), _luminance(declared), _luminance(background)
+    low, high = sorted((lum_d, lum_b))
+    return low - 0.01 <= lum_c <= high + 0.01 and abs(lum_c - lum_b) > 0.02
 
 
 def _dominant(hist: Counter[int]) -> int:

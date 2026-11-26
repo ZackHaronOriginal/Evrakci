@@ -128,7 +128,7 @@ the part between the two comments.
 | Esc | Seçimi kaldır | Düzen | also closes the preview; yazarken kapalı |
 | S | Ölçüte göre seç… | Araçlar | the dialog 'Sayfaları seç': Bu belge, Tek sayfalar, Çift sayfalar (counted from each document's first page); only changes the selection; yazarken kapalı |
 | F | Filtre uygula… | Araçlar | yazarken kapalı |
-| Ctrl+Shift+F | Kayıtlı filtreler | Araçlar | focus goes to the chip row of the template's saved filters (nothing is selected or changed); inside the row (yerel): Left / Right between chips, Space or Enter turn a chip on or off, Del deletes it (undoable), Esc back to the timeline; status 'Hiçbir filtre açık değil' when there is no row |
+| Ctrl+Shift+F | Kayıtlı filtreler | Araçlar | focus goes to the chip row of the template's saved filters (nothing is selected or changed); inside the row (yerel): Left / Right between chips, Space or Enter turn a chip on or off, Del deletes it (undoable), Esc back to the timeline; status 'Kayıtlı filtre yok' when there is no row |
 | T | Şablonu uygula | Araçlar | yazarken kapalı |
 | D | Değerlerde aç | Araçlar | opens Değerler on this document, status 'Belge N seçildi.'; yazarken kapalı |
 | Space | Önizle | Görünüm | the loupe; yazarken kapalı |

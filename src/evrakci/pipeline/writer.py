@@ -9,6 +9,7 @@ from pathlib import Path
 import pikepdf
 
 from evrakci.pipeline.cuts import Document
+from evrakci.pipeline.export import CHECK_SUBFOLDER
 from evrakci.pipeline.job import parse_page_id
 from evrakci.pipeline.naming import name_key
 
@@ -36,7 +37,10 @@ def write_documents(
     # Never mix with an earlier export: any old PDF or index would look like part of this one.
     # Letter case is ignored: a USB stick or Windows share treats Belge.PDF as belge.pdf.
     # Names may carry a subfolder ("Kontrol gerekenler/ad"): its old PDFs count too.
-    folders = {out_dir} | {out_dir / Path(n).parent for n in names if Path(n).parent != Path(".")}
+    # An existing "Kontrol gerekenler" counts even when this export does not use it: its old
+    # PDFs would sit unlisted beside the new files.
+    folders = {out_dir, out_dir / CHECK_SUBFOLDER} | {
+        out_dir / Path(n).parent for n in names if Path(n).parent != Path(".")}
     for folder in sorted(folders):
         if folder.is_dir():
             old = sorted(p for p in folder.iterdir()

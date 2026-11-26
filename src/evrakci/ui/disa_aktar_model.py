@@ -14,7 +14,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from evrakci.pipeline.export import sources_text
+from evrakci.pipeline.export import CHECK_SUBFOLDER, sources_text
 from evrakci.pipeline.templates.model import TemplateError, pattern_names
 
 NUMBER_SUFFIX = re.compile(r" \((\d+)\)$")  # what `unique_names` adds on a clash
@@ -59,6 +59,9 @@ def folder_state(text: str) -> FolderState:
                                True)
         entries = list(path.iterdir())
         old = [p for p in entries if p.suffix.lower() == ".pdf" or p.name.lower() == "index.xlsx"]
+        sub = path / CHECK_SUBFOLDER  # old PDFs there are an earlier export's too
+        if sub.is_dir():
+            old += [p for p in sub.iterdir() if p.suffix.lower() == ".pdf"]
         if old:
             return FolderState("full", "Klasör boş değil. Boş bir klasör seçin.", "err", True)
         if not os.access(path, os.W_OK):
@@ -239,7 +242,7 @@ def findings(summary: Summary, folder: FolderState,
             "Yine de yazılır; index.xlsx'te işaretlenir.", summary.kontrol, "Sonraki kontrol",
             "next_check"))
     if deletes_job and not summary.kontrol:  # a Kontrol document keeps the job
-        rows.append(Finding("kontrol", DELETE_WARNING))
+        rows.append(Finding("bilgi", DELETE_WARNING))
     if summary.eksik:
         more = len(summary.eksik_vars) - 1
         which = summary.eksik_vars[0] if summary.eksik_vars else ""

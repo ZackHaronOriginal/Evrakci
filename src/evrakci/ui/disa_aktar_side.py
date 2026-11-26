@@ -38,8 +38,14 @@ class _ClickLabel(QLabel):
         self.setWordWrap(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton and self._box.isEnabled():
+            self._box.setFocus(Qt.FocusReason.MouseFocusReason)
+        super().mousePressEvent(event)
+
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
-        if self._box.isEnabled() and event.button() == Qt.MouseButton.LeftButton:
+        inside = self.rect().contains(event.position().toPoint())
+        if event.button() == Qt.MouseButton.LeftButton and inside and self._box.isEnabled():
             self._box.toggle()
         super().mouseReleaseEvent(event)
 

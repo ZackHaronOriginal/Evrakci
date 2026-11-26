@@ -8,7 +8,7 @@ import pytest
 from fakes import make_pdf, qr_page, text_page
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QShortcut
-from PySide6.QtWidgets import QAbstractButton, QApplication, QCheckBox, QLineEdit
+from PySide6.QtWidgets import QAbstractButton, QApplication, QCheckBox, QLabel, QLineEdit
 
 from evrakci.pipeline.cuts import record_values
 from evrakci.pipeline.store import JobStore
@@ -653,10 +653,13 @@ def test_list_kontrol_count_equals_the_check_sheet_rows(qtbot, tmp_path, monkeyp
 
 # -- I-39: the name list with its Kaynak column, the filter, the copy --------------------
 def _clash_screen(qtbot, tmp_path):
+    from saving import wait_saved
+
     """The three documents with the pattern {Firma}: two share a name ("Ege Kalıp (2)")."""
     store, templates, ctl, template = _job(tmp_path)
     template.set_pattern("{Firma}")
     templates.save(template)
+    wait_saved(ctl)  # the write-behind saver must not write an older snapshot over this save
     store.save(ctl.job)
     screen = DisaAktarScreen(lambda: ctl, lambda: {t.id: t for t in templates.list()},
                              settings_path=tmp_path / "ayar.json")
@@ -702,8 +705,10 @@ def test_ctrl_shift_c_copies_the_whole_list_with_a_header(qtbot, tmp_path):
     assert window.registry.spec("disa_aktar.liste_kopyala").shortcuts == ("Ctrl+Shift+C",)
 
 
-def test_the_list_equals_onizle_and_the_files_written(qtbot, tmp_path, capsys):
+def test_the_list_equals_onizle_and_the_files_written(qtbot, tmp_path, capsys, monkeypatch):
     from evrakci.cli import main
+
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(tmp_path / "ayar.json"))
 
     screen, ctl = _clash_screen(qtbot, tmp_path)
     out = tmp_path / "out"
@@ -1105,8 +1110,11 @@ def test_an_older_settings_file_loads_with_the_subfolder_on(tmp_path):
     assert load_settings(path) == Settings("sakla", False)
 
 
-def test_the_window_and_the_cli_give_the_same_names_and_folders(qtbot, tmp_path, capsys):
+def test_the_window_and_the_cli_give_the_same_names_and_folders(qtbot, tmp_path, capsys,
+                                                                monkeypatch):
     from evrakci.cli import main
+
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(tmp_path / "ayar.json"))
 
     screen, ctl = _clash_screen(qtbot, tmp_path)
     out = tmp_path / "out"
@@ -1123,6 +1131,9 @@ def test_the_window_and_the_cli_give_the_same_names_and_folders(qtbot, tmp_path,
     flat = capsys.readouterr().out.rstrip("\n").split("\n")
     assert flat == screen.list_text().split("\n")
     assert not any("Kontrol gerekenler/" in line for line in flat)
+    # the box saved "off" to the settings file the CLI is told to read: no flag needed
+    assert main(base) == 0
+    assert capsys.readouterr().out.rstrip("\n").split("\n") == flat
 
 
 def test_the_checkbox_is_saved_and_shared_with_ayarlar(qtbot, tmp_path):
@@ -1165,7 +1176,7 @@ def test_the_delete_warning_shows_only_when_the_job_will_be_deleted(qtbot, tmp_p
     # a document needs a check: the job is kept, so nothing is announced
     assert not [f for f in screen._findings if f.title == DELETE_WARNING]
     clean = findings(Summary(3, 6, 0, True, 0, (), "", 0, 0), folder_state(""), deletes_job=True)
-    assert [f.title for f in clean if f.level == "kontrol"] == [DELETE_WARNING]
+    assert [f.level for f in clean if f.title == DELETE_WARNING] == ["bilgi"]
     off = findings(Summary(3, 6, 0, True, 0, (), "", 0, 0), folder_state(""))
     assert not [f for f in off if f.title == DELETE_WARNING]
     screen.layer.setChecked(False)  # without the text layer the job is kept as well
@@ -1187,3 +1198,50 @@ def test_planning_800_documents_with_the_subfolder_stays_fast(tmp_path):
     elapsed = time.perf_counter() - started
     assert len(items) == 800 and elapsed < 3, elapsed
     assert len({(i.folder, i.name) for i in items}) == 800
+
+
+def test_the_clash_screen_job_file_holds_the_values_the_cli_reads(qtbot, tmp_path):
+    from evrakci.pipeline.job import job_to_dict
+
+    _screen_, ctl = _clash_screen(qtbot, tmp_path)
+    assert ctl.saver.idle  # no late snapshot is still to be written over the saved file
+    assert job_to_dict(ctl.store.load(ctl.job.id)) == job_to_dict(ctl.job)
+
+
+def test_an_old_pdf_in_an_existing_subfolder_blocks_an_export_without_the_subfolder(tmp_path):
+    import pytest as _pytest
+
+    from evrakci.pipeline.exporting import ExportError, export_job
+
+    out = tmp_path / "out"
+    (out / "Kontrol gerekenler").mkdir(parents=True)
+    (out / "Kontrol gerekenler" / "eski.pdf").write_bytes(b"%PDF-1.4")
+    assert folder_state(str(out)).kind == "full"
+    store, templates, ctl, _t = _job(tmp_path)
+    with _pytest.raises(ExportError):
+        export_job(ctl.job, store.batch_files(ctl.job), {t.id: t for t in templates.list()},
+                   out, with_layer=False, check_subfolder=False)
+    assert not (out / "index.xlsx").exists()
+
+
+def test_the_delete_warning_is_a_bilgi_row_not_orange(tmp_path):
+    from evrakci.ui.disa_aktar_model import DELETE_WARNING
+
+    rows = findings(Summary(3, 6, 0, True, 0, (), "", 0, 0), folder_state(""), deletes_job=True)
+    assert [f.level for f in rows if f.title == DELETE_WARNING] == ["bilgi"]
+
+
+def test_a_click_on_the_label_focuses_the_box_and_toggles_only_inside(qtbot, tmp_path):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtTest import QTest
+
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    screen.show()
+    box = screen.separate
+    label = box.parentWidget().findChildren(QLabel)[0]
+    assert box.isChecked()
+    QTest.mouseClick(label, Qt.MouseButton.LeftButton, pos=label.rect().center())
+    assert not box.isChecked() and screen.focusWidget() is box
+    QTest.mousePress(label, Qt.MouseButton.LeftButton, pos=label.rect().center())
+    QTest.mouseRelease(label, Qt.MouseButton.LeftButton, pos=QPoint(-20, -20))
+    assert not box.isChecked()  # released outside the label: no change

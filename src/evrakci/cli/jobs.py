@@ -10,7 +10,7 @@ from pathlib import Path
 import pypdfium2 as pdfium
 
 from evrakci.cli.errors import UserError
-from evrakci.pipeline.analyze import EMPTY_INK_RATIO
+from evrakci.pipeline.analyze import EMPTY_INK_RATIO, BatchError, count_pages
 from evrakci.pipeline.cuts import (
     Document,
     compute_documents,
@@ -108,7 +108,19 @@ def create(args: argparse.Namespace, store: JobStore) -> int:
     apply_retention(store)
     for name in repeated_files([], [Path(p).name for p in args.pdf]):
         print(f"{name} zaten ekli.", file=sys.stderr)
-    job = store.create_job(args.ad, args.pdf, progress=_progress)
+    readable, failed = [], []
+    for path in args.pdf:  # one broken file never spoils the others (as in the window)
+        try:
+            count_pages(Path(path))
+        except BatchError as error:
+            failed.append(str(error))
+        else:
+            readable.append(path)
+    if not readable:
+        raise BatchError("\n".join(failed))
+    job = store.create_job(args.ad, readable, progress=_progress)
+    for line in failed:  # every file that was left out, one line each
+        print(line, file=sys.stderr)
     print(job.id)
     return 0
 

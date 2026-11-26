@@ -147,6 +147,16 @@ def failed_text(lines: list[str]) -> str:
     return text
 
 
+def _again_text(again: list[str]) -> tuple[str, str]:
+    """The warning for files that are already in the job: (shown, spoken)."""
+    if len(again) == 1:
+        warn = f"{_short_name(again[0])} zaten ekli."
+    else:
+        shown = ", ".join(_short_name(n) for n in again[:3])
+        warn = f"{len(again)} dosya zaten ekli: {shown}{'…' if len(again) > 3 else ''}"
+    return warn, f"{', '.join(again)} zaten ekli."
+
+
 class _Outcome:
     """What a read hands to the window thread: the result and the files that did not open."""
 
@@ -606,8 +616,16 @@ class YukleScreen(QWidget):
 
     def create_job(self, paths: list[Path], name: str) -> None:
         paths = [Path(p) for p in paths]
+        again = repeated_files([], [p.name for p in paths])  # the CLI warns the same way
+
+        def opened(job: Job) -> None:
+            self._swap_job(job)
+            if again:
+                warn, spoken = _again_text(again)
+                self._tell(warn, "kontrol", spoken=spoken)
+
         self._begin(paths, lambda _total, readable, _failed: (
-            lambda progress: self.store.create_job(name, readable, progress)), self._swap_job,
+            lambda progress: self.store.create_job(name, readable, progress)), opened,
             split=True)
 
     def add_batch(self, path: Path) -> None:
@@ -665,14 +683,10 @@ class YukleScreen(QWidget):
             undo, available = undo_last(controller.undo_stack)
             full = prepared[0].batch.file_name
             if again:  # a warning, not a refusal: the add stays and Geri al takes it back
-                if len(again) == 1:
-                    warn = f"{_short_name(again[0])} zaten ekli."
-                else:
-                    shown = ", ".join(_short_name(n) for n in again[:3])
-                    warn = f"{len(again)} dosya zaten ekli: {shown}{'…' if len(again) > 3 else ''}"
+                warn, spoken = _again_text(again)
                 head = f"{count} parti eklendi. " if count > 1 else ""
                 self._tell(head + warn, "kontrol", "Geri al", undo, available,
-                           spoken=f"{head}{', '.join(again)} zaten ekli.")
+                           spoken=head + spoken)
                 return
             self._tell(f"{count} parti eklendi." if count > 1
                        else f"{_short_name(full)} eklendi.", "success",

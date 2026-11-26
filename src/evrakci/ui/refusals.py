@@ -101,7 +101,7 @@ def _export(window, tab: str) -> str | None:
     screen = window.disa_aktar
     if screen._state == "running":
         return "Dışa aktarma sürüyor."
-    blocked = [f for f in screen._findings if f.level == "engel"] or screen._findings
+    blocked = [f for f in screen._findings if f.level == "engel" and f.title]
     return "Dışa aktarılamıyor: " + blocked[0].title if blocked else None
 
 

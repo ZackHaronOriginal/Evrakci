@@ -175,3 +175,19 @@ def test_the_palette_says_the_reason_when_a_greyed_command_is_chosen(windows):
     settle()
     assert win.message.text() == refusals.NO_RESULTS_HERE
     assert not palette.isVisible()
+
+
+def test_ctrl_e_reason_never_names_a_row_that_is_not_an_engel():
+    """R-O-8: only a blocking row gives the reason; otherwise there is none to invent."""
+    from types import SimpleNamespace as NS
+
+    def window(findings):
+        screen = NS(_state="main", _findings=findings)
+        return NS(loading=lambda: False, controller=lambda: object(), disa_aktar=screen)
+
+    bilgi = NS(level="bilgi", title="")
+    kontrol = NS(level="kontrol", title="2 belge kontrol bekliyor")
+    engel = NS(level="engel", title="Klasör seçilmedi")
+    assert refusals._export(window([bilgi, kontrol]), "disa_aktar") is None
+    assert refusals._export(window([bilgi, engel]), "disa_aktar") == \
+        "Dışa aktarılamıyor: Klasör seçilmedi"

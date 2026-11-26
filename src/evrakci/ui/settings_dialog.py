@@ -325,6 +325,11 @@ class SettingsDialog(QDialog):
         self.check_subfolder.setChecked(self._current_settings().check_subfolder)
         self.check_subfolder.toggled.connect(self._save_check_subfolder)
         box.addWidget(self.check_subfolder)
+        self.export_note = QLabel()  # a failed save is said here, on its own page
+        self.export_note.setProperty("textRole", "secondary")
+        self.export_note.setWordWrap(True)
+        self.export_note.hide()
+        box.addWidget(self.export_note)
         return self._finish(page, box)
 
     def _save_check_subfolder(self, on: bool) -> None:
@@ -332,7 +337,13 @@ class SettingsDialog(QDialog):
             save_settings(dataclasses.replace(self._current_settings(), check_subfolder=on),
                           self._retention_path)
         except OSError as error:
-            self.retention_note.setText(f"Ayar kaydedilemedi: {error}")
+            self.check_subfolder.blockSignals(True)
+            self.check_subfolder.setChecked(not on)  # the box shows what is saved
+            self.check_subfolder.blockSignals(False)
+            self.export_note.setText(f"Ayar kaydedilemedi: {error}")
+            self.export_note.show()
+            return
+        self.export_note.hide()
 
     def choose_folder(self) -> None:
         start = self.export_folder.text() or str(Path.home())

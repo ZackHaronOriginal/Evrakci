@@ -241,3 +241,13 @@ def test_bad_settings_file_falls_back_to_keep(tmp_path, monkeypatch, capsys):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     assert cli(tmp_path, "is", "olustur", "İş", str(pdf)) == 0
     assert "Ayar dosyası okunamadı" in capsys.readouterr().err
+
+
+def test_cli_retention_keeps_the_other_settings(tmp_path, monkeypatch, capsys):
+    """R-O-1: `ayar saklama` changes the retention only."""
+    path = tmp_path / "ayarlar.json"
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(path))
+    save_settings(Settings("sakla", False), path)
+    assert main(["--kok", str(tmp_path / "k"), "ayar", "saklama", "30"]) == 0
+    assert load_settings(path) == Settings("30", False)
+    assert "30 gün sonra dışa aktarılmış işler silinir" in capsys.readouterr().out

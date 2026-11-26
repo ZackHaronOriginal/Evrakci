@@ -580,13 +580,15 @@ class DisaAktarScreen(QWidget):
             self.separate.blockSignals(False)
 
     def _separate_toggled(self, on: bool) -> None:
-        settings = self._settings()
-        if settings is not None:
-            try:
-                save_settings(dataclasses.replace(settings, check_subfolder=on),
-                              self.settings_path)
-            except OSError:
-                pass  # the choice still applies to this export
+        try:  # keep every other setting as it is; only this one changes
+            save_settings(dataclasses.replace(load_settings(self.settings_path),
+                                              check_subfolder=on), self.settings_path)
+        except (OSError, SettingsError) as error:  # never silent: the box shows what is saved
+            self.separate.blockSignals(True)
+            self.separate.setChecked(not on)
+            self.separate.blockSignals(False)
+            self._say_status(f"Ayar kaydedilemedi: {error}")
+            return
         if self.task is None and not self._written:
             self._sync_after_pattern()
 

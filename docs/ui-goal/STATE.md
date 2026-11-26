@@ -105,8 +105,13 @@ Updated after every accepted step. A new session or a compacted one reads this f
   guven; Sayfaları seç dialog now two columns per spec §0 (648x469 at 150 %, fits 1366x768; test) and Tab order
   criterion -> parameters -> modes -> Seç; evidence tests/test_select_guven.py, test_cli_select_guven.py,
   tests/ui/test_kontrol_guven.py, test_kontrol_select.py (173 passed); full suite 2825 passed. Next A: I-04.
-  IN PROGRESS: A I-04 (worktree, high). B-092 attempt b895e1e: check CI. Then A §0 + I-09
-  (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
+  A I-04 DONE (merged 152be91): page sizes in the job (format 2), old jobs filled once off the window thread,
+  select kind farkli + CLI is sec farkli (read-only), dialog row, tile marks (icon + word, not orange), Görünüm
+  toggle, Git jumps; evidence tests/test_select_farkli.py, test_cli_select_farkli.py, tests/ui/test_kontrol_farkli.py;
+  perf_kontrol 800 pages within limits; fill 800 pages 11 ms. Decision (Opus): tile marks use the whole-job
+  reference; Her belge only in the dialog and CLI. GROUP A BUILT: I-08, I-09, I-03, I-06, I-04.
+  Group D review fixes merged (4a8e1dc). Late-callback CI error fixed (5627f63, tests/ui/test_late_callbacks.py).
+  NEXT: group A Opus review; then C I-07 (task spec .claude/gorevler/2026-11-26-c18-i07.md).
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
   shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,

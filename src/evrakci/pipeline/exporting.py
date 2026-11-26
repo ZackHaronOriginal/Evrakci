@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pikepdf
 
-from evrakci.pipeline.disk_errors import NO_ROOM, disk_reason
+from evrakci.pipeline.disk_errors import NO_ROOM, disk_message, disk_reason, technical
 from evrakci.pipeline.export import (
     CHECK_SUBFOLDER,
     NOTE_SHORTENED,
@@ -141,21 +141,23 @@ def export_job(
             progress=lambda done, total: report("write", done, total),
         )
     except FileExistsError as error:
-        raise ExportError(
-            f"{disk_reason(error, out_dir)} Önceki bir dışa aktarımdan kalmış olabilir: {out_dir}. "
-            "Boş bir klasör seçin."
-        ) from None
+        earlier = (f" Önceki bir dışa aktarımdan kalmış olabilir: {out_dir}."
+                   if error.errno is None else "")
+        raise ExportError(f"{disk_message(error, out_dir)}{earlier} Boş bir klasör seçin.") \
+            from None
     except OSError as error:
         reason = disk_reason(error, out_dir)
         advice = ("Yer açıp boş bir klasöre yeniden dışa aktarın." if reason == NO_ROOM
                   else "Sorunu giderip boş bir klasöre yeniden dışa aktarın.")
         raise ExportError(
-            f"Dosyalar yazılamadı: {reason} Yazılanlar: {written_so_far()}. "
+            f"Dosyalar yazılamadı: {disk_message(error, out_dir)} "
+            f"Yazılanlar: {written_so_far()}. "
             f"index.xlsx yazılmadı. {advice}"
         ) from None
-    except (pikepdf.PdfError, KeyError, IndexError):
+    except (pikepdf.PdfError, KeyError, IndexError) as error:
         raise ExportError(
-            f"Taranan dosyalardan biri okunamadı. Yazılanlar: {written_so_far()}. "
+            f"Taranan dosya okunamadı: {_scan_name(error, batch_files)}. ({technical(error)}) "
+            f"Yazılanlar: {written_so_far()}. "
             "index.xlsx yazılmadı; işin partilerini kontrol edin."
         ) from None
     result = ExportResult(items, paths, with_layer=with_layer and bool(paths))
@@ -168,7 +170,7 @@ def export_job(
                 layer = add_layer(path, layered, tessdata=tessdata)
                 os.replace(layered, path)
             except (EngineUnavailable, OSError) as error:
-                why = disk_reason(error, out_dir) if isinstance(error, OSError) else str(error)
+                why = disk_message(error, out_dir) if isinstance(error, OSError) else str(error)
                 done = ", ".join(p.name for p in paths[: number - 1]) or "yok"
                 for later in items[number - 1:]:
                     later.checks.append("metin katmanı eklenmedi")
@@ -198,8 +200,25 @@ def export_job(
 
 def _index_reason(error: Exception, out_dir: Path) -> str:
     """Why index.xlsx was not written, in Turkish (the disk's own text is English)."""
-    return disk_reason(error, out_dir) if isinstance(error, OSError) \
-        else "dosya hazırlanamadı."
+    if isinstance(error, OSError):
+        return disk_message(error, out_dir)
+    return f"dosya hazırlanamadı ({technical(error)})."
+
+
+def _scan_name(error: BaseException, batch_files: Mapping[str, Path]) -> str:
+    """The scan file a read error is about: found in the error's text or key, else the first
+    scan file of the job that is missing or unreadable."""
+    text = str(error)
+    for key, path in batch_files.items():
+        if str(path) in text or path.name in text or (error.args and error.args[0] == key):
+            return path.name
+    for path in batch_files.values():
+        try:
+            with pikepdf.open(path):
+                pass
+        except Exception:  # noqa: BLE001 - any failure to open names this file
+            return path.name
+    return "bilinmiyor"
 
 
 def _record_export(job: Job, out_dir: Path, exported_at: datetime, result: ExportResult) -> None:

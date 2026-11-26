@@ -259,3 +259,71 @@ def test_e10_the_preflight_engel_carries_the_same_sentence(qtbot, tmp_path):
     row = screen.preflight.rows[0].finding
     assert row.title == "Hedef klasör boş değil."
     assert row.detail.startswith("Klasörde 1 PDF var (eski.pdf).")
+
+
+# -- review round 1 ------------------------------------------------------------------------
+def test_durdur_disables_itself_and_the_stopping_text_stays(qtbot, tmp_path):
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+
+    class FakeTask:
+        cancelled = 0
+
+        def cancel(self):
+            self.cancelled += 1
+
+    screen.task = task = FakeTask()
+    screen._with_layer, screen._stage = True, "write"
+    screen.run_banner.stop_button.click()
+    assert not screen.run_banner.stop_button.isEnabled()
+    stopping = screen.run_banner.sub.text()
+    assert stopping.startswith("Durduruluyor; geçerli dosya bitince durur")
+    screen._progress(2, 3)  # a report queued behind the click
+    assert screen.run_banner.sub.text() == stopping
+    screen.cancel()
+    assert task.cancelled == 1  # a second press does nothing
+    screen.task = None
+
+
+def test_a_stop_in_the_layer_stage_names_the_files_with_a_layer(qtbot, tmp_path, monkeypatch):
+    real = module.export_job
+
+    def stopping(*args, progress=None, **kwargs):
+        def report(stage, done, total):
+            progress(stage, done, total)
+            if stage == "layer" and done >= 1:
+                screen.cancel()
+
+        return real(*args, progress=report, **kwargs)
+
+    monkeypatch.setattr(module, "export_job", stopping)
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    _export(qtbot, screen, tmp_path, layer=True)
+    first = screen._items[0].relative
+    assert f"Metin katmanı eklenenler: {first}." in screen.message.text()
+
+
+def test_the_disk_is_checked_once_when_the_card_appears(qtbot, tmp_path, monkeypatch):
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    _export(qtbot, screen, tmp_path)
+    calls = []
+    real = screen._drop_gone_buttons
+    monkeypatch.setattr(screen, "_drop_gone_buttons", lambda: calls.append(1) or real())
+    for _ in range(5):
+        screen._shown_findings = None
+        screen._sync()
+    assert calls == []  # a refresh never touches the disk for the buttons
+
+
+def test_a_missing_document_number_is_said_not_silent(qtbot, tmp_path):
+    window, screen = _window(qtbot, tmp_path)
+    screen.open_in_kontrol(99)
+    assert window.message.text() == "Belge 99 artık yok."
+    assert window.current_tab() == "disa_aktar"
+
+
+def test_a_full_folder_with_an_index_says_so(tmp_path):
+    (tmp_path / "b").mkdir()
+    (tmp_path / "b" / "a.pdf").write_bytes(b"x")
+    (tmp_path / "b" / "index.xlsx").write_bytes(b"x")
+    assert folder_state(str(tmp_path / "b")).text.startswith(
+        "Klasörde 1 PDF ve index.xlsx var (a.pdf).")

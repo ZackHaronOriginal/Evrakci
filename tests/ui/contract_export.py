@@ -187,7 +187,8 @@ def _effect_export_stopped(c: Ctx) -> None:
 @helper("feedback.export_stopped")
 def _feedback_export_stopped(c: Ctx) -> None:
     d = _x(c)
-    assert "Durduruluyor; o ana kadar yazılanlar kalır…" in c.data["banner"], c.data["banner"]
+    stopping = "Durduruluyor; geçerli dosya bitince durur. O ana kadar yazılanlar kalır…"
+    assert stopping in c.data["banner"], c.data["banner"]
     assert d._outcome is not None and d._outcome["kind"] == "stopped"
     assert d._outcome["title"] == "Dışa aktarma durduruldu"
     assert re.fullmatch(r"Dışa aktarma durduruldu: \d+ dosya yazıldı, index\.xlsx yazılmadı\. "

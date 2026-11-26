@@ -63,3 +63,55 @@ def test_a_free_space_hint_is_not_given_for_a_permission_error(tmp_path, monkeyp
     with pytest.raises(ExportError) as caught:
         export_job(job, store.batch_files(job), {}, tmp_path / "cikti", with_layer=False)
     assert "yer açıp" not in str(caught.value).lower()
+
+
+# -- review round 1 ------------------------------------------------------------------------
+def test_a_name_too_long_uses_the_path_length_sentence():
+    error = OSError(errno.ENAMETOOLONG, "File name too long", "/cikti/uzun.pdf")
+    assert disk_reason(error, OUT) == "Çıktı klasörünün yolu çok uzun; daha kısa bir klasör seçin."
+
+
+def test_a_file_another_program_holds_is_not_a_folder_permission_error(tmp_path):
+    held = tmp_path / "acik.pdf"
+    held.write_bytes(b"x")
+    denied = PermissionError(errno.EACCES, "Permission denied", str(held))
+    assert disk_reason(denied, tmp_path) == "Dosya başka bir programda açık olabilir: acik.pdf."
+    busy = OSError(errno.EBUSY, "Device or resource busy", str(held))
+    assert disk_reason(busy, tmp_path) == "Dosya başka bir programda açık olabilir: acik.pdf."
+    sharing = PermissionError(errno.EACCES, "x", str(tmp_path / "yok.pdf"))
+    sharing.winerror = 32
+    assert disk_reason(sharing, tmp_path).startswith("Dosya başka bir programda açık")
+    # a real folder permission error keeps the folder sentence
+    assert disk_reason(PermissionError(errno.EACCES, "x", str(tmp_path)), tmp_path) == \
+        "Klasöre yazma izni yok."
+
+
+def test_a_missing_file_inside_an_existing_folder_is_not_a_missing_folder(tmp_path):
+    error = FileNotFoundError(errno.ENOENT, "No such file", str(tmp_path / "a.pdf"))
+    assert disk_reason(error, tmp_path) == "Taranan dosya bulunamadı: a.pdf."
+    gone = FileNotFoundError(errno.ENOENT, "No such file", str(tmp_path / "yok" / "a.pdf"))
+    assert disk_reason(gone, tmp_path / "yok") == "Klasör bulunamadı."
+
+
+def test_an_existing_folder_with_a_file_name_is_a_clash(tmp_path):
+    (tmp_path / "a.pdf").mkdir()
+    error = FileExistsError(errno.EEXIST, "File exists", str(tmp_path / "a.pdf"))
+    assert disk_reason(error, tmp_path) == "Bir dosya adı, aynı adlı klasörle çakışıyor: a.pdf."
+
+
+def test_an_unmapped_error_keeps_its_technical_detail(tmp_path, monkeypatch):
+    store, job = plain_job(tmp_path)
+    _fails_with(monkeypatch, OSError(errno.EIO, "Input/output error", str(tmp_path / "x.pdf")))
+    with pytest.raises(ExportError) as caught:
+        export_job(job, store.batch_files(job), {}, tmp_path / "cikti", with_layer=False)
+    assert "Disk beklenmeyen bir hata verdi. (EIO: x.pdf)" in str(caught.value)
+
+
+def test_a_corrupt_scan_names_its_file(tmp_path):
+    store, job = plain_job(tmp_path)
+    files = store.batch_files(job)
+    path = next(iter(files.values()))
+    path.write_bytes(b"bozuk")
+    with pytest.raises(ExportError) as caught:
+        export_job(job, files, {}, tmp_path / "cikti", with_layer=False)
+    assert f"Taranan dosya okunamadı: {path.name}." in str(caught.value)

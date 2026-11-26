@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.pipeline.cuts import document_template
-from evrakci.pipeline.disk_errors import disk_reason
+from evrakci.pipeline.disk_errors import disk_message
 from evrakci.pipeline.export import CHECK_SUBFOLDER, PREVIEW_HEADER, plan_export, preview_line
 from evrakci.pipeline.exporting import (
     ExportError,
@@ -89,6 +89,8 @@ INDEX_GONE = "index.xlsx bulunamadı."
 INDEX_NOT_WRITTEN = "index.xlsx yazılmadı."
 JOB_GONE = "Bu iş silindi; belge Kontrol'te açılamaz."
 NO_LAYER = "Metin katmanı tamamlanmadı."
+STOPPING = "Durduruluyor; geçerli dosya bitince durur. O ana kadar yazılanlar kalır…"
+NO_DOCUMENT_LEFT = "Belge {n} artık yok."
 STOP_HINT = ("Durdur (Ctrl+.) ile durdurursanız yazılan dosyalar kalır, index.xlsx yazılmaz.")
 
 
@@ -638,7 +640,6 @@ class DisaAktarScreen(QWidget):
         showing = state in ("main", "blocked", "empty")
         self.outcome.setVisible(state == "done" or (showing and self._outcome is not None))
         if self.outcome.isVisibleTo(self) and self._outcome is not None:
-            self._drop_gone_buttons()
             self.outcome.show_outcome(**self._outcome)
         self.preflight.setVisible(showing)
         if showing and self._findings != self._shown_findings:
@@ -941,6 +942,7 @@ class DisaAktarScreen(QWidget):
     _folder_error = False
     _written_hint = ""
     _pattern_later = False
+    _stopping = False
     _done_count = 0
     _total = 0
     _finished_at = ""
@@ -991,7 +993,7 @@ class DisaAktarScreen(QWidget):
         try:
             target.mkdir(parents=True)
         except OSError as error:
-            self.side.folder_hint.set(f"Alt klasör oluşturulamadı: {disk_reason(error, parent)} "
+            self.side.folder_hint.set(f"Alt klasör oluşturulamadı: {disk_message(error, parent)} "
                                       "Başka bir klasör seçin.", "err")
             return None
         self._folder_touched = True
@@ -1179,8 +1181,13 @@ class DisaAktarScreen(QWidget):
             self.open_in_kontrol(row.number)
 
     def open_in_kontrol(self, number: int) -> None:
-        if self.controller() is None:  # the export deleted its job: there is no document to open
+        controller = self.controller()
+        if controller is None:  # the export deleted its job: there is no document to open
             self._say_status(JOB_GONE)
+        elif not 1 <= number <= len(controller.documents()):
+            self._say_status(NO_DOCUMENT_LEFT.format(n=number))
+        if controller is None or not 1 <= number <= len(controller.documents()):
+            self.results.setFocus(Qt.FocusReason.OtherFocusReason)
             return
         self.go_tab.emit("kontrol")
         kontrol = getattr(self.window_, "kontrol", None)
@@ -1275,6 +1282,8 @@ class DisaAktarScreen(QWidget):
         self.task.signals.done.connect(self._done)
         self.task.signals.failed.connect(self._failed)
         self.task.signals.cancelled.connect(self._cancelled)
+        self._stopping = False
+        self.run_banner.stop_button.setEnabled(True)
         self.run_banner.start(STOP_HINT)
         self._shown_rows = None
         self._sync()
@@ -1321,6 +1330,8 @@ class DisaAktarScreen(QWidget):
             sub += (f", yaklaşık {max(1, round(left / 60))} dk kaldı" if left >= 60
                     else ", bir dakikadan az kaldı")
         sub += f". {STOP_HINT}"
+        if self._stopping:  # a progress report still queued must not undo "Durduruluyor"
+            sub = STOPPING
         label = STAGES.get(stage, "")
         if layered and label:
             label = f"Adım {STAGE_OF[stage]} / 2: {label}"
@@ -1465,10 +1476,16 @@ class DisaAktarScreen(QWidget):
 
     def _cancelled(self) -> None:
         written = sorted(p.name for p in self.out_dir.glob("**/*.pdf")) if self.out_dir else []
+        layered = ([i.relative for i in self._items[:self._done_count]]
+                   if self._stage == "layer" else [])
+        listed = ", ".join(layered) if 0 < len(layered) <= 5 else (
+            f"{len(layered)} dosya" if layered else "yok")
+        layer_note = (f" {NO_LAYER} Metin katmanı eklenenler: {listed}."
+                      if self._with_layer else "")
         self._outcome = {
             "kind": "stopped", "title": "Dışa aktarma durduruldu",
             "message": f"Dışa aktarma durduruldu: {len(written)} dosya yazıldı, index.xlsx "
-                       f"yazılmadı.{' ' + NO_LAYER if self._with_layer else ''} "
+                       f"yazılmadı.{layer_note} "
                        "Yeniden dışa aktarmak için boş bir klasör seçin.",
             "folder": bool(written), "closable": True,
         }
@@ -1482,6 +1499,7 @@ class DisaAktarScreen(QWidget):
             taskbar.clear()
         self._shown_rows = None
         self._shown_findings = None
+        self._drop_gone_buttons()  # once, when the card appears (the window thread, not per sync)
         self.refresh()
         outcome = self._outcome
         if outcome is not None:
@@ -1501,9 +1519,11 @@ class DisaAktarScreen(QWidget):
         self.finished.emit()
 
     def cancel(self) -> None:
-        if self.task is not None:
+        if self.task is not None and not self._stopping:
+            self._stopping = True
             self.task.cancel()
-            self.run_banner.sub.setText("Durduruluyor; o ana kadar yazılanlar kalır…")
+            self.run_banner.stop_button.setEnabled(False)
+            self.run_banner.sub.setText(STOPPING)
 
     def dismiss_outcome(self) -> None:
         self._outcome = None

@@ -14,7 +14,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from evrakci.pipeline.disk_errors import disk_reason
+from evrakci.pipeline.disk_errors import disk_message
 from evrakci.pipeline.export import CHECK_SUBFOLDER, sources_text
 from evrakci.pipeline.templates.model import TemplateError, pattern_names
 
@@ -73,7 +73,7 @@ def folder_state(text: str) -> FolderState:
                                "ok")
         return FolderState("ok", "Klasör boş, yazılabilir.", "ok")
     except OSError as error:
-        return FolderState("error", f"Klasöre bakılamadı: {disk_reason(error, path)} "
+        return FolderState("error", f"Klasöre bakılamadı: {disk_message(error, path)} "
                            "Başka bir klasör seçin.", "err", True)
 
 
@@ -82,7 +82,9 @@ def _full_text(old: list[Path]) -> str:
     pdfs = sorted((p.name for p in old if p.suffix.lower() == ".pdf"), key=str.casefold)
     rule = "Dosyaların üzerine yazılmaz; yeni bir alt klasör oluşturun."
     if pdfs:
-        return f"Klasörde {len(pdfs)} PDF var ({pdfs[0]}{', …' if len(pdfs) > 1 else ''}). {rule}"
+        index = " ve index.xlsx" if any(p.name.lower() == "index.xlsx" for p in old) else ""
+        return (f"Klasörde {len(pdfs)} PDF{index} var "
+                f"({pdfs[0]}{', …' if len(pdfs) > 1 else ''}). {rule}")
     return f"Klasörde index.xlsx var. {rule}"
 
 

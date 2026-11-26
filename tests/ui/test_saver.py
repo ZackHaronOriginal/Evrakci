@@ -206,6 +206,9 @@ def test_the_job_file_is_whole_whenever_it_is_read_while_the_saver_writes(qtbot,
                 # that meets os.replace on Windows) must never see an error or half a file
                 json.loads(store._read_text(path))
                 reads[0] += 1
+                # a real reader (job list, indexer) pauses between reads; a tight loop holds
+                # the file nearly all the time and on Windows starves os.replace (B-097)
+                time.sleep(0.002)
             except (OSError, ValueError) as error:
                 bad.append(repr(error))
 
@@ -219,6 +222,7 @@ def test_the_job_file_is_whole_whenever_it_is_read_while_the_saver_writes(qtbot,
     finally:
         stop.set()
         thread.join()
+    assert controller.saver.error == "", controller.saver.error
     assert reads[0] > 0 and bad == []
     _equal_on_disk(store, controller)
 

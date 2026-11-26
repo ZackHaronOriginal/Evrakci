@@ -356,3 +356,27 @@ def test_motion_duration_tokens():
     for bad in (1, 100, 200, 300, 500):
         with pytest.raises(ValueError):
             motion.duration(bad)
+
+
+def test_a_failing_contrast_row_saves_its_pixels_for_comparison(qtbot, tmp_path, monkeypatch):
+    """--crops (B-104): the pixels behind a failing contrast row are written as a PNG."""
+    from types import SimpleNamespace
+
+    import ui_measure
+    from PySide6.QtWidgets import QLabel, QWidget
+
+    root = QWidget()
+    qtbot.addWidget(root)
+    root.resize(200, 80)
+    label = QLabel("Belge", root)
+    label.setGeometry(10, 10, 100, 30)
+    root.show()
+    image = root.grab().toImage()
+    ctx = SimpleNamespace(root=root, theme="light", size=(1366, 768), text=100, image=image)
+    monkeypatch.setattr(ui_measure, "CROPS", tmp_path / "crops")
+    ui_measure.save_crop(ctx, label, "x/QLabel[0]", "DEC-CON-01", "1.01")
+    files = list((tmp_path / "crops").glob("*.png"))
+    assert len(files) == 1 and files[0].name.startswith("DEC-CON-01_light_1366x768_100_1.01_")
+    monkeypatch.setattr(ui_measure, "CROPS", None)
+    ui_measure.save_crop(ctx, label, "x/QLabel[0]", "DEC-CON-01", "1.01")  # off: nothing more
+    assert len(list((tmp_path / "crops").glob("*.png"))) == 1

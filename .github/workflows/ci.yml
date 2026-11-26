@@ -34,11 +34,13 @@ jobs:
       - name: Action paths (every action reachable by mouse, docs/ui-goal/action-paths.tsv is current)
         run: python .claude/skills/shortcut-audit/audit_shortcuts.py --paths --check
       - name: UI measure (rules in docs/ui-goal/rules.json; fails only for rules marked enforced)
-        run: python tools/ui_measure.py --out ui-measure.tsv --enforce
+        run: python tools/ui_measure.py --out ui-measure.tsv --enforce --crops ui-crops
       - name: Upload the UI measurements
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ui-measure
-          path: ui-measure.tsv
+          path: |
+            ui-measure.tsv
+            ui-crops/
           if-no-files-found: ignore

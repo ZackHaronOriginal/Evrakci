@@ -861,6 +861,21 @@ CHECKS = {
 
 CONTRAST_CHECKS = ("contrast-body", "contrast-secondary")
 CONTRAST_RULES = ("DEC-CON-01", "DEC-CON-02")
+CROPS: Path | None = None  # --crops DIR: save the pixels behind every failing contrast row (B-104)
+
+
+def save_crop(ctx: Ctx, w: QWidget, part_path: str, rule_id: str, value: str) -> None:
+    """The grabbed pixels of a widget whose contrast failed, named so CI artifacts can be
+    compared with a local run (B-104: some rows fail only on the CI machine)."""
+    if CROPS is None:
+        return
+    rect = visible_rect(w, ctx.root)
+    if rect.isEmpty():
+        return
+    CROPS.mkdir(parents=True, exist_ok=True)
+    safe = "".join(ch if ch.isalnum() else "_" for ch in part_path)[-90:]
+    name = f"{rule_id}_{ctx.theme}_{ctx.size[0]}x{ctx.size[1]}_{ctx.text}_{value}_{safe}.png"
+    ctx.image.copy(rect).save(str(CROPS / name))
 
 
 # -- measuring ----------------------------------------------------------------------------
@@ -907,6 +922,8 @@ def measure_tree(app: QApplication, ctx: Ctx, rules: list[dict], tab: str) -> li
                 value, limit, verdict = result
                 if exempt_row(rule["id"], part_path):
                     continue
+                if verdict == "fail" and rule["id"] in CONTRAST_RULES:
+                    save_crop(ctx, w, part_path, rule["id"], value)
                 rows.append((tab, ctx.theme, size, str(ctx.text), part_path, info["cls"],
                              rule["id"], value, limit, verdict, rule["severity"]))
     return rows
@@ -1057,6 +1074,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--text", action="append", type=int, choices=screenshots.TEXTS)
     ap.add_argument("--size", action="append", help="WxH, e.g. 1366x768")
     ap.add_argument("--fails-only", action="store_true")
+    ap.add_argument("--crops", type=Path, help="save the pixels of failing contrast rows here")
     ap.add_argument("--enforce", action="store_true")
     ap.add_argument("--rules", type=Path, default=RULES_PATH)
     ap.add_argument("--known-fails", type=Path, default=KNOWN_FAILS_PATH,
@@ -1066,7 +1084,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    global CROPS
     args = parse_args(argv)
+    CROPS = args.crops
     rules = load_rules(args.rules)
     sizes = tuple(tuple(int(n) for n in s.lower().split("x")) for s in args.size) \
         if args.size else screenshots.SIZES

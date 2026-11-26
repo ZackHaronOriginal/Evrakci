@@ -150,8 +150,16 @@ WINDOW_SCROLL_EXEMPT = {"Reader": "Rehber reader scrolls as a whole",
 CANVAS_EXEMPT_RULES = ("AUD-A11Y-01", "DEC-FOC-01")
 
 
+# Owner decision Q-32 (2026-11-26): the status-bar zoom −/+ stay 24 px (Fluent 2 "small").
+OWNER_EXEMPT = {("AUD-HIT-02", "statusBar/ZoomSlider/QToolButton[0]"),
+                ("AUD-HIT-02", "statusBar/ZoomSlider/QToolButton[1]")}
+
+
 def exempt_row(rule_id: str, path: str) -> bool:
-    """True for a row the tool does not judge (the Şablonlar canvas surface, see above)."""
+    """True for a row the tool does not judge: the Şablonlar canvas surface (see above) and the
+    owner's written exceptions (OWNER_EXEMPT)."""
+    if (rule_id, path) in OWNER_EXEMPT:
+        return True
     return rule_id in CANVAS_EXEMPT_RULES and "/PageCanvas/" in f"{path}/"
 
 

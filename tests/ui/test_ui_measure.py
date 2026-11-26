@@ -380,3 +380,13 @@ def test_a_failing_contrast_row_saves_its_pixels_for_comparison(qtbot, tmp_path,
     monkeypatch.setattr(ui_measure, "CROPS", None)
     ui_measure.save_crop(ctx, label, "x/QLabel[0]", "DEC-CON-01", "1.01")  # off: nothing more
     assert len(list((tmp_path / "crops").glob("*.png"))) == 1
+
+
+def test_the_zoom_buttons_are_an_owner_exception_and_nothing_else_is():
+    """Q-32: the 24 px zoom −/+ are exempt from AUD-HIT-02; other rules and widgets are not."""
+    import ui_measure
+
+    assert ui_measure.exempt_row("AUD-HIT-02", "statusBar/ZoomSlider/QToolButton[0]")
+    assert ui_measure.exempt_row("AUD-HIT-02", "statusBar/ZoomSlider/QToolButton[1]")
+    assert not ui_measure.exempt_row("AUD-HIT-01", "statusBar/ZoomSlider/QToolButton[0]")
+    assert not ui_measure.exempt_row("AUD-HIT-02", "statusBar/QToolButton[0]")

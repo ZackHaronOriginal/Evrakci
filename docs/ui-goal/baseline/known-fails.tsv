@@ -1,8 +1,6 @@
 # Known fails --enforce tolerates (2026-11-26). Q6 (Q-16) fixed all of them except the rows below.
 # A row that no longer fails is reported by --enforce so it can be removed. Columns: rule, widget, reason (every case) or rule, widget, theme, size, text, reason (that case only).
 rule	widget	reason
-AUD-HIT-02	statusBar/ZoomSlider/QToolButton[0]	Q6: the tool asks 32 px (D5 Normal), the approved click area is 28 px; Qt's status bar item area is 5 px lower than the bar, so even 28 px needs a 33 px bar (look change). Owner or tool decision.
-AUD-HIT-02	statusBar/ZoomSlider/QToolButton[1]	Q6: same as QToolButton[0]
 DEC-CON-01	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/ValuesTable[col 1]	light	1366x768	100	B-104: seen on CI only (1.01 to 1.02:1, text not painted; local 13.4, 8.97, 14.37). ui_measure now waits for a settled picture and measures again; if the next CI run no longer fails, --enforce says so: remove this row
 DEC-CON-01	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/ValuesTable[col 1]	light	1920x1080	100	B-104: seen on CI only (1.01 to 1.02:1, text not painted; local 13.4, 8.97, 14.37). ui_measure now waits for a settled picture and measures again; if the next CI run no longer fails, --enforce says so: remove this row
 DEC-CON-01	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/ValuesTable[col 1]	dark	1366x768	100	B-104: seen on CI only (1.01 to 1.02:1, text not painted; local 13.4, 8.97, 14.37). ui_measure now waits for a settled picture and measures again; if the next CI run no longer fails, --enforce says so: remove this row

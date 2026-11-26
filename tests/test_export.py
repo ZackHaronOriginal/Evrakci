@@ -122,6 +122,11 @@ def test_name_notes_say_why_a_name_differs_from_the_pattern():
     assert items[3].name_note == ""
 
 
+# A folder long enough that names must be cut, with room left for the "Kontrol gerekenler"
+# subfolder a cut name moves into; on Windows the path gains a drive letter ("D:").
+LONG = 190
+
+
 def test_the_belge_fallback_name_does_not_keep_an_earlier_name_note():
     from pathlib import Path
 
@@ -135,7 +140,7 @@ def test_the_belge_fallback_name_does_not_keep_an_earlier_name_note():
     record_values(job, compute_documents(job)[0], "t1",
                   {k_no: ok("1" * 40 + "/"), k_unvan: ok("x")})  # removed char: a note
     assert plan_names(job, {"t1": t}, Path("/k"))[0].name_note == "Geçersiz karakter silindi"
-    item = plan_names(job, {"t1": t}, Path("/" + "k" * 200))[0]
+    item = plan_names(job, {"t1": t}, Path("/" + "k" * LONG))[0]
     assert item.name == "belge_001" and item.name_note == ""
 
 
@@ -151,7 +156,7 @@ def test_plan_names_marks_a_name_cut_by_a_long_folder_path():
     job.apply_filter(job.ordered_page_ids(), 1)
     record_values(job, compute_documents(job)[0], "t1",
                   {k_no: ok("1"), k_unvan: ok("Ü" * 60)})
-    items = plan_names(job, {"t1": t}, Path("/" + "k" * 200))
+    items = plan_names(job, {"t1": t}, Path("/" + "k" * LONG))
     assert items[0].name_note == "Dosya adı kısaltıldı (klasör yolu uzun)"
     assert "dosya adı kısaltıldı (klasör yolu uzun)" in items[0].checks
     assert len(items[0].name) <= 31

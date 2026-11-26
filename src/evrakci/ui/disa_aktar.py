@@ -26,7 +26,6 @@ from PySide6.QtCore import QByteArray, QEvent, QModelIndex, QPoint, Qt, QTimer, 
 from PySide6.QtGui import QDesktopServices, QGuiApplication, QKeySequence, QUndoCommand
 from PySide6.QtWidgets import (
     QApplication,
-    QDialog,
     QFileDialog,
     QFrame,
     QHeaderView,
@@ -53,6 +52,7 @@ from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.pdfium_lock import PDFIUM_LOCK
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, SettingsError, load_settings
 from evrakci.pipeline.templates.model import Template
+from evrakci.ui import disa_aktar_print as print_view
 from evrakci.ui import theme
 from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.controller import JobController
@@ -71,7 +71,7 @@ from evrakci.ui.disa_aktar_parts import EmptyPane, HeadBar, PartsButton, Preflig
 from evrakci.ui.disa_aktar_side import SidePanel, mark_invalid, side_width
 from evrakci.ui.disa_aktar_table import NAME_MIN, WIDTHS, WIDTHS_150, FilesModel, FilesTable
 from evrakci.ui.feedback import announce
-from evrakci.ui.workers import Task, run_background, start
+from evrakci.ui.workers import BUSY_REASON, Task, run_background, start
 
 STAGES = {"write": "dosyalar yazılıyor", "layer": "metin katmanı ekleniyor"}
 HEADER_KEY = "disa_aktar/dosyalar"
@@ -157,6 +157,7 @@ class DisaAktarScreen(QWidget):
         self._folder_touched = False
         self._problem: tuple[str, list[str]] = ("", [])
         self._job_name = ""
+        self._preview = None  # the open "Baskı önizleme"
         self._pending_pattern = ""
         self._state = "empty"
         self._syncing = False
@@ -1358,39 +1359,77 @@ class DisaAktarScreen(QWidget):
             reveal_path(target)
 
     # -- print ---------------------------------------------------------------------------
+    def _index_rows(self) -> list[tuple]:
+        """The list as plain tuples (the worker gets data, never the model: thread rule 1)."""
+        return [(self.model.word(r), r.number, r.name, r.pages, r.template or "Şablon yok",
+                 r.why) for r in self.model._all]
+
+    def _index_args(self) -> tuple:
+        controller = self.controller()
+        last = controller.job.last_export if controller is not None else None
+        return (self._job_name or "Dışa aktarma", self._index_rows(), self._summary.documents,
+                self._summary.pages, print_view.subtitle(last))
+
     def index_html(self) -> str:
         """The list as a printable table (what index.xlsx lists: name, pages, template, state)."""
-        from html import escape
-
-        rows = self.model._all
-        head = "".join(f"<th align='left'>{escape(t)}</th>"
-                       for t in ("Durum", "No", "Dosya adı", "Sayfalar", "Şablon", "Not"))
-        body = "".join(
-            f"<tr><td>{escape(self.model.word(r))}</td><td align='right'>{r.number}</td>"
-            f"<td>{escape(r.name)}</td>"
-            f"<td align='right'>{escape(r.pages)}</td><td>{escape(r.template or 'Şablon yok')}"
-            f"</td><td>{escape(r.why)}</td></tr>" for r in rows)
-        return (f"<h2>{escape(self._job_name or 'Dışa aktarma')}</h2>"
-                f"<p>{len(rows)} belge, {self._summary.pages} sayfa</p>"
-                f"<table border='1' cellspacing='0' cellpadding='4' width='100%'>"
-                f"<tr>{head}</tr>{body}</table>")
+        return print_view.index_html(*self._index_args())
 
     def print_index(self, printer=None) -> None:
-        """"Dizini yazdır…": the file list on paper (or to the printer given)."""
-        from PySide6.QtGui import QTextDocument
-        from PySide6.QtPrintSupport import QPrintDialog, QPrinter
+        """"Dizini yazdır…": with a printer given, the list goes to it at once; without one the
+        "Baskı önizleme" opens (Yazdır… there prints). The HTML is built in a worker."""
+        from PySide6.QtPrintSupport import QPrinter
 
         if self.model.rowCount() == 0:
             return
-        if not isinstance(printer, QPrinter):  # a QAction's checked flag arrives here too
-            printer = QPrinter()
-            dialog = QPrintDialog(printer, self)
-            dialog.setWindowTitle("Dizini yazdır")
-            if dialog.exec() != QDialog.DialogCode.Accepted:
+        if isinstance(printer, QPrinter):  # a QAction's checked flag arrives here too
+            print_view.paint_document(printer, print_view.make_document(self.index_html()),
+                                      self._job_name or "Dışa aktarma", print_view.now_stamp())
+            return
+        window = self.window_ if self.window_ is not None else self
+        name, rows, documents, pages, sub = self._index_args()
+        job_id = self._job_id()
+
+        def work(_progress) -> str:
+            return print_view.index_html(name, rows, documents, pages, sub)
+
+        def done(html: str) -> None:
+            if not shiboken6.isValid(self) or self._job_id() != job_id:
                 return
-        document = QTextDocument()
-        document.setHtml(self.index_html())
-        document.print_(printer)
+            card = getattr(window, "loading_card", None)
+            if card is not None:  # the build blocks the window for a moment: say so first
+                card.show_loading("Önizleme hazırlanıyor…", name, cancellable=False)
+                card.repaint()
+            QTimer.singleShot(0, lambda: build(html, card))
+
+        def build(html: str, card) -> None:
+            try:
+                if not shiboken6.isValid(self) or self._job_id() != job_id:
+                    return
+                self._preview = print_view.PrintPreviewDialog(html, name, self)
+                self._preview.finished.connect(self._preview_closed)
+                self._preview.open()
+            finally:
+                if card is not None and shiboken6.isValid(card):
+                    card.close()
+
+        def failed(_message: str) -> None:
+            toaster = self._toaster()
+            if toaster is not None:
+                toaster.show("Dışa aktarma tamamlanamadı", kind="error")
+
+        start = getattr(window, "start_loading", None)
+        options = {"title": "Önizleme hazırlanıyor…", "name": name, "on_done": done,
+                   "on_failed": failed, "on_cancelled": lambda: None}
+        handle = start(work, **options) if start is not None else run_background(
+            window, work, **options)
+        if handle is None and hasattr(window, "message"):
+            window.message.setText(BUSY_REASON)
+
+    def _preview_closed(self) -> None:
+        preview, self._preview = self._preview, None
+        if preview is not None and shiboken6.isValid(preview):
+            preview.deleteLater()  # its document and rendered pages go with it
+        self.results.setFocus(Qt.FocusReason.OtherFocusReason)
 
     # Compatibility for the window and old callers
     def header_state(self) -> QByteArray:

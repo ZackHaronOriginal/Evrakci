@@ -336,6 +336,26 @@ def _empty_window(root: Path) -> MainWindow:
                       settings_path=root / "ayar.json")
 
 
+def shoot_print_preview(app: QApplication, window: MainWindow, out: Path, name: str) -> list[str]:
+    """"Baskı önizleme" of Dışa Aktar (I-38) over `window`: opened by Ctrl+P's own path (the HTML
+    is built in a worker), shot, closed. Returns the clipping report of the dialog."""
+    window.tabs.setCurrentIndex(SLUGS.index("disa-aktar"))
+    _settle(app, window=window)
+    screen = window.disa_aktar
+    screen.print_index()
+    deadline = time.monotonic() + 10
+    while screen._preview is None and time.monotonic() < deadline:
+        app.processEvents()
+        time.sleep(0.01)
+    dialog = screen._preview
+    _settle(app)
+    dialog.grab().save(str(out / f"{name}.png"))
+    found = clipping(dialog, name)
+    dialog.close()
+    _settle(app)
+    return found
+
+
 def run_states(app: QApplication, tmp: Path, out: Path, compare: bool) -> list[str]:
     """A's other states at 1366x768, light, 100 %: empty for every tab, Kontrol's loupe,
     Yükle's drop overlay and Değerler' sample view. Returns the clipping report."""
@@ -385,6 +405,8 @@ def run_states(app: QApplication, tmp: Path, out: Path, compare: bool) -> list[s
     window.grab().save(str(out / "degerler-ornek-light.png"))
     clipped += clipping(window, "degerler-ornek-light")
     shots.append(("degerler-ornek-light", "degerler-ornek-light.png"))
+    clipped += shoot_print_preview(app, window, out, "disa-aktar-onizleme-light")
+    shots.append(("disa-aktar-onizleme-light", "disa-aktar-onizleme-light.png"))
     window.close()
     window.deleteLater()
     _settle(app)

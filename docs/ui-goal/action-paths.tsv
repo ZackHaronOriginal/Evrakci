@@ -244,8 +244,8 @@ degerler	?	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			
 degerler	Ctrl+K	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
 degerler	Ctrl+Shift+P	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
 degerler		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	ok
-degerler	Return	degerler.onayla	Onayla ve sonrakine geç	Düzen > Öneriyle onayla	_OnceButton | bar Diğer komutlar	value row	yes	ok
-degerler	Enter	degerler.onayla	Onayla ve sonrakine geç	Düzen > Öneriyle onayla	_OnceButton | bar Diğer komutlar	value row	yes	ok
+degerler	Return	degerler.onayla	Onayla	Düzen > Öneriyle onayla	_OnceButton | bar Diğer komutlar	value row	yes	ok
+degerler	Enter	degerler.onayla	Onayla	Düzen > Öneriyle onayla	_OnceButton | bar Diğer komutlar	value row	yes	ok
 degerler	Shift+Return	degerler.okunanla_onayla	Okunanla onayla	Düzen > Okunanla onayla	_OnceButton | bar Diğer komutlar	value row [state-dependent]	yes	ok
 degerler	Shift+Enter	degerler.okunanla_onayla	Okunanla onayla	Düzen > Okunanla onayla	_OnceButton | bar Diğer komutlar	value row [state-dependent]	yes	ok
 degerler	Ctrl+Return	degerler.secilenleri_onayla	Seçilenleri onayla	Düzen > Seçilenleri onayla	bar	value row	yes	ok
@@ -264,6 +264,7 @@ degerler		degerler.oku	Değerleri oku	Araçlar > Değerleri oku	QPushButton [sta
 degerler	K	degerler.kontrolde_ac	Kontrol'de aç	Araçlar > Kontrol'de aç	bar Diğer komutlar	value row	yes	ok
 degerler		degerler.eksikleri_oku	Yalnızca eksikleri oku	Araçlar > Yalnızca eksikleri oku	QPushButton [state-dependent] | bar		yes	ok
 degerler	Ctrl+.	degerler.durdur	Okumayı durdur	Araçlar > Okumayı durdur [state-dependent]	QPushButton [state-dependent] | bar Diğer komutlar [state-dependent]		yes	ok
+degerler		degerler.sutunlari_sifirla	Sütun genişliklerini sıfırla	Görünüm > Sütun genişliklerini sıfırla	bar Diğer komutlar		yes	ok
 degerler	Tab	degerler.sonraki_deger	Sonraki / önceki değer				no	exempt:Tab/Shift+Tab move between table cells; a click picks a cell
 degerler	Shift+Tab	degerler.sonraki_deger	Sonraki / önceki değer				no	exempt:Tab/Shift+Tab move between table cells; a click picks a cell
 degerler	Alt+1	degerler.okuma_sec	Okuma seç		_ReadingHit | _ReadingHit [state-dependent]		no	ok

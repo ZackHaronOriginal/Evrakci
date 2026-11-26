@@ -49,6 +49,7 @@ TRY_RUNNING = "Deneme sürüyor; bitince yeniden deneyin."
 PICK_VALUE = "Önce bir değer seçin."
 PICK_ROWS = "Önce satırları seçin."
 NO_ROWS = "Seçilecek bir satır yok."
+NO_COLUMNS = "Sıfırlanacak bir sütun yok."
 PICK_TEMPLATE_DOCUMENT = "Önce şablonu olan bir belge seçin."
 NO_CHECK_WAITING = "Kontrol bekleyen değer yok."
 NO_FOLDER_TO_SHOW = "Gösterilecek bir klasör yok."
@@ -282,6 +283,10 @@ def _degerler_revert(window, tab: str) -> str | None:
     return NO_CORRECTED_VALUE
 
 
+def _degerler_columns(window, tab: str) -> str | None:
+    return NO_JOB_TEXT if _no_job(window) else NO_COLUMNS
+
+
 def _degerler_escape(window, tab: str) -> str | None:
     return NO_JOB_TEXT if _no_job(window) else NO_DOCUMENT
 
@@ -375,6 +380,7 @@ _RULES = {
     "degerler.tumunu_sec": _degerler_select_all,
     "degerler.kontrolde_ac": _degerler_value,
     "degerler.vazgec": _degerler_escape,
+    "degerler.sutunlari_sifirla": _degerler_columns,
     "degerler.sonraki_kontrol": _degerler_check,
     "degerler.onceki_kontrol": _degerler_check,
     "degerler.durdur": _stop,

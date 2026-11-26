@@ -35,6 +35,7 @@ class SelectorItem(QAbstractButton):
         super().__init__(parent)
         self.view = view
         self.count = 0
+        self.count_text = "0"
         self.setText(VIEW_NAMES[view])
         self.setCheckable(True)
         self.setAutoExclusive(True)
@@ -43,10 +44,18 @@ class SelectorItem(QAbstractButton):
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         self.toggled.connect(lambda _on: self.update())
 
-    def set_count(self, value: int) -> None:
+    def set_count(self, value: int, scope: str = "", shown: int | None = None) -> None:
+        """`scope` ("bu şablonda") names what is counted when a job has several templates;
+        `shown` is how many of `value` a search leaves in the table (D-8, D-9)."""
         self.count = value
-        self.setAccessibleName(f"{self.text()}: {value} değer")
-        self.setToolTip(f"{self.text()}: {value} değer")
+        self.count_text = str(value) if shown is None else f"{shown} / {value}"
+        words = f"{self.text()}: {self.count_text} değer"
+        if shown is not None:
+            words += ", aramayla süzülü"
+        if scope:
+            words += f", {scope}"
+        self.setAccessibleName(words)
+        self.setToolTip(words)
         self.updateGeometry()
         self.update()
 
@@ -61,7 +70,7 @@ class SelectorItem(QAbstractButton):
         bold = m.font("body-strong")  # room for the semibold label, so nothing shifts
         width = (2 * m.size("s3") + max(self.fontMetrics().horizontalAdvance(self.text()),
                                         _advance(bold, self.text()))
-                 + m.size("s2") + _advance(number, str(self.count)))
+                 + m.size("s2") + _advance(number, self.count_text))
         return QSize(width, m.size("control-h"))
 
     def paintEvent(self, _event) -> None:  # noqa: N802
@@ -84,7 +93,7 @@ class SelectorItem(QAbstractButton):
         painter.setPen(m.color("text-2"))
         painter.drawText(self.rect().adjusted(x, 0, 0, 0),
                          Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                         str(self.count))
+                         self.count_text)
         if self.isChecked():
             centre = m.size("s3") + _advance(label, self.text()) / 2
             painter.setPen(Qt.PenStyle.NoPen)
@@ -136,9 +145,11 @@ class ViewSelector(QWidget):
     def view(self) -> str:
         return next(v for v, item in self.items.items() if item.isChecked())
 
-    def set_counts(self, counts: dict[str, int]) -> None:
+    def set_counts(self, counts: dict[str, int], scope: str = "",
+                   shown: dict[str, int] | None = None) -> None:
         for view, value in counts.items():
-            self.items[view].set_count(value)
+            self.items[view].set_count(value, scope if view != "ornek" else "",
+                                       (shown or {}).get(view))
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if event.type() == QEvent.Type.KeyPress and isinstance(event, QKeyEvent) and \

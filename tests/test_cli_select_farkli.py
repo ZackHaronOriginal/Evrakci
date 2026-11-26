@@ -85,3 +85,42 @@ def test_pages_of_unknown_size_are_named_not_marked(tmp_path, capsys):
 def test_the_options_are_checked(tmp_path, capsys):
     root, job_id = make_job(tmp_path, capsys, [text_page(), a5_page()])
     assert run(root, job_id, "--karsilastir", "x") == 2
+
+
+def test_is_sec_sablon_reads_missing_sizes_of_an_older_job_like_the_farkli_path(tmp_path, capsys):
+    root, job_id = make_job(tmp_path, capsys)
+    path = root / job_id / "job.json"
+    path.write_text(
+        json.dumps(without_sizes(json.loads(path.read_text(encoding="utf-8")))), encoding="utf-8"
+    )
+    templates = str(tmp_path / "sablonlar")
+    assert main(["--sablon-kok", templates, "sablon", "olustur", "Süzgeç"]) == 0
+    template_id = capsys.readouterr().out.strip().splitlines()[-1]
+    assert (
+        main(
+            ["--sablon-kok", templates, "sablon", "filtre-ekle", template_id, "Farklılar", "farkli"]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    for extra in ([], ["--filtre", "Farklılar"]):
+        assert (
+            main(
+                [
+                    "--kok",
+                    str(root),
+                    "--sablon-kok",
+                    templates,
+                    "is",
+                    "sec",
+                    job_id,
+                    "--sablon",
+                    template_id,
+                    *extra,
+                ]
+            )
+            == 0
+        )
+        out = capsys.readouterr().out
+        assert "Eşleşen sayfa yok." not in out and printed_positions(out) == [3, 4]
+    assert "width_mm" not in path.read_text(encoding="utf-8")  # read in memory, not written

@@ -25,7 +25,10 @@ the pixel colour with the highest contrast ratio against it (seen at least twice
 Anti-aliased text still has full-coverage pixels, so this finds the true text colour for glyphs
 of 11 px and up. Limits: a widget that draws an icon, border or image in a stronger colour than
 its text reads that colour as "text"; text over a photo (thumbnail grids, scan previews) is not
-measured ("skip"); disabled widgets are exempt (WCAG). A QTableView is sampled per cell (its
+measured ("skip"); text with fewer than THIN_INK (60) ink pixels (one glyph, thin ".pdf", narrow
+column: B-104) takes the declared colour (palette, QSS colour, cell foreground) against the sampled
+background, and with none and no real ink pixel the row is "skip", never a pass;
+disabled widgets are exempt (WCAG). A QTableView is sampled per cell (its
 worst cell per column is one row, "<path>[col N]", the icon part of a cell left out); headers
 as one box; the icon of a button is cut from its box. Role: "secondary" for placeholder text
 (by the widget) or when the sampled text colour is within 12 RGB steps of the theme's text-2
@@ -84,7 +87,7 @@ from PySide6.QtCore import (  # noqa: E402
     Qt,
     QThreadPool,
 )
-from PySide6.QtGui import QAccessible, QFontInfo, QImage  # noqa: E402
+from PySide6.QtGui import QAccessible, QBrush, QColor, QFontInfo, QImage  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
 from PySide6.QtWidgets import (  # noqa: E402
     QAbstractButton,
@@ -106,6 +109,7 @@ from PySide6.QtWidgets import (  # noqa: E402
     QSlider,
     QStackedLayout,
     QStackedWidget,
+    QStyledItemDelegate,
     QTabBar,
     QTableView,
     QToolButton,
@@ -289,8 +293,19 @@ def text_of(w: QWidget) -> str:
     return ""
 
 
-def sample_colours(ctx: Ctx, rect: QRect) -> tuple[int, int] | None:
-    """(background, text) as 0xRRGGBB from the rendered window, see the module docstring."""
+INK_RATIO = 1.5   # a pixel this far from the background in contrast counts as glyph ink
+THIN_INK = 60     # fewer ink pixels than this: the picture alone cannot name the text colour
+MIN_INK = 3       # fewer than this and the picture has no text at all
+
+
+def sample_colours(ctx: Ctx, rect: QRect, declared: int | None = None) -> tuple[int, int] | None:
+    """(background, text) as 0xRRGGBB from the rendered window, see the module docstring.
+
+    B-104: a one-glyph label ("3"), a narrow numeric column or thin glyphs (".pdf") have only a
+    handful of ink pixels, mostly anti-aliased and each colour seen once, so the picture alone
+    names a background shade as the text (1:1). With fewer than THIN_INK ink pixels the text
+    colour is the declared one (palette, QSS colour, model foreground) when known; without one,
+    and with no real ink pixel, there is no answer (None: the row is skipped, never passed)."""
     inset = 4 if min(rect.width(), rect.height()) >= 20 else 2
     box = rect.adjusted(inset, inset, -inset, -inset)
     if box.width() < 2 or box.height() < 2:
@@ -303,14 +318,37 @@ def sample_colours(ctx: Ctx, rect: QRect) -> tuple[int, int] | None:
         base = y * ctx.stride
         hist.update(ctx.words[base + box.left(): base + box.right() + 1])
     if len(hist) < 2:
-        return None
-    background = max(hist.items(), key=lambda kv: (kv[1], -kv[0]))[0] & 0xFFFFFF
+        return None if declared is None else (_dominant(hist), declared & 0xFFFFFF)
+    background = _dominant(hist)
+    ink, strongest, strongest_ratio = 0, None, INK_RATIO
     best, best_ratio = None, 1.0
-    for colour in sorted(c & 0xFFFFFF for c, n in hist.items() if n >= 2):
+    for colour, n in hist.items():
+        colour &= 0xFFFFFF
         ratio = contrast(colour, background)
-        if ratio > best_ratio:
+        if ratio >= INK_RATIO:
+            ink += n
+            if ratio > strongest_ratio:
+                strongest, strongest_ratio = colour, ratio
+        if n >= 2 and ratio > best_ratio:
             best, best_ratio = colour, ratio
-    return None if best is None else (background, best)
+    if ink >= THIN_INK and best is not None and best_ratio >= INK_RATIO:
+        return background, best
+    if declared is not None:
+        return background, declared & 0xFFFFFF
+    if ink >= MIN_INK and strongest is not None:
+        return background, strongest
+    return None
+
+
+def _dominant(hist: Counter[int]) -> int:
+    return max(hist.items(), key=lambda kv: (kv[1], -kv[0]))[0] & 0xFFFFFF
+
+
+def declared_colour(w: QWidget) -> int:
+    """The text colour the widget declares: its palette (a style sheet "color" is applied to the
+    palette when the widget is polished)."""
+    w.ensurePolished()
+    return w.palette().color(w.foregroundRole()).rgb() & 0xFFFFFF
 
 
 def gap_to_neighbours(w: QWidget, root: QWidget) -> tuple[int | None, int | None]:
@@ -409,7 +447,37 @@ def is_clickable(w: QWidget) -> bool:
     return isinstance(w, (QAbstractButton, QComboBox, QAbstractSpinBox, QSlider, QTabBar))
 
 
-def sample_cells(ctx: Ctx, view: QTableView, limit: int = 30) -> list[tuple[int, int, int, float]]:
+def cell_colour(view: QTableView, index) -> int | None:
+    """The colour a cell declares: its model foreground only. The view's palette is not a
+    declaration, delegates paint their own colours (muted columns, status chips)."""
+    brush = index.data(Qt.ItemDataRole.ForegroundRole)
+    if isinstance(brush, QBrush):
+        brush = brush.color()
+    if isinstance(brush, QColor) and brush.isValid() and brush.alpha() == 255:
+        return brush.rgb() & 0xFFFFFF
+    return None
+
+
+def text_rect(view: QTableView, index, rect: QRect) -> QRect:
+    """The part of a cell's rect the text occupies (B-104): a narrow column or a short value
+    leaves most of the cell empty, and a column measured at another width must still hit the
+    glyphs, so the box follows the text's width and the cell's alignment."""
+    text = index.data()
+    delegate = view.itemDelegateForColumn(index.column()) or view.itemDelegate()
+    if type(delegate) is not QStyledItemDelegate or not isinstance(text, str) or not text:
+        return rect  # a delegate paints its own layout (bars, chips, notes): the whole cell
+    width = min(rect.width(), view.fontMetrics().horizontalAdvance(text) + 8)
+    align = index.data(Qt.ItemDataRole.TextAlignmentRole)
+    flags = int(align) if isinstance(align, (int, Qt.AlignmentFlag)) else 0
+    if flags & int(Qt.AlignmentFlag.AlignRight.value):
+        return QRect(rect.right() - width + 1, rect.top(), width, rect.height())
+    if flags & int(Qt.AlignmentFlag.AlignHCenter.value):
+        return QRect(rect.left() + (rect.width() - width) // 2, rect.top(), width, rect.height())
+    return QRect(rect.left(), rect.top(), width, rect.height())
+
+
+def sample_cells(ctx: Ctx, view: QTableView,
+                 limit: int = 30) -> list[tuple[int, int, int, float | None]]:
     """The worst cell of each visible column as (column, background, text, contrast), read from
     the rendered window; the icon part of a cell (decoration) is left out of its box."""
     model = view.model()
@@ -423,7 +491,7 @@ def sample_cells(ctx: Ctx, view: QTableView, limit: int = 30) -> list[tuple[int,
     first = max(0, view.rowAt(0))
     last = view.rowAt(port.height() - 1)
     last = model.rowCount() - 1 if last < 0 else last
-    worst: dict[int, tuple[int, int, int, float]] = {}
+    worst: dict[int, tuple[int, int, int, float | None]] = {}
     for row in range(first, min(last, first + limit - 1) + 1):
         for column in range(model.columnCount()):
             if view.isColumnHidden(column) or header.sectionSize(column) <= 0:
@@ -434,11 +502,14 @@ def sample_cells(ctx: Ctx, view: QTableView, limit: int = 30) -> list[tuple[int,
             rect = view.visualRect(index).translated(origin)
             if model.data(index, Qt.ItemDataRole.DecorationRole) is not None:
                 rect = rect.adjusted(icon + 6, 0, 0, 0)
-            sampled = sample_colours(ctx, rect.intersected(clip))
+            rect = text_rect(view, index, rect).intersected(clip)
+            sampled = sample_colours(ctx, rect, cell_colour(view, index))
             if sampled is None:
+                # no answer is a "skip" row, never a missing one and never a pass (B-104)
+                worst.setdefault(column, (column, 0, 0, None))
                 continue
             ratio = contrast(*sampled[::-1])
-            if column not in worst or ratio < worst[column][3]:
+            if column not in worst or worst[column][3] is None or ratio < worst[column][3]:
                 worst[column] = (column, sampled[0], sampled[1], ratio)
     return [worst[c] for c in sorted(worst)]
 
@@ -458,11 +529,11 @@ def describe(w: QWidget, ctx: Ctx) -> dict:
     if isinstance(w, QAbstractButton):
         sample = sample.adjusted(icon_width(w), 0, 0, 0)  # the icon is not text
     colours = None
-    cells: list[tuple[int, int, int, float]] = []
+    cells: list[tuple[int, int, int, float | None]] = []
     if isinstance(w, QTableView) and text and w.isEnabled():
         cells = sample_cells(ctx, w)
     elif text and w.isEnabled():
-        colours = sample_colours(ctx, sample)
+        colours = sample_colours(ctx, sample, declared_colour(w))
     layout = w.layout()
     applies = layout_applies(w, layout)
     margins = w.contentsMargins()
@@ -596,7 +667,8 @@ def chk_contrast(i: dict, p: dict, ctx: Ctx, role: str) -> Res | None:
     if not i["enabled"]:
         return ("disabled", limit, "skip") if role == "body" else None
     if i["contrast"] is None:
-        return ("no text pixels", limit, "skip") if role == "body" else None
+        return (("too few text pixels, no declared colour", limit, "skip")
+                if role == "body" else None)
     secondary_colour = int(theme.manager().hex(p["secondary_token"]).lstrip("#"), 16)
     # Placeholder text is secondary text by role (D10, HIG-CTL-10), whatever colour it has.
     secondary = i["placeholder"] or _near(i["foreground"], secondary_colour)

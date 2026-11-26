@@ -142,7 +142,7 @@ def test_known_fails_file_is_dated_and_every_row_has_a_reason():
     rows = [ln.split("\t") for ln in path.read_text(encoding="utf-8").splitlines()
             if ln and not ln.startswith("#") and not ln.startswith("rule\t")]
     # rule, widget, reason (every case) or rule, widget, theme, size, text, reason (one case)
-    assert rows and all(len(r) in (3, 6) and r[-1] for r in rows)
+    assert all(len(r) in (3, 6) and r[-1] for r in rows)  # may be empty: all waivers gone
     # a waiver for a case seen on one machine names the case (B-104, R-O-5): never every case
     assert all(len(r) == 6 and r[2] in ("light", "dark", "hc") and r[4] in ("100", "150")
                for r in rows if r[0] == "DEC-CON-01")
@@ -390,3 +390,150 @@ def test_the_zoom_buttons_are_an_owner_exception_and_nothing_else_is():
     assert ui_measure.exempt_row("AUD-HIT-02", "statusBar/ZoomSlider/QToolButton[1]")
     assert not ui_measure.exempt_row("AUD-HIT-01", "statusBar/ZoomSlider/QToolButton[0]")
     assert not ui_measure.exempt_row("AUD-HIT-02", "statusBar/QToolButton[0]")
+
+
+# -- B-104: contrast of text with very few glyph pixels (CI crops, run 45842548267) -------------
+
+def _contrast_rows(qapp, root: QWidget, tag: str) -> list[tuple]:
+    qapp.processEvents()
+    rules = um.load_rules()
+    ctx = um.make_ctx(root, "light", 100, (root.width(), root.height()), rules)
+    ctx.window_checks = False
+    rows = um.measure_tree(qapp, ctx, rules, "probe")
+    return [r for r in rows if tag in r[4] and r[6] in ("DEC-CON-01", "DEC-CON-02")]
+
+
+def _single_label(qapp, text: str, colour: str, tag: str, pixel_size: int = 13) -> QWidget:
+    root = QWidget()
+    root.setObjectName("b104")
+    root.setPalette(QPalette(QColor("#ffffff")))
+    root.setAutoFillBackground(True)
+    layout = QHBoxLayout(root)
+    label = QLabel(text)
+    label.setObjectName(tag)
+    font = QFont(label.font())
+    font.setPixelSize(pixel_size)
+    label.setFont(font)
+    ink = QPalette(label.palette())
+    ink.setColor(QPalette.ColorRole.WindowText, QColor(colour))
+    label.setPalette(ink)
+    layout.addWidget(label)
+    root.resize(120, 40)
+    root.show()
+    return root
+
+
+def _measured(rows: list[tuple]) -> list[tuple[float | None, str]]:
+    return [(float(r[7]) if r[7][:1].isdigit() else None, r[9]) for r in rows]
+
+
+def test_b104_single_character_label_measures_its_real_contrast(light_100):
+    """CI crop KvRow[1]/QLabel[2]: a lone dark "3" read 1.00:1 (the text colour is seen once, so
+    a background shade won). It now measures against its declared colour, at its real ratio."""
+    root = _single_label(light_100, "3", "#1c3f8d", "oneChar")
+    rows = _contrast_rows(light_100, root, "oneChar")
+    real = um.contrast(0x1C3F8D, 0xFFFFFF)
+    got = _measured(rows)
+    assert got and all(result == "pass" and abs(ratio - real) < 0.05 for ratio, result in got), rows
+
+
+def test_b104_thin_pdf_label_is_read_as_its_declared_secondary_colour(light_100):
+    """CI crop sablonInspector QFrame[2]/QLabel[0]: thin ".pdf" glyphs sampled lighter (6.91:1)
+    and were judged as body text. With the declared colour it is the secondary token."""
+    text2 = int(theme.manager().hex("text-2").lstrip("#"), 16)
+    root = _single_label(light_100, ".pdf", f"#{text2:06x}", "thinPdf", pixel_size=12)
+    rows = _contrast_rows(light_100, root, "thinPdf")
+    real = um.contrast(text2, 0xFFFFFF)
+    got = _measured(rows)
+    assert got and all(result == "pass" and abs(ratio - real) < 0.05 for ratio, result in got), rows
+    assert {r[6] for r in rows} == {"DEC-CON-02"}  # judged as secondary text, not body
+
+
+def test_b104_narrow_numeric_column_measures_or_skips_never_one(light_100):
+    """CI crop Değerler ValuesTable[col 1]: a grey "1–3" in a narrow column read 1.01:1."""
+    from PySide6.QtGui import QBrush
+    from PySide6.QtWidgets import QTableWidget, QTableWidgetItem
+
+    qapp = light_100
+    root = QWidget()
+    root.setPalette(QPalette(QColor("#ffffff")))
+    root.setAutoFillBackground(True)
+    layout = QVBoxLayout(root)
+    table = QTableWidget(3, 2)
+    table.setObjectName("narrowTable")
+    table.horizontalHeader().setVisible(False)
+    table.verticalHeader().setVisible(False)
+    for row in range(3):
+        table.setItem(row, 0, QTableWidgetItem("Belge"))
+        item = QTableWidgetItem("1–3")
+        item.setForeground(QBrush(QColor("#4a4a4a")))
+        item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        table.setItem(row, 1, item)
+    table.setColumnWidth(0, 80)
+    table.setColumnWidth(1, 30)
+    layout.addWidget(table)
+    root.resize(200, 160)
+    root.show()
+    rows = _contrast_rows(qapp, root, "narrowTable[col 1]")
+    assert rows
+    real = um.contrast(0x4A4A4A, 0xFFFFFF)
+    for ratio, result in _measured(rows):
+        assert result == "skip" or (result == "pass" and abs(ratio - real) < 0.3), rows
+
+
+def test_b104_few_pixels_and_no_declared_colour_is_a_skip_not_a_pass():
+    """No ink pixel and no declared colour: no answer (the row is skipped); with one: it is used."""
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QRect
+    from PySide6.QtGui import QImage
+
+    image = QImage(40, 20, QImage.Format.Format_RGB32)
+    image.fill(QColor("#ffffff"))
+    image.setPixelColor(10, 10, QColor("#fdfdfd"))  # a background shade, not ink
+    ctx = SimpleNamespace(image=image, words=memoryview(image.constBits()).cast("I"),
+                          stride=image.bytesPerLine() // 4)
+    assert um.sample_colours(ctx, QRect(0, 0, 40, 20)) is None
+    assert um.sample_colours(ctx, QRect(0, 0, 40, 20), declared=0x000000) == (0xFFFFFF, 0)
+
+
+def test_b104_a_genuinely_low_contrast_single_glyph_still_fails(light_100):
+    """The fallback must not turn the measure into a pass: a pale "3" fails at its real ratio."""
+    root = _single_label(light_100, "3", "#cfcfcf", "paleChar")
+    rows = _contrast_rows(light_100, root, "paleChar")
+    real = um.contrast(0xCFCFCF, 0xFFFFFF)
+    got = _measured(rows)
+    assert got and all(result == "fail" and abs(ratio - real) < 0.05 for ratio, result in got), rows
+
+
+@pytest.mark.parametrize("name,size,ink,shades,declared", [
+    # the colours seen in the three CI crops: the text colour once or a few times, the rest
+    # near-white anti-alias shades seen several times (those won as "text" and read 1.00:1)
+    ("KvRow 3", (174, 40), {(0x1C3F8D): 1}, {0xFEFFFF: 1, 0xFDFFFF: 2, 0xFBFFFF: 1}, 0x1C3F8D),
+    ("ValuesTable 1-3", (60, 24), {0x6B6B6B: 5}, {0xFEFFFF: 9, 0xFDFFFF: 6, 0xFCFFFF: 4}, 0x6B6B6B),
+    (".pdf", (29, 32), {0x4F7FA2: 1}, {0xFEFFFF: 3, 0xFDFFFA: 1, 0xFCFFFF: 2, 0xFBFFFF: 9},
+     0x4F7FA2),
+])
+def test_b104_crop_pixels_measure_declared_colour_or_skip_never_one(name, size, ink, shades,
+                                                                    declared):
+    """The CI crops rebuilt pixel by pixel: a white box with a few ink and anti-alias pixels."""
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QRect
+    from PySide6.QtGui import QImage
+
+    image = QImage(size[0], size[1], QImage.Format.Format_RGB32)
+    image.fill(QColor("#ffffff"))
+    x = 4
+    for colour, count in {**shades, **ink}.items():
+        for _ in range(count):
+            image.setPixelColor(x % size[0], 8 + x // size[0], QColor(f"#{colour:06x}"))
+            x += 1
+    ctx = SimpleNamespace(image=image, words=memoryview(image.constBits()).cast("I"),
+                          stride=image.bytesPerLine() // 4)
+    rect = QRect(0, 0, size[0], size[1])
+    with_declared = um.sample_colours(ctx, rect, declared=declared)
+    assert with_declared == (0xFFFFFF, declared), name
+    assert um.contrast(*with_declared) > 4.0, name  # its real ratio, nowhere near 1.0
+    without = um.sample_colours(ctx, rect)  # nothing declared: a real ink pixel or no answer
+    assert without is None or um.contrast(*without) >= 1.5, (name, without)

@@ -429,8 +429,8 @@ def test_inspector_marks_documents_that_need_a_check_with_the_word_kontrol(qtbot
     flagged = JobSummary(info.name, info.pages, info.qr, info.documents, 7, info.batches,
                          info.reason)
     screen.side.show_job(flagged, None)
-    assert screen.side.state_row.value.text() == "7 belge"
-    assert screen.side.state_row.accessibleName() == "Durum: 7 belge"
+    assert screen.side.state_row.value.text() == "7 belge Kontrol bekliyor"  # R3 Y-6
+    assert screen.side.state_row.accessibleName() == "Durum: 7 belge Kontrol bekliyor"
     assert screen.side.profile.title.text() == "Tarama bilgisi yok"  # never invented
 
 
@@ -456,7 +456,7 @@ def test_reading_tracks_the_current_file_and_the_time_left():
     assert reading.total == 35 and reading.current() == 0
     reading.done = 12
     assert reading.current() == 1
-    assert reading.rows() == [("a", 10, "okunuyor"), ("b", 20, "okunuyor"), ("c", 5, "sirada")]
+    assert reading.rows() == [("a", 10, "okundu"), ("b", 20, "okunuyor"), ("c", 5, "sirada")]
     reading.started = time.monotonic() - 10
     assert reading.rate() == pytest.approx(1.2, rel=0.1)
     assert reading.eta() == pytest.approx(23 / 1.2, rel=0.1)
@@ -473,7 +473,7 @@ def test_reading_a_batch_shows_progress_then_attaches_it_as_one_edit(qtbot, tmp_
         screen.add_batches(pdfs[1:])
     assert True in shown and not screen.progress.isVisible()
     assert _names(screen) == ["tarama-1.pdf", "tarama-2.pdf", "tarama-10.pdf"]
-    assert window.toaster.current_text() == "2 parti eklendi."
+    assert window.toaster.current_text() == "2 parti eklendi; 1 belge bulundu."  # R3 Y-10
     assert screen.controller.undo_stack.undoText() == "2 parti ekle"
     screen.controller.undo()
     assert _names(screen) == ["tarama-1.pdf"]  # one Geri al takes both away

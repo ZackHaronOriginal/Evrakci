@@ -182,6 +182,13 @@ def _yukle_remove(window, tab: str) -> str | None:
     return NO_JOB_TEXT if _no_job(window) else PICK_BATCH
 
 
+def _yukle_open(window, tab: str) -> str | None:
+    """Partiyi Kontrol'de aç: needs a job, a chosen batch and no read running."""
+    if _no_job(window):
+        return NO_JOB_TEXT
+    return "Okuma bitince açılır." if window.yukle.busy() else PICK_BATCH
+
+
 def _needs_job(window, tab: str) -> str | None:
     return NO_JOB_TEXT
 
@@ -344,6 +351,7 @@ _RULES = {
     "yukle.yukari": _yukle_up,
     "yukle.asagi": _yukle_down,
     "yukle.cikar": _yukle_remove,
+    "yukle.kontrolde_ac": _yukle_open,
     "yukle.yeniden_adlandir": _needs_job,
     "yukle.gezginde_goster": _needs_job,
     "yukle.iptal": _stop,

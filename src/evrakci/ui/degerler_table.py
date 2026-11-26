@@ -96,6 +96,14 @@ SAMPLE_COLUMNS = [Column("review", ""), Column("doc", "Belge"), Column("pages", 
                   Column("guven", "Güven")]
 
 
+def _level_words(cell: Cell) -> str:
+    """The level as it is spoken: "Kontrol %41", "Orta %75" (Emin and the rest need no number)."""
+    word = LEVELS[cell.level][2]
+    if cell.percent is not None and cell.level in ("kontrol", "orta"):
+        return f"{word} %{cell.percent}"
+    return word
+
+
 def _guven_sort(row: Row, cell: Cell | None) -> tuple:
     level = cell.level if cell is not None else row.level
     percent = cell.percent if cell is not None else row.percent
@@ -241,10 +249,16 @@ class ValuesModel(QAbstractTableModel):
             name = cell.title if cell is not None else column.title
             if cell is None or cell.value is None:
                 return f"{name}: okunmadı"
-            shown = f"{cell.main}, okunan {cell.read_note}" if cell.dual else text
-            parts = [f"{name}: {shown or 'boş'}", LEVELS[cell.level][2]]
+            # D-7: for a value to check, what was read, the level with its percent and the
+            # suggestion Enter stores ("Sicil No: 48Z13, Kontrol %41, öneri 48213,
+            # 3. karakter belirsiz")
+            flagged = cell.needs_check and bool(cell.suggestion)
+            parts = [f"{name}: {(cell.text if flagged else text) or 'boş'}", _level_words(cell)]
+            if flagged:
+                parts.append(f"öneri {cell.suggestion}")
             if cell.uncertain:
-                parts.append(f"{len(cell.uncertain)} karakter belirsiz")
+                places = " ve ".join(f"{i + 1}." for i in cell.uncertain)
+                parts.append(f"{places} karakter belirsiz")
             if cell.reviewed:
                 parts.append("İncelendi")
             return ", ".join(parts)
@@ -332,6 +346,8 @@ class Fonts:
         self.note = m.font("caption")  # the secondary "← okunan …" part of a cell
 
 
+FIT_ALL_ROWS = 300  # above this many rows `fit_rows` measures a window, not every row
+FIT_MARGIN = 60  # rows measured above and below the view
 MAX_LINES = 3  # a wrapped value stops here; a longer one elides its last line
 
 
@@ -856,7 +872,12 @@ class ValuesTable(QTableView):
         self._rows_timer.setInterval(0)
         self._rows_timer.timeout.connect(self.fit_rows)
         self.horizontalHeader().sectionResized.connect(lambda *_a: self._rows_timer.start())
+        self.verticalScrollBar().valueChanged.connect(self._scrolled)
         theme.follow(self, self._rescale, "degerler-rows")
+
+    def _scrolled(self, _value: int) -> None:
+        if self.model() is not None and self.model().rowCount() > FIT_ALL_ROWS:
+            self._rows_timer.start()  # measure the rows that came near
 
     def _rescale(self) -> None:
         row = theme.manager().size("row-h")
@@ -897,6 +918,14 @@ class ValuesTable(QTableView):
         base = theme.manager().size("row-h")
         wrapping = [c for c, column in enumerate(model.columns)
                     if column.kind in ("name", *VALUE_KINDS) and not self.isColumnHidden(c)]
+        if last is None and model.rowCount() > FIT_ALL_ROWS:
+            # a big table: only the rows in and around the view are measured now (a full pass
+            # took 90 ms at 1,000 documents, each time a read stored a batch); the others are
+            # measured when they scroll near
+            top = max(0, self.rowAt(0))
+            bottom = self.rowAt(self.viewport().height() - 1)
+            bottom = top + 40 if bottom < 0 else bottom
+            first, last = max(0, top - FIT_MARGIN), bottom + FIT_MARGIN
         last = model.rowCount() - 1 if last is None else min(last, model.rowCount() - 1)
         for r in range(max(0, first), last + 1):
             height = base

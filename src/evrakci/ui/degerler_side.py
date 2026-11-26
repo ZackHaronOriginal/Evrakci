@@ -783,7 +783,7 @@ class SidePanel(QWidget):
         acts = QVBoxLayout()
         acts.setSpacing(m.size("s2"))
         # One space after the icon: Qt's 4 px icon gap + a space = A's s2 between them
-        self.accept_button = _OnceButton(" Onayla ve sonrakine geç")
+        self.accept_button = _OnceButton(" Onayla")
         self.accept_button.setProperty("action_id", "degerler.onayla")
         self.accept_button.setProperty("variant", "primary")
         self.accept_button.setProperty("sizeVariant", "lg")
@@ -804,6 +804,7 @@ class SidePanel(QWidget):
         # row of buttons follows the cards, so the pinned group is not taller than before
         self._large = False
         self._blank = True
+        self._unreadable = False
         self.approve = QBoxLayout(QBoxLayout.Direction.LeftToRight)
         self.approve.setSpacing(m.size("s2"))
         self.approve.addWidget(self.accept_button, 1)
@@ -817,7 +818,7 @@ class SidePanel(QWidget):
         self._icons = (("accept_button", "check", "text-on-accent"),
                        ("read_button", "check", "icon"), ("type_button", "pencil", "icon"),
                        ("variant_button", "square", "icon"))
-        self.accept_button.setToolTip("Onayla ve sonrakine geç (Enter)")
+        self.accept_button.setToolTip("Onayla (Enter)")
         self.read_button.setToolTip("Okunanla onayla (Shift+Enter)")
         self.type_button.setToolTip("Elle yaz (F2)")
         self.variant_button.setToolTip("Yeni kutu çiz (V)")
@@ -834,6 +835,8 @@ class SidePanel(QWidget):
         m = theme.manager()
         for name, icon, role in self._icons:
             button: QPushButton = getattr(self, name)
+            if name == "type_button" and self._unreadable:
+                role = "text-on-accent"
             button.setIcon(make_icon(icon, role, m.size("icon-sm")))
         self.accept_button.setMinimumHeight(m.size("lg-h"))
         self.read_button.setMinimumHeight(m.size("lg-h"))
@@ -878,11 +881,25 @@ class SidePanel(QWidget):
         self.scroll.updateGeometry()
         self.layout().invalidate()
 
-    def set_actions(self, accept: bool, type_: bool, variant: bool, dual: bool = False) -> None:
+    def set_actions(self, accept: bool, type_: bool, variant: bool, dual: bool = False,
+                    unreadable: bool = False) -> None:
         """`dual`: the value has a suggestion and a different read text, so there are two
-        approvals (the first, highlighted, stores the suggestion)."""
-        self.accept_button.setText(" Öneriyle onayla" if dual else " Onayla ve sonrakine geç")
-        tip = "Öneriyle onayla (Enter)" if dual else "Onayla ve sonrakine geç (Enter)"
+        approvals (the first, highlighted, stores the suggestion). `unreadable` (D-6): nothing
+        was read, so there is nothing to approve: "Elle yaz" is the main button and Onayla is
+        hidden (Enter still opens the editor)."""
+        if unreadable != self._unreadable:
+            self._unreadable = unreadable
+            m = theme.manager()
+            self.type_button.setProperty("variant", "primary" if unreadable else None)
+            self.type_button.setProperty("sizeVariant", "lg" if unreadable else None)
+            self.type_button.setMinimumHeight(m.size("lg-h") if unreadable else 0)
+            style = self.type_button.style()
+            style.unpolish(self.type_button)
+            style.polish(self.type_button)
+            self._restyle()
+        self.accept_button.setVisible(not unreadable)
+        self.accept_button.setText(" Öneriyle onayla" if dual else " Onayla")
+        tip = "Öneriyle onayla (Enter)" if dual else "Onayla (Enter)"
         self.accept_button.setToolTip(tip)
         self.accept_button.setAccessibleName(tip)
         self.read_button.setVisible(dual)

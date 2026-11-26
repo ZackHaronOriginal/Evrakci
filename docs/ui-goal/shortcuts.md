@@ -60,7 +60,7 @@ the part between the two comments.
 - `Ctrl+.`: page-specific: stop what is running; the label names the job (reading, export)
 - `Ctrl+P`: page-specific: print the tab's own object (index on Dışa Aktar, separator sheet on Rehber)
 - `Del`: page-specific: delete the selected thing, undoable (Parti, Sayfa, Kutu)
-- `Enter`: page-specific: confirm and move on (Belgeyi onayla on Kontrol, Onayla ve sonrakine geç on Değerler)
+- `Enter`: page-specific: confirm and move on (Belgeyi onayla on Kontrol, Onayla on Değerler)
 - `Return`: page-specific: same as Enter (main keyboard row)
 - `Esc`: page-specific: dismiss without losing work (Seçimi kaldır on Kontrol, Vazgeç on Değerler, Aramayı temizle on Rehber)
 - `F2`: page-specific: edit the selected item's name or value by hand (İşi yeniden adlandır on Yükle, Elle yaz on Değerler)
@@ -139,7 +139,7 @@ the part between the two comments.
 | T | Şablonu uygula | Araçlar | yazarken kapalı |
 | D | Değerlerde aç | Araçlar | opens Değerler on this document, status 'Belge N seçildi.'; yazarken kapalı |
 | Space | Önizle | Görünüm | the loupe; yazarken kapalı |
-| N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | yazarken kapalı |
+| N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | says 'Başa döndü.' / 'Sona döndü.' when it goes round the end, and what a search or another template still hides; yazarken kapalı |
 | U | Sonraki incelenmemiş | Git | yazarken kapalı |
 | Ctrl+Right / Ctrl+Left | Sonraki belge / Önceki belge | Git | |
 | Alt+Right / Alt+Left | Seçimi bozmadan git | Git | the focus ring moves one page, the selection stays; yerel (timeline); two menu items under Git, one per direction |
@@ -179,7 +179,7 @@ list and the inspector fields.
 
 | Key | Command | Menu | Note |
 |---|---|---|---|
-| Enter | Onayla ve sonrakine geç (Öneriyle onayla for a value with a suggestion) | Düzen | accepts the suggestion, marks it İncelendi, moves on; yazarken kapalı (the cell editor keeps its own Enter) |
+| Enter | Onayla (Öneriyle onayla for a value with a suggestion) | Düzen | accepts the suggestion, marks it İncelendi, moves on, and says 'Belge 2, Sicil No: 48213 kabul edildi.' in the status line; Geri al selects that value again ('Geri alındı: Belge 2, Sicil No.'); for an Okunamadı value it opens the editor; yazarken kapalı (the cell editor keeps its own Enter) |
 | Shift+Enter | Okunanla onayla | Düzen | stores what was read, marks it İncelendi, moves on; only for a value whose suggestion differs from the read; yazarken kapalı |
 | Ctrl+Enter | Seçilenleri onayla | Düzen | acts on the current selection only |
 | F2 | Elle yaz | Düzen | |
@@ -188,11 +188,12 @@ list and the inspector fields.
 | Esc | Vazgeç | Düzen | drops the change; "Geri al" is only Ctrl+Z; yazarken kapalı (the editor keeps its own Esc) |
 | Ctrl+A | Tümünü seç | Düzen | |
 | Space | Tüm sayfayı göster | Görünüm | the same key as the Kontrol loupe; yazarken kapalı |
-| N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | yazarken kapalı |
+| N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | says 'Başa döndü.' / 'Sona döndü.' when it goes round the end, and what a search or another template still hides; yazarken kapalı |
 | — | Tümünü incele, Örnek kontrol | Araçlar | checkable |
 | K | Kontrol'de aç | Araçlar | opens Kontrol on this document, status 'Belge N seçildi.'; yazarken kapalı |
 | Ctrl+. | Okumayı durdur | Araçlar | |
 | — | Değerleri oku / Yalnızca eksikleri oku | Araçlar | A's labelled scan-text and list-filter command-bar buttons |
+| — | Sütun genişliklerini sıfırla | Görünüm | also on the right-click menu of a column title; a column cannot be dragged narrower than 80 px (at 100 % text) |
 | Tab / Shift+Tab | Sonraki / önceki değer | — | yerel (table); Tab on the last value leaves the table, F6 moves to the next region |
 | Alt+1 / Alt+2 / Alt+3 / Alt+4 | Okuma seç | — | yerel (open editor only); the editor takes reading 1-4 of "Tüm okumalar", Enter stores it as one undo step; the mouse path is a click on the reading row (Q-23) |
 

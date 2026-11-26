@@ -116,17 +116,13 @@ Updated after every accepted step. A new session or a compacted one reads this f
   C I-07 DONE (merged f590a5f): saved filters as chips with the template, select_pages, CLI sablon filtre-* and is sec
   --sablon/--filtre; evidence tests/ui/test_kontrol_chips.py, test_select.py, test_cli_select.py, test_template_model.py;
   full suite 3007 passed on the branch. GROUP C BUILT. B-005 FIXED (Q-01 c). Q-04 done. fluent-reference skill added.
-  NEXT: group C Opus review (running; writes docs/ui-goal/review-group-c.md). Then the owner-approved build queue of
-  2026-11-26 (decisions.md), one worktree step each, model-akisi gates:
-   Q1 texts: Q-23 Okuma seç (contract row Alt+1..4), Q-25 CLI sentence (B-091), Q-26 print preview failure, Q-27 plan subtitle.
-   Q2 Değerler Q-12/B-056: both values in the cell, Öneriyle onayla (Enter) / Okunanla onayla (Shift+Enter), confirmation (HIGH).
-   Q3 Değerler silent items: failed reads counted, empty required value refused, Ctrl+A Ctrl+Enter count (after Q2).
-   Q4 Dışa Aktar: Kontrol gerekenler subfolder option (core+CLI+UI, default on, HIGH) + say before export that the job
-      will be deleted (Saklama delete-after-export).
-   Q5 Q-08 shortcut fixes per scratchpad triage (Ctrl+G everywhere B-027, Ctrl+F label, F5, loupe R/Del check, wording).
-   Q6 Q-16 fixes + toasts bottom left + tool exemptions (Rehber reader, Şablonlar canvas).
-   Q7 Yükle: same file twice warns, broken file in multi-add, close after failed save.
-   Q8 Q-03 enforced rules in CI. Q9 B-057 Inter font for separator sheets (core).
+  GROUP C CLOSED: review docs/ui-goal/review-group-c.md (0 S1, 0 S2, 3 S3, 10 S4), fixes merged f939c94; Q-31 asked.
+  Owner build queue of 2026-11-26 DONE except Q5 (running): B-005 fixed (Q-01 c), B-056 fixed (Q-12, 75350ac), B-057 fixed
+  (1fc788a), Q-03 enforced rules in CI (known-fails.tsv: zoom −/+ wait for Q-32; one CI-only row B-104), Q-04 paraphrased,
+  export Kontrol gerekenler subfolder + delete warning (13bce0d), Yükle Q7 (a725035), Q-16 fixes + toasts bottom left
+  (107f798), texts Q-23/25/26/27 + Değerler D-1..D-3 (bae68d3; full suite 3118 passed). fluent-reference skill added.
+  NEXT: Q5 shortcut fixes (Q-08) + reasons for keys that cannot act (Q-09) (worktree q5). Then a final Opus review of
+  all 2026-11-26 owner items, Phase 5 exit check, final report.
   Triage notes (not in git): scratchpad q08-triage.md, q10-q15-plain.md, q02-q16-plain.md; re-derive from the audit
   files if gone. Q-02 rows: decide with the fluent-reference skill. (task spec .claude/gorevler/2026-11-26-c18-i07.md).
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).

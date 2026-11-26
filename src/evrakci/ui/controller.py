@@ -10,7 +10,13 @@ from PySide6.QtGui import QUndoCommand, QUndoStack
 
 from evrakci.pipeline import review
 from evrakci.pipeline.cuts import Document, compute_documents, cut_kinds
-from evrakci.pipeline.job import Job, job_from_dict, job_to_dict
+from evrakci.pipeline.job import (
+    Job,
+    apply_page_sizes,
+    carry_page_sizes,
+    job_from_dict,
+    job_to_dict,
+)
 from evrakci.pipeline.store import JobStore
 from evrakci.ui.saver import JobSaver
 
@@ -223,8 +229,20 @@ class JobController(QObject):
         self._changed(after)
         return True
 
+    def fill_page_sizes(self, sizes: dict[str, tuple[float, float]]) -> int:
+        """Housekeeping: the sizes read from the batch files of an older job. Not an edit, so
+        no undo step; the job is saved and the views refresh. Returns how many pages got one."""
+        if self.frozen:
+            return 0
+        filled = apply_page_sizes(self.job, sizes)
+        if filled:
+            self._changed()
+        return filled
+
     def _restore(self, data: dict, notify: bool = True) -> None:
         restored = job_from_dict(data)
+        if carry_page_sizes(self.job, restored):  # the step is older than the sizes read later
+            data = job_to_dict(restored)
         self.job.__dict__.update(restored.__dict__)  # views keep the same Job object
         if notify:
             self._changed(data)

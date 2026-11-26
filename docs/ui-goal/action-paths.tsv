@@ -112,9 +112,12 @@ kontrol		kontrol.bos_at	Boş sayfaları at	Araçlar > Boş sayfaları at	bar Di�
 kontrol		kontrol.bos_geri_getir	Boş sayfayı geri getir	Araçlar > Boş sayfayı geri getir [state-dependent]	bar Diğer komutlar [state-dependent]		yes	ok
 kontrol	D	kontrol.degerlerde_ac	Değerlerde aç	Araçlar > Değerlerde aç	GapButton | bar Diğer komutlar	page	yes	ok
 kontrol	Space	kontrol.onizle	Önizle	Görünüm > Önizle	bar	page	yes	ok
+kontrol		kontrol.farkli_isaretle	Farklı görünenleri işaretle	Görünüm > Farklı görünenleri işaretle	bar Diğer komutlar		yes	ok
 kontrol	N	kontrol.sonraki_kontrol	Sonraki kontrol	Git > Sonraki kontrol	bar		yes	ok
 kontrol	Shift+N	kontrol.onceki_kontrol	Önceki kontrol	Git > Önceki kontrol	bar Diğer komutlar		yes	ok
 kontrol	U	kontrol.sonraki_incelenmemis	Sonraki incelenmemiş	Git > Sonraki incelenmemiş	bar | panel Diğer		yes	ok
+kontrol		kontrol.sonraki_farkli	Sonraki farklı sayfa	Git > Sonraki farklı sayfa	bar Diğer komutlar		yes	ok
+kontrol		kontrol.onceki_farkli	Önceki farklı sayfa	Git > Önceki farklı sayfa	bar Diğer komutlar		yes	ok
 kontrol	Ctrl+Right	kontrol.sonraki_belge	Sonraki belge	Git > Sonraki belge	bar Diğer komutlar | panel Diğer		yes	ok
 kontrol	Ctrl+Left	kontrol.onceki_belge	Önceki belge	Git > Önceki belge	bar Diğer komutlar | panel Diğer		yes	ok
 kontrol	Alt+Right	kontrol.git_secimsiz	Seçimi bozmadan git	Git > Seçimi bozmadan git	bar Diğer komutlar		no	ok

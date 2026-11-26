@@ -8,7 +8,7 @@ when batches are reordered.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from evrakci.pipeline.analyze import PageInfo
 from evrakci.pipeline.templates.values import SectionReading, VariableValue
@@ -210,6 +210,26 @@ class Job:
         self.restored.discard(self._check(pid))
 
 
+def apply_page_sizes(job: Job, sizes: dict[str, tuple[float, float]]) -> int:
+    """Set the sizes (millimetres) of the pages whose size is unknown; known sizes stay.
+    Returns how many pages got one. Housekeeping, not an edit: no undo step."""
+    filled = 0
+    for pid, (width, height) in sizes.items():
+        info = job.pages.get(pid)
+        if info is None or info.has_size or not (width > 0 and height > 0):
+            continue
+        job.pages[pid] = replace(info, width_mm=width, height_mm=height)
+        filled += 1
+    return filled
+
+
+def carry_page_sizes(source: Job, target: Job) -> int:
+    """Copy the sizes `source` knows into the pages of `target` that do not know theirs (an
+    undo step restores a job from before the sizes were read; it must not forget them)."""
+    return apply_page_sizes(target, {pid: (info.width_mm, info.height_mm)
+                                     for pid, info in source.pages.items() if info.has_size})
+
+
 def job_to_dict(job: Job) -> dict:
     data = _job_dict(job)
     if job.last_export is not None:  # absent when never exported: the file stays as before
@@ -228,7 +248,8 @@ def _job_dict(job: Job) -> dict:
             {"id": b.id, "file_name": b.file_name, "page_count": b.page_count} for b in job.batches
         ],
         "pages": {
-            pid: {"ink_ratio": info.ink_ratio, "is_separator": info.is_separator}
+            pid: {"ink_ratio": info.ink_ratio, "is_separator": info.is_separator,
+                  "width_mm": round(info.width_mm, 1), "height_mm": round(info.height_mm, 1)}
             for pid, info in job.pages.items()
         },
         "drop_empty": job.drop_empty,
@@ -292,7 +313,9 @@ def job_from_dict(data: dict) -> Job:
         name=data["name"],
         batches=[Batch(b["id"], b["file_name"], b["page_count"]) for b in data["batches"]],
         pages={
-            pid: PageInfo(p["ink_ratio"], p["is_separator"]) for pid, p in data["pages"].items()
+            pid: PageInfo(p["ink_ratio"], p["is_separator"], _size(p.get("width_mm")),
+                          _size(p.get("height_mm")))
+            for pid, p in data["pages"].items()
         },
         drop_empty=data["drop_empty"],
         deleted=set(data["deleted"]),
@@ -318,6 +341,15 @@ def job_from_dict(data: dict) -> Job:
         },
         last_export=_last_export_from_dict(data.get("last_export")),
     )
+
+
+def _size(value) -> float:
+    """A stored page size; a missing or damaged one reads as 0.0 (unknown), never an error."""
+    try:
+        size = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return size if 0 < size < float("inf") else 0.0
 
 
 def _last_export_from_dict(data) -> LastExport | None:

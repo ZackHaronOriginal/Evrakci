@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
     QStyleOptionViewItem,
 )
 
+from evrakci.pipeline.select import different_pages
 from evrakci.ui import kontrol_paint as kp
 from evrakci.ui import style, theme
 from evrakci.ui.controller import JobController
@@ -63,6 +64,7 @@ class Roles(IntEnum):
     CHECK = Qt.ItemDataRole.UserRole + 6  # the document needs a check
     PAGE_NO = Qt.ItemDataRole.UserRole + 7
     REVIEWED = Qt.ItemDataRole.UserRole + 8  # the document was approved (İncelendi)
+    ODD = Qt.ItemDataRole.UserRole + 9  # "boyut" | "yatay" | "dikey" on a page that looks different
 
 
 @dataclass(slots=True)
@@ -79,12 +81,15 @@ class Group:
 class TimelineModel(QAbstractListModel):
     """Every page of the job in order; documents, cuts and states from the core."""
 
+    marks_changed = Signal()  # the marks were switched on or off: the view lays out again
+
     def __init__(self, controller: JobController, templates=dict) -> None:
         super().__init__()
         self.controller = controller
         self.templates = templates  # callable returning {template id: Template}
         self.checks: dict[int, list[str]] = {}
         self.reviewed: set[int] = set()
+        self.marks_on = True  # "Farklı görünenleri işaretle" (the jumps work with it off, too)
         self._rebuild()
         controller.job_changed.connect(self.refresh)
 
@@ -100,6 +105,27 @@ class TimelineModel(QAbstractListModel):
     def set_reviewed(self, numbers: set[int]) -> None:
         self.reviewed = set(numbers)
         self._changed_all()
+
+    def set_marks(self, on: bool) -> None:
+        """Show or hide the "looks different" marks (the pages are found either way)."""
+        on = bool(on)
+        if on != self.marks_on:
+            self.marks_on = on
+            self._changed_all()
+            self.marks_changed.emit()
+
+    def odd_rows(self) -> list[int]:
+        """Rows of the pages that look different (size or orientation), in order."""
+        return self._odd_rows
+
+    def odd_kind(self, row: int) -> str | None:
+        """What is different about the page of `row` ("boyut", "yatay", "dikey") while the marks
+        are shown, else None."""
+        return self._odd.get(self._pids[row]) if self.marks_on else None
+
+    def marked_kinds(self) -> set[str]:
+        """The kinds of mark that are drawn now."""
+        return set(self._odd.values()) if self.marks_on else set()
 
     def _changed_all(self) -> None:
         if self._pids:
@@ -123,6 +149,10 @@ class TimelineModel(QAbstractListModel):
                 self._template_of[pid] = name
         self._states = [self._state(pid) for pid in self._pids]
         self._groups = self._make_groups()
+        # once per rebuild, O(n): the pages whose size or orientation (after the job's own
+        # rotations) differs from the job's majority
+        self._odd = different_pages(job, documents=self.controller.documents())
+        self._odd_rows = [self._row[pid] for pid in self._odd]
 
     def _state(self, pid: str) -> str:
         job = self.controller.job
@@ -207,6 +237,8 @@ class TimelineModel(QAbstractListModel):
             return bool(self.checks.get(doc))
         if role == Roles.REVIEWED:
             return doc in self.reviewed
+        if role == Roles.ODD:
+            return self.odd_kind(row)
         if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.ToolTipRole,
                     Qt.ItemDataRole.AccessibleTextRole):
             return self.describe(row)
@@ -224,6 +256,9 @@ class TimelineModel(QAbstractListModel):
             if self.checks.get(doc):
                 parts.append("kontrol gerekiyor")
             parts.append("incelendi" if doc in self.reviewed else "incelenmedi")
+        odd = self.odd_kind(row)
+        if odd is not None:
+            parts.append(kp.ODD_MARKS[odd][1].lower())  # "farklı boyut", "yatay", "dikey"
         if state == "deleted":
             parts.append("silinecek")
         elif state == "dropped":
@@ -248,6 +283,7 @@ class Metrics:
     lip_h: int
     lip_gap: int  # lip to pages (A .pages padding-top s3)
     caption_h: int
+    lines: int = 1  # caption lines reserved: 2 when a "looks different" mark wraps (150 % text)
 
     @property
     def header(self) -> int:
@@ -258,7 +294,7 @@ class Metrics:
         return self.header + self.page_h + self.caption_h
 
     @staticmethod
-    def at(zoom: int) -> Metrics:
+    def at(zoom: int, lines: int = 1) -> Metrics:
         m = theme.manager()
         scale = zoom / 100
         return Metrics(
@@ -266,7 +302,8 @@ class Metrics:
             sep_w=max(32, round(SEP_W * scale)), gap=m.size("s3"), doc_gap=DOC_GAP,
             pad_top=m.size("s4"), pad_x=m.size("s6"), row_gap=m.size("s6"),
             tab_h=kp.tab_height(), lip_h=kp.LIP_H, lip_gap=m.size("s3"),
-            caption_h=m.size("lh-caption") + 10)  # A figcaption: 28 px (6 + 18 + 4)
+            # A figcaption: 28 px (6 + 18 + 4); a second line under a wrapped mark
+            caption_h=m.size("lh-caption") * lines + 10, lines=lines)
 
 
 @dataclass(slots=True)
@@ -389,7 +426,8 @@ class TimelineDelegate(QStyledItemDelegate):
             style.paint_ring(painter, page.adjusted(-10, -10, 10, 10), radius + 8)
         if state != "separator":
             self._caption(painter, QRectF(page.x() - 8, page.bottom(), page.width() + 16,
-                                          mt.caption_h), row, state, selected)
+                                          mt.caption_h), row, state, selected,
+                          index.data(Roles.ODD))
         painter.restore()
 
     def _scan(self, painter: QPainter, index, page: QRectF, row: int, dim: float) -> None:
@@ -412,7 +450,7 @@ class TimelineDelegate(QStyledItemDelegate):
         painter.restore()
 
     def _caption(self, painter: QPainter, rect: QRectF, row: int, state: str,
-                 selected: bool) -> None:
+                 selected: bool, odd: str | None = None) -> None:
         m = theme.manager()
         text = str(row + 1)
         if state == "deleted":
@@ -425,9 +463,29 @@ class TimelineDelegate(QStyledItemDelegate):
             font, colour = m.font("caption-num"), "text-2"
         painter.setFont(font)
         painter.setPen(m.color(colour))
-        line = QFontMetrics(font).height()
-        painter.drawText(QRectF(rect.x(), rect.y() + 6, rect.width(), line),
-                         Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, text)
+        metrics = QFontMetrics(font)
+        line = metrics.height()
+        top = rect.y() + 6
+        if odd is None or state != "page":
+            painter.drawText(QRectF(rect.x(), top, rect.width(), line),
+                             Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, text)
+            return
+        # "looks different": the number, then a 14 px icon and the word (caption weight 600,
+        # text colour). Side by side when they fit, else two short lines (150 % text).
+        if kp.odd_caption_lines(text, odd, rect.width()) == 1:
+            number = metrics.horizontalAdvance(text)
+            gap = m.size("s3")
+            total = number + gap + kp.odd_mark_width(odd)
+            left = rect.center().x() - total / 2
+            painter.drawText(QRectF(left, top, number + 2, line),
+                             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, text)
+            kp.paint_odd_mark(painter, QRectF(left + number + gap, top, total - number - gap,
+                                              line), odd, align_left=True)
+        else:
+            painter.drawText(QRectF(rect.x(), top, rect.width(), line),
+                             Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, text)
+            kp.paint_odd_mark(painter, QRectF(rect.x(), top + m.size("lh-caption"), rect.width(),
+                                              line), odd)
 
 
 # -- view ---------------------------------------------------------------------------------------
@@ -476,6 +534,22 @@ class TimelineView(QListView):
         theme.follow(self, self.relayout)
 
     # -- layout -------------------------------------------------------------------------------
+    def setModel(self, model) -> None:  # noqa: N802
+        super().setModel(model)
+        if isinstance(model, TimelineModel):
+            model.marks_changed.connect(self.relayout)
+
+    def _caption_lines(self) -> int:
+        """2 when a mark that is drawn does not fit beside the page number (150 % text)."""
+        model = self.model()
+        if not isinstance(model, TimelineModel):
+            return 1
+        kinds = model.marked_kinds()
+        if not kinds:
+            return 1
+        number, width = str(model.rowCount()), self.metrics.page_w + 16
+        return max(kp.odd_caption_lines(number, kind, width) for kind in kinds)
+
     def set_zoom(self, percent: int) -> None:
         """Page size in percent of A's 148 x 209 (the status-bar slider)."""
         percent = max(ZOOM_MIN, min(ZOOM_MAX, int(percent)))
@@ -492,7 +566,7 @@ class TimelineView(QListView):
         anchor = None
         if current.isValid() and current.row() < len(self._rects):
             anchor = self.visualRect(current).top()
-        self.metrics = Metrics.at(self.zoom)
+        self.metrics = Metrics.at(self.zoom, self._caption_lines())
         self._laid_width = -1
         self.doItemsLayout()
         if anchor is not None and current.isValid():  # keep the current page where it was
@@ -502,6 +576,9 @@ class TimelineView(QListView):
 
     def doItemsLayout(self) -> None:  # noqa: N802
         model = self.model()
+        lines = self._caption_lines()
+        if lines != self.metrics.lines:  # a mark appeared or went: the caption height follows
+            self.metrics = Metrics.at(self.zoom, lines)
         if isinstance(model, TimelineModel) and model.rowCount():
             self._rects, self._rows, self._height = flow(
                 model.groups(), model._states, self.metrics, self.viewport().width())

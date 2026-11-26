@@ -117,6 +117,37 @@ def combine(
     return ids
 
 
+@dataclass(frozen=True)
+class SelectionResult:
+    """What `select_pages` found: the pages every known criterion matches (job order), how
+    many pages each criterion matches alone (one number per criterion, in the order given; 0
+    for an unknown kind) and the kinds this version does not know (in the order given)."""
+
+    page_ids: tuple[str, ...] = ()
+    per_filter_counts: tuple[int, ...] = ()
+    unknown_kinds: tuple[str, ...] = ()
+
+
+def select_pages(job: Job, criteria: Iterable[Criterion],
+                 templates: Mapping | None = None) -> SelectionResult:
+    """The pages that meet every criterion (AND). The window's saved-filter chips and
+    `is sec --sablon` call only this, so both give the same pages and counts. An unknown kind
+    is reported in `unknown_kinds` and cannot match, it is never dropped without a word; no
+    criterion at all selects nothing."""
+    ids: tuple[str, ...] | None = None
+    counts: list[int] = []
+    unknown: list[str] = []
+    for criterion in criteria:
+        if criterion.kind not in _KINDS:
+            counts.append(0)
+            unknown.append(criterion.kind)
+            continue
+        match = evaluate(job, criterion, templates=templates)
+        counts.append(match.count())
+        ids = match.page_ids if ids is None else combine(ids, match, "within")
+    return SelectionResult(ids or (), tuple(counts), tuple(unknown))
+
+
 def _documents(job: Job) -> list[Document]:
     return compute_documents(job)
 

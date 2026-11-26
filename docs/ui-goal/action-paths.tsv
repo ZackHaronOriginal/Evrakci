@@ -105,6 +105,7 @@ kontrol	Return	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton |
 kontrol	Enter	kontrol.onayla	Belgeyi onayla	Düzen > Belgeyi onayla	GapButton | bar Diğer komutlar		yes	ok
 kontrol	S	kontrol.sec	Ölçüte göre seç…	Araçlar > Ölçüte göre seç	bar		yes	ok
 kontrol	F	kontrol.filtre	Filtre uygula…	Araçlar > Filtre uygula	ActionRow | bar	page	yes	ok
+kontrol	Ctrl+Shift+F	kontrol.kayitli_filtreler	Kayıtlı filtreler	Araçlar > Kayıtlı filtreler	bar Diğer komutlar		yes	ok
 kontrol	T	kontrol.sablon	Şablonu uygula	Araçlar > Şablonu uygula	ActionRow | bar		yes	ok
 kontrol	Shift+F	kontrol.filtre_kaldir	Filtreyi kaldır	Araçlar > Filtreyi kaldır	bar Diğer komutlar	page [state-dependent]	yes	ok
 kontrol	Shift+T	kontrol.sablon_kaldir	Şablonu kaldır	Araçlar > Şablonu kaldır	bar Diğer komutlar	page	yes	ok

@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (
 
 from evrakci import __version__
 from evrakci.pipeline.store import JobFileError, JobStore, default_root
-from evrakci.pipeline.templates.model import TemplateError
+from evrakci.pipeline.templates.model import TemplateError, template_from_dict, template_to_dict
 from evrakci.pipeline.templates.store import TemplateStore
 from evrakci.ui import actions, icons, kontrol_empty, motion, ocr_engine, style, theme
 from evrakci.ui.chrome import (
@@ -58,6 +58,7 @@ from evrakci.ui.disa_aktar import DisaAktarScreen
 from evrakci.ui.feedback import Toaster
 from evrakci.ui.kontrol import KontrolScreen
 from evrakci.ui.kontrol_actions import NO_JOB_TEXT, KontrolStatus
+from evrakci.ui.kontrol_chips import TemplateStep
 from evrakci.ui.loading import LoadingCard
 from evrakci.ui.palette import CommandPalette
 from evrakci.ui.prefs import Prefs
@@ -1254,6 +1255,35 @@ class MainWindow(QMainWindow):
         if damaged:  # a file that cannot be read is named, not skipped in silence (B-017)
             self.message.setText("Şablon dosyası okunamadı: " + ", ".join(sorted(damaged)))
         return found
+
+    def template_undo_stack(self) -> QUndoStack:
+        """The Şablonlar undo stack: Kontrol's saved-filter edits are steps on it."""
+        return self.sablon.undo_stack
+
+    def edit_template(self, template_id: str, text: str, change) -> bool:
+        """Change one template for Kontrol (saved filters) and keep an undo step on the
+        Şablonlar stack. The open template of Şablonlar is edited there; any other is changed
+        in its file (a few hundred bytes: the write is short, so it stays on this thread).
+        A TemplateError from `change` goes to the caller."""
+        if self.sablon.template is not None and self.sablon.template.id == template_id:
+            change(template_from_dict(template_to_dict(self.sablon.template)))  # a trial run
+            return self.sablon._edit(text, change)
+        try:
+            template = self.template_store.load(template_id)
+        except (KeyError, TemplateError):
+            return False
+        before = template_to_dict(template)
+        change(template)
+        self.template_store.save(template)
+
+        def apply(data: dict) -> None:
+            if self.sablon.template is not None and self.sablon.template.id == template_id:
+                self.sablon._restore(data)
+            else:
+                self.template_store.save(template_from_dict(data))
+
+        self.sablon.undo_stack.push(TemplateStep(text, before, template_to_dict(template), apply))
+        return True
 
     def _open_last_job(self) -> None:
         path = self.store.root / LAST_JOB

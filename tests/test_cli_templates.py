@@ -91,3 +91,42 @@ def test_export_import_roundtrip(tmp_path, capsys):
     new_id = capsys.readouterr().out.strip().splitlines()[-1]
     assert new_id != tid
     assert run("sil", tid) == 0 and run("goster", new_id) == 0
+
+
+def test_saved_filters_add_list_remove(tmp_path, capsys):
+    run = runner(tmp_path)
+    tid = new_template(run, capsys)
+    assert run("filtreler", tid) == 0
+    assert "Kayıtlı filtreler: (yok)" in capsys.readouterr().out
+    assert run("filtre-ekle", tid, "Boş sayfalar", "bos", "--ayar", "ink=0.005") == 0
+    assert "Kayıtlı filtre eklendi: Boş sayfalar" in capsys.readouterr().out
+    assert run("filtre-ekle", tid, "Tek sayfalar", "tek") == 0
+    capsys.readouterr()
+    assert run("filtreler", tid) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines == ['Boş sayfalar  bos  {"ink": 0.005}', "Tek sayfalar  tek  {}"]
+    assert run("filtre-ekle", tid, "Tek sayfalar", "cift") == 2  # the name is taken
+    assert "Bu adla bir filtre zaten var" in capsys.readouterr().err
+    assert run("filtre-ekle", tid, "X", "yok-boyle-bir-olcut") == 2
+    capsys.readouterr()
+    assert run("filtre-ekle", tid, "X", "tek", "--ayar", "bozuk") == 2
+    assert "Geçersiz ayar" in capsys.readouterr().err
+    assert run("filtre-sil", tid, "Boş sayfalar") == 0
+    assert "Kayıtlı filtre silindi" in capsys.readouterr().out
+    assert run("filtre-sil", tid, "Boş sayfalar") == 2
+    assert "Filtre yok" in capsys.readouterr().err
+    assert run("filtreler", tid) == 0
+    assert capsys.readouterr().out.splitlines() == ["Tek sayfalar  tek  {}"]
+
+
+def test_existing_template_commands_print_what_they_printed(tmp_path, capsys):
+    run = runner(tmp_path)
+    tid = new_template(run, capsys, "Eski")
+    assert run("degisken-ekle", tid, "Kayıt No") == 0
+    capsys.readouterr()
+    assert run("goster", tid) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        f"Eski ({tid})", "Dosya adı kalıbı: (yok)", "Güven eşiği: 0.7", "- Kayıt No",
+        "    bölüm yok"]
+    assert run("listele") == 0
+    assert capsys.readouterr().out.strip() == f"{tid}  Eski  1 değişken"

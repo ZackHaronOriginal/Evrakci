@@ -43,6 +43,9 @@ from evrakci.pipeline.select import (
     reason_count_text,
     values_read,
 )
+from evrakci.pipeline.select import (
+    select_pages as select_by_filters,
+)
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsError, load_settings
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.model import Template, TemplateError, template_revision
@@ -225,8 +228,43 @@ def blank_percent(text: str) -> float:
     return value
 
 
+def select_saved(parser: argparse.ArgumentParser, args: argparse.Namespace,
+                 store: JobStore) -> int:
+    """`is sec --sablon ŞABLON [--filtre AD ...]`: the pages the window's saved-filter chips
+    select (AND of the filters, all of the template's when none is named); one function,
+    select_pages, for the window and for this command."""
+    from evrakci.cli.templates import load_template, template_store
+
+    if not args.sablon:
+        raise UserError(f"{parser.prog}: error: the following arguments are required: olcut")
+    job = load_job(store, args.id)
+    template = load_template(template_store(args), args.sablon)
+    try:
+        chosen = ([template.saved_filter(name) for name in args.filtre] if args.filtre
+                  else list(template.saved_filters))
+    except TemplateError as error:
+        raise UserError(str(error)) from None
+    if not chosen:
+        print("Hiçbir filtre açık değil")
+        return 0
+    every = {t.id: t for t in template_store(args).list()}  # what the window's chips see
+    result = select_by_filters(job, [Criterion(f.kind, f.params) for f in chosen], every)
+    for item, count in zip(chosen, result.per_filter_counts, strict=True):
+        known = item.kind not in result.unknown_kinds
+        print(f"{item.name}: {f'{count} sayfa' if known else 'Tanınmıyor'}")
+    if not result.page_ids:
+        print("Eşleşen sayfa yok.")
+        return 0
+    position = {pid: n for n, pid in enumerate(job.ordered_page_ids(), start=1)}
+    print(f"{len(chosen)} filtre açık: {len(result.page_ids)} sayfa")
+    print(f"sayfa {positions_text([position[pid] for pid in result.page_ids])}")
+    return 0
+
+
 def select_pages(args: argparse.Namespace, store: JobStore) -> int:
     """`is sec`: the pages the window's "Ölçüte göre seç…" would select; `--sil` deletes them."""
+    if getattr(args, "sablon", None):
+        raise UserError("--sablon cannot be combined with a criterion name")
     job = load_job(store, args.id)
     params: dict = {}
     if args.olcut == "belge":
@@ -714,7 +752,12 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
 
     p = job_commands.add_parser("sec", help="Ölçüte göre seç…")
     p.add_argument("id", help="iş numarası")
-    criteria = p.add_subparsers(dest="olcut", required=True)
+    p.add_argument("--sablon", metavar="SABLON", help="Kayıtlı filtreler: şablon numarası")
+    p.add_argument("--filtre", action="append", metavar="AD",
+                   help="Kayıtlı filtreler: filtrenin adı (birden çok kez verilebilir; "
+                        "verilmezse hepsi)")
+    p.set_defaults(handler=lambda args, store, parser=p: select_saved(parser, args, store))
+    criteria = p.add_subparsers(dest="olcut", required=False)
     for name, label in (("belge", "Bu belge"), ("tek", "Tek sayfalar"), ("cift", "Çift sayfalar")):
         q = criteria.add_parser(name, help=label)
         if name == "belge":

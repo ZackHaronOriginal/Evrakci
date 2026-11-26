@@ -65,3 +65,80 @@ def test_nothing_matches_and_errors(tmp_path, capsys):
     assert run("is", "sec", "yok", "tek") == 2
     assert "İş bulunamadı" in capsys.readouterr().err
     assert run("is", "sec", job_id, "yok") == 2
+
+
+def saved_filters(tmp_path, capsys):
+    """The job of PAGES, a template with three saved filters and a runner for both roots."""
+    run, store, job_id = setup_job(tmp_path, capsys)
+    templates = str(tmp_path / "sablonlar")
+
+    def sablon(*args):
+        return main(["--sablon-kok", templates, "sablon", *args])
+
+    assert sablon("olustur", "Süzgeç") == 0
+    template_id = capsys.readouterr().out.strip().splitlines()[-1]
+    assert sablon("filtre-ekle", template_id, "Tekler", "tek") == 0
+    assert sablon("filtre-ekle", template_id, "Boşlar", "bos") == 0
+    assert sablon("filtre-ekle", template_id, "İkinci", "belge", "--ayar", "number=2") == 0
+    capsys.readouterr()
+
+    def secs(*args):
+        return main(["--kok", str(tmp_path / "kok"), "--sablon-kok", templates, "is", "sec",
+                     job_id, *args])
+
+    return secs, store, job_id, template_id, templates
+
+
+def test_is_sec_sablon_gives_the_pages_select_pages_gives(tmp_path, capsys):
+    from evrakci.pipeline.select import select_pages
+    from evrakci.pipeline.templates.store import TemplateStore
+
+    secs, store, job_id, template_id, templates = saved_filters(tmp_path, capsys)
+    job = store.load(job_id)
+    template = TemplateStore(templates).load(template_id)
+    order = job.ordered_page_ids()
+    for names in (["Tekler", "İkinci"], ["Tekler"], ["İkinci"], None):
+        chosen = [template.saved_filter(n) for n in names] if names else template.saved_filters
+        expected = select_pages(job, [Criterion(f.kind, f.params) for f in chosen])
+        args = ["--sablon", template_id]
+        for name in names or ():
+            args += ["--filtre", name]
+        assert secs(*args) == 0
+        out = capsys.readouterr().out
+        if expected.page_ids:
+            assert f"{len(chosen)} filtre açık: {len(expected.page_ids)} sayfa" in out
+            assert printed_positions(out) == [order.index(p) + 1 for p in expected.page_ids]
+        else:
+            assert "Eşleşen sayfa yok." in out
+    assert secs("--sablon", template_id, "--filtre", "Tekler", "--filtre", "İkinci") == 0
+    out = capsys.readouterr().out
+    assert "Tekler: 5 sayfa" in out and printed_positions(out) == [6, 8]
+
+
+def test_is_sec_sablon_says_unknown_kinds_and_refuses_bad_use(tmp_path, capsys):
+    from evrakci.pipeline.templates.store import TemplateStore
+
+    secs, _store, _job_id, template_id, templates = saved_filters(tmp_path, capsys)
+    store = TemplateStore(templates)
+    template = store.load(template_id)
+    template.add_saved_filter("Gelecek", "gelecek")
+    store.save(template)
+    assert secs("--sablon", template_id, "--filtre", "Gelecek") == 0
+    out = capsys.readouterr().out
+    assert "Gelecek: Tanınmıyor" in out and "Eşleşen sayfa yok." in out
+    assert secs("--sablon", template_id, "--filtre", "Yok") == 2
+    assert "Filtre yok" in capsys.readouterr().err
+    assert secs("--sablon", "ffff") == 2
+    assert "Şablon bulunamadı" in capsys.readouterr().err
+    assert secs() == 2  # no criterion and no template: argparse's own message
+    assert "olcut" in capsys.readouterr().err
+    assert secs("--sablon", template_id, "tek") == 2
+    capsys.readouterr()
+
+
+def test_a_template_without_filters_says_none_is_on(tmp_path, capsys):
+    secs, _store, _job_id, _template_id, templates = saved_filters(tmp_path, capsys)
+    assert main(["--sablon-kok", templates, "sablon", "olustur", "Boş"]) == 0
+    empty = capsys.readouterr().out.strip().splitlines()[-1]
+    assert secs("--sablon", empty) == 0
+    assert capsys.readouterr().out.strip() == "Hiçbir filtre açık değil"

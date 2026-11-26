@@ -444,6 +444,47 @@ def _feedback_odd_selected(c: Ctx) -> None:
     assert QApplication.focusWidget() is _k(c).timeline
 
 
+@helper("pre.kontrol_chips")
+def _pre_chips(c: Ctx) -> None:
+    """The template of the current page gets a saved filter (taken away again afterwards), so
+    the chip row is on show; the timeline has focus."""
+    pick(c, [5])
+    k = _k(c)
+    template_id = k._template_for_selection()
+    assert template_id is not None
+    assert c.win.edit_template(template_id, "Kayıtlı filtre ekle",
+                               lambda t: t.add_saved_filter("Tekler", "tek"))
+
+    def put_back() -> None:
+        c.win.edit_template(template_id, "Kayıtlı filtre silindi",
+                            lambda t: t.remove_saved_filter("Tekler"))
+        c.win.sablon.undo_stack.clear()
+        k._chips_invalidate()
+        k._chips_sync()
+
+    c.undo.append(put_back)
+    k._chips_sync()
+    assert not k.chips.isHidden()
+    pick(c, [5])
+
+
+@helper("effect.kontrol_chip_focused")
+def _effect_chip_focused(c: Ctx) -> None:
+    from evrakci.ui.kontrol_chips import FilterChip
+
+    focus = QApplication.focusWidget()
+    assert isinstance(focus, FilterChip) and focus.info.name == "Tekler", focus
+    assert selected(c) == c.snap["selected"], selected(c)  # nothing selected or turned on
+    assert not focus.isChecked()
+
+
+@helper("feedback.kontrol_chip_focused")
+def _feedback_chip_focused(c: Ctx) -> None:
+    assert_focus_ring(c.win)
+    assert QApplication.focusWidget().accessibleName() == "Tekler"
+    assert c.win.controller().undo_stack.index() == c.snap["index"]  # focus move only
+
+
 @helper("pre.kontrol_doc_page5")
 def _pre_doc_page5(c: Ctx) -> None:
     pick(c, [5])
@@ -802,6 +843,9 @@ PLANS["kontrol.sablon_kaldir"] = _plan(
     broken="broken.kontrol_nothing_selected", na="na.kontrol_pick_pages_says")
 PLANS["kontrol.sec"] = _plan(
     "pre.kontrol_select_dialog", "effect.kontrol_odd_selected", "feedback.kontrol_odd_selected",
+    na_pre="pre.none", na="na.says_no_job", xfail={"na": _M30})
+PLANS["kontrol.kayitli_filtreler"] = _plan(
+    "pre.kontrol_chips", "effect.kontrol_chip_focused", "feedback.kontrol_chip_focused",
     na_pre="pre.none", na="na.says_no_job", xfail={"na": _M30})
 PLANS["kontrol.belgeyi_sec"] = _plan(
     "pre.kontrol_doc_page5", "effect.kontrol_document_selected",

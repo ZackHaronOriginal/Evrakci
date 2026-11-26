@@ -45,6 +45,7 @@ SCREEN_SLOTS: dict[str, tuple] = {
     "kontrol.farkli_isaretle": ("set_odd_marks",),
     "kontrol.tumunu_sec": ("select_all",),
     "kontrol.sec": ("select_by",), "kontrol.belgeyi_sec": ("select_document",),
+    "kontrol.kayitli_filtreler": ("focus_saved_filters",),
     "kontrol.sayfa_sec": ("toggle_current",), "kontrol.git_secimsiz": ("move_focus", 1),
     "kontrol.git_secimsiz_sol": ("move_focus", -1),
     "kontrol.secimi_kaldir": ("escape",),

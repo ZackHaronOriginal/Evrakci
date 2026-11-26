@@ -23,7 +23,7 @@ _WORDS_PER_MINUTE = 180
 NOTE_TEXT = "Ctrl+F ile rehberde arayın, Ctrl+tekerlek ile yazıyı büyütün."
 NOTE_DISMISS = "Bir daha gösterme"
 KEYS_LEAD = "Bu sekmede geçerli tuşlar. Diğer sekmelerin tuşları için {sheet} tuşuna basın."
-MISSING = "# Tarama rehberi\n\nRehber dosyası bulunamadı."
+MISSING = "# Tarama rehberi\n\nRehber dosyası bulunamadı. Evrakçı'yı yeniden kurun."
 
 
 def guide_text() -> str:
@@ -203,6 +203,7 @@ def with_shortcuts(guide: Guide) -> Guide:
 # -- HTML for QTextBrowser -----------------------------------------------------------------
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
 _CODE = re.compile(r"`([^`]+)`")
+_LINK = re.compile(r"\[([^\]]+)\]\((rehber:[a-z-]+)\)")  # [text](rehber:saklama): an in-app link
 
 
 @dataclass(frozen=True)
@@ -229,7 +230,9 @@ def inline(text: str, look: Look) -> str:
     out = _CODE.sub(lambda m: f'<span style="font-family:{look.mono}; font-size:{look.caption}px;'
                               f' background-color:{look.well};">&nbsp;{m.group(1)}&nbsp;</span>',
                     out)
-    return _BOLD.sub(lambda m: f'<b style="font-weight:600;">{m.group(1)}</b>', out)
+    out = _BOLD.sub(lambda m: f'<b style="font-weight:600;">{m.group(1)}</b>', out)
+    return _LINK.sub(lambda m: f'<a href="{m.group(2)}" style="color:{look.accent};">'
+                               f'{m.group(1)}</a>', out)
 
 
 def _block_html(block: Block, look: Look) -> str:

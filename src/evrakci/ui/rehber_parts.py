@@ -202,7 +202,7 @@ class EmptyResults(QWidget):
         self.title.setProperty("textRole", "panel")
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title.setWordWrap(True)
-        self.text = QLabel("Daha kısa bir sözcük deneyin; Türkçe harf fark etmez.")
+        self.text = QLabel("Daha kısa bir sözcük deneyin. ç, ş, ı yerine c, s, i yazabilirsiniz.")
         self.text.setProperty("textRole", "secondary")
         self.text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.text.setWordWrap(True)

@@ -344,20 +344,33 @@ def sample_colours(ctx: Ctx, rect: QRect, declared: int | None = None) -> tuple[
     return None
 
 
+def _linear(channel: int) -> float:
+    v = channel / 255
+    return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+
+
 def _blend_of(colour: int, declared: int, background: int, slack: float = 0.12) -> bool:
     """True when `colour` lies between `background` and `declared` (an anti-aliased mix of the
-    declared text colour): every channel moved the same fraction t (0 < t <= 1) of the way."""
-    fractions = []
-    for shift in (16, 8, 0):
-        c, d, b = (colour >> shift) & 255, (declared >> shift) & 255, (background >> shift) & 255
-        if abs(d - b) < 16:
-            if abs(c - b) > 16:
-                return False
-            continue
-        fractions.append((c - b) / (d - b))
-    if not fractions:
-        return False
-    return all(0 < t <= 1 + slack for t in fractions) and max(fractions) - min(fractions) <= slack
+    declared text colour): every channel moved the same fraction t (0 < t <= 1) of the way.
+    Text renderers mix in linear light or in gamma space, so both are tried."""
+    for convert in (float, _linear):
+        fractions = []
+        ok = True
+        for shift in (16, 8, 0):
+            c, d, b = ((colour >> shift) & 255, (declared >> shift) & 255,
+                       (background >> shift) & 255)
+            lc, ld, lb = convert(c), convert(d), convert(b)
+            span = convert(255) if convert is float else 1.0
+            if abs(ld - lb) < 0.06 * span:
+                if abs(lc - lb) > 0.06 * span:
+                    ok = False
+                    break
+                continue
+            fractions.append((lc - lb) / (ld - lb))
+        if ok and fractions and all(0 < t <= 1.03 for t in fractions) \
+                and max(fractions) - min(fractions) <= slack:
+            return True
+    return False
 
 
 def _dominant(hist: Counter[int]) -> int:

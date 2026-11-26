@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QApplication, QWidget
 from saving import wait_saved
 
 from evrakci.pipeline.store import JobFileError, JobStore
-from evrakci.ui import loading, workers
+from evrakci.ui import gc_guard, loading, workers
 from evrakci.ui.loading import LoadingCard
 from evrakci.ui.workers import run_background
 
@@ -34,6 +34,7 @@ def test_window_thread_keeps_running_while_a_job_loads(qtbot, owner, tmp_path, m
     release = threading.Event()
     monkeypatch.setattr(JobStore, "load", lambda self, job_id: release.wait(1.5) or "yüklendi")
     ticks: list[float] = []
+    collected = dict(gc_guard.stats)
     timer = QTimer(owner)
     timer.setInterval(20)
     timer.timeout.connect(lambda: ticks.append(time.perf_counter()))
@@ -47,7 +48,12 @@ def test_window_thread_keeps_running_while_a_job_loads(qtbot, owner, tmp_path, m
     gaps = [b - a for a, b in zip(ticks, ticks[1:], strict=False)]
     assert got == ["yüklendi"]
     assert len(ticks) >= 50
-    assert max(gaps) < 0.1
+    # when the longest gap happened (seconds after the first tick) and the collections that ran,
+    # so a CI miss (B-114) can be told apart from a real stall
+    worst = max(range(len(gaps)), key=gaps.__getitem__) if gaps else -1
+    assert max(gaps) < 0.1, (round(max(gaps), 3), round(ticks[worst] - ticks[0], 3),
+                             sorted(round(g, 3) for g in gaps)[-5:],
+                             {k: gc_guard.stats[k] - collected.get(k, 0) for k in gc_guard.stats})
 
 
 def test_loading_card_shows_after_300_ms_and_stays_400_ms(qtbot, owner, monkeypatch):

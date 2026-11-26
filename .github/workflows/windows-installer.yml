@@ -120,6 +120,24 @@ jobs:
           python .claude/skills/shortcut-audit/audit_shortcuts.py --check
           python .claude/skills/shortcut-audit/audit_shortcuts.py --contract docs/ui-goal/shortcut-contract.tsv
 
+      - name: Microsoft runtime for cx_Freeze, downloaded with retries (a cut download failed the freeze)
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:APPDATA "cxfreeze\vc_redist\17"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $file = Join-Path $dir "vc_redist.x64.exe"
+          foreach ($attempt in 1..5) {
+            try {
+              Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -OutFile $file
+              if ((Get-Item $file).Length -gt 20MB) { break }
+              throw "short download"
+            } catch {
+              Remove-Item $file -ErrorAction SilentlyContinue
+              if ($attempt -eq 5) { throw }
+              Start-Sleep -Seconds (15 * $attempt)
+            }
+          }
+
       - name: Freeze (folder build; Tesseract added after cx_Freeze, licences from lib\)
         timeout-minutes: 30
         run: python packaging/build.py --tesseract packaging/tesseract-bundle --tur-best tur_best.traineddata

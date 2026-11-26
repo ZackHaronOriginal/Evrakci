@@ -114,13 +114,57 @@ def test_correct_widget_passes_the_same_rules(light_100):
     assert found[("probeIcon", "HIG-CTL-06")] == "pass"
 
 
+ENFORCED_IDS = {"DEC-TYP-01", "DEC-TYP-02", "DEC-TYP-03", "DEC-CON-01", "DEC-CON-02",
+                "AUD-HIT-01", "AUD-HIT-02", "AUD-HIT-03", "AUD-A11Y-01", "DEC-FOC-01"}
+
+
+def _row(rule, widget="w", result="fail"):
+    return ("kontrol", "light", "1366x768", "100", widget, "QWidget", rule, "v", "l", result, "S3")
+
+
+def test_enforce_fails_on_a_new_violation_and_tolerates_known_fails():
+    rules = um.load_rules()
+    known = {("AUD-HIT-02", "statusBar/ZoomSlider/QToolButton[0]")}
+    today = [_row("AUD-HIT-02", "statusBar/ZoomSlider/QToolButton[0]"),
+             _row("DEC-TYP-01", "ok", "pass"), _row("DEC-LAY-01", "grid")]  # LAY is report-only
+    assert um.enforced_failures(today, rules, known) == 0
+    assert um.enforced_failures(today, rules) == 1  # without the list the same row fails
+    for rule in ("DEC-TYP-01", "DEC-CON-01", "AUD-A11Y-01", "DEC-FOC-01", "AUD-HIT-01"):
+        assert um.enforced_failures(today + [_row(rule, "new")], rules, known) == 1
+    # a known-fail entry is for that widget only
+    assert um.enforced_failures([_row("AUD-HIT-02", "statusBar/Other")], rules, known) == 1
+    assert um.stale_known_fails([_row("AUD-HIT-01", "x")], known) == sorted(known)
+
+
+def test_known_fails_file_is_dated_and_every_row_has_a_reason():
+    path = um.KNOWN_FAILS_PATH
+    assert "2026-11-26" in path.read_text(encoding="utf-8").splitlines()[0]
+    rows = [ln.split("\t") for ln in path.read_text(encoding="utf-8").splitlines()
+            if ln and not ln.startswith("#") and not ln.startswith("rule\t")]
+    assert rows and all(len(r) == 3 and r[2] for r in rows)
+    assert {r[0] for r in rows} <= ENFORCED_IDS
+    assert len(um.load_known_fails(path)) == len(rows)
+    assert um.load_known_fails(path / "missing") == set()
+
+
+def test_canvas_and_reader_exemptions():
+    assert um.exempt_row("AUD-A11Y-01", "a/PageCanvas/QWidget")
+    assert um.exempt_row("DEC-FOC-01", "a/PageCanvas/QWidget")
+    assert not um.exempt_row("AUD-HIT-01", "a/PageCanvas/QWidget")
+    assert not um.exempt_row("AUD-A11Y-01", "a/QWidget")
+    assert set(um.WINDOW_SCROLL_EXEMPT) == {"Reader", "PageCanvas"}
+
+
 def test_rules_json_is_well_formed():
     rules = um.load_rules()
     ids = [r["id"] for r in rules]
     assert len(ids) == len(set(ids)) > 90
     for rule in rules:
         assert rule["id"] and rule["source"] and rule["severity"] in {"S1", "S2", "S3", "S4"}
-        assert rule["enforced"] is False
+        # only the owner-approved rule families (Q-03) are enforced, and only if enforceable
+        assert rule["enforced"] is (rule["id"] in ENFORCED_IDS)
+        if rule["enforced"]:
+            assert rule["enforceable"] and rule["measure"].startswith("tool:")
         assert isinstance(rule["enforceable"], bool)
         assert rule["measure"] == "manual" or rule["measure"].startswith("tool:")
     hig = [r for r in rules if r["id"].startswith("HIG-")]

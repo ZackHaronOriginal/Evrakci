@@ -136,7 +136,8 @@ def test_is_sec_sablon_says_unknown_kinds_and_refuses_bad_use(tmp_path, capsys):
     assert secs("--filtre", "Tekler") == 2  # --filtre alone is not ignored
     assert "--filtre için --sablon gerekir." in capsys.readouterr().err
     assert secs("--sablon", template_id, "cift", "--sil") == 2
-    assert "usage:" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "usage:" in err and "--sil, --sablon ile birlikte kullanılamaz." in err
 
 
 def test_bad_settings_of_a_known_kind_are_refused_like_an_unknown_kind(tmp_path, capsys):
@@ -168,9 +169,9 @@ def test_a_criterion_after_sablon_is_anded_with_the_filters(tmp_path, capsys):
     assert printed_positions(out) == [6, 8]
 
 
-def test_a_template_without_filters_says_none_is_on(tmp_path, capsys):
+def test_a_template_without_filters_says_none_saved(tmp_path, capsys):
     secs, _store, _job_id, _template_id, templates = saved_filters(tmp_path, capsys)
     assert main(["--sablon-kok", templates, "sablon", "olustur", "Boş"]) == 0
     empty = capsys.readouterr().out.strip().splitlines()[-1]
     assert secs("--sablon", empty) == 0
-    assert capsys.readouterr().out.strip() == "Hiçbir filtre açık değil"
+    assert capsys.readouterr().out.strip() == "Kayıtlı filtre yok"

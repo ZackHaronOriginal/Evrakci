@@ -3,4 +3,3 @@
 rule	widget	reason
 AUD-HIT-02	statusBar/ZoomSlider/QToolButton[0]	Q6: the tool asks 32 px (D5 Normal), the approved click area is 28 px; Qt's status bar item area is 5 px lower than the bar, so even 28 px needs a 33 px bar (look change). Owner or tool decision.
 AUD-HIT-02	statusBar/ZoomSlider/QToolButton[1]	Q6: same as QToolButton[0]
-DEC-CON-01	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/ValuesTable[col 1]	Q6: seen on CI only (1.01), not reproducible offscreen here, cause unknown (bugs.md B-104)

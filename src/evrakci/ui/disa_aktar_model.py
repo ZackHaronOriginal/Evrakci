@@ -14,6 +14,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from evrakci.pipeline.disk_errors import disk_reason
 from evrakci.pipeline.export import CHECK_SUBFOLDER, sources_text
 from evrakci.pipeline.templates.model import TemplateError, pattern_names
 
@@ -63,7 +64,7 @@ def folder_state(text: str) -> FolderState:
         if sub.is_dir():
             old += [p for p in sub.iterdir() if p.suffix.lower() == ".pdf"]
         if old:
-            return FolderState("full", "Klasör boş değil. Boş bir klasör seçin.", "err", True)
+            return FolderState("full", _full_text(old), "err", True)
         if not os.access(path, os.W_OK):
             return FolderState("readonly", "Klasöre yazılamıyor. Başka bir klasör seçin.", "err",
                                True)
@@ -72,8 +73,17 @@ def folder_state(text: str) -> FolderState:
                                "ok")
         return FolderState("ok", "Klasör boş, yazılabilir.", "ok")
     except OSError as error:
-        return FolderState("error", f"Klasöre bakılamadı: {error.strerror or error}. "
+        return FolderState("error", f"Klasöre bakılamadı: {disk_reason(error, path)} "
                            "Başka bir klasör seçin.", "err", True)
+
+
+def _full_text(old: list[Path]) -> str:
+    """Say what is in the folder, so "Belgelerim" is not refused for no visible reason (E-10)."""
+    pdfs = sorted((p.name for p in old if p.suffix.lower() == ".pdf"), key=str.casefold)
+    rule = "Dosyaların üzerine yazılmaz; yeni bir alt klasör oluşturun."
+    if pdfs:
+        return f"Klasörde {len(pdfs)} PDF var ({pdfs[0]}{', …' if len(pdfs) > 1 else ''}). {rule}"
+    return f"Klasörde index.xlsx var. {rule}"
 
 
 @dataclass(frozen=True)
@@ -210,12 +220,12 @@ def findings(summary: Summary, folder: FolderState,
     rows: list[Finding] = []
     if folder.kind in _ENGEL:
         title, detail, link, action = _ENGEL[folder.kind]
-        if folder.kind == "error":
+        if folder.kind in ("error", "full"):
             detail = folder.text
         rows.append(Finding("engel", title, detail, 1, link, action))
     kind, unknown = problem
     if kind == "unknown":
-        first = f"“{unknown[0]}”" + (f" ve {len(unknown) - 1} tane daha"
+        first = f"“{unknown[0]}”" + (f" ve {len(unknown) - 1} değişken daha"
                                      if len(unknown) > 1 else "")
         rows.append(Finding("engel", f"Kalıpta bilinmeyen değişken: {first}.",
                             "Menüden bir değişken seçin.", len(unknown), "Kalıbı düzelt",

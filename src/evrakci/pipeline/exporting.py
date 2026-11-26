@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pikepdf
 
+from evrakci.pipeline.disk_errors import NO_ROOM, disk_reason
 from evrakci.pipeline.export import (
     CHECK_SUBFOLDER,
     NOTE_SHORTENED,
@@ -141,17 +142,20 @@ def export_job(
         )
     except FileExistsError as error:
         raise ExportError(
-            f"Çıktı klasöründe önceki bir dışa aktarımdan dosya var ({error}): {out_dir}. "
-            "Lütfen boş bir klasör seçin."
+            f"{disk_reason(error, out_dir)} Önceki bir dışa aktarımdan kalmış olabilir: {out_dir}. "
+            "Boş bir klasör seçin."
         ) from None
     except OSError as error:
+        reason = disk_reason(error, out_dir)
+        advice = ("Yer açıp boş bir klasöre yeniden dışa aktarın." if reason == NO_ROOM
+                  else "Sorunu giderip boş bir klasöre yeniden dışa aktarın.")
         raise ExportError(
-            f"Dosyalar yazılamadı ({error.strerror or error}). Yazılanlar: {written_so_far()}. "
-            "index.xlsx yazılmadı; yer açıp boş bir klasöre yeniden dışa aktarın."
+            f"Dosyalar yazılamadı: {reason} Yazılanlar: {written_so_far()}. "
+            f"index.xlsx yazılmadı. {advice}"
         ) from None
-    except (pikepdf.PdfError, KeyError, IndexError) as error:
+    except (pikepdf.PdfError, KeyError, IndexError):
         raise ExportError(
-            f"Taranan dosyalardan biri okunamadı ({error}). Yazılanlar: {written_so_far()}. "
+            f"Taranan dosyalardan biri okunamadı. Yazılanlar: {written_so_far()}. "
             "index.xlsx yazılmadı; işin partilerini kontrol edin."
         ) from None
     result = ExportResult(items, paths, with_layer=with_layer and bool(paths))
@@ -164,12 +168,14 @@ def export_job(
                 layer = add_layer(path, layered, tessdata=tessdata)
                 os.replace(layered, path)
             except (EngineUnavailable, OSError) as error:
+                why = disk_reason(error, out_dir) if isinstance(error, OSError) else str(error)
                 done = ", ".join(p.name for p in paths[: number - 1]) or "yok"
                 for later in items[number - 1:]:
                     later.checks.append("metin katmanı eklenmedi")
                 index_note = _write_index_quietly(items, job, out_dir, exported_at, result)
                 raise ExportError(
-                    f"{path.name}: {error}. Tüm belgeler yazıldı; metin katmanı eklenenler: {done}."
+                    f"{path.name}: {why.rstrip('.')}. Tüm belgeler yazıldı; "
+                    f"metin katmanı eklenenler: {done}."
                     f" {index_note}"
                 ) from None
             finally:
@@ -183,10 +189,17 @@ def export_job(
         try:
             write_index(items, job, out_dir / "index.xlsx", exported_at)
         except Exception as error:  # the PDFs are safe; say clearly what is missing
-            raise ExportError(f"PDF'ler yazıldı ama index.xlsx yazılamadı: {error}") from None
+            raise ExportError(f"PDF'ler yazıldı ama index.xlsx yazılamadı: "
+                              f"{_index_reason(error, out_dir)}") from None
         result.index_written = True
         _record_export(job, out_dir, exported_at, result)
     return result
+
+
+def _index_reason(error: Exception, out_dir: Path) -> str:
+    """Why index.xlsx was not written, in Turkish (the disk's own text is English)."""
+    return disk_reason(error, out_dir) if isinstance(error, OSError) \
+        else "dosya hazırlanamadı."
 
 
 def _record_export(job: Job, out_dir: Path, exported_at: datetime, result: ExportResult) -> None:
@@ -200,7 +213,7 @@ def _write_index_quietly(items, job: Job, out_dir: Path, exported_at: datetime,
     try:
         write_index(items, job, out_dir / "index.xlsx", exported_at)
     except Exception as error:
-        return f"index.xlsx da yazılamadı: {error}"
+        return f"index.xlsx da yazılamadı: {_index_reason(error, out_dir)}"
     _record_export(job, out_dir, exported_at, result)  # files and index are on disk
     return "index.xlsx yazıldı; metin katmanı eksik olanlar orada işaretli."
 

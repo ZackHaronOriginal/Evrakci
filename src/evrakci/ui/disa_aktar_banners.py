@@ -20,7 +20,10 @@ from evrakci.ui.disa_aktar_parts import PartsButton, tint
 
 
 class RunBanner(QFrame):
-    """"Yazılıyor: 58 / 96  metin katmanı ekleniyor", an 8 px bar and one caption line."""
+    """"Yazılıyor: 58 / 96  Adım 2 / 2: metin katmanı ekleniyor", one 8 px bar for both stages,
+    a caption line and "Durdur" (the same as Ctrl+.)."""
+
+    stop = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -37,6 +40,12 @@ class RunBanner(QFrame):
         top.addWidget(self.icon)
         top.addWidget(self.count)
         top.addWidget(self.stage, 1)
+        self.stop_button = QPushButton("Durdur")
+        self.stop_button.setProperty("action_id", "disa_aktar.durdur")
+        self.stop_button.setToolTip("Dışa aktarmayı durdur (Ctrl+.)")
+        self.stop_button.setAccessibleName("Durdur (Ctrl+.)")
+        self.stop_button.clicked.connect(self.stop)
+        top.addWidget(self.stop_button)
         col.addLayout(top)
         self.bar = QProgressBar()
         self.bar.setTextVisible(False)
@@ -59,9 +68,12 @@ class RunBanner(QFrame):
         self.icon.setPixmap(icons.pixmap("loader-circle", m.hex("accent"), 20))
         self.count.setFont(m.font("num-strong"))
 
-    def set_progress(self, done: int, total: int, stage: str, sub: str) -> None:
-        self.bar.setRange(0, max(1, total))
-        self.bar.setValue(done)
+    def set_progress(self, done: int, total: int, stage: str, sub: str,
+                     overall: int | None = None, whole: int | None = None) -> None:
+        """`done` / `total` are the files of the stage; the bar shows `overall` / `whole` (both
+        stages as one bar) when given."""
+        self.bar.setRange(0, max(1, whole if whole is not None else total))
+        self.bar.setValue(done if overall is None else overall)
         self.count.setText(f"Yazılıyor: {done} / {total}")
         self.stage.setText(stage)
         self.sub.setText(sub)

@@ -227,11 +227,11 @@ def test_an_earlier_export_with_other_letter_case_is_seen(tmp_path):
     out = tmp_path / "cikti"
     out.mkdir()
     (out / "Eski.PDF").write_bytes(b"%PDF")
-    with pytest.raises(ExportError, match="önceki"):
+    with pytest.raises(ExportError, match="aynı adlı dosya var: Eski.PDF"):
         export_job(job, store.batch_files(job), {}, out, with_layer=False)
     (out / "Eski.PDF").unlink()
     (out / "INDEX.XLSX").write_bytes(b"x")
-    with pytest.raises(ExportError, match="önceki"):
+    with pytest.raises(ExportError, match="aynı adlı dosya var: INDEX.XLSX"):
         export_job(job, store.batch_files(job), {}, out, with_layer=False)
 
 

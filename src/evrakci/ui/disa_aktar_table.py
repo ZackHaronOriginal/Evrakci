@@ -44,6 +44,7 @@ LOOK = {
     "Yazılıyor": ("loader-circle", "text-2", False),
     "Bekliyor": ("circle-dashed", "text-2", False),
 }
+QUIET = ("Tamam", "Yazıldı")  # words drawn as a quiet check alone (the word stays as text)
 PREVIEW_WORDS = {"kontrol": "Kontrol", "bilgi": "Bilgi", "tamam": "Tamam"}
 
 
@@ -237,11 +238,14 @@ class FilesDelegate(QStyledItemDelegate):
     def _status(self, painter, rect: QRectF, word: str, why: str, ink: str | None) -> None:
         m = theme.manager()
         name, role, strong = LOOK[word]
-        role = ink or role
+        quiet = word in QUIET and not why  # an ordinary row: one calm check, no word (E-8)
+        role = ink or ("text-2" if quiet else role)
         x = rect.left()
         size = m.inline_icon(16)  # grows with the text (16 -> 24 at 150 %)
         icons.paint(painter, name, QRectF(x, rect.center().y() - size / 2, size, size),
                     m.hex(role))
+        if quiet:
+            return
         x += size + 6  # A .st gap
         font = self._font("body-strong" if strong else "body")
         painter.setFont(font)

@@ -559,6 +559,10 @@ class MainWindow(QMainWindow):
         row.addWidget(self.pages)
         row.addLayout(check)
         row.addWidget(self.status_slots)
+        self.export_status = StatusPart("loader-circle", "icon")  # an export runs (other tabs)
+        self.export_status.set("Dışa aktarılıyor")
+        self.export_status.hide()
+        row.addWidget(self.export_status)
         row.addWidget(self.message, 1)
         bar.addWidget(left, 1)
         self.zoom_slider = ZoomSlider()
@@ -1584,6 +1588,18 @@ class MainWindow(QMainWindow):
         if tab == self.current_tab():
             self._sync_status_counts()
 
+    def set_export_running(self, running: bool) -> None:
+        """"Dışa aktarılıyor" in the status bar while an export writes, on every tab but Dışa
+        Aktar (that tab's own line has the count)."""
+        self._export_running = bool(running)
+        self._sync_export_status()
+
+    def _sync_export_status(self) -> None:
+        item = getattr(self, "export_status", None)
+        if item is not None:
+            item.setVisible(getattr(self, "_export_running", False)
+                            and self.current_tab() != "disa_aktar")
+
     def status_counts_shown(self, tab: str | None = None) -> bool:
         return self._status_counts.get(tab or self.current_tab(), False)
 
@@ -1633,6 +1649,7 @@ class MainWindow(QMainWindow):
             self.command_bars.setCurrentIndex(index)
         if hasattr(self, "status_slots"):
             self.status_slots.setCurrentIndex(index)
+            self._sync_export_status()
             self._sync_zoom()
             self._sync_status_counts()
         self._sync_undo()

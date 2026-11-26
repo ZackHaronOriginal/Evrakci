@@ -65,7 +65,8 @@ def test_export_twice_to_same_folder(tmp_path, capsys):
     out = str(tmp_path / "out")
     assert run("is", "disa-aktar", job_id, "--cikti", out, "--metin-katmani-yok") == 0
     assert run("is", "disa-aktar", job_id, "--cikti", out, "--metin-katmani-yok") == 2
-    assert "boş bir klasör" in capsys.readouterr().err
+    error = capsys.readouterr().err
+    assert "Hedef klasörde aynı adlı dosya var: " in error and "Boş bir klasör seçin" in error
 
 
 def test_batch_move_and_remove_commands(tmp_path, capsys):

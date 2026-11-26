@@ -261,3 +261,25 @@ def test_export_stores_the_export_time_in_the_job_file(tmp_path, capsys):
                "--metin-katmani-yok") == 0
     last = JobStore(tmp_path / "kok").load(job_id).last_export
     assert last is not None and last.documents >= 1 and last.folder == str(tmp_path / "out")
+
+
+def test_remove_filter_on_pages_without_a_filter_says_so_and_saves_nothing(
+        tmp_path, capsys, monkeypatch):
+    """R-A-3: no "Filtre kaldırıldı", no save, the refusal exits as the others do; with a
+    mix, only the filtered pages are counted."""
+    from evrakci.pipeline.store import JobStore
+
+    run, job_id = setup_job(tmp_path, capsys, [text_page()] * 4)
+    saves = []
+    original = JobStore.save
+    monkeypatch.setattr(JobStore, "save", lambda self, job: (saves.append(1), original(self, job)))
+    capsys.readouterr()
+    assert run("is", "filtre-kaldir", job_id, "1-4") == 2
+    captured = capsys.readouterr()
+    assert "Bu sayfalarda filtre yok." in captured.err
+    assert "Filtre kaldırıldı" not in captured.out + captured.err
+    assert not saves
+    assert run("is", "filtre", job_id, "1-2", "2") == 0
+    capsys.readouterr()
+    assert run("is", "filtre-kaldir", job_id, "1-4") == 0
+    assert "Filtre kaldırıldı, 2 sayfa." in capsys.readouterr().out

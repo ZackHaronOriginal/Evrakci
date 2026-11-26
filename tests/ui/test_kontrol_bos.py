@@ -177,3 +177,33 @@ def test_the_switch_is_one_undo_step_each_way_and_the_page_stays_drawn(qtbot, tm
     assert ctl.job.drop_empty and action.isChecked()
     ctl.undo()
     assert not ctl.job.drop_empty and not action.isChecked() and not restore.isVisible()
+
+
+def test_blank_toast_counts_only_the_blank_pages_of_the_final_selection(qtbot, tmp_path):
+    """R-A-2: Seçime ekle keeps the earlier pages; only blank ones are counted as blank."""
+    window = _window(qtbot, tmp_path, spec=SPEC)
+    screen = window.kontrol
+    toasts = []
+    screen._toast = lambda text, **_kw: toasts.append(text)
+    screen.timeline.select_rows(0, 0, 0)  # page 1 (not blank)
+    screen.select_matching(Criterion("bos", {"ink": 0.003}), "add")
+    assert _rows(window) == [0, 2, 5]
+    assert toasts[-1].startswith("2 boş sayfa seçildi.")
+    assert "Del" not in toasts[-1]  # the selection is not all blank
+    screen.select_matching(Criterion("bos", {"ink": 0.003}), "replace")
+    assert toasts[-1] == "2 boş sayfa seçildi. Silmek için Del."
+
+
+def test_the_window_and_the_command_line_select_the_same_blank_pages(qtbot, tmp_path, capsys):
+    """R-A-10: one job through both sides: the window's rows are the CLI's `sayfa` line."""
+    from evrakci.cli import main
+
+    window = _window(qtbot, tmp_path, spec=SPEC)
+    job_id = window.controller().job.id
+    window.kontrol.select_matching(Criterion("bos", {"ink": 0.003}))
+    rows = _rows(window)
+    assert rows == [2, 5]
+    capsys.readouterr()
+    assert main(["--kok", str(tmp_path / "jobs"), "is", "sec", job_id, "bos"]) == 0
+    line = next(x for x in capsys.readouterr().out.splitlines() if x.startswith("sayfa "))
+    assert [int(n) - 1 for n in line.removeprefix("sayfa ").split(", ")] == rows

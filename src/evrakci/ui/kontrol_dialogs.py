@@ -482,13 +482,12 @@ class SelectDialog(QDialog):
         return Criterion(kind, {"within": self.mode() == "within"})
 
     def count(self, kind: str) -> int:
-        """How many pages Seç would select for this row in the chosen mode."""
+        """How many pages Seç would select for this row in the chosen mode (add: the union)."""
         if kind == "guven":
             match = self._guven_match()
         else:
             match = evaluate(self._job, self.criterion(kind), selection=self._selection)
-        mode = self.mode()
-        return len(combine(self._selection, match, "within" if mode == "within" else "replace"))
+        return len(combine(self._selection, match, self.mode()))
 
     def _refresh_counts(self) -> None:
         for name, text, _hint in self.ROWS:

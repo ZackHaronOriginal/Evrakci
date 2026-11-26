@@ -313,6 +313,32 @@ def guven_match(job: Job, findings: Sequence[Finding], criterion: Criterion) -> 
     return Match(ordered, touched, totals)
 
 
+def guven_restrict(job: Job, findings: Sequence[Finding], criterion: Criterion,
+                   page_ids: Iterable[str]) -> Match:
+    """The documents and reasons that `page_ids` (the pages that ended up selected, after add
+    or within) really hold: a document or reason counts only when one of its pages is in."""
+    reasons, pages = guven_params(criterion)
+    keep = frozenset(page_ids)
+    totals = dict.fromkeys(reasons, 0)
+    touched = 0
+    for finding in findings:
+        ids = finding.document.page_ids
+        hit = False
+        for reason in reasons:
+            if reason not in finding.counts:
+                continue
+            if pages == "belge":
+                inside = any(pid in keep for pid in ids)
+            else:
+                inside = any(ids[i] in keep for i in finding.pages[reason])
+            if inside:
+                totals[reason] += finding.counts[reason]
+                hit = True
+        touched += hit
+    ordered = tuple(pid for pid in job.ordered_page_ids() if pid in keep)
+    return Match(ordered, touched, totals)
+
+
 def guven_text(match: Match) -> str:
     """"9 belge seçildi: Kontrol 4, Okunamadı 3" (the reasons with something in them)."""
     parts = [f"{GUVEN_WORDS[r]} {n}" for r, n in match.reasons.items() if n]

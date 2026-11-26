@@ -162,3 +162,14 @@ def test_page_of_and_source_follow_the_core_helpers():
             assert cell.source == box_section(cell.value)
             assert row.page_of(cell) == value_page(
                 template, cell.key, cell.source, len(row.document.page_ids))
+
+
+def test_d4_the_sample_grows_with_the_job_and_numbers_get_their_endings():
+    from evrakci.ui.degerler_model import grouped, possessive, sample_size
+
+    assert [sample_size(n) for n in (0, 5, 20, 1000, 4000, 100_001)] == [0, 5, 20, 20, 80, 2001]
+    assert grouped(3980) == "3 980" and grouped(12) == "12"
+    assert [possessive(n) for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70,
+                                    80, 90, 100, 1000, 3980)] == [
+        "1'i", "2'si", "3'ü", "4'ü", "5'i", "6'sı", "7'si", "8'i", "9'u", "10'u", "20'si",
+        "30'u", "40'ı", "50'si", "60'ı", "70'i", "80'i", "90'ı", "100'ü", "1 000'i", "3 980'i"]

@@ -42,12 +42,28 @@ def _turkish(error: Exception) -> str:
 class _Snapshot(QUndoCommand):
     """An applied edit, stored as the whole job before and after it."""
 
-    def __init__(self, controller: JobController, text: str, before: dict, after: dict) -> None:
+    MERGE_ID = 7101  # steps of one group that follow each other become one (a read in batches)
+
+    def __init__(self, controller: JobController, text: str, before: dict, after: dict,
+                 merge: int | None = None) -> None:
         super().__init__(text)
         self._ref = weakref.ref(controller)
         self._before = before
         self._after = after
         self._first = True
+        self._merge = merge
+
+    def id(self) -> int:
+        return -1 if self._merge is None else self.MERGE_ID
+
+    def mergeWith(self, other) -> bool:  # noqa: N802
+        """The step pushed right after this one, of the same group (nothing between): one step
+        from this step's start to the other's end. Only adjacent steps of one group are ever
+        merged, so Geri al goes back exactly to where the group began."""
+        if not isinstance(other, _Snapshot) or other._merge != self._merge:
+            return False
+        self._after = other._after
+        return True
 
     def redo(self) -> None:
         if self._first:  # the edit is already applied when the command is pushed
@@ -182,9 +198,12 @@ class JobController(QObject):
     def accept_suggestion(self, document: Document, key: str) -> bool:
         return self._edit("Öneriyi kabul et", lambda j: review.accept_suggestion(j, document, key))
 
-    def run(self, text: str, change: Callable[[Job], None]) -> bool:
-        """Any other core change (for example, recording read values) as one undoable edit."""
-        return self._edit(text, change)
+    def run(self, text: str, change: Callable[[Job], None], merge: int | None = None) -> bool:
+        """Any other core change (for example, recording read values) as one undoable edit.
+        `merge`: a group number; steps of one group pushed one right after the other become
+        one step (a read stored in batches is still one step). Another group, or any other
+        step in between, keeps them apart."""
+        return self._edit(text, change, merge)
 
     def undo(self) -> None:
         self.undo_stack.undo()
@@ -211,7 +230,7 @@ class JobController(QObject):
         self.saver.frozen = False
         self.undo_stack.indexChanged.emit(self.undo_stack.index())
 
-    def _edit(self, text: str, change: Callable[[Job], None]) -> bool:
+    def _edit(self, text: str, change: Callable[[Job], None], merge: int | None = None) -> bool:
         if self.frozen:
             self.status.emit(FROZEN_REASON)
             return False
@@ -225,7 +244,7 @@ class JobController(QObject):
         after = job_to_dict(self.job)
         if after == before:
             return True
-        self.undo_stack.push(_Snapshot(self, text, before, after))
+        self.undo_stack.push(_Snapshot(self, text, before, after, merge))
         self._changed(after)
         return True
 

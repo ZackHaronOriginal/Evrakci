@@ -96,6 +96,14 @@ SAMPLE_COLUMNS = [Column("review", ""), Column("doc", "Belge"), Column("pages", 
                   Column("guven", "Güven")]
 
 
+def _level_words(cell: Cell) -> str:
+    """The level as it is spoken: "Kontrol %41", "Orta %75" (Emin and the rest need no number)."""
+    word = LEVELS[cell.level][2]
+    if cell.percent is not None and cell.level in ("kontrol", "orta"):
+        return f"{word} %{cell.percent}"
+    return word
+
+
 def _guven_sort(row: Row, cell: Cell | None) -> tuple:
     level = cell.level if cell is not None else row.level
     percent = cell.percent if cell is not None else row.percent
@@ -241,10 +249,16 @@ class ValuesModel(QAbstractTableModel):
             name = cell.title if cell is not None else column.title
             if cell is None or cell.value is None:
                 return f"{name}: okunmadı"
-            shown = f"{cell.main}, okunan {cell.read_note}" if cell.dual else text
-            parts = [f"{name}: {shown or 'boş'}", LEVELS[cell.level][2]]
+            # D-7: for a value to check, what was read, the level with its percent and the
+            # suggestion Enter stores ("Sicil No: 48Z13, Kontrol %41, öneri 48213,
+            # 3. karakter belirsiz")
+            flagged = cell.needs_check and bool(cell.suggestion)
+            parts = [f"{name}: {(cell.text if flagged else text) or 'boş'}", _level_words(cell)]
+            if flagged:
+                parts.append(f"öneri {cell.suggestion}")
             if cell.uncertain:
-                parts.append(f"{len(cell.uncertain)} karakter belirsiz")
+                places = " ve ".join(f"{i + 1}." for i in cell.uncertain)
+                parts.append(f"{places} karakter belirsiz")
             if cell.reviewed:
                 parts.append("İncelendi")
             return ", ".join(parts)

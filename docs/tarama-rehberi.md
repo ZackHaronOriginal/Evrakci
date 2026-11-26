@@ -50,7 +50,7 @@ Ayarı bir kez seçip tarayıcıda profil olarak kaydedin.
 
 - Taranan sayfalar ve iş bu bilgisayarda kalır. Evrakçı hiçbir şeyi başka yere göndermez ve kullanım bilgisi toplamaz. Yalnızca siz isteyince OCR modellerini internetten (HTTPS) indirir ve SHA-256 ile doğrular.
 - Dışa aktar, PDF'leri ve okunan değerleri içeren index.xlsx dosyasını seçtiğiniz klasöre yazar. O klasörü korumak sizin işinizdir. [Dışa Aktar sekmesini aç](rehber:disa-aktar)
-- Dışa aktarılan iş bu bilgisayarda Ayarlar > Saklama'daki seçime göre kalır: Süresiz, tam dışa aktarınca silinir ya da 30 veya 90 gün sonra silinir. Hiç dışa aktarılmamış iş silinmez. [Saklama ayarını aç](rehber:saklama)
+- Dışa aktarılan iş bu bilgisayarda Ayarlar > Saklama'daki seçime göre kalır: Süresiz, tam dışa aktarınca silinir ya da 30 veya 90 gün sonra silinir. Hiç dışa aktarılmamış ya da dışa aktarıldıktan sonra değiştirilmiş iş silinmez. [Saklama ayarını aç](rehber:saklama)
 
 ## Sözlük
 

@@ -13,7 +13,12 @@ from pathlib import Path
 
 import pikepdf
 
-from evrakci.pipeline.export import ExportItem, plan_export
+from evrakci.pipeline.export import (
+    NOTE_SHORTENED,
+    ExportItem,
+    clash_note,
+    plan_export,
+)
 from evrakci.pipeline.index import write_index
 from evrakci.pipeline.job import Job, LastExport
 from evrakci.pipeline.naming import fit_names, unique_names
@@ -43,6 +48,31 @@ class ExportResult:
         return sum(1 for item in self.items if item.checks)
 
 
+def plan_names(job: Job, templates: Mapping[str, Template | None],
+               out_dir: Path) -> list[ExportItem]:
+    """The documents with the names that will be written into `out_dir` (cut to fit the folder
+    path, made unique) and `name_note` saying why a name differs from the pattern. The window's
+    list, the CLI and `export_job` all use this, so the preview equals the files written.
+    Raises ValueError (Turkish message) when the folder path is too long for any name."""
+    items = plan_export(job, templates)
+    fitted = fit_names([i.name for i in items], Path(out_dir))
+    for item, name in zip(items, fitted, strict=True):
+        if name == item.name:
+            continue
+        if len(name) < item.keep:  # a required value would be cut: never silently
+            item.checks.append("zorunlu değer dosya adına sığmadı (klasör yolu uzun)")
+            name = f"belge_{item.number:03d}"
+        else:
+            item.checks.append("dosya adı kısaltıldı (klasör yolu uzun)")
+            item.name_note = NOTE_SHORTENED
+        item.name = name
+    for item, name in zip(items, unique_names([i.name for i in items]), strict=True):
+        if name != item.name:
+            item.name_note = clash_note(name[len(item.name):])
+        item.name = name
+    return items
+
+
 def export_job(
     job: Job,
     batch_files: Mapping[str, Path],
@@ -58,22 +88,10 @@ def export_job(
     out_dir = Path(out_dir)
     if out_dir.exists() and not out_dir.is_dir():
         raise ExportError(f"Hedef bir klasör değil, bir dosya: {out_dir}. Bir klasör seçin.")
-    items = plan_export(job, templates)
     try:
-        fitted = fit_names([i.name for i in items], out_dir)
+        items = plan_names(job, templates, out_dir)
     except ValueError as error:
         raise ExportError(str(error)) from None
-    for item, name in zip(items, fitted, strict=True):
-        if name == item.name:
-            continue
-        if len(name) < item.keep:  # a required value would be cut: never silently
-            item.checks.append("zorunlu değer dosya adına sığmadı (klasör yolu uzun)")
-            name = f"belge_{item.number:03d}"
-        else:
-            item.checks.append("dosya adı kısaltıldı (klasör yolu uzun)")
-        item.name = name
-    for item, name in zip(items, unique_names([i.name for i in items]), strict=True):
-        item.name = name
     if with_layer and items:
         if engine is None:
             from evrakci.pipeline.ocr.tesseract import default_engine

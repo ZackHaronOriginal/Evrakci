@@ -360,6 +360,10 @@ SPECS: tuple[ActionSpec, ...] = (
     # Dışa Aktar
     _a("disa_aktar.durdur", "Dışa aktarmayı &durdur", "square", "Ctrl+.", ctx="disa_aktar",
        menu="araclar", kw="iptal"),
+    _a("disa_aktar.adlari_karsilastir", "&Adları karşılaştır", "table-2",
+       ctx="disa_aktar", menu="gorunum", checkable=True, kw="kaynak tarama eski ad"),
+    _a("disa_aktar.liste_kopyala", "Ad listesini ko&pyala", "copy", "Ctrl+Shift+C",
+       ctx="disa_aktar", menu="duzen", kw="pano excel liste"),
 
     # Rehber
     _a("rehber.aramayi_temizle", "Aramayı temizle", "x", "Esc", ctx="rehber", local=True,
@@ -382,11 +386,12 @@ MENU_LAYOUT: dict[str, tuple[str | None, ...]] = {
               "sablonlar.degisken_ekle", "sablonlar.yukari", "sablonlar.asagi",
               "sablonlar.kutu_cogalt", "sablonlar.kutu_sil",
               "yukle.yeniden_adlandir", "yukle.yukari", "yukle.asagi", "yukle.cikar",
-              SEPARATOR, "app.bul", "app.sonraki_sonuc", "app.onceki_sonuc"),
+              "disa_aktar.liste_kopyala", SEPARATOR, "app.bul", "app.sonraki_sonuc",
+              "app.onceki_sonuc"),
     "gorunum": ("app.yakinlastir", "app.uzaklastir", "app.sigdir", SEPARATOR,
                 "kontrol.onizle", "degerler.tum_sayfa", "sablonlar.okumalari_goster",
-                SEPARATOR, "app.yan_panel", "app.yazi_buyut", "app.yazi_kucult",
-                "app.tam_ekran", "app.yenile"),
+                "disa_aktar.adlari_karsilastir", SEPARATOR, "app.yan_panel", "app.yazi_buyut",
+                "app.yazi_kucult", "app.tam_ekran", "app.yenile"),
     "git": (*(f"app.sekme.{tab}" for tab in TABS), "app.sonraki_sekme", "app.onceki_sekme",
             SEPARATOR, "app.git", SEPARATOR,
             "kontrol.sonraki_kontrol", "kontrol.onceki_kontrol",

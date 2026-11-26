@@ -40,8 +40,13 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.pipeline.cuts import document_template
-from evrakci.pipeline.export import plan_export
-from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after_export
+from evrakci.pipeline.export import PREVIEW_HEADER, plan_export, preview_line
+from evrakci.pipeline.exporting import (
+    ExportError,
+    export_job,
+    may_delete_after_export,
+    plan_names,
+)
 from evrakci.pipeline.job import job_from_dict, job_to_dict
 from evrakci.pipeline.naming import safe_filename
 from evrakci.pipeline.ocr.engine import EngineUnavailable
@@ -193,11 +198,16 @@ class DisaAktarScreen(QWidget):
         self.filter_button = PartsButton("Yalnızca kontrol gerekenler", "list-filter", "0")
         self.filter_button.setCheckable(True)
         self.filter_button.toggled.connect(self._filter_toggled)
+        self.changed_button = PartsButton("Adı değişenler", "pencil", "0")
+        self.changed_button.setCheckable(True)
+        self.changed_button.toggled.connect(self._changed_toggled)
+        self.files_head.add_widget(self.changed_button)
         self.files_head.add_widget(self.filter_button)
         card.addWidget(self.files_head)
         self.model = FilesModel(self)
         self.results = FilesTable()
         self.results.setModel(self.model)
+        self.results.setColumnHidden(1, True)  # Kaynak: "Adları karşılaştır" shows it (D-6)
         self.results.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.results.customContextMenuRequested.connect(self._row_menu)
         self.results.copy_requested.connect(self.copy_names)
@@ -277,6 +287,8 @@ class DisaAktarScreen(QWidget):
         r = window.registry
         r.connect("disa_aktar.yazdir", self.print_index)
         r.connect("disa_aktar.gezginde_goster", self.reveal_in_explorer)
+        r.connect("disa_aktar.adlari_karsilastir", self.set_compare_names)
+        r.connect("disa_aktar.liste_kopyala", lambda *_: self.copy_list())
         self.go_tab.connect(window.show_tab)
         # The window's own labels already say "96 belge  640 sayfa  7 belge kontrol bekliyor";
         # this tab adds the state after them.
@@ -290,6 +302,7 @@ class DisaAktarScreen(QWidget):
         r.action("app.disa_aktar").changed.connect(self._sync_actions)
         self._restore_header()
         self.refresh()
+        self._sync_compare_action()
 
     def _toaster(self):
         return getattr(self.window_, "toaster", None)
@@ -356,20 +369,33 @@ class DisaAktarScreen(QWidget):
         status_w = getattr(self, "_status_w", 0)
         if status_w and header.sectionSize(0) < status_w:  # room again: Durum widens back
             header.resizeSection(0, status_w)
-        template_w = header.sectionSize(3) if not header.isSectionHidden(3) else \
-            getattr(self, "_template_w", header.sectionSize(3))
+        last = FilesModel.TEMPLATE
+        pages = FilesModel.PAGES
+        template_w = header.sectionSize(last) if not header.isSectionHidden(last) else \
+            getattr(self, "_template_w", header.sectionSize(last))
         self._template_w = template_w
-        fixed = header.sectionSize(0) + header.sectionSize(2)
+        if not header.isSectionHidden(1):
+            wanted = getattr(self, "_source_w", 0) or header.sectionSize(1)
+            self._source_w = wanted  # room again: Kaynak widens back
+            header.resizeSection(1, max(header.sectionSize(1), wanted))
+        source_w = 0 if header.isSectionHidden(1) else header.sectionSize(1)
+        fixed = header.sectionSize(0) + header.sectionSize(pages) + source_w
         hide_template = fixed + template_w + need > view
-        self.results.setColumnHidden(3, hide_template)
+        self.results.setColumnHidden(last, hide_template)
         if not hide_template:
-            header.resizeSection(3, template_w)
+            header.resizeSection(last, template_w)
         others = fixed + (0 if hide_template else template_w)
+        if others + need > view and source_w:  # Kaynak narrows first (cut in the middle)
+            source_w = max(round(110 * scale()), source_w - (others + need - view))
+            header.resizeSection(1, source_w)
+            others = header.sectionSize(0) + header.sectionSize(pages) + source_w + (
+                0 if hide_template else template_w)
         if others + need > view:
             status_min = round(170 * scale())
-            header.resizeSection(0, max(status_min, view - need - header.sectionSize(2)))
-            others = header.sectionSize(0) + header.sectionSize(2)
-        header.resizeSection(1, max(need, view - others))
+            header.resizeSection(0, max(status_min, view - need - header.sectionSize(pages)
+                                        - source_w))
+            others = header.sectionSize(0) + header.sectionSize(pages) + source_w
+        header.resizeSection(FilesModel.NAME, max(need, view - others))
         header.blockSignals(False)
 
     def _restore_header(self) -> None:
@@ -381,9 +407,9 @@ class DisaAktarScreen(QWidget):
         header = self.results.horizontalHeader()
         if not state.isEmpty():
             header.blockSignals(True)
-            if not (header.restoreState(state) and header.count() == 4):
+            if not (header.restoreState(state) and header.count() == FilesModel.COLUMNS):
                 self._default_widths()
-            for column in range(4):
+            for column in range(FilesModel.COLUMNS):
                 header.setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
             header.blockSignals(False)
             self._status_w = header.sectionSize(0)
@@ -405,7 +431,6 @@ class DisaAktarScreen(QWidget):
 
     def _plan(self, controller: JobController | None) -> None:
         self._items, self._rows = [], []
-        self._patterns: dict[int, str] = {}
         self._variables = []
         self._default_pattern, self._multi_pattern = "", False
         self._problem = ("", [])
@@ -430,13 +455,21 @@ class DisaAktarScreen(QWidget):
         # patterns and let the Engel row (findings) say what is wrong
         effective = (dict(templates) if problem[0] == "brace"
                      else self._effective(job, templates, used))
-        self._items = plan_export(job, effective)
-        per_item = {n + 1: (effective[i].filename_pattern if i in used else "")
-                    for n, i in enumerate(ids)}
-        self._patterns = per_item
-        self._rows = file_rows(job, self._items, per_item)
+        self._items = self._plan_items(job, effective)
+        self._rows = file_rows(job, self._items)
         self._summary = summarize(self._items, self._rows)
         self._problem = problem
+
+    def _plan_items(self, job, templates: dict) -> list:
+        """What would be written, as the core plans it for the chosen folder (names cut to fit
+        its path, clashes numbered). Without a usable folder the names are not fitted."""
+        text = self.folder.text().strip()
+        if text:
+            try:
+                return plan_names(job, templates, Path(text))
+            except (ValueError, OSError):
+                pass  # a path too long for any name: the pre-flight and export say so
+        return plan_export(job, templates)
 
     def refresh(self) -> None:
         controller = self.controller()
@@ -546,6 +579,7 @@ class DisaAktarScreen(QWidget):
         if state == "empty":
             head.set_text("Dosya adları")
             self.filter_button.hide()
+            self.changed_button.hide()
             self.stack.setCurrentWidget(self.empty)
             if self._shown_rows != []:
                 self._shown_rows = []
@@ -563,6 +597,7 @@ class DisaAktarScreen(QWidget):
             head.set_text("Yazılan dosyalar", self._short_path(folder))
             head.label.setToolTip(folder)
             self.filter_button.hide()
+            self.changed_button.hide()
         else:
             head.set_text("Dosya adları", "kontrol gerekenler üstte")
             head.label.setToolTip("")
@@ -571,6 +606,11 @@ class DisaAktarScreen(QWidget):
             self.filter_button.setVisible(count > 0)
             if count == 0 and self.filter_button.isChecked():
                 self.filter_button.setChecked(False)
+            changed = model.changed_count()
+            self.changed_button.set_parts(trail=str(changed))
+            self.changed_button.setVisible(changed > 0)
+            if changed == 0 and self.changed_button.isChecked():
+                self.changed_button.setChecked(False)
 
     def _path_room(self) -> int:
         """Width the path may take in the head: what the left column really has, less the
@@ -711,7 +751,7 @@ class DisaAktarScreen(QWidget):
         typed is selected; FilesTable searches the "Yazılacak dosya adı" column)."""
         self.results.setFocus(Qt.FocusReason.ShortcutFocusReason)
         if not self.results.currentIndex().isValid() and self.model.rowCount():
-            self.results.setCurrentIndex(self.model.index(0, 1))
+            self.results.setCurrentIndex(self.model.index(0, FilesModel.NAME))
 
     # -- actions of the window -------------------------------------------------------------
     def can_export(self) -> bool:
@@ -732,6 +772,9 @@ class DisaAktarScreen(QWidget):
             r.set_enabled("disa_aktar.durdur", state == "running" or getattr(
                 self.window_, "loading_cancellable", lambda: False)())
             r.set_enabled("disa_aktar.yazdir", state != "empty" and self.model.rowCount() > 0)
+            r.set_enabled("disa_aktar.liste_kopyala",
+                          state != "empty" and bool(self.model.all_rows()))
+            r.set_enabled("disa_aktar.adlari_karsilastir", state != "empty")
             r.set_enabled_for("app.yenile", "disa_aktar", state != "running")
             r.set_enabled("disa_aktar.gezginde_goster", self._reveal_target() is not None)
             r.set_enabled("disa_aktar.index_ac",
@@ -768,6 +811,9 @@ class DisaAktarScreen(QWidget):
         self.folder.setToolTip(text.strip())  # the field shows the end of a long path
         if text.strip():
             self._folder_error = False
+        if self.task is None and not self._written:
+            self._plan(self.controller())  # names are cut to fit the folder path
+            self._shown_findings = None
         self._sync()
 
     def choose_folder(self) -> None:
@@ -873,7 +919,7 @@ class DisaAktarScreen(QWidget):
             ("Ad çakışması", "Geçersiz karakter")))
         if row >= 0:
             self.results.selectRow(row)
-            self.results.scrollTo(self.model.index(row, 1))
+            self.results.scrollTo(self.model.index(row, FilesModel.NAME))
             self.results.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _filter_toggled(self, on: bool) -> None:
@@ -882,7 +928,66 @@ class DisaAktarScreen(QWidget):
             f"Yalnızca kontrol gerekenler: {self.model.kontrol_count()}"
             + (" (açık)" if on else ""))
 
+    def _changed_toggled(self, on: bool) -> None:
+        self.model.set_changed_filter(on)
+        self.changed_button.setAccessibleName(
+            f"Adı değişenler: {self.model.changed_count()}" + (" (açık)" if on else ""))
+
     # -- the list -------------------------------------------------------------------------
+    def compare_names(self) -> bool:
+        """Whether the Kaynak column (the scan file of each document) is shown."""
+        return not self.results.isColumnHidden(1)
+
+    def set_compare_names(self, on: bool) -> None:
+        """"Adları karşılaştır": show or hide the Kaynak column (hidden by default)."""
+        on = bool(on)
+        if on != self.compare_names():
+            self.results.setColumnHidden(1, not on)
+            if on:
+                self._source_w = self._source_need()
+                self.results.horizontalHeader().resizeSection(1, self._source_w)
+            self._fit_columns()
+            self._header_timer.start()
+        self._sync_compare_action()
+
+    def _source_need(self) -> int:
+        """Width of the Kaynak column: the longest scan file name, within reason (a longer one
+        is cut in the middle; the tooltip has it whole)."""
+        from PySide6.QtGui import QFontMetrics
+
+        m = theme.manager()
+        metrics = QFontMetrics(m.font("caption"))
+        rows = self.model.all_rows()[:500]
+        widest = max([metrics.horizontalAdvance(r.source) for r in rows] + [0])
+        base = round((WIDTHS_150 if scale() >= 1.4 else WIDTHS)[1] * min(scale(), 1.4))
+        return min(max(base, widest + 2 * m.size("s3") + 4), round(300 * scale()))
+
+    def _sync_compare_action(self) -> None:
+        window = self.window_
+        if window is None:
+            return
+        action = window.registry.action("disa_aktar.adlari_karsilastir")
+        if action.isChecked() != self.compare_names():
+            action.blockSignals(True)
+            action.setChecked(self.compare_names())
+            action.blockSignals(False)
+            action.changed.emit()
+
+    def list_text(self) -> str:
+        """The whole list as tab separated text (Kaynak, Yazılacak dosya adı, Not), the same
+        lines `--onizle` prints; the header line comes first."""
+        return "\n".join([PREVIEW_HEADER] + [preview_line(r.source, r.name, r.note)
+                                             for r in self.model.all_rows()])
+
+    def copy_list(self) -> None:
+        """Ctrl+Shift+C: the name list on the clipboard, ready for Excel."""
+        if not self.model.all_rows():
+            return
+        QGuiApplication.clipboard().setText(self.list_text())
+        toaster = self._toaster()
+        if toaster is not None:
+            toaster.show("Ad listesi panoya kopyalandı", kind="info")
+
     def selected_names(self) -> list[str]:
         rows = sorted({i.row() for i in self.results.selectionModel().selectedRows()})
         return [r.name for r in (self.model.row_at(i) for i in rows) if r is not None]
@@ -959,7 +1064,6 @@ class DisaAktarScreen(QWidget):
         job = job_from_dict(job_to_dict(controller.job))
         files = controller.store.batch_files(job)
         self._exporting = (controller, job)
-        self._export_patterns = dict(getattr(self, "_patterns", {}))
         templates = dict(self.templates())
         used = {i for i in (document_template(job, d)[0] for d in controller.documents())
                 if i is not None and templates.get(i) is not None}
@@ -1050,10 +1154,7 @@ class DisaAktarScreen(QWidget):
     def _done(self, result) -> None:
         controller, job = self._exporting  # the job that was exported, not the open one
         names = [p.name for p in result.paths]
-        # The same patterns as the pre-flight, so a name change ("Geçersiz karakter silindi")
-        # still shows after writing.
-        self._written_rows = file_rows(job, result.items,
-                                       getattr(self, "_export_patterns", {}), names)
+        self._written_rows = file_rows(job, result.items, names)
         self._written = True
         self._written_for = controller
         self._index_written = result.index_written

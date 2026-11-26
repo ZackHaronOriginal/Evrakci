@@ -648,3 +648,72 @@ def test_list_kontrol_count_equals_the_check_sheet_rows(qtbot, tmp_path, monkeyp
     rows = [r[1].value for r in sheet.iter_rows(min_row=2)]
     assert len(rows) == len(in_list)
     assert [n.removesuffix(".pdf") for n in rows] == [n.removesuffix(".pdf") for n in in_list]
+
+
+# -- I-39: the name list with its Kaynak column, the filter, the copy --------------------
+def _clash_screen(qtbot, tmp_path):
+    """The three documents with the pattern {Firma}: two share a name ("Ege Kalıp (2)")."""
+    store, templates, ctl, template = _job(tmp_path)
+    template.set_pattern("{Firma}")
+    templates.save(template)
+    store.save(ctl.job)
+    screen = DisaAktarScreen(lambda: ctl, lambda: {t.id: t for t in templates.list()},
+                             settings_path=tmp_path / "ayar.json")
+    qtbot.addWidget(screen)
+    screen.resize(1100, 700)
+    return screen, ctl
+
+
+def test_the_kaynak_column_is_off_until_adlari_karsilastir(qtbot, tmp_path):
+    window, screen = _window(qtbot, tmp_path)
+    action = window.registry.action("disa_aktar.adlari_karsilastir")
+    assert screen.model.headerData(1, Qt.Orientation.Horizontal) == "Kaynak"
+    assert screen.results.isColumnHidden(1) and not action.isChecked()
+    action.trigger()
+    assert not screen.results.isColumnHidden(1) and action.isChecked()
+    assert screen.model.row_at(0).source == "t.pdf"
+    action.trigger()
+    assert screen.results.isColumnHidden(1)
+
+
+def test_adi_degisenler_shows_exactly_the_rows_with_a_note(qtbot, tmp_path):
+    screen, _ctl = _clash_screen(qtbot, tmp_path)
+    assert screen.changed_button.text() == "Adı değişenler"
+    assert screen.changed_button.trail() == "1"
+    screen.changed_button.setChecked(True)
+    model = screen.results.model()
+    assert [model.row_at(i).note for i in range(model.rowCount())] == [
+        "Ad çakışması, (2) eklendi"]
+    screen.changed_button.setChecked(False)
+    assert model.rowCount() == 3
+
+
+def test_ctrl_shift_c_copies_the_whole_list_with_a_header(qtbot, tmp_path):
+    from PySide6.QtGui import QGuiApplication
+
+    window, screen = _window(qtbot, tmp_path)
+    QGuiApplication.clipboard().setText("")
+    window.registry.action("disa_aktar.liste_kopyala").trigger()
+    lines = QGuiApplication.clipboard().text().split("\n")
+    assert lines[0] == "Kaynak\tYazılacak dosya adı\tNot" and len(lines) == 4
+    assert all(line.split("\t")[0] == "t.pdf" for line in lines[1:])
+    assert window.toaster.current_text() == "Ad listesi panoya kopyalandı"
+    assert window.registry.spec("disa_aktar.liste_kopyala").shortcuts == ("Ctrl+Shift+C",)
+
+
+def test_the_list_equals_onizle_and_the_files_written(qtbot, tmp_path, capsys):
+    from evrakci.cli import main
+
+    screen, ctl = _clash_screen(qtbot, tmp_path)
+    out = tmp_path / "out"
+    screen.folder.setText(str(out))
+    screen.layer.setChecked(False)
+    code = main(["--kok", str(tmp_path / "jobs"), "--sablon-kok", str(tmp_path / "tpl"),
+                 "is", "disa-aktar", ctl.job.id, "--cikti", str(out), "--onizle"])
+    assert code == 0 and not out.exists()  # nothing is written
+    shown = capsys.readouterr().out.rstrip("\n").split("\n")
+    assert sorted(shown) == sorted(screen.list_text().split("\n"))
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    written = {line.split("\t")[1] for line in shown[1:]}
+    assert written == {p.name for p in out.glob("*.pdf")}

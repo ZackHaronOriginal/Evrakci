@@ -192,6 +192,8 @@ list and the inspector fields.
 |---|---|---|
 | Ctrl+Shift+O | Dosya Gezgini'nde göster | Dosya |
 | Ctrl+P | Dizini yazdır… | Dosya |
+| Ctrl+Shift+C | Ad listesini kopyala | Düzen |
+| — | Adları karşılaştır | Görünüm |
 | Ctrl+. | Dışa aktarmayı durdur | Araçlar |
 
 ### Rehber

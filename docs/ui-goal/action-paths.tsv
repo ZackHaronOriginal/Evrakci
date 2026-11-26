@@ -300,6 +300,8 @@ disa_aktar	Ctrl+K	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
 disa_aktar	Ctrl+Shift+P	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
 disa_aktar		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	ok
 disa_aktar	Ctrl+.	disa_aktar.durdur	Dışa aktarmayı durdur	Araçlar > Dışa aktarmayı durdur [state-dependent]	bar [state-dependent]		yes	ok
+disa_aktar		disa_aktar.adlari_karsilastir	Adları karşılaştır	Görünüm > Adları karşılaştır	bar Diğer komutlar		yes	ok
+disa_aktar	Ctrl+Shift+C	disa_aktar.liste_kopyala	Ad listesini kopyala	Düzen > Ad listesini kopyala	bar Diğer komutlar		yes	ok
 rehber	Ctrl+1	app.sekme.yukle	Yükle	Git > Yükle			yes	ok
 rehber	Ctrl+2	app.sekme.kontrol	Kontrol	Git > Kontrol			yes	ok
 rehber	Ctrl+3	app.sekme.sablonlar	Şablonlar	Git > Şablonlar			yes	ok

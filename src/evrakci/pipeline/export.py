@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
@@ -12,9 +13,18 @@ from evrakci.pipeline.cuts import (
     current_values,
     document_template,
 )
-from evrakci.pipeline.job import Job
+from evrakci.pipeline.job import Job, parse_page_id
 from evrakci.pipeline.naming import build_name_kept, unique_names
-from evrakci.pipeline.templates.model import Template, template_revision
+from evrakci.pipeline.templates.model import (
+    Template,
+    TemplateError,
+    pattern_names,
+    template_revision,
+)
+
+FORBIDDEN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')  # what Windows does not allow in a name
+NOTE_INVALID = "Geçersiz karakter silindi"
+NOTE_SHORTENED = "Dosya adı kısaltıldı (klasör yolu uzun)"
 
 
 @dataclass
@@ -28,6 +38,27 @@ class ExportItem:
     pdfa: bool | None = None
     pdfa_note: str = ""  # why the file is not PDF/A; Bilgi, kept out of `checks` (B-003)
     keep: int = 0  # characters of `name` that must stay so required values survive
+    sources: list[str] = field(default_factory=list)  # scan files of the pages, in order, once
+    name_note: str = ""  # "" or why the written name differs from the pattern (I-39)
+
+
+def sources_text(sources) -> str:
+    """The Kaynak cell: the first scan file, "tarama_01.pdf +1" when the document spans more."""
+    if not sources:
+        return ""
+    return sources[0] + (f" +{len(sources) - 1}" if len(sources) > 1 else "")
+
+
+PREVIEW_HEADER = "Kaynak\tYazılacak dosya adı\tNot"
+
+
+def preview_line(source: str, name: str, note: str) -> str:
+    """One line of the name list (window clipboard and `--onizle`): tab separated, for Excel."""
+    return f"{source}\t{name}\t{note}"
+
+
+def clash_note(suffix: str) -> str:
+    return f"Ad çakışması, {suffix.strip()} eklendi"
 
 
 def _numbered(number: int) -> str:
@@ -36,8 +67,13 @@ def _numbered(number: int) -> str:
 
 def plan_export(job: Job, templates: Mapping[str, Template | None]) -> list[ExportItem]:
     items = []
+    file_of = {batch.id: batch.file_name for batch in job.batches}
+    invalid: set[int] = set()  # documents whose pattern values lost a forbidden character
     for number, document in enumerate(compute_documents(job), start=1):
         item = ExportItem(number, document, _numbered(number), None)
+        item.sources = list(dict.fromkeys(
+            file_of.get(parse_page_id(pid)[0], "") for pid in document.page_ids))
+        item.sources = [name for name in item.sources if name]
         if "leftover" in document.flags:
             item.checks.append("eksik sayfa")
         template_id, _ = document_template(job, document)
@@ -49,13 +85,31 @@ def plan_export(job: Job, templates: Mapping[str, Template | None]) -> list[Expo
             item.checks.append(error)
         if template_id is not None:
             _apply_template(item, job, document, templates.get(template_id))
+            if _lost_character(item, templates.get(template_id)):
+                invalid.add(number)
         items.append(item)
     # Numbered names go first, so `belge_002` always stays document 2's own name.
     order = sorted(range(len(items)), key=lambda i: items[i].name != _numbered(i + 1))
     names = unique_names([items[i].name for i in order])
     for i, name in zip(order, names, strict=True):
+        before = items[i].name
         items[i].name = name
+        if name != before:
+            items[i].name_note = clash_note(name[len(before):])
+        elif items[i].number in invalid:
+            items[i].name_note = NOTE_INVALID
     return items
+
+
+def _lost_character(item: ExportItem, template) -> bool:
+    """A value of the pattern held a character Windows does not allow (the name drops it)."""
+    if template is None or not item.template_name or not template.filename_pattern:
+        return False
+    try:
+        used = set(pattern_names(template.filename_pattern))
+    except TemplateError:
+        return False
+    return any(FORBIDDEN.search(item.values.get(variable, "")) for variable in used)
 
 
 def _apply_template(item: ExportItem, job: Job, document: Document, template) -> None:

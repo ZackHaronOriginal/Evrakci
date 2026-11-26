@@ -17,8 +17,13 @@ from evrakci.pipeline.cuts import (
     document_template,
     record_read_error,
 )
-from evrakci.pipeline.export import plan_export
-from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after_export
+from evrakci.pipeline.export import PREVIEW_HEADER, plan_export, preview_line, sources_text
+from evrakci.pipeline.exporting import (
+    ExportError,
+    export_job,
+    may_delete_after_export,
+    plan_names,
+)
 from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
@@ -286,7 +291,23 @@ def _job_templates(args: argparse.Namespace, job: Job) -> dict[str, Template | N
     return found
 
 
+def preview_names(args: argparse.Namespace, store: JobStore) -> int:
+    """`--onizle`: the names an export into --cikti would write (Kaynak, new name, note), the
+    same lines as the window's "Ad listesini kopyala"; nothing is written."""
+    job = load_job(store, args.id)
+    try:
+        items = plan_names(job, _job_templates(args, job), Path(args.cikti))
+    except ValueError as error:
+        raise UserError(str(error)) from None
+    print(PREVIEW_HEADER)
+    for item in items:
+        print(preview_line(sources_text(item.sources), f"{item.name}.pdf", item.name_note))
+    return 0
+
+
 def export(args: argparse.Namespace, store: JobStore) -> int:
+    if args.onizle:
+        return preview_names(args, store)
     job = load_job(store, args.id)
     store.save(job)  # marks the job as in use, so the day limit never removes it mid-export
     with_layer = not args.metin_katmani_yok
@@ -321,7 +342,9 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
     for path, item in zip(paths, items, strict=True):
         positions = [job.position_of(pid) for pid in item.document.page_ids]
         checks = f" [kontrol: {', '.join(item.checks)}]" if item.checks else ""
-        print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}{checks}")
+        name_note = f" [ad: {item.name_note}]" if item.name_note else ""
+        print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}"
+              f"{name_note}{checks}")
     needing = result.needing_check
     listing = " Liste: index.xlsx" if paths else ""
     print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.{listing}")
@@ -693,5 +716,10 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
         "--metin-katmani-yok",
         action="store_true",
         help="aranabilir metin katmanı ve PDF/A olmadan yaz",
+    )
+    p.add_argument(
+        "--onizle",
+        action="store_true",
+        help="hiçbir şey yazmadan dosya adlarını göster: kaynak, yeni ad, not",
     )
     p.set_defaults(handler=export)

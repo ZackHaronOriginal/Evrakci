@@ -283,3 +283,46 @@ PLANS["rehber.aramayi_temizle"] = Plan(
     pre="pre.rehber_search_typed", snap="snap.export", effect="effect.rehber_search_cleared",
     feedback="feedback.rehber_search_cleared", window="job_disa", na_pre="pre.none",
     na_window="job_disa", broken="broken.rehber_search_empty", na="na.rehber_quiet")
+
+
+# -- Ctrl+Shift+C (Dışa Aktar): the name list (I-39) ---------------------------------------------
+COPIED_TOAST = "Ad listesi panoya kopyalandı"
+SENTINEL = "önceki pano"
+
+
+@helper("pre.export_copy_list")
+def _pre_copy_list(c: Ctx) -> None:
+    QApplication.clipboard().setText(SENTINEL)
+    _x(c).results.setFocus()
+    settle()
+    assert _x(c).model.all_rows()
+
+
+@helper("effect.export_list_copied")
+def _effect_list_copied(c: Ctx) -> None:
+    lines = QApplication.clipboard().text().split("\n")
+    rows = _x(c).model.all_rows()
+    assert lines[0] == "Kaynak\tYazılacak dosya adı\tNot", lines[0]
+    assert len(lines) == len(rows) + 1, (len(lines), len(rows))
+    assert all(line.count("\t") == 2 for line in lines), lines
+
+
+@helper("feedback.export_list_copied")
+def _feedback_list_copied(c: Ctx) -> None:
+    assert said(c.win, COPIED_TOAST), f"nothing said: {heard(c.win)!r}"
+
+
+@helper("broken.export_clipboard_sentinel")
+def _broken_clipboard(c: Ctx) -> None:
+    QApplication.clipboard().setText(SENTINEL)
+
+
+@helper("na.export_list_not_copied")
+def _na_list_not_copied(c: Ctx) -> None:
+    assert QApplication.clipboard().text() == SENTINEL, "the empty list was copied"
+
+
+PLANS["disa_aktar.liste_kopyala"] = Plan(
+    pre="pre.export_copy_list", snap="snap.export", effect="effect.export_list_copied",
+    feedback="feedback.export_list_copied", window="job_disa", na_pre="pre.none",
+    broken="broken.export_clipboard_sentinel", na="na.export_list_not_copied")

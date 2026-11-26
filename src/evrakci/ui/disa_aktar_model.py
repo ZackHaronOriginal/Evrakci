@@ -10,13 +10,13 @@ from __future__ import annotations
 import os
 import re
 import unicodedata
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from evrakci.pipeline.export import sources_text
 from evrakci.pipeline.templates.model import TemplateError, pattern_names
 
-FORBIDDEN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')  # what Windows does not allow in a name
 NUMBER_SUFFIX = re.compile(r" \((\d+)\)$")  # what `unique_names` adds on a clash
 LEVELS = ("engel", "kontrol", "eksik", "bilgi", "tamam")
 # Checks that are about a value (their sentence in the pre-flight is A's "emin olunmayan değer")
@@ -85,10 +85,16 @@ class FileRow:
     post: str  # ".pdf"
     pages: str
     template: str | None
+    sources: tuple[str, ...] = ()  # the scan files the document came from (Kaynak)
+    note: str = ""  # why the name differs from the pattern ("" when it does not)
 
     @property
     def name(self) -> str:
         return self.pre + self.tail + self.post
+
+    @property
+    def source(self) -> str:
+        return sources_text(self.sources)
 
 
 def pages_text(job, document) -> str:
@@ -107,33 +113,16 @@ def reason(check: str) -> str:
     return check[:1].upper() + check[1:] if check else check
 
 
-def _name_change(item, pattern: str, names: set[str]) -> tuple[str, str]:
-    """(why, tail) when the written name differs from what the pattern asked for."""
-    found = NUMBER_SUFFIX.search(item.name)
-    if found and item.name[:found.start()].casefold() in names:
-        return f"Ad çakışması, {found.group(0).strip()} eklendi", found.group(0)
-    if item.template_name and pattern:
-        try:
-            used = set(pattern_names(pattern))
-        except TemplateError:
-            used = set()
-        for variable in used:
-            if FORBIDDEN.search(item.values.get(variable, "")):
-                return "Geçersiz karakter silindi", ""
-    return "", ""
-
-
-def file_rows(job, items, patterns: Mapping[int, str] | None = None,
-              names: Iterable[str] | None = None) -> list[FileRow]:
+def file_rows(job, items, names: Iterable[str] | None = None) -> list[FileRow]:
     """The rows of the list, flagged documents first (document order inside each group).
     `names` are the names actually written (a finished export), else the planned ones."""
-    patterns = patterns or {}
     written = list(names) if names is not None else None
-    base_names = {i.name.casefold() for i in items}
     rows = []
     for index, item in enumerate(items):
         checks = item.checks
-        why, tail = _name_change(item, patterns.get(item.number, ""), base_names)
+        why = item.name_note  # from the core: clash, removed character, shortened
+        found = NUMBER_SUFFIX.search(item.name) if why.startswith("Ad çakışması") else None
+        tail = found.group(0) if found else ""
         state = "tamam"
         if checks:
             state, why, tail = "kontrol", reason(checks[0]), ""
@@ -150,7 +139,8 @@ def file_rows(job, items, patterns: Mapping[int, str] | None = None,
         else:
             pre, mid = stem, ""
         rows.append(FileRow(item.number, state, why, pre, mid, shown[len(stem):] or ".pdf",
-                            pages_text(job, item.document), item.template_name))
+                            pages_text(job, item.document), item.template_name,
+                            tuple(item.sources), item.name_note))
     rows.sort(key=lambda row: row.state != "kontrol")
     return rows
 

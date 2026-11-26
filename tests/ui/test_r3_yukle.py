@@ -204,8 +204,13 @@ def test_the_waiting_bar_stands_still_under_reduced_motion(qtbot):
         assert (card.bar.minimum(), card.bar.maximum()) == (0, 1) and card.bar.value() == 0
     finally:
         motion.set_reduced_motion_override(None)
-    card.show_waiting("Dosyalar sayılıyor: 2", "a.pdf")
-    assert (card.bar.minimum(), card.bar.maximum()) == (0, 0)
+    # motion on (forced: a Windows CI runner may have system animations off)
+    motion.set_reduced_motion_override(False)
+    try:
+        card.show_waiting("Dosyalar sayılıyor: 2", "a.pdf")
+        assert (card.bar.minimum(), card.bar.maximum()) == (0, 0)
+    finally:
+        motion.set_reduced_motion_override(None)
 
 
 def test_the_add_toast_reports_documents_and_checks(qtbot, tmp_path, files):

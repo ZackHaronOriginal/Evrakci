@@ -446,8 +446,14 @@ def test_progress_card_reports_percent_time_left_and_speed(qtbot, tmp_path):
         "%62", "Yaklaşık 40 sn kaldı", "3,2 sayfa/sn")
     assert card.note.text() == "İptal ederseniz hiçbir şey değişmez."
     assert (card.bar.value(), card.bar.maximum()) == (77, 124)
-    card.show_waiting("Dosyalar inceleniyor: 2", "a.pdf")
-    assert card.bar.maximum() == 0  # indeterminate before the first page
+    from evrakci.ui import motion
+
+    motion.set_reduced_motion_override(False)  # a Windows CI runner may have animations off
+    try:
+        card.show_waiting("Dosyalar inceleniyor: 2", "a.pdf")
+        assert card.bar.maximum() == 0  # indeterminate before the first page
+    finally:
+        motion.set_reduced_motion_override(None)
     assert card.accessibleName() == "Okuma ilerlemesi"
 
 

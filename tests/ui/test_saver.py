@@ -18,6 +18,7 @@ from saving import wait_saved
 from evrakci.pipeline.job import job_to_dict
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.store import TemplateStore
+from evrakci.ui import gc_guard
 from evrakci.ui.controller import JobController
 from evrakci.ui.main_window import MainWindow
 from evrakci.ui.saver import JobSaver
@@ -126,6 +127,7 @@ def test_a_slow_disk_never_stalls_the_window(qtbot, tmp_path, disk):
     controller = window.controller()
     band = window.job_switch.save_state
     ticks: list[float] = []
+    collected_before = dict(gc_guard.stats)  # a long gap during a full collection is the GC
     timer = QTimer(window)
     timer.setInterval(20)
     timer.timeout.connect(lambda: ticks.append(time.perf_counter()))
@@ -146,7 +148,8 @@ def test_a_slow_disk_never_stalls_the_window(qtbot, tmp_path, disk):
     worst = max(range(len(gaps)), key=gaps.__getitem__) if gaps else -1
     assert len(ticks) >= 30 and max(gaps) < 0.1, (
         len(ticks), round(max(gaps), 3), round(ticks[worst] - ticks[0], 3),
-        sorted(round(g, 3) for g in gaps)[-5:])
+        sorted(round(g, 3) for g in gaps)[-5:],
+        {k: gc_guard.stats[k] - collected_before.get(k, 0) for k in gc_guard.stats})
     _equal_on_disk(store, controller)
 
 

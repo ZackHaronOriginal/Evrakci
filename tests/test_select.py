@@ -123,3 +123,46 @@ def test_evaluate_800_pages_is_fast():
         pick(job, "belge", number=100)
     each_ms = (time.perf_counter() - start) * 1000 / 60
     assert each_ms < 5, each_ms  # the dialog may call it on the window thread
+
+
+# I-07: select_pages, the AND of saved filters
+def test_select_pages_is_the_and_of_its_criteria():
+    from evrakci.pipeline.select import select_pages
+
+    job = job_from_kinds({"a": "ppeppp"})  # page 2 (a/2) is empty
+    odd, blank = Criterion("tek"), Criterion("bos")
+    found = select_pages(job, [odd, blank])
+    assert found.page_ids == pids(2)
+    assert found.per_filter_counts == (len(pick(job, "tek").page_ids), 1)
+    assert found.unknown_kinds == ()
+    assert set(found.page_ids) <= set(select_pages(job, [odd]).page_ids)
+
+
+def test_select_pages_zero_result_and_no_criteria():
+    from evrakci.pipeline.select import select_pages
+
+    job = job_from_kinds({"a": "pppp"})
+    nothing = select_pages(job, [Criterion("tek"), Criterion("bos")])
+    assert nothing.page_ids == () and nothing.per_filter_counts == (2, 0)
+    assert select_pages(job, []).page_ids == ()
+
+
+def test_select_pages_reports_an_unknown_kind_and_never_hides_it():
+    from evrakci.pipeline.select import select_pages
+
+    job = job_from_kinds({"a": "pppp"})
+    found = select_pages(job, [Criterion("tek"), Criterion("gelecek", {"x": 1})])
+    assert found.unknown_kinds == ("gelecek",)
+    assert found.per_filter_counts == (2, 0)
+    assert found.page_ids == pids(0, 2)  # what the known criteria give is still there
+    only_unknown = select_pages(job, [Criterion("gelecek")])
+    assert only_unknown.page_ids == () and only_unknown.unknown_kinds == ("gelecek",)
+
+
+def test_select_pages_treats_criteria_that_raise_as_unknown():
+    from evrakci.pipeline.select import select_pages
+
+    job = job_from_kinds({"a": "pppp"})
+    found = select_pages(job, [Criterion("tek"), Criterion("farkli", {"by": 5})])
+    assert found.unknown_at == (1,) and found.unknown_kinds == ("farkli",)
+    assert found.per_filter_counts[1] == 0 and found.page_ids == pids(0, 2)

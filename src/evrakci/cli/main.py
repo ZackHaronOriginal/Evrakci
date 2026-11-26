@@ -102,6 +102,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
+        if getattr(args, "check", None):
+            args.check(args)  # usage errors that need the whole line (argparse's own error)
     except SystemExit as exit_:
         return int(exit_.code or 0)
     store = JobStore(args.kok if args.kok else default_root())

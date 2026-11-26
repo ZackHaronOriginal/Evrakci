@@ -53,6 +53,7 @@ from evrakci.ui.kontrol_inspector import Change, DocumentInfo, Inspector, Select
 from evrakci.ui.kontrol_overview import OverviewStrip
 from evrakci.ui.kontrol_paint import CUT_ICONS, CUT_WORDS
 from evrakci.ui.kontrol_review import ReviewStore
+from evrakci.ui.kontrol_saved import SavedFiltersMixin
 from evrakci.ui.loupe import Loupe
 from evrakci.ui.thumbnails import ThumbnailService, job_renderer, to_qimage
 from evrakci.ui.timeline import ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, Roles, TimelineModel, TimelineView
@@ -73,7 +74,7 @@ def _sentence(checks: list[str]) -> str:
     return (text[:1].upper() + text[1:] + ".") if text else ""
 
 
-class KontrolScreen(QWidget):
+class KontrolScreen(SavedFiltersMixin, QWidget):
     open_values = Signal(int)  # document number
 
     def __init__(
@@ -113,6 +114,8 @@ class KontrolScreen(QWidget):
         column = QVBoxLayout(work)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(0)
+        self._init_saved_filters()
+        column.addWidget(self.chips)  # saved filters: under the command bar, over the strip
         self.strip = OverviewStrip()
         self.strip.jump.connect(self.go_to_document)
         column.addWidget(self.strip)
@@ -156,6 +159,7 @@ class KontrolScreen(QWidget):
         controller.job_changed.connect(self._job_changed)
         controller.undo_stack.indexChanged.connect(self._undo_moved)
         self.reviews.changed.connect(self._reviews_changed)
+        QWidget.setTabOrder(self.chips, self.timeline)
         if self.model.rowCount():  # focus the first page without selecting it
             selection.setCurrentIndex(self.model.index(0),
                                       QItemSelectionModel.SelectionFlag.NoUpdate)
@@ -183,6 +187,9 @@ class KontrolScreen(QWidget):
         self.binder = KontrolBinder.for_registry(registry)
         self.binder.attach(self)
         QTimer.singleShot(0, self, self._sync_binder)  # once the window names this screen
+        stack = getattr(window, "template_undo_stack", None)
+        if callable(stack):
+            stack().indexChanged.connect(self._template_edited)
         prefs = getattr(window, "prefs", None)
         if prefs is not None:
             self.model.set_marks(prefs.flag(ODD_MARKS_KEY, True))
@@ -208,6 +215,8 @@ class KontrolScreen(QWidget):
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
         self._sync_binder()
+        self._chips_invalidate()  # the templates may have been edited on Şablonlar
+        self._chips_sync()
 
     def hideEvent(self, event) -> None:  # noqa: N802
         super().hideEvent(event)
@@ -688,7 +697,8 @@ class KontrolScreen(QWidget):
         if not dialog.exec():
             self.timeline.setFocus()
             return
-        self.select_matching(dialog.criterion(), dialog.mode())
+        if self.select_matching(dialog.criterion(), dialog.mode()):
+            self._remember_result(dialog.criterion(), self._chosen_ids())
 
     def select_matching(self, criterion: Criterion, mode: str = "replace") -> int:
         """Select the pages that meet `criterion`, joined with the selection by `mode`
@@ -897,8 +907,8 @@ class KontrolScreen(QWidget):
         menu.popup(button.mapToGlobal(QPoint(button.width() - menu.sizeHint().width(),
                                              button.height())))
 
-    def _template_for_selection(self) -> str | None:
-        templates = self.templates()
+    def _template_for_selection(self, templates: Mapping | None = None) -> str | None:
+        templates = self.templates() if templates is None else templates
         if self._template_choice in templates:
             return self._template_choice
         for pid in self.selected_ids():
@@ -941,6 +951,7 @@ class KontrolScreen(QWidget):
                 self.thumbnails.invalidate(pid)
 
     def _job_changed(self) -> None:
+        self._chips_invalidate()
         self._refresh_thumbnails()
         items = plan_export(self.controller.job, self.templates())
         checks = {item.number: item.checks for item in items if item.checks}
@@ -965,6 +976,7 @@ class KontrolScreen(QWidget):
             self.strip.set_visible(0, 0)
 
     def _selection_changed(self, *_args) -> None:
+        templates = self.templates()
         rows = self.selected_rows()
         ids = [self.model.page_id(r) for r in rows]
         # The "Seçim" card counts only pages that are drawn selected (ring and check badge);
@@ -973,7 +985,7 @@ class KontrolScreen(QWidget):
         if chosen:
             self.side.show_selection(SelectionInfo(
                 len(chosen), chosen[0] + 1, chosen[-1] + 1,
-                self._template_name(self._template_for_selection()),
+                self._template_name(self._template_for_selection(templates), templates),
                 self._applied_every_n(ids)))
         else:
             self.side.show_selection(None)
@@ -983,6 +995,8 @@ class KontrolScreen(QWidget):
         label_delete(self.registry, len(pages), restore)
         self.sync_availability()
         self._update_status()
+        if not self._chips_busy:
+            self._chips_sync(templates)
 
     def _applied_every_n(self, ids: list[str]) -> int:
         """N of the filter on the selected pages (the last application wins); 0 when none."""
@@ -991,8 +1005,9 @@ class KontrolScreen(QWidget):
                 return application.every_n
         return 0
 
-    def _template_name(self, template_id: str | None) -> str:
-        template = self.templates().get(template_id) if template_id else None
+    def _template_name(self, template_id: str | None, templates: Mapping | None = None) -> str:
+        templates = self.templates() if templates is None else templates
+        template = templates.get(template_id) if template_id else None
         return template.name if template is not None else ""
 
     def _current_changed(self, index, *_args) -> None:

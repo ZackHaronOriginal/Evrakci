@@ -106,7 +106,7 @@ from contract_helpers import (  # noqa: E402
 # action: degerler.sonraki_kontrol, degerler.onceki_kontrol, degerler.durdur
 # action: degerler.sonraki_deger, disa_aktar.gezginde_goster, disa_aktar.yazdir
 # action: disa_aktar.durdur, rehber.yazdir, rehber.aramayi_temizle
-# action: disa_aktar.liste_kopyala
+# action: disa_aktar.liste_kopyala, kontrol.kayitli_filtreler
 
 ROWS = load_rows("")
 

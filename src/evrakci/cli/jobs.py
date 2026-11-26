@@ -43,6 +43,9 @@ from evrakci.pipeline.select import (
     reason_count_text,
     values_read,
 )
+from evrakci.pipeline.select import (
+    select_pages as select_by_filters,
+)
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsError, load_settings
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.model import Template, TemplateError, template_revision
@@ -230,6 +233,56 @@ def blank_percent(text: str) -> float:
     return value
 
 
+def check_sec(args: argparse.Namespace) -> None:
+    """Usage errors of `is sec`, raised through argparse (exit 2, its usage text) once the
+    arguments are read: --filtre needs --sablon, --sil does not go with --sablon, and without
+    --sablon a criterion is still required."""
+    parser = args.sec_parser
+    if not args.sablon and args.filtre:
+        parser.error("--filtre için --sablon gerekir.")
+    if not args.sablon and not args.olcut:
+        parser.error("the following arguments are required: olcut")
+    if args.sablon and getattr(args, "sil", False):
+        parser.error("--sil, --sablon ile birlikte kullanılamaz.")
+    if args.filtre:  # a name given twice counts once
+        args.filtre = list(dict.fromkeys(args.filtre))
+
+
+def select_saved(args: argparse.Namespace, store: JobStore,
+                 extra: Criterion | None = None) -> int:
+    """`is sec --sablon ŞABLON [--filtre AD ...] [ÖLÇÜT ...]`: the pages the window's
+    saved-filter chips select (AND of the filters, all of the template's when none is named,
+    and of `extra`, a criterion given on the command line); one function, select_pages, for
+    the window and for this command. A filter this version cannot run is refused."""
+    from evrakci.cli.templates import load_template, template_store
+
+    job = load_job(store, args.id)
+    template = load_template(template_store(args), args.sablon)
+    try:
+        chosen = ([template.saved_filter(name) for name in args.filtre] if args.filtre
+                  else list(template.saved_filters))
+    except TemplateError as error:
+        raise UserError(str(error)) from None
+    if not chosen and extra is None:
+        print("Hiçbir filtre açık değil")
+        return 0
+    every = {t.id: t for t in template_store(args).list()}  # what the window's chips see
+    criteria = [Criterion(f.kind, f.params) for f in chosen]
+    result = select_by_filters(job, [*criteria, *([extra] if extra else [])], every)
+    broken = [chosen[n].name for n in result.unknown_at if n < len(chosen)]
+    if broken:
+        raise UserError("\n".join(f"{name}: Bu filtreyi bu sürüm tanımıyor" for name in broken))
+    for item, count in zip(chosen, result.per_filter_counts, strict=False):
+        print(f"{item.name}: {count} sayfa")
+    if not result.page_ids:
+        print("Eşleşen sayfa yok.")
+        return 0
+    position = {pid: n for n, pid in enumerate(job.ordered_page_ids(), start=1)}
+    print(f"{len(criteria) + (1 if extra else 0)} filtre açık: {len(result.page_ids)} sayfa")
+    print(f"sayfa {positions_text([position[pid] for pid in result.page_ids])}")
+    return 0
+
+
 def select_pages(args: argparse.Namespace, store: JobStore) -> int:
     """`is sec`: the pages the window's "Ölçüte göre seç…" would select; `--sil` deletes them."""
     job = load_job(store, args.id)
@@ -239,6 +292,8 @@ def select_pages(args: argparse.Namespace, store: JobStore) -> int:
     elif args.olcut == "bos":
         params = {"ink": round(args.esik / 100, 6)}
     elif args.olcut == "guven":
+        if args.sablon:
+            return select_saved(args, store, _guven_criterion(args))
         return select_guven(args, job)
     elif args.olcut == "farkli":
         # An older job: read the missing sizes in memory, for this count only. The file is not
@@ -246,6 +301,8 @@ def select_pages(args: argparse.Namespace, store: JobStore) -> int:
         apply_page_sizes(job, store.read_sizes(store.size_requests(job)))
         by = [name for name in FARKLI_BY if getattr(args, name)] or list(FARKLI_BY)
         params = {"by": by, "reference": args.karsilastir}
+    if args.sablon:
+        return select_saved(args, store, Criterion(args.olcut, params))
     match = evaluate(job, Criterion(args.olcut, params))
     unknown = match.reasons.get("bilinmiyor", 0) if args.olcut == "farkli" else 0
     if not match.page_ids:
@@ -272,18 +329,22 @@ GUVEN_NAMES = {"kontrol": "kontrol", "okunamadi": "okunamadi", "orta": "orta",
                "karisik-sablon": "karışık şablon"}
 
 
+def _guven_criterion(args: argparse.Namespace) -> Criterion:
+    asked = [GUVEN_NAMES[name] for name in (args.neden or [
+        "kontrol", "okunamadi", "okunmadi", "eksik-sayfa", "karisik-sablon"])]
+    return Criterion("guven", {
+        "levels": [r for r in asked if r in GUVEN_LEVELS],
+        "checks": [r for r in asked if r in GUVEN_CHECKS],
+        "pages": args.sayfalar})
+
+
 def select_guven(args: argparse.Namespace, job: Job) -> int:
     """`is sec guven`: the window's "Kontrol gerekenler", with its reasons and counts."""
     templates = _job_templates(args, job)
     if not values_read(job):
         print("Değerler henüz okunmadı")
         return 0
-    asked = [GUVEN_NAMES[name] for name in (args.neden or [
-        "kontrol", "okunamadi", "okunmadi", "eksik-sayfa", "karisik-sablon"])]
-    match = evaluate(job, Criterion("guven", {
-        "levels": [r for r in asked if r in GUVEN_LEVELS],
-        "checks": [r for r in asked if r in GUVEN_CHECKS],
-        "pages": args.sayfalar}), templates=templates)
+    match = evaluate(job, _guven_criterion(args), templates=templates)
     for reason, n in match.reasons.items():
         print(f"{GUVEN_WORDS[reason]}  {reason_count_text(reason, n)}")
     if not match.page_ids:
@@ -719,7 +780,12 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
 
     p = job_commands.add_parser("sec", help="Ölçüte göre seç…")
     p.add_argument("id", help="iş numarası")
-    criteria = p.add_subparsers(dest="olcut", required=True)
+    p.add_argument("--sablon", metavar="SABLON", help="Kayıtlı filtreler: şablon numarası")
+    p.add_argument("--filtre", action="append", metavar="AD",
+                   help="Kayıtlı filtreler: filtrenin adı (birden çok kez verilebilir; "
+                        "verilmezse hepsi)")
+    p.set_defaults(handler=select_saved, sec_parser=p, check=check_sec, sil=False)
+    criteria = p.add_subparsers(dest="olcut", required=False)
     for name, label in (("belge", "Bu belge"), ("tek", "Tek sayfalar"), ("cift", "Çift sayfalar")):
         q = criteria.add_parser(name, help=label)
         if name == "belge":

@@ -9,6 +9,7 @@ from pathlib import Path
 import pypdfium2 as pdfium
 
 from evrakci.cli.errors import UserError
+from evrakci.pipeline import select
 from evrakci.pipeline.ocr.tesseract import default_engine
 from evrakci.pipeline.render import PageRenderer
 from evrakci.pipeline.templates.model import (
@@ -198,6 +199,47 @@ def set_threshold(args, _jobs) -> int:
     return _edit(args, change)
 
 
+def parse_params(items: list[str] | None) -> dict:
+    """`--ayar ANAHTAR=DEGER` (repeatable): the value is read as JSON (0.005, true, [1, 2]),
+    else kept as text."""
+    params: dict = {}
+    for item in items or []:
+        key, equals, value = item.partition("=")
+        if not equals or not key.strip():
+            raise UserError(f"Geçersiz ayar: {item} (ANAHTAR=DEGER)")
+        try:
+            params[key.strip()] = json.loads(value)
+        except ValueError:
+            params[key.strip()] = value
+    return params
+
+
+def add_saved_filter(args, _jobs) -> int:
+    def change(t: Template) -> str:
+        t.add_saved_filter(args.filtre_adi, args.olcut, parse_params(args.ayar))
+        return f"Kayıtlı filtre eklendi: {t.saved_filters[-1].name}"
+
+    return _edit(args, change)
+
+
+def remove_saved_filter(args, _jobs) -> int:
+    def change(t: Template) -> str:
+        t.remove_saved_filter(args.filtre_adi)
+        return "Kayıtlı filtre silindi"
+
+    return _edit(args, change)
+
+
+def list_saved_filters(args, _jobs) -> int:
+    template = load_template(template_store(args), args.id)
+    if not template.saved_filters:
+        print("Kayıtlı filtreler: (yok)")
+    for item in template.saved_filters:
+        settings = json.dumps(item.params, ensure_ascii=False)
+        print(f"{item.name}  {item.kind}  {settings}")
+    return 0
+
+
 def export(args, _jobs) -> int:
     store = template_store(args)
     load_template(store, args.id)
@@ -347,6 +389,25 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
         tid,
         (("deger",), {"type": float}),
     )
+    command(
+        "filtre-ekle",
+        add_saved_filter,
+        "Kayıtlı filtrelere ekle…",
+        tid,
+        (("filtre_adi",), {"metavar": "AD", "help": "Filtrenin adı"}),
+        (("olcut",), {"choices": list(select.kinds()), "metavar": "OLCUT",
+                      "help": "Ölçüte göre seç: " + ", ".join(select.kinds())}),
+        (("--ayar",), {"action": "append", "metavar": "ANAHTAR=DEGER",
+                       "help": "ölçüt ayarı, örn. ink=0.005 (birden çok kez verilebilir)"}),
+    )
+    command(
+        "filtre-sil",
+        remove_saved_filter,
+        "kayıtlı filtreyi siler",
+        tid,
+        (("filtre_adi",), {"metavar": "AD", "help": "Filtrenin adı"}),
+    )
+    command("filtreler", list_saved_filters, "Kayıtlı filtreler", tid)
     command("disa-aktar", export, "şablonu dosyaya aktarır", tid, (("dosya",), {"type": Path}))
     command("ice-aktar", import_template, "şablonu dosyadan alır", (("dosya",), {"type": Path}))
     command(

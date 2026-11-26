@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import tempfile
 import time
 import uuid
 from collections.abc import Callable, Sequence
@@ -188,23 +189,30 @@ class JobStore:
         self.save_dict(job.id, job_to_dict(job))
 
     def save_dict(self, job_id: str, data: dict) -> None:
-        """Write a snapshot made by `job_to_dict` (atomic: a .json.tmp, then os.replace).
+        """Write a snapshot made by `job_to_dict` (atomic: a temporary file, then os.replace).
 
         The snapshot is plain data, so a thread other than the one that edits the job can
         write it (the window's saver). The file format is the same as `save`.
         """
         target = self._job_file(job_id)
         target.parent.mkdir(parents=True, exist_ok=True)
-        temporary = target.with_suffix(".json.tmp")
-        temporary.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
-        for attempt in range(1, BUSY_TRIES + 1):  # on Windows a reader (antivirus, indexer)
-            try:                                  # can hold the file for a moment
-                os.replace(temporary, target)
-                return
-            except PermissionError:
-                if attempt == BUSY_TRIES:
-                    raise
-                time.sleep(0.05 * attempt)
+        # A temporary file of its own per write: two writers of one job (two windows, a window
+        # and the CLI) never replace each other's half-written file.
+        handle, name = tempfile.mkstemp(dir=target.parent, prefix=".job-", suffix=".json.tmp")
+        temporary = Path(name)
+        try:
+            with os.fdopen(handle, "w", encoding="utf-8") as stream:
+                stream.write(json.dumps(data, ensure_ascii=False, indent=1))
+            for attempt in range(1, BUSY_TRIES + 1):  # on Windows a reader (antivirus, indexer)
+                try:                                  # can hold the file for a moment
+                    os.replace(temporary, target)
+                    return
+                except PermissionError:
+                    if attempt == BUSY_TRIES:
+                        raise
+                    time.sleep(0.05 * attempt)
+        finally:
+            temporary.unlink(missing_ok=True)  # gone after a replace; removed after a failure
 
     @staticmethod
     def _read_text(path: Path) -> str:

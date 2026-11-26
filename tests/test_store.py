@@ -347,3 +347,32 @@ def test_filling_800_pages_is_fast(tmp_path):
     elapsed = time.perf_counter() - start
     print(f"reading 800 page sizes: {elapsed * 1000:.0f} ms")
     assert elapsed < 3.0, elapsed
+
+
+def test_two_writers_of_one_job_never_lose_a_write(tmp_path):
+    """Each write has its own temporary file: two threads saving the same job at once both
+    succeed and the file is always one whole snapshot (CI: FileNotFoundError on job.json.tmp)."""
+    import threading
+
+    from evrakci.pipeline.job import job_to_dict
+
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("A", [make_pdf(tmp_path / "a.pdf", [text_page("A")])])
+    data = job_to_dict(job)
+    errors: list[BaseException] = []
+
+    def write(name: str) -> None:
+        try:
+            for n in range(100):
+                store.save_dict(job.id, {**data, "name": f"{name}{n}"})
+        except BaseException as error:  # noqa: BLE001 - the test reports any failure
+            errors.append(error)
+
+    threads = [threading.Thread(target=write, args=(name,)) for name in ("x", "y")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert errors == []
+    assert store.load(job.id).name in {"x99", "y99"}
+    assert [p.name for p in (tmp_path / "jobs" / job.id).glob("*.tmp")] == []

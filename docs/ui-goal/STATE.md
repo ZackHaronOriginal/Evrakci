@@ -97,13 +97,15 @@ Updated after every accepted step. A new session or a compacted one reads this f
   D step 16 I-39 DONE (merged): rename preview with Kaynak (scan file) column off by default, Adı değişenler
   filter, Ad listesini kopyala (Ctrl+Shift+C), core plan_names/notes (window == CLI --onizle); folder typing
   replans after 300 ms; evidence tests/test_export.py, test_cli_names.py, tests/ui/test_disa_aktar.py.
-  Next D: step 17 I-38 (print preview).
+  D step 17 I-38 DONE (merged): Baskı önizleme on Ctrl+P (Enter prints, Kapat), repeated header, footer
+  Sayfa n / m with date and job name, subtitle plan/written, HTML in a worker with the loading card; B-096 (one
+  ~380 ms block on 800 rows, card painted first). Q-26 (failure sentence). GROUP D BUILT: B-003, I-35, I-40, I-39, I-38.
   CI GREEN on b3e182a (all jobs incl. Windows, clean installs, CLA); B-092 fixed (probe colour), B-089 crash gone.
   A I-06 DONE (merged): Kontrol gerekenler criterion with reasons and counts, select.value_page, CLI is sec
   guven; Sayfaları seç dialog now two columns per spec §0 (648x469 at 150 %, fits 1366x768; test) and Tab order
   criterion -> parameters -> modes -> Seç; evidence tests/test_select_guven.py, test_cli_select_guven.py,
   tests/ui/test_kontrol_guven.py, test_kontrol_select.py (173 passed); full suite 2825 passed. Next A: I-04.
-  IN PROGRESS: D17 I-38 print preview (worktree). B-092 attempt b895e1e: check CI. Then A §0 + I-09
+  IN PROGRESS: A I-04 (worktree, high). B-092 attempt b895e1e: check CI. Then A §0 + I-09
   (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no

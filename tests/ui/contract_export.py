@@ -105,10 +105,18 @@ def _feedback_revealed(c: Ctx) -> None:
 # -- Ctrl+P (Dışa Aktar) -------------------------------------------------------------------------
 @helper("pre.export_print")
 def _pre_export_print(c: Ctx) -> None:
+    """I-38: Ctrl+P opens "Baskı önizleme" (the HTML is built in a worker); Yazdır… prints."""
     c.data["pdf"] = _fake_printing(c, "dizin.pdf")
     patcher = mock.patch.object(qt_print, "QPrintDialog", FakePrintDialog)
     patcher.start()
     c.undo.append(patcher.stop)
+
+    def close_preview() -> None:
+        preview = _x(c)._preview
+        if preview is not None:
+            preview.close()
+            settle()
+    c.undo.append(close_preview)
     _x(c).results.setFocus()
     settle()
     assert _x(c).model.rowCount() > 0
@@ -116,11 +124,17 @@ def _pre_export_print(c: Ctx) -> None:
 
 @helper("effect.export_printed")
 def _effect_printed(c: Ctx) -> None:
-    assert c.data["pdf"].is_file() and c.data["pdf"].stat().st_size > 500, "nothing was printed"
+    assert wait_until(lambda: _x(c)._preview is not None), "the print preview did not open"
+    assert _x(c)._preview.windowTitle() == "Baskı önizleme"
+    assert not c.data["pdf"].exists(), "Ctrl+P must not print before Yazdır…"
 
 
 @helper("feedback.export_printed")
 def _feedback_printed(c: Ctx) -> None:
+    preview = _x(c)._preview
+    assert preview.print_button.text() == "Yazdır…" and preview.close_button.text() == "Kapat"
+    preview.print_button.click()  # Yazdır…: the (stand-in) print dialog, then the pages
+    assert c.data["pdf"].is_file() and c.data["pdf"].stat().st_size > 500, "nothing was printed"
     assert FakePrintDialog.titles == ["Dizini yazdır"], FakePrintDialog.titles
     html = _x(c).index_html()
     assert "<th align='left'>Durum</th>" in html and "belge" in html

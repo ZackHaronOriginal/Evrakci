@@ -336,6 +336,7 @@ def test_reopening_the_open_job_keeps_it_and_loads_nothing(qtbot, tmp_path, monk
     gate.set()
     qtbot.wait(50)
     assert window.controller() is controller and window.controller().job.name == "Düzenlendi"
+    wait_saved(controller)  # saving is write-behind (I-47 part b)
     assert store.load(first.id).name == "Düzenlendi"
     assert opened == [] and not window.yukle._listing
 

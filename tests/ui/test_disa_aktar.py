@@ -6,9 +6,9 @@ import threading
 
 import pytest
 from fakes import make_pdf, qr_page, text_page
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QShortcut
-from PySide6.QtWidgets import QAbstractButton, QCheckBox, QLineEdit
+from PySide6.QtWidgets import QAbstractButton, QApplication, QCheckBox, QLineEdit
 
 from evrakci.pipeline.cuts import record_values
 from evrakci.pipeline.store import JobStore
@@ -712,7 +712,7 @@ def test_the_list_equals_onizle_and_the_files_written(qtbot, tmp_path, capsys):
                  "is", "disa-aktar", ctl.job.id, "--cikti", str(out), "--onizle"])
     assert code == 0 and not out.exists()  # nothing is written
     shown = capsys.readouterr().out.rstrip("\n").split("\n")
-    assert sorted(shown) == sorted(screen.list_text().split("\n"))
+    assert shown == screen.list_text().split("\n")
     with qtbot.waitSignal(screen.finished, timeout=30000):
         screen.export_button.click()
     written = {line.split("\t")[1] for line in shown[1:]}
@@ -757,3 +757,271 @@ def test_kaynak_gives_way_first_and_sayfalar_stays_in_view_at_150(qtbot, tmp_pat
         assert header.sectionSize(1) <= header.sectionSize(0)  # Kaynak narrows before Durum
     finally:
         manager.set_text_scale(old)
+
+
+# -- I-38: print preview, repeated header row, footer -------------------------------------
+def _pdf_pages(path):
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(str(path))
+    try:
+        return [pdf[i].get_textpage().get_text_range() for i in range(len(pdf))]
+    finally:
+        pdf.close()
+
+
+def _rows60():
+    return [("Kontrol" if n % 7 == 0 else "Bekliyor", n, f"belge_{n:03d}.pdf", "2", "Rapor", "")
+            for n in range(1, 61)]
+
+
+def test_printed_list_repeats_header_and_footer_on_every_page(qtbot, tmp_path):
+    from PySide6.QtPrintSupport import QPrinter
+
+    from evrakci.ui import disa_aktar_print as view
+
+    html = view.index_html("Örnek iş", _rows60(), 60, 120, view.PLAN_SUBTITLE)
+    assert "<thead>" in html and view.PLAN_SUBTITLE in html
+    out = tmp_path / "altmis.pdf"
+    printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+    printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+    printer.setOutputFileName(str(out))
+    count = view.paint_document(printer, view.make_document(html), "Örnek iş", "20.11.2026 14:32")
+    assert count >= 2
+    pages = _pdf_pages(out)
+    assert len(pages) == count
+    for n, text in enumerate(pages, start=1):
+        for word in ("Durum", "No", "Dosya adı", "Sayfalar", "Şablon", "Not"):
+            assert word in text, (n, word)
+        assert f"Sayfa {n} / {count}" in text
+        assert "Örnek iş" in text and "20.11.2026 14" in text  # the test font maps ":" oddly
+    assert "belge_060.pdf" in pages[-1]
+
+
+def test_subtitle_says_plan_or_record():
+    from evrakci.pipeline.job import LastExport
+    from evrakci.ui import disa_aktar_print as view
+
+    assert view.subtitle(None) == "Dışa aktarma planı, henüz yazılmadı"
+    last = LastExport("2026-11-20T14:32", "/x", 3, 0)
+    assert view.subtitle(last) == "Dışa aktarıldı: 20.11.2026 14:32"
+
+
+def test_ctrl_p_opens_the_preview_enter_prints_escape_closes(qtbot, tmp_path, monkeypatch):
+    import PySide6.QtPrintSupport as qt_print
+    from PySide6.QtTest import QTest
+    from PySide6.QtWidgets import QDialog
+
+    window, screen = _window(qtbot, tmp_path)
+    out = tmp_path / "yazdir.pdf"
+
+    class Fake:
+        def __init__(self, printer, parent=None):
+            printer.setOutputFormat(qt_print.QPrinter.OutputFormat.PdfFormat)
+            printer.setOutputFileName(str(out))
+
+        def setWindowTitle(self, _title):  # noqa: N802
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(qt_print, "QPrintDialog", Fake)
+    screen.results.setFocus()
+    QTest.keyClick(window, Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier)
+    qtbot.waitUntil(lambda: screen._preview is not None, timeout=10000)
+    dialog = screen._preview
+    assert dialog.windowTitle() == "Baskı önizleme" and dialog.isVisible()
+    buttons = dialog.findChildren(QAbstractButton)
+    texts = {b.text() or b.accessibleName() for b in buttons}
+    assert {"Yazdır…", "Kapat", "Sığdır", "Önceki sayfa", "Sonraki sayfa"} <= texts
+    assert all(b.accessibleName() or b.text() for b in buttons)
+    assert dialog.page_label.text() == "Sayfa 1 / 1"
+    QTest.keyClick(dialog, Qt.Key.Key_Return)
+    assert out.is_file() and "Sayfa 1 / 1" in _pdf_pages(out)[0]
+    QTest.keyClick(dialog, Qt.Key.Key_Escape)
+    qtbot.waitUntil(lambda: screen._preview is None)
+    assert window.focusWidget() is screen.results
+
+
+def test_preview_pages_and_zoom_keys_have_buttons(qtbot):
+    from PySide6.QtTest import QTest
+
+    from evrakci.ui import disa_aktar_print as view
+
+    dialog = view.PrintPreviewDialog(
+        view.index_html("İş", _rows60(), 60, 120, view.PLAN_SUBTITLE), "İş")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.activateWindow()
+    qtbot.waitUntil(lambda: dialog.isActiveWindow() and dialog.page_count() >= 2)
+    assert dialog.page_label.text() == f"Sayfa 1 / {dialog.page_count()}"
+    assert not dialog.previous.isEnabled() and dialog.next.isEnabled()
+    QTest.keyClick(dialog, Qt.Key.Key_PageDown)
+    assert dialog.current_page() == 2 and dialog.previous.isEnabled()
+    dialog.previous.click()
+    assert dialog.current_page() == 1
+    dialog.next.click()
+    QTest.keyClick(dialog, Qt.Key.Key_PageUp)
+    assert dialog.current_page() == 1
+    dialog.fit_page()
+    before = dialog.preview.zoomFactor()
+    QTest.keyClick(dialog, Qt.Key.Key_Plus, Qt.KeyboardModifier.ControlModifier)
+    assert dialog.preview.zoomFactor() > before
+    QTest.keyClick(dialog, Qt.Key.Key_Minus, Qt.KeyboardModifier.ControlModifier)
+    assert dialog.preview.zoomFactor() == pytest.approx(before)
+    dialog.zoom_bigger()
+    QTest.keyClick(dialog, Qt.Key.Key_0, Qt.KeyboardModifier.ControlModifier)
+    assert dialog.preview.zoomFactor() == pytest.approx(before)
+    dialog.close_button.click()
+    assert not dialog.isVisible()
+
+
+def _open_preview(qtbot, window, screen):
+    from PySide6.QtTest import QTest
+
+    window.activateWindow()
+    qtbot.waitUntil(window.isActiveWindow)
+    screen.results.setFocus()
+    QTest.keyClick(window, Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier)
+    qtbot.waitUntil(lambda: screen._preview is not None, timeout=10000)
+    return screen._preview
+
+
+def test_preview_dialog_is_freed_when_closed(qtbot, tmp_path):
+    import gc
+    import weakref
+
+    from PySide6.QtWidgets import QDialog
+
+    window, screen = _window(qtbot, tmp_path)
+    before = len(screen.findChildren(QDialog))
+    for _ in range(3):
+        dialog = _open_preview(qtbot, window, screen)
+        ref = weakref.ref(dialog._document)
+        dialog.close_button.click()
+        qtbot.waitUntil(lambda: screen._preview is None)
+        del dialog
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
+        gc.collect()
+        assert ref() is None
+    assert len(screen.findChildren(QDialog)) == before
+
+
+def test_loading_card_is_painted_before_the_preview_is_built(qtbot, tmp_path, monkeypatch):
+    from evrakci.ui import disa_aktar_print as view
+
+    window, screen = _window(qtbot, tmp_path)
+    card = window.loading_card
+    seen = {"paints": 0}
+
+    class Count(QObject):
+        def eventFilter(self, _obj, event):  # noqa: N802
+            if event.type() == QEvent.Type.Paint:
+                seen["paints"] += 1
+            return False
+
+    counter = Count(card)
+    card.installEventFilter(counter)
+    real = view.PrintPreviewDialog.__init__
+    state = {}
+
+    def spy(self, *args, **kwargs):
+        state.update(visible=card.isVisible(), title=card.title.text(), paints=seen["paints"])
+        real(self, *args, **kwargs)
+
+    monkeypatch.setattr(view.PrintPreviewDialog, "__init__", spy)
+    dialog = _open_preview(qtbot, window, screen)
+    assert state["visible"] and state["title"] == "Önizleme hazırlanıyor…"
+    assert state["paints"] > 0
+    qtbot.waitUntil(lambda: not card.isVisible())
+    dialog.close_button.click()
+
+
+def test_a_failed_preview_build_is_said(qtbot, tmp_path, monkeypatch):
+    from PySide6.QtTest import QTest
+
+    from evrakci.ui import disa_aktar_print as view
+
+    window, screen = _window(qtbot, tmp_path)
+    said = []
+    monkeypatch.setattr(window.toaster, "show", lambda text, *a, **k: said.append(text))
+
+    def boom(*_args):
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(view, "index_html", boom)
+    screen.results.setFocus()
+    QTest.keyClick(window, Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier)
+    qtbot.waitUntil(lambda: bool(said), timeout=10000)
+    assert said == ["Dışa aktarma tamamlanamadı"] and screen._preview is None
+
+
+def test_enter_presses_the_focused_button_else_prints(qtbot, tmp_path, monkeypatch):
+    from PySide6.QtTest import QTest
+
+    window, screen = _window(qtbot, tmp_path)
+    dialog = _open_preview(qtbot, window, screen)
+    printed = []
+    monkeypatch.setattr(dialog, "print_now", lambda: printed.append(1) or True)
+    dialog.print_button.clicked.disconnect()
+    dialog.print_button.clicked.connect(dialog.print_now)
+    dialog.close_button.setFocus()
+    QTest.keyClick(dialog, Qt.Key.Key_Return)
+    qtbot.waitUntil(lambda: screen._preview is None)
+    assert not printed
+    dialog = _open_preview(qtbot, window, screen)
+    monkeypatch.setattr(dialog, "print_now", lambda: printed.append(1) or True)
+    dialog.print_button.clicked.disconnect()
+    dialog.print_button.clicked.connect(dialog.print_now)
+    dialog.preview.setFocus()
+    QTest.keyClick(dialog, Qt.Key.Key_Return)
+    assert printed == [1]
+    dialog.close_button.click()
+
+
+def test_preview_page_and_zoom_tooltips_carry_their_keys(qtbot):
+    from evrakci.ui import disa_aktar_print as view
+
+    dialog = view.PrintPreviewDialog(view.index_html("İş", [], 0, 0, view.PLAN_SUBTITLE), "İş")
+    qtbot.addWidget(dialog)
+    for button in (dialog.previous, dialog.next, dialog.zoom_in, dialog.zoom_out):
+        assert button.toolTip().startswith(button.accessibleName() + " (")
+        assert button.toolTip().endswith(")")
+
+
+def test_a_failed_text_layer_still_records_the_export_time(qtbot, tmp_path, monkeypatch):
+    from evrakci.pipeline.job import LastExport
+
+    def broken(job, *_a, **_k):
+        job.last_export = LastExport("2026-01-02T03:04", str(tmp_path / "out"), 2, 0)
+        raise module.ExportError("Tüm belgeler yazıldı; metin katmanı eklenenler: yok.")
+
+    monkeypatch.setattr(module, "export_job", broken)
+    screen, ctl, _t = _screen(qtbot, tmp_path)
+    screen.folder.setText(str(tmp_path / "out"))
+    screen.layer.setChecked(False)
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    assert ctl.job.last_export is not None and ctl.job.last_export.at == "2026-01-02T03:04"
+
+
+def test_a_folder_change_that_is_not_typed_syncs_once(qtbot, tmp_path, monkeypatch):
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    screen.show()
+    assert screen._typing is False
+    calls = []
+    original = screen._sync
+    monkeypatch.setattr(screen, "_sync", lambda *a, **k: (calls.append(1), original(*a, **k))[1])
+    screen.folder.setText(str(tmp_path / "out2"))
+    assert len(calls) == 1
+
+
+def test_the_copied_list_is_in_document_order(qtbot, tmp_path):
+    screen, _ctl = _clash_screen(qtbot, tmp_path)
+    rows = screen.model.all_rows()
+    rows[0], rows[-1] = rows[-1], rows[0]  # a list order other than the document order
+    monkey_rows = list(rows)
+    screen.model.all_rows = lambda: monkey_rows
+    names = [line.split("\t")[1] for line in screen.list_text().split("\n")[1:]]
+    assert names == [r.name for r in sorted(monkey_rows, key=lambda r: r.number)]

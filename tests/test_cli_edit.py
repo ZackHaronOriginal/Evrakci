@@ -179,6 +179,9 @@ def test_export_failure_keeps_every_document(tmp_path, capsys, monkeypatch):
     assert "belge_002.pdf: disk dolu" in err and "belge_001.pdf" in err
     names = sorted(p.name for p in (tmp_path / "out").iterdir())
     assert names == ["belge_001.pdf", "belge_002.pdf", "index.xlsx"]  # index marks the gap
+    from evrakci.pipeline.store import JobStore
+
+    assert JobStore(tmp_path / "kok").load(job_id).last_export is not None  # files on disk
 
 
 @needs_tesseract

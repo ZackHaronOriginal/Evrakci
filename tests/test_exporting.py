@@ -52,6 +52,16 @@ def test_layer_results_are_recorded_and_failures_name_what_was_done(tmp_path):
         export_job(job, store.batch_files(job), {}, tmp_path / "out", engine=Ok(),
                    add_layer=flaky, tessdata=None)
     assert "belge_002.pdf: disk dolu" in str(error.value) and "belge_001.pdf" in str(error.value)
+    # the files and index.xlsx are on disk: the job records that, with the sheet's time
+    from datetime import datetime
+
+    from evrakci.pipeline.index import format_time
+
+    assert job.last_export is not None and job.last_export.documents == 2
+    summary = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")["Özet"]
+    cells = {row[0].value: row[1].value for row in summary.iter_rows()}
+    assert cells["Dışa aktarma zamanı"] == format_time(
+        datetime.fromisoformat(job.last_export.at))
 
 
 def test_missing_engine_stops_before_anything_is_written(tmp_path):
@@ -147,7 +157,12 @@ def test_plan_names_equals_the_names_export_job_writes(tmp_path):
     from evrakci.pipeline.exporting import plan_names
 
     store, job, templates = _named_job(tmp_path)
-    out = tmp_path / ("d" * 150)  # a long folder path: the names are cut, then clash
+    from evrakci.pipeline import naming
+
+    # a long folder path that still leaves 40 units for a name (the temp folder itself is
+    # much deeper on Windows): the names are cut, then clash
+    room = naming.PATH_LIMIT - len(str(tmp_path.resolve())) - len(naming._LONGEST_SUFFIX) - 2
+    out = tmp_path / ("d" * (room - 40))
     planned = plan_names(job, templates, out)
     result = export_job(job, store.batch_files(job), templates, out, with_layer=False)
     assert [f"{i.name}.pdf" for i in planned] == [p.name for p in result.paths]

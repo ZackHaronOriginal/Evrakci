@@ -183,3 +183,30 @@ def test_800_pages_are_marked_in_a_few_milliseconds():
     elapsed = time.perf_counter() - start
     assert len(marks) == 88
     assert elapsed < 0.25, elapsed
+
+
+def _jittered(factors):
+    job = job_from_kinds({"a": "p" * len(factors)})
+    for index, factor in enumerate(factors):
+        job.pages[f"a/{index}"] = PageInfo(0.05, False, 210.0 * factor, 297.0 * factor)
+    return job
+
+
+def test_jitter_around_the_real_size_marks_nothing_whichever_page_comes_first():
+    rest = [0.975, 1.0, 1.01, 0.99, 1.02, 0.98, 1.0, 0.985, 1.015]
+    for first in (1.025, 0.975, 1.0):
+        assert different_pages(_jittered([first, *rest])) == {}, first
+    assert different_pages(_jittered([1.025, 0.975, 1.0, 1.0, 1.01, 0.99, 0.975])) == {}
+
+
+def test_a_real_odd_page_is_still_marked_among_jitter():
+    assert different_pages(sized("jaajajaajaf")) == {"a/10": "boyut"}
+
+
+def test_many_distinct_sizes_stay_fast():
+    job = job_from_kinds({"a": "p" * 800})
+    for index in range(800):
+        job.pages[f"a/{index}"] = PageInfo(0.05, False, 200.0 + index * 0.1, 290.0 + index * 0.05)
+    start = time.perf_counter()
+    different_pages(job)
+    assert time.perf_counter() - start < 1.0

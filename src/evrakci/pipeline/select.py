@@ -353,25 +353,49 @@ def _same_size(extent: tuple[float, float], reference: tuple[float, float]) -> b
                for a, b in zip(sorted(extent), sorted(reference), strict=True))
 
 
+MAX_CANDIDATES = 40  # distinct sizes tried as the centre of the majority (jitter makes many)
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    return ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2
+
+
 def _majority(extents: Sequence[tuple[float, float]]) -> tuple[tuple[float, float] | None,
                                                                  str | None]:
-    """The most frequent size (sizes within the tolerance count together; the first of a tie)
-    and the most frequent orientation of `extents`."""
-    clusters: list[list] = []  # [first extent of the size, how many]
+    """The most frequent size and the most frequent orientation of `extents`.
+
+    Each distinct size (to the millimetre, in page order; at most MAX_CANDIDATES, evenly
+    spread) is tried as a centre and counted with the pages within the tolerance of it. The
+    centre with most pages wins (the first in page order on a tie), and the reference is the
+    median of the pages it counted, so scanner jitter around the real size, whichever page
+    comes first, does not mark pages. O(n * k) with few distinct sizes."""
     orientations: dict[str, int] = {}
+    seen: dict[tuple[int, int], tuple[float, float]] = {}
     for extent in extents:
-        for cluster in clusters:
-            if _same_size(extent, cluster[0]):
-                cluster[1] += 1
-                break
-        else:
-            clusters.append([extent, 1])
+        short, long_ = sorted(extent)
+        seen.setdefault((round(short), round(long_)), extent)
         found = _orientation(extent)
         if found is not None:
             orientations[found] = orientations.get(found, 0) + 1
-    size = max(clusters, key=lambda c: c[1])[0] if clusters else None
     orientation = max(orientations, key=orientations.get) if orientations else None
-    return size, orientation
+    if not seen:
+        return None, orientation
+    centres = list(seen.values())
+    if len(centres) > MAX_CANDIDATES:
+        step = len(centres) / MAX_CANDIDATES
+        centres = [centres[int(i * step)] for i in range(MAX_CANDIDATES)]
+    ordered = [tuple(sorted(e)) for e in extents]
+    best: list[tuple[float, float]] = []
+    for centre in centres:
+        low, high = sorted(centre)
+        members = [e for e in ordered if abs(e[0] - low) <= FARKLI_TOLERANCE * low
+                   and abs(e[1] - high) <= FARKLI_TOLERANCE * high]
+        if len(members) > len(best):
+            best = members
+    shorts, longs = zip(*best, strict=True)
+    return (_median(list(shorts)), _median(list(longs))), orientation
 
 
 def farkli_params(criterion: Criterion) -> tuple[tuple[str, ...], str]:

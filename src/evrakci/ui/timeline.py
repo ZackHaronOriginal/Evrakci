@@ -535,6 +535,12 @@ class TimelineView(QListView):
 
     # -- layout -------------------------------------------------------------------------------
     def setModel(self, model) -> None:  # noqa: N802
+        old = self.model()
+        if isinstance(old, TimelineModel):
+            try:
+                old.marks_changed.disconnect(self.relayout)
+            except (RuntimeError, TypeError):
+                pass
         super().setModel(model)
         if isinstance(model, TimelineModel):
             model.marks_changed.connect(self.relayout)

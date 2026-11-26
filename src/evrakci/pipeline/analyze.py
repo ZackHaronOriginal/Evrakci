@@ -31,7 +31,7 @@ class PageInfo:
     ink_ratio: float
     is_separator: bool
     # The page as displayed, before the job's own rotation, in millimetres; 0.0 = unknown
-    # (jobs made before the sizes were kept: JobStore.fill_page_sizes reads them once).
+    # (jobs made before the sizes were kept: the window reads them once when the job opens).
     width_mm: float = 0.0
     height_mm: float = 0.0
 
@@ -92,8 +92,13 @@ def read_page_sizes(path: Path) -> list[tuple[float, float]]:
     pdf = _open(path)
     try:
         with PDFIUM_LOCK:
-            return [(_mm(width), _mm(height))
-                    for width, height in (pdf.get_page_size(i) for i in range(len(pdf)))]
+            total = len(pdf)
+        sizes = []
+        for index in range(total):
+            with PDFIUM_LOCK:  # per page, so thumbnail threads can render in between
+                width, height = pdf.get_page_size(index)
+            sizes.append((_mm(width), _mm(height)))
+        return sizes
     except pdfium.PdfiumError as error:
         raise BatchError(f"PDF açılamadı: {path.name}") from error
     finally:

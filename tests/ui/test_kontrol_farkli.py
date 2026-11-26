@@ -543,3 +543,60 @@ def test_the_criterion_is_the_one_the_core_evaluates(qtbot, tmp_path):
     assert window.kontrol.select_matching(Criterion("farkli", {"by": ["yon"]})) == 1
     assert window.kontrol.select_matching(Criterion("farkli")) == 2
     assert ctl.undo_stack.index() == 0
+
+
+def test_the_fill_card_waits_its_delay_even_when_the_open_card_was_up(
+        qtbot, tmp_path, monkeypatch):
+    import time
+
+    gate = threading.Event()
+    real_read, real_load = JobStore.read_sizes, JobStore.load
+
+    def slow_read(requests, progress=None):
+        gate.wait(5)
+        return real_read(requests, progress)
+
+    def slow_load(self, job_id):
+        time.sleep(0.5)  # the open takes longer than 300 ms: its loading card is up
+        return real_load(self, job_id)
+
+    monkeypatch.setattr(JobStore, "read_sizes", staticmethod(slow_read))
+    window, store, job_id = _old_job_window(qtbot, tmp_path, [text_page(), a5_page()])
+    window.show()  # a card in a window that is not shown is never visible: the test would be empty
+    monkeypatch.setattr(JobStore, "load", slow_load)
+    window.yukle.open_job_id(job_id)
+    qtbot.waitUntil(lambda: window.loading_card.isVisible(), timeout=3000)  # the open card
+    qtbot.waitUntil(lambda: window.controller() is not None, timeout=10000)
+    assert window.message.text() == "Sayfa boyutları okunuyor" and window.loading()
+    card = window.loading_card
+    qtbot.wait(150)  # long after the card would have been reused, far inside 1500 ms
+    assert not card.isVisible()
+    gate.set()
+    qtbot.waitUntil(lambda: window.controller().job.pages["b1/1"].has_size, timeout=10000)
+    qtbot.waitUntil(lambda: not window.loading(), timeout=5000)
+    assert not card.isVisible()  # a fill that ends quickly never showed one
+
+
+def test_a_slow_fill_shows_its_card_after_the_delay(qtbot, tmp_path, monkeypatch):
+    from evrakci.ui import main_window
+
+    monkeypatch.setattr(main_window, "FILL_CARD_MS", 100)
+    gate = threading.Event()
+    real = JobStore.read_sizes
+    monkeypatch.setattr(JobStore, "read_sizes", staticmethod(
+        lambda requests, progress=None: (gate.wait(5), real(requests, progress))[1]))
+    window, store, job_id = _old_job_window(qtbot, tmp_path, [text_page(), a5_page()])
+    window.show()
+    _open(qtbot, window, store, job_id)
+    qtbot.waitUntil(lambda: window.loading_card.isVisible(), timeout=3000)
+    gate.set()
+    qtbot.waitUntil(lambda: not window.loading(), timeout=5000)
+
+
+def test_setting_the_model_again_connects_the_marks_signal_once(qtbot, tmp_path):
+    window = _marked_window(qtbot, tmp_path)
+    timeline, model = window.kontrol.timeline, window.kontrol.model
+    before = model.receivers("2marks_changed()")
+    timeline.setModel(model)
+    timeline.setModel(model)
+    assert model.receivers("2marks_changed()") == before == 1

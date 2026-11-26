@@ -1,6 +1,7 @@
 """`evrakci is sec farkli`: the same pages as the core criterion `farkli` (I-04)."""
 
 import json
+import os
 
 from fakes import a5_page, landscape_page, make_pdf, text_page, without_sizes
 
@@ -56,15 +57,18 @@ def test_nothing_different_says_so(tmp_path, capsys):
     assert "Eşleşen sayfa yok." in capsys.readouterr().out
 
 
-def test_an_older_job_gets_its_sizes_read_and_saved(tmp_path, capsys):
+def test_an_older_job_is_counted_with_sizes_read_in_memory_and_the_file_is_not_written(
+        tmp_path, capsys):
     root, job_id = make_job(tmp_path, capsys)
     path = root / job_id / "job.json"
     path.write_text(json.dumps(without_sizes(json.loads(path.read_text(encoding="utf-8")))),
                     encoding="utf-8")
+    os.utime(path, (1_000_000_000, 1_000_000_000))
+    before = (path.read_bytes(), path.stat().st_mtime_ns)
     assert run(root, job_id) == 0
     assert printed_positions(capsys.readouterr().out) == [3, 4]
-    saved = json.loads(path.read_text(encoding="utf-8"))
-    assert abs(saved["pages"]["b1/3"]["width_mm"] - 148.0) < 0.3  # the file keeps what was read
+    assert (path.read_bytes(), path.stat().st_mtime_ns) == before  # nothing was saved
+    assert "width_mm" not in path.read_text(encoding="utf-8")
 
 
 def test_pages_of_unknown_size_are_named_not_marked(tmp_path, capsys):

@@ -18,7 +18,6 @@ from evrakci.pipeline.analyze import BatchError, PageInfo, analyze_pdf, count_pa
 from evrakci.pipeline.job import (
     Batch,
     Job,
-    apply_page_sizes,
     job_from_dict,
     job_to_dict,
     page_id,
@@ -184,14 +183,6 @@ class JobStore:
             if progress:
                 progress(done, total)
         return sizes
-
-    def fill_page_sizes(self, job: Job, progress: Progress | None = None) -> int:
-        """Read the sizes of an older job's pages once and save the job (housekeeping: no undo
-        step). Returns how many pages got a size; pages whose file is gone stay unknown."""
-        filled = apply_page_sizes(job, self.read_sizes(self.size_requests(job), progress))
-        if filled:
-            self.save(job)
-        return filled
 
     def save(self, job: Job) -> None:
         self.save_dict(job.id, job_to_dict(job))

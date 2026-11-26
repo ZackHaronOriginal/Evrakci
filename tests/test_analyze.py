@@ -122,3 +122,27 @@ def test_read_page_sizes_checks_the_file_like_analyze_pdf(tmp_path):
     bad.write_bytes(b"not a pdf")
     with pytest.raises(BatchError):
         read_page_sizes(bad)
+
+
+def test_read_page_sizes_takes_the_pdfium_lock_one_page_at_a_time(tmp_path, monkeypatch):
+    from evrakci.pipeline import analyze
+
+    pdf = make_pdf(tmp_path / "b.pdf", [text_page(), text_page(), text_page(), text_page()])
+    real = analyze.PDFIUM_LOCK
+    held = {"now": 0, "most": 0, "times": 0}
+
+    class Counting:
+        def __enter__(self):
+            real.acquire()
+            held["now"] += 1
+            held["times"] += 1
+            held["most"] = max(held["most"], held["now"])
+
+        def __exit__(self, *_):
+            held["now"] -= 1
+            real.release()
+
+    monkeypatch.setattr(analyze, "PDFIUM_LOCK", Counting())
+    sizes = read_page_sizes(pdf)
+    assert len(sizes) == 4
+    assert held["times"] >= 4 + 2 and held["now"] == 0  # one hold per page, never one for all

@@ -1397,7 +1397,8 @@ class MainWindow(QMainWindow):
 
         handle = self.start_loading(work, title=text, name=controller.job.name, on_done=done,
                                     on_failed=lambda _message: finish(), on_cancelled=finish,
-                                    cancellable=False, show_after_ms=FILL_CARD_MS)
+                                    cancellable=False, show_after_ms=FILL_CARD_MS,
+                                    inherit_card=False)
         if handle is not None:
             self.message.setText(text)
 

@@ -25,7 +25,7 @@ from evrakci.pipeline.exporting import (
     may_delete_after_export,
     plan_names,
 )
-from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
+from evrakci.pipeline.job import Job, apply_page_sizes, job_to_dict, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
@@ -236,7 +236,9 @@ def select_pages(args: argparse.Namespace, store: JobStore) -> int:
     elif args.olcut == "guven":
         return select_guven(args, job)
     elif args.olcut == "farkli":
-        store.fill_page_sizes(job)  # an older job: the sizes are read once and saved
+        # An older job: read the missing sizes in memory, for this count only. The file is not
+        # written, so a window that has the job open is never overwritten.
+        apply_page_sizes(job, store.read_sizes(store.size_requests(job)))
         by = [name for name in FARKLI_BY if getattr(args, name)] or list(FARKLI_BY)
         params = {"by": by, "reference": args.karsilastir}
     match = evaluate(job, Criterion(args.olcut, params))

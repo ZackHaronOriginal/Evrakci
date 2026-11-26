@@ -2,6 +2,7 @@ import pytest
 from fakes import a5_page, landscape_page, make_pdf, qr_page, text_page, without_sizes
 
 from evrakci.pipeline.analyze import BatchError
+from evrakci.pipeline.job import apply_page_sizes
 from evrakci.pipeline.store import BUSY_TRIES, JobFileError, JobStore
 
 
@@ -249,6 +250,11 @@ def test_load_gives_up_after_busy_tries_blocked_reads(tmp_path, monkeypatch):
     assert len(calls) == BUSY_TRIES == 8
 
 
+def _fill(store, job):
+    """What the window does when an older job opens: read the sizes, store them in the job."""
+    return apply_page_sizes(job, JobStore.read_sizes(store.size_requests(job)))
+
+
 def _old_job(tmp_path, pages):
     """A stored job as an older program wrote it: the file has no page sizes."""
     import json
@@ -271,30 +277,29 @@ def test_a_new_job_knows_its_page_sizes_and_keeps_them_in_the_file(tmp_path):
     assert store.size_requests(again) == []  # nothing to fill
 
 
-def test_fill_page_sizes_reads_an_old_job_once_and_saves_it(tmp_path):
+def test_the_sizes_of_an_old_job_are_read_once(tmp_path):
     store, job = _old_job(tmp_path, [text_page(), a5_page(), landscape_page()])
     assert [i.has_size for i in job.pages.values()] == [False] * 3
-    assert store.fill_page_sizes(job) == 3
+    assert _fill(store, job) == 3
     assert job.pages["b1/1"].width_mm == pytest.approx(148.0, abs=0.2)
     assert job.pages["b1/2"].width_mm == pytest.approx(297.0, abs=0.2)
-    assert store.load(job.id) == job  # saved
-    assert store.fill_page_sizes(job) == 0  # once: a second call reads nothing
+    assert _fill(store, job) == 0  # once: a second call reads nothing
 
 
-def test_fill_page_sizes_does_not_touch_the_edits(tmp_path):
+def test_filling_sizes_does_not_touch_the_edits(tmp_path):
     store, job = _old_job(tmp_path, [text_page(), text_page()])
     job.rotate("b1/0", 90)
     job.delete_page("b1/1")
     store.save(job)
     before = (dict(job.rotations), set(job.deleted), job.drop_empty, list(job.batches))
-    store.fill_page_sizes(job)
+    _fill(store, job)
     assert (dict(job.rotations), set(job.deleted), job.drop_empty, list(job.batches)) == before
 
 
 def test_a_page_whose_file_is_gone_stays_unknown(tmp_path):
     store, job = _old_job(tmp_path, [text_page(), text_page()])
     store.batch_file(job, job.batches[0]).unlink()
-    assert store.fill_page_sizes(job) == 0
+    assert _fill(store, job) == 0
     assert [i.has_size for i in job.pages.values()] == [False, False]
     assert store._job_file(job.id).is_file()  # nothing was lost
 
@@ -302,7 +307,7 @@ def test_a_page_whose_file_is_gone_stays_unknown(tmp_path):
 def test_a_batch_file_that_is_not_the_scanned_one_is_not_trusted(tmp_path):
     store, job = _old_job(tmp_path, [text_page(), text_page()])
     make_pdf(store.batch_file(job, job.batches[0]), [a5_page()])  # one page, not two
-    assert store.fill_page_sizes(job) == 0
+    assert _fill(store, job) == 0
 
 
 def test_size_requests_name_only_the_batches_with_unknown_pages(tmp_path):
@@ -338,7 +343,7 @@ def test_filling_800_pages_is_fast(tmp_path):
         for i in range(40):
             job.pages[page_id(batch.id, i)] = PageInfo(0.05, False)
     start = time.perf_counter()
-    assert store.fill_page_sizes(job) == 800
+    assert _fill(store, job) == 800
     elapsed = time.perf_counter() - start
-    print(f"fill_page_sizes 800 pages: {elapsed * 1000:.0f} ms")
+    print(f"reading 800 page sizes: {elapsed * 1000:.0f} ms")
     assert elapsed < 3.0, elapsed

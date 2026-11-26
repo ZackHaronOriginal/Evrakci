@@ -1,12 +1,13 @@
 import os
 import sys
 import time
+from dataclasses import replace
 
 import pytest
 from fakes import make_pdf, text_page
 
 from evrakci.cli import main
-from evrakci.pipeline.job import LastExport
+from evrakci.pipeline.job import LastExport, job_state
 from evrakci.pipeline.settings import Settings, SettingsError, load_settings, save_settings
 from evrakci.pipeline.store import JobStore
 
@@ -51,6 +52,72 @@ def test_delete_older_than_keeps_a_never_exported_job(tmp_path):
     age(tmp_path, done, 400)
     assert store.delete_older_than(7) == [done.id]
     assert [j.id for j in store.list_jobs()] == [never.id]
+
+
+def mark_exported_with_state(store, job, state=None):
+    job.last_export = LastExport("2026-01-01T10:00:00", "/tmp/o", 1, 0,
+                                 job_state(job) if state is None else state)
+    store.save(job)
+
+
+def test_delete_older_than_keeps_a_job_edited_after_its_export(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    edited = store.create_job("duzenli", [pdf])
+    mark_exported_with_state(store, edited)
+    edited.drop_empty = not edited.drop_empty  # an edit after the export
+    store.save(edited)
+    age(tmp_path, edited, 400)
+    assert store.delete_older_than(7) == []
+    assert [j.id for j in store.list_jobs()] == [edited.id]
+
+
+def test_delete_older_than_deletes_an_exported_job_that_was_not_edited(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("ayni", [pdf])
+    mark_exported_with_state(store, job)
+    age(tmp_path, job, 400)
+    assert store.delete_older_than(7) == [job.id]
+
+
+def test_delete_older_than_treats_an_export_without_a_state_as_unchanged(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("eski", [pdf])
+    mark_exported_with_state(store, job, state="")  # a file from before the state was kept
+    job.drop_empty = not job.drop_empty
+    store.save(job)
+    age(tmp_path, job, 400)
+    assert store.delete_older_than(7) == [job.id]
+
+
+def test_page_sizes_filled_later_are_not_an_edit(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("boyut", [pdf])
+    mark_exported_with_state(store, job)
+    before = job_state(job)
+    pid = next(iter(job.pages))
+    job.pages[pid] = replace(job.pages[pid], width_mm=210.0, height_mm=297.0)
+    job.read_errors["x"] = "oops"
+    assert job_state(job) == before
+    store.save(job)
+    age(tmp_path, job, 400)
+    assert store.delete_older_than(7) == [job.id]
+
+
+def test_the_default_settings_delete_nothing(tmp_path, monkeypatch):
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(tmp_path / "yok.json"))
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("sakla", [pdf])
+    mark_exported_with_state(store, job)
+    age(tmp_path, job, 4000)
+    assert load_settings(tmp_path / "yok.json").retention == "sakla"
+    assert load_settings(tmp_path / "yok.json").retention_days is None
+    assert cli(tmp_path, "is", "listele") == 0  # the CLI start applies retention
+    assert [j.id for j in store.list_jobs()] == [job.id]
 
 
 def cli(tmp_path, *args):

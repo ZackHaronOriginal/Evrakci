@@ -249,6 +249,7 @@ class SelectDialog(QDialog):
         col.addSpacing(m.size("s4"))
         row, self.ok = _buttons(self, "Seç")
         col.addLayout(row)
+        self._tab_order()
 
         self._mode_radios["replace"].setChecked(True)
         if kind == "guven" and not self._has_values:
@@ -258,6 +259,18 @@ class SelectDialog(QDialog):
         self._blank_count_text()
         self._row_changed()
         self.kinds.checkedButton().setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _tab_order(self) -> None:
+        """Criterion -> its parameters -> the modes -> Seç -> Vazgeç. Parameters of other
+        criteria are hidden and Tab skips them, so one fixed chain serves every criterion."""
+        cancel = self.ok.parentWidget().findChildren(QPushButton)
+        cancel = next(b for b in cancel if b is not self.ok)
+        chain = [*self._radios.values(), self.ink,
+                 *(box for box in self._reason_boxes.values()),
+                 self.pages_value, self.pages_document,
+                 *self._mode_radios.values(), self.ok, cancel]
+        for first, second in zip(chain, chain[1:], strict=False):
+            QWidget.setTabOrder(first, second)
 
     def _blank_parameters(self, col: QVBoxLayout) -> None:
         """The parameter pane of "Boş sayfalar" (ink limit, hint, live count) goes straight into

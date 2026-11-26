@@ -6,12 +6,14 @@ Esc closes, focus starts in the first field and goes back to the timeline afterw
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
 from PySide6.QtCore import QLocale, Qt, QTimer
+from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import (
     QBoxLayout,
     QButtonGroup,
+    QCheckBox,
     QDialog,
     QDoubleSpinBox,
     QHBoxLayout,
@@ -25,8 +27,25 @@ from PySide6.QtWidgets import (
 
 from evrakci.pipeline.analyze import EMPTY_INK_RATIO
 from evrakci.pipeline.job import Job
-from evrakci.pipeline.select import Criterion, combine, evaluate, ink_range
-from evrakci.ui import fonts, theme
+from evrakci.pipeline.select import (
+    GUVEN_CHECKS,
+    GUVEN_DEFAULT,
+    GUVEN_LEVELS,
+    GUVEN_REASONS,
+    GUVEN_WORDS,
+    Criterion,
+    combine,
+    evaluate,
+    guven_findings,
+    guven_match,
+    ink_range,
+    reason_count_text,
+    values_read,
+)
+from evrakci.ui import fonts, icons, theme
+from evrakci.ui.degerler_model import LEVELS
+
+NBSP = " "  # a number and its unit never part when a line wraps at 150 %
 
 
 def _buttons(dialog: QDialog, verb: str) -> tuple[QHBoxLayout, QPushButton]:
@@ -150,17 +169,25 @@ class SelectDialog(QDialog):
         ("tek", "Tek sayfalar", "Her belgenin 1., 3., 5. ... sayfaları"),
         ("cift", "Çift sayfalar", "Her belgenin 2., 4., 6. ... sayfaları"),
         ("bos", "Boş sayfalar", ""),
+        ("guven", "Kontrol gerekenler", ""),
     )
+    NOT_READ = "Değerler henüz okunmadı"
     INK_RANGE = (0.1, 5.0)  # percent
     INK_DEBOUNCE_MS = 80
     MODES = (("replace", "Seçimi değiştir"), ("add", "Seçime ekle"),
              ("within", "Seçimle kesiştir"))
 
     def __init__(self, job: Job, document: int, selection: Iterable[str] = (),
-                 kind: str = "belge", parent: QWidget | None = None) -> None:
+                 kind: str = "belge", parent: QWidget | None = None,
+                 templates: Mapping | None = None) -> None:
         super().__init__(parent)
         m = theme.manager()
         self._job, self._document = job, document
+        self._templates = templates or {}
+        # Built once on open (the dialog is modal, the job cannot change under it): the rows of
+        # Kontrol gerekenler and the counts of every reason.
+        self._findings = guven_findings(job, self._templates)
+        self._has_values = values_read(job)
         self._selection = tuple(selection)
         self.setWindowTitle("Sayfaları seç")
         self.setAccessibleName("Sayfaları seç")
@@ -206,6 +233,7 @@ class SelectDialog(QDialog):
         right.addWidget(self.title)
         right.addWidget(self.hint)
         self._blank_parameters(right)
+        self._guven_parameters(right, stacked)
         right.addSpacing(m.size("s2"))
         self.modes = QButtonGroup(self)
         self._mode_radios: dict[str, QRadioButton] = {}
@@ -225,6 +253,8 @@ class SelectDialog(QDialog):
         col.addLayout(row)
 
         self._mode_radios["replace"].setChecked(True)
+        if kind == "guven" and not self._has_values:
+            kind = "belge"  # the row is off; the dialog opens on the first one
         self._radios[kind if kind in self._radios else "belge"].setChecked(True)
         self._refresh_counts()
         self._blank_count_text()
@@ -292,6 +322,83 @@ class SelectDialog(QDialog):
             text += "   (" + ", ".join(details) + ")"
         self.ink_count.setText(text)
 
+    def _guven_parameters(self, col: QVBoxLayout, stacked: bool) -> None:
+        """The parameter pane of "Kontrol gerekenler": a check box per reason with its icon,
+        word and count (at 150 % the count goes under the word), the pages and the live count."""
+        m = theme.manager()
+        every = guven_match(self._job, self._findings, Criterion("guven", {
+            "levels": GUVEN_LEVELS, "checks": GUVEN_CHECKS, "pages": "belge"}))
+        self._reason_totals = dict(every.reasons)
+        self._reason_boxes: dict[str, QCheckBox] = {}
+        self._reason_counts: dict[str, QLabel] = {}
+        widgets: list[QWidget] = []
+        for reason in GUVEN_REASONS:
+            n = self._reason_totals.get(reason, 0)
+            box = QCheckBox(GUVEN_WORDS[reason])
+            box.setChecked(reason in GUVEN_DEFAULT)
+            if reason in LEVELS:
+                icon, role, _word, _strong = LEVELS[reason]
+                box.setIcon(icons.icon(icon, m.hex(role)))
+                if reason == "kontrol":  # the one orange-family word, as in Değerler
+                    palette = box.palette()
+                    palette.setColor(QPalette.ColorRole.WindowText, m.color(role))
+                    box.setPalette(palette)
+                    box.setStyleSheet(f"QCheckBox {{ color: {m.hex(role)}; }}")
+            count = QLabel(reason_count_text(reason, n).replace(" ", NBSP))
+            count.setFont(fonts.tabular(count.font()))
+            count.setProperty("textRole", "secondary")
+            box.setAccessibleName(f"{GUVEN_WORDS[reason]}, {reason_count_text(reason, n)}")
+            row = QBoxLayout(QBoxLayout.Direction.TopToBottom if stacked
+                             else QBoxLayout.Direction.LeftToRight)
+            row.setSpacing(0 if stacked else m.size("s4"))
+            row.addWidget(box, 1)
+            if stacked:
+                count.setIndent(m.size("s6"))
+            row.addWidget(count)
+            col.addLayout(row)
+            self._reason_boxes[reason] = box
+            self._reason_counts[reason] = count
+            widgets += [box, count]
+            box.toggled.connect(self._guven_changed)
+        if not self._reason_totals.get("karışık şablon"):  # rare: only shown when there is one
+            for widget in widgets[-2:]:
+                widget.setVisible(False)
+            self._hidden_reason = widgets[-2:]
+        else:
+            self._hidden_reason = []
+        self.pages_label = QLabel("Sayfalar")
+        self.pages_value = QRadioButton("Değerin sayfası")
+        self.pages_document = QRadioButton("Belgenin bütün sayfaları")
+        self.pages_value.setChecked(True)
+        pages = QButtonGroup(self)
+        pages.addButton(self.pages_value)
+        pages.addButton(self.pages_document)
+        self.pages_value.setAccessibleName("Sayfalar: Değerin sayfası")
+        self.pages_document.setAccessibleName("Sayfalar: Belgenin bütün sayfaları")
+        self.pages_value.toggled.connect(self._guven_changed)
+        self.guven_count = QLabel()
+        self.guven_count.setFont(fonts.tabular(self.guven_count.font()))
+        self.guven_count.setWordWrap(True)
+        self.guven_widgets = [self.pages_label, self.pages_value, self.pages_document,
+                              self.guven_count]
+        for widget in self.guven_widgets:
+            col.addWidget(widget)
+        self._guven_rows = widgets
+        self._guven_texts()
+
+    def _guven_texts(self) -> None:
+        match = self._guven_match()
+        self.guven_count.setText(
+            f"{match.documents}{NBSP}belge, {match.count()}{NBSP}sayfa")
+
+    def _guven_match(self):
+        return guven_match(self._job, self._findings, self.criterion("guven"))
+
+    def _guven_changed(self, *_args) -> None:
+        if hasattr(self, "guven_count"):
+            self._guven_texts()
+            self._refresh_counts()
+
     def kind(self) -> str:
         return next(name for name, radio in self._radios.items() if radio.isChecked())
 
@@ -304,18 +411,36 @@ class SelectDialog(QDialog):
             return Criterion("belge", {"number": self._document})
         if kind == "bos":
             return Criterion("bos", {"ink": self.ink_ratio()})
+        if kind == "guven":
+            reasons = [r for r, box in self._reason_boxes.items() if box.isChecked()]
+            return Criterion("guven", {
+                "levels": [r for r in reasons if r in GUVEN_LEVELS],
+                "checks": [r for r in reasons if r in GUVEN_CHECKS],
+                "pages": "deger" if self.pages_value.isChecked() else "belge"})
         return Criterion(kind, {"within": self.mode() == "within"})
 
     def count(self, kind: str) -> int:
         """How many pages Seç would select for this row in the chosen mode."""
-        match = evaluate(self._job, self.criterion(kind), selection=self._selection)
+        if kind == "guven":
+            match = self._guven_match()
+        else:
+            match = evaluate(self._job, self.criterion(kind), selection=self._selection)
         mode = self.mode()
         return len(combine(self._selection, match, "within" if mode == "within" else "replace"))
 
     def _refresh_counts(self) -> None:
         for name, text, _hint in self.ROWS:
-            n = self.count(name)
             label = self._counts[name]
+            if name == "guven" and not self._has_values:
+                label.setText(self.NOT_READ)
+                label.setProperty("textRole", "secondary")
+                label.setWordWrap(True)
+                label.style().unpolish(label)
+                label.style().polish(label)
+                self._radios[name].setEnabled(False)
+                self._radios[name].setAccessibleName(f"{text}, {self.NOT_READ}")
+                continue
+            n = self.count(name)
             label.setText(str(n) if n else "Hiç yok")
             label.setProperty("textRole", None if n else "secondary")
             label.style().unpolish(label)
@@ -332,6 +457,10 @@ class SelectDialog(QDialog):
         self.hint.setVisible(bool(hint))
         for widget in self.ink_widgets:
             widget.setVisible(name == "bos")
+        if hasattr(self, "guven_widgets"):
+            on = name == "guven"
+            for widget in (*self.guven_widgets, *self._guven_rows):
+                widget.setVisible(on and widget not in self._hidden_reason)
         self.title.setAccessibleName(text)
         for radio in self._mode_radios.values():
             radio.setAccessibleDescription(hint)

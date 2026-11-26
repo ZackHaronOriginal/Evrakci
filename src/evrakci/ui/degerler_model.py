@@ -25,8 +25,14 @@ from evrakci.pipeline.cuts import (
     document_template,
 )
 from evrakci.pipeline.job import Job
+from evrakci.pipeline.select import value_page
 from evrakci.pipeline.templates.model import Template, Variable
-from evrakci.pipeline.templates.values import VariableValue, value_level
+from evrakci.pipeline.templates.values import (
+    VariableValue,
+    read_text,
+    suggestion_reading,
+    value_level,
+)
 
 SAMPLE_SIZE = 20  # Örnek kontrol: how many Emin values are checked by hand
 CONFUSABLE = "OoIlBSZG"  # letters OCR mixes up with digits (0, 1, 8, 5, 2, 6)
@@ -190,23 +196,8 @@ class Cell:
         return ""
 
 
-def _okunan(value: VariableValue) -> tuple[str, int | None]:
-    """What was read for a flagged value (its text, else the first reading), and its box."""
-    if value.value:
-        return value.value, value.section
-    for reading in sorted(value.readings, key=lambda r: r.section):
-        if reading.text:
-            return reading.text, reading.section
-    return value.suggestion, None
-
-
-def _suggestion_source(value: VariableValue) -> tuple[int | None, float | None]:
-    matches = [r for r in value.readings if r.text == value.suggestion]
-    if not matches:
-        read = [r for r in value.readings if r.text]
-        return (None, max(r.confidence for r in read)) if read else (None, None)
-    best = max(matches, key=lambda r: r.confidence)
-    return best.section, best.confidence
+_okunan = read_text
+_suggestion_source = suggestion_reading
 
 
 def make_cell(variable: Variable, value: VariableValue | None) -> Cell:
@@ -276,15 +267,7 @@ class Row:
 
     def page_of(self, cell: Cell) -> int:
         """Index (in the document) of the page the cell's box is on."""
-        if self.template is None:
-            return 0
-        variable = next((v for v in self.template.variables if v.key == cell.key), None)
-        if variable is None or not variable.sections:
-            return 0
-        section = variable.sections[min(cell.source or 0, len(variable.sections) - 1)]
-        count = len(self.document.page_ids)
-        index = section.page - 1 if section.page > 0 else count + section.page
-        return max(0, min(count - 1, index))
+        return value_page(self.template, cell.key, cell.source, len(self.document.page_ids))
 
 
 def build_rows(job: Job, documents: list[Document],

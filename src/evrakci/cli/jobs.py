@@ -26,7 +26,16 @@ from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
 from evrakci.pipeline.render import render_page
 from evrakci.pipeline.review import needs_reading, store_reading
-from evrakci.pipeline.select import Criterion, evaluate
+from evrakci.pipeline.select import (
+    GUVEN_CHECKS,
+    GUVEN_LEVELS,
+    GUVEN_WORDS,
+    Criterion,
+    evaluate,
+    guven_text,
+    reason_count_text,
+    values_read,
+)
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsError, load_settings
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.model import Template, TemplateError, template_revision
@@ -217,6 +226,8 @@ def select_pages(args: argparse.Namespace, store: JobStore) -> int:
         params = {"number": args.numara}
     elif args.olcut == "bos":
         params = {"ink": round(args.esik / 100, 6)}
+    elif args.olcut == "guven":
+        return select_guven(args, job)
     match = evaluate(job, Criterion(args.olcut, params))
     if not match.page_ids:
         print("Eşleşen sayfa yok.")
@@ -230,6 +241,35 @@ def select_pages(args: argparse.Namespace, store: JobStore) -> int:
             job.delete_page(pid)
         store.save(job)
         print(f"Sayfa {positions_text(positions)} silindi")
+    return 0
+
+
+GUVEN_NAMES = {"kontrol": "kontrol", "okunamadi": "okunamadi", "orta": "orta",
+               "okunmadi": "okunmadi", "eksik-sayfa": "eksik sayfa",
+               "karisik-sablon": "karışık şablon"}
+
+
+def select_guven(args: argparse.Namespace, job: Job) -> int:
+    """`is sec guven`: the window's "Kontrol gerekenler", with its reasons and counts."""
+    templates = _job_templates(args, job)
+    if not values_read(job):
+        print("Değerler henüz okunmadı")
+        return 0
+    asked = [GUVEN_NAMES[name] for name in (args.neden or [
+        "kontrol", "okunamadi", "okunmadi", "eksik-sayfa", "karisik-sablon"])]
+    match = evaluate(job, Criterion("guven", {
+        "levels": [r for r in asked if r in GUVEN_LEVELS],
+        "checks": [r for r in asked if r in GUVEN_CHECKS],
+        "pages": args.sayfalar}), templates=templates)
+    for reason, n in match.reasons.items():
+        print(f"{GUVEN_WORDS[reason]}  {reason_count_text(reason, n)}")
+    if not match.page_ids:
+        print("Eşleşen sayfa yok.")
+        return 0
+    position = {pid: n for n, pid in enumerate(job.ordered_page_ids(), start=1)}
+    print(guven_text(match))
+    print(f"{match.documents} belge, {match.count()} sayfa")
+    print(f"sayfa {positions_text([position[pid] for pid in match.page_ids])}")
     return 0
 
 
@@ -647,6 +687,13 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     q.add_argument("--esik", type=blank_percent, default=EMPTY_INK_RATIO * 100, metavar="ORAN",
                    help="En çok mürekkep oranı: 0,1–5,0 %% (0,3)")
     q.add_argument("--sil", action="store_true", help="Sayfayı sil")
+    q.set_defaults(handler=select_pages)
+    q = criteria.add_parser("guven", help="Kontrol gerekenler")
+    q.add_argument("--neden", action="append", choices=list(GUVEN_NAMES), metavar="NEDEN",
+                   help="Kontrol gerekenler: " + ", ".join(GUVEN_NAMES)
+                   + " (varsayılan: Orta hariç hepsi)")
+    q.add_argument("--sayfalar", choices=("deger", "belge"), default="deger",
+                   help="Sayfalar: deger (Değerin sayfası), belge (Belgenin bütün sayfaları)")
     q.set_defaults(handler=select_pages)
 
     p = job_commands.add_parser("kes", help="bir sayfanın önüne kesim ekler veya kaldırır")

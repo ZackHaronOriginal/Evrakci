@@ -46,7 +46,7 @@ from evrakci.pipeline.exporting import (
     may_delete_after_export,
     plan_names,
 )
-from evrakci.pipeline.job import job_from_dict, job_to_dict
+from evrakci.pipeline.job import job_from_dict, job_state, job_to_dict
 from evrakci.pipeline.naming import safe_filename
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.pdfium_lock import PDFIUM_LOCK
@@ -1424,7 +1424,8 @@ class DisaAktarScreen(QWidget):
         controller = self.controller()
         last = controller.job.last_export if controller is not None else None
         return (self._job_name or "Dışa aktarma", self._index_rows(), self._summary.documents,
-                self._summary.pages, print_view.subtitle(last))
+                self._summary.pages, print_view.subtitle(
+                    last, job_state(controller.job) if controller is not None else None))
 
     def index_html(self) -> str:
         """The list as a printable table (what index.xlsx lists: name, pages, template, state)."""
@@ -1471,7 +1472,7 @@ class DisaAktarScreen(QWidget):
         def failed(_message: str) -> None:
             toaster = self._toaster()
             if toaster is not None:
-                toaster.show("Dışa aktarma tamamlanamadı", kind="error")
+                toaster.show("Baskı önizleme hazırlanamadı.", kind="error")
 
         start = getattr(window, "start_loading", None)
         options = {"title": "Önizleme hazırlanıyor…", "name": name, "on_done": done,

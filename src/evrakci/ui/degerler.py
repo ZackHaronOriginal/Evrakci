@@ -169,6 +169,8 @@ class DegerlerScreen(QWidget):
         self._dirty = False
         self._started = 0.0
         self._results: list = []
+        self._failed_in_store = 0
+        self._engine_reason = ""
         self._header_key = ""
         self._filling = False
         self._files: dict = {}
@@ -1329,8 +1331,13 @@ class DegerlerScreen(QWidget):
         controller.run(f"{len(doable)} değeri onayla", apply)
         self.refresh()
         message = f"{len(doable)} değer onaylandı"
+        in_kontrol = sum(1 for _, c in doable if c.value.flagged)
+        if in_kontrol:  # D-3: guesses accepted in bulk are named, not hidden in the count
+            message += f"; {in_kontrol} tanesi Kontrol'dü"
         if skipped:
             message += f"; okunamayan {skipped} değer atlandı"
+        elif in_kontrol:
+            message += "."
         self._toast(message, controller, before + 1, "success")
         self._sample_progress()
 
@@ -1636,6 +1643,7 @@ class DegerlerScreen(QWidget):
         def run(progress):
             reason = engine.available()  # the probe can be slow: here, not on the window thread
             if reason:  # refuse like the command line does; nothing is touched
+                self._engine_reason = str(EngineUnavailable(reason))  # said as it is
                 raise EngineUnavailable(reason)
             for done, (document, template_id, template) in enumerate(work, start=1):
                 progress(done - 1, len(work))
@@ -1694,6 +1702,7 @@ class DegerlerScreen(QWidget):
         current = {tuple(d.page_ids): document_template(job, d)[0]
                    for d in controller.documents()}
         stored = []
+        self._failed_in_store = 0
 
         def store(job) -> None:
             for document, template_id, values, error, revision in list(results):
@@ -1703,6 +1712,7 @@ class DegerlerScreen(QWidget):
                     store_reading(job, document, template_id, values, revision)
                 else:  # keeps earlier values and the user's corrections
                     record_read_error(job, document, template_id, error)
+                    self._failed_in_store += 1
                 stored.append(document)
 
         controller.run("Değerleri oku", store)
@@ -1710,12 +1720,22 @@ class DegerlerScreen(QWidget):
 
     def _read_done(self, results) -> None:
         count_ = self._store(results)
-        self._finish(f"{count_} belge okundu.", "circle-check", "ok", toast=True)
+        failed = self._failed_in_store  # D-1: failures are counted, never plain success
+        if failed:
+            self._finish(f"{count_ - failed} belge okundu; {failed} belge okunamadı.",
+                         "triangle-alert", "check-text", toast=True)
+        else:
+            self._finish(f"{count_} belge okundu.", "circle-check", "ok", toast=True)
 
     def _read_failed(self, message: str) -> None:
         if self._results:
             self._store(self._results)  # keep what was finished, as cancel does
-        self._finish(f"Okunamadı: {message}", "triangle-alert", "check-text")
+        if message == self._engine_reason:  # a known refusal already says what to do
+            self._finish(f"Okunamadı: {message}", "triangle-alert", "check-text")
+            return
+        self._finish("Okuma durdu. Kalan belgeleri 'Yalnızca eksikleri oku' ile deneyebilirsiniz.",
+                     "triangle-alert", "check-text")
+        self.progress_label.setToolTip(message)  # the raw text stays in the details (D-1)
 
     def _read_cancelled(self) -> None:
         count_ = self._store(self._results)
@@ -1750,6 +1770,7 @@ class DegerlerScreen(QWidget):
 
     def _dismiss(self) -> None:
         self.progress_label.setText("")
+        self.progress_label.setToolTip("")
         self.progress_band.setVisible(False)
 
     def cancel(self, *_args) -> None:

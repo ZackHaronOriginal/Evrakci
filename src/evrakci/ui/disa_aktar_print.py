@@ -34,9 +34,13 @@ TITLE = "Baskı önizleme"
 FOOTER_MM = 10  # height reserved for the footer line
 
 
-def subtitle(last_export) -> str:
-    """"Dışa aktarıldı: 20.11.2026 14:32" after a written export, else the plan line."""
-    if last_export is not None:
+def subtitle(last_export, current_state: str | None = None) -> str:
+    """"Dışa aktarıldı: 20.11.2026 14:32" after a written export, else the plan line. The plan
+    line also shows when the job changed after that export (`current_state` is the job's
+    `job_state()`; an export from before the state was kept always counts as unchanged)."""
+    changed = bool(last_export is not None and last_export.state and current_state is not None
+                   and current_state != last_export.state)
+    if last_export is not None and not changed:
         try:
             return f"Dışa aktarıldı: {format_time(datetime.fromisoformat(last_export.at))}"
         except ValueError:

@@ -7,6 +7,8 @@ when batches are reordered.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 
@@ -64,6 +66,7 @@ class LastExport:
     folder: str
     documents: int
     needing_check: int
+    state: str = ""  # job_state() when the export was written; "" in files from before it existed
 
 
 def repeated_files(existing: Iterable[str], new: Iterable[str]) -> list[str]:
@@ -243,12 +246,22 @@ def carry_page_sizes(source: Job, target: Job) -> int:
                                      for pid, info in source.pages.items() if info.has_size})
 
 
+def job_state(job: Job) -> str:
+    """A fingerprint of everything the job holds except its last export: two jobs with the same
+    text have the same cuts, filters, templates, values and names, so a changed text means the
+    job was edited. Used to tell whether the last export still describes the job."""
+    text = json.dumps(_job_dict(job), sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
 def job_to_dict(job: Job) -> dict:
     data = _job_dict(job)
     if job.last_export is not None:  # absent when never exported: the file stays as before
         last = job.last_export
         data["last_export"] = {"at": last.at, "folder": last.folder,
                                "documents": last.documents, "needing_check": last.needing_check}
+        if last.state:
+            data["last_export"]["state"] = last.state
     return data
 
 
@@ -370,6 +383,6 @@ def _last_export_from_dict(data) -> LastExport | None:
         return None
     try:
         return LastExport(str(data["at"]), str(data["folder"]), int(data["documents"]),
-                          int(data["needing_check"]))
+                          int(data["needing_check"]), str(data.get("state", "")))
     except (KeyError, TypeError, ValueError):
         return None  # a damaged field never stops the job from opening

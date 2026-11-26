@@ -368,6 +368,9 @@ SPECS: tuple[ActionSpec, ...] = (
        menu="araclar", kw="iptal"),
     _a("degerler.sonraki_deger", "Sonraki / önceki değer", None, ("Tab", "Shift+Tab"),
        ctx="degerler", local=True, palette=False),
+    _a("degerler.okuma_sec", "Okuma seç", None, ("Alt+1", "Alt+2", "Alt+3", "Alt+4"),
+       ctx="degerler", local=True, palette=False, tip="Açık düzenleyicide 1-4. okumayı al",
+       kw="okuma alternatif"),
 
     # Dışa Aktar
     _a("disa_aktar.durdur", "Dışa aktarmayı &durdur", "square", "Ctrl+.", ctx="disa_aktar",

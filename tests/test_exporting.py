@@ -58,6 +58,9 @@ def test_layer_results_are_recorded_and_failures_name_what_was_done(tmp_path):
     from evrakci.pipeline.index import format_time
 
     assert job.last_export is not None and job.last_export.documents == 2
+    from evrakci.pipeline.job import job_state
+
+    assert job.last_export.state == job_state(job)  # Q-27: what the printed subtitle compares
     summary = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")["Özet"]
     cells = {row[0].value: row[1].value for row in summary.iter_rows()}
     assert cells["Dışa aktarma zamanı"] == format_time(

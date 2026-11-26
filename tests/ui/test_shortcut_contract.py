@@ -105,7 +105,7 @@ from contract_helpers import (  # noqa: E402
 # action: degerler.varyant
 # action: degerler.vazgec, degerler.tumunu_sec, degerler.tum_sayfa
 # action: degerler.sonraki_kontrol, degerler.onceki_kontrol, degerler.durdur
-# action: degerler.sonraki_deger, disa_aktar.gezginde_goster, disa_aktar.yazdir
+# action: degerler.sonraki_deger, degerler.okuma_sec, disa_aktar.gezginde_goster, disa_aktar.yazdir
 # action: disa_aktar.durdur, rehber.yazdir, rehber.aramayi_temizle
 # action: disa_aktar.liste_kopyala, kontrol.kayitli_filtreler
 
@@ -235,7 +235,9 @@ def _applicable(row, windows, tmp_path, how) -> None:
         if how == "key":
             press(ctx.win, ctx.key)
         else:
-            via(ctx.win, ctx.tab, ctx.action_id, ctx.key)
+            reopen = HELPERS[plan.reopen] if plan.reopen else None
+            via(ctx.win, ctx.tab, ctx.action_id, ctx.key,
+                (lambda: reopen(ctx)) if reopen else None)
         HELPERS[plan.effect](ctx)
         HELPERS[plan.feedback](ctx)
     finally:

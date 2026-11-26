@@ -813,6 +813,27 @@ def test_subtitle_says_plan_or_record():
     assert view.subtitle(last) == "Dışa aktarıldı: 20.11.2026 14:32"
 
 
+def test_subtitle_says_plan_when_the_job_changed_after_the_export():
+    from evrakci.pipeline.job import LastExport
+    from evrakci.ui import disa_aktar_print as view
+
+    last = LastExport("2026-11-20T14:32", "/x", 3, 0, "aaaa")
+    assert view.subtitle(last, "aaaa") == "Dışa aktarıldı: 20.11.2026 14:32"
+    assert view.subtitle(last, "bbbb") == "Dışa aktarma planı, henüz yazılmadı"  # Q-27
+    old = LastExport("2026-11-20T14:32", "/x", 3, 0)  # a job file from before the state
+    assert view.subtitle(old, "bbbb") == "Dışa aktarıldı: 20.11.2026 14:32"
+
+
+def test_the_printed_subtitle_follows_edits_after_the_export(qtbot, tmp_path):
+    from evrakci.pipeline.job import LastExport, job_state
+
+    screen, ctl, _t = _screen(qtbot, tmp_path)
+    ctl.job.last_export = LastExport("2026-11-20T14:32", "/x", 3, 0, job_state(ctl.job))
+    assert screen._index_args()[-1] == "Dışa aktarıldı: 20.11.2026 14:32"
+    ctl.job.drop_empty = not ctl.job.drop_empty  # any edit after the export
+    assert screen._index_args()[-1] == "Dışa aktarma planı, henüz yazılmadı"
+
+
 def test_ctrl_p_opens_the_preview_enter_prints_escape_closes(qtbot, tmp_path, monkeypatch):
     import PySide6.QtPrintSupport as qt_print
     from PySide6.QtTest import QTest
@@ -960,7 +981,7 @@ def test_a_failed_preview_build_is_said(qtbot, tmp_path, monkeypatch):
     screen.results.setFocus()
     QTest.keyClick(window, Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier)
     qtbot.waitUntil(lambda: bool(said), timeout=10000)
-    assert said == ["Dışa aktarma tamamlanamadı"] and screen._preview is None
+    assert said == ["Baskı önizleme hazırlanamadı."] and screen._preview is None  # Q-26
 
 
 def test_enter_presses_the_focused_button_else_prints(qtbot, tmp_path, monkeypatch):

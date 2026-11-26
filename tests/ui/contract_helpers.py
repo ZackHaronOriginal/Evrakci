@@ -184,11 +184,14 @@ def run_via_menu(win: MainWindow, action_id: str) -> None:
     reactivate(win)
 
 
-def run_via_sheet(win: MainWindow, tab: str, action_id: str, key: str) -> None:
+def run_via_sheet(win: MainWindow, tab: str, action_id: str, key: str,
+                  reopen: Callable[[], None] | None = None) -> None:
     """A local key (arrows, Tab, Esc in the guide's search...) has no menu item and no palette
     entry; the one other route to it is the shortcut sheet that names it. The sheet must list
     the key under its label for this tab, and the key must still work once the sheet is shut
-    (focus came back to where it was)."""
+    (focus came back to where it was). A key that only works inside a cell editor (`reopen`
+    given) cannot come back to the same widget: the editor closes when the sheet takes focus,
+    so the row's `reopen` step opens a fresh one before the key is pressed again."""
     spec = actions.spec(action_id)
     opener = QApplication.focusWidget()
     win.registry.action("app.kisayollar").trigger()
@@ -202,16 +205,19 @@ def run_via_sheet(win: MainWindow, tab: str, action_id: str, key: str) -> None:
     press_in(sheet, "Esc")
     reactivate(win)
     assert not sheet.isVisible()
-    if opener is not None:
+    if reopen is not None:
+        reopen()
+    elif opener is not None:
         assert QApplication.focusWidget() is opener, "focus did not return to where it was"
     press(win, key)
 
 
-def via(win: MainWindow, tab: str, action_id: str, key: str | None = None) -> None:
+def via(win: MainWindow, tab: str, action_id: str, key: str | None = None,
+        reopen: Callable[[], None] | None = None) -> None:
     spec = actions.spec(action_id)
     if spec.local:
         assert key is not None, f"{action_id} is a local key: the route needs the key"
-        run_via_sheet(win, tab, action_id, key)
+        run_via_sheet(win, tab, action_id, key, reopen)
     elif spec.palette:
         run_via_palette(win, tab, action_id)
     else:
@@ -294,6 +300,7 @@ class Plan:
     na_pre: str = "same"       # step run before `broken` in the not-applicable test
     broken: str = "broken.none"
     na: str = "na.same_as_effect"
+    reopen: str = ""           # editor-only keys: step that reopens the editor after the sheet
     window: str = "job"        # job: the shared demo window; fresh: a new one for this test
     na_window: str = "empty"   # window of the not-applicable test: empty (no job) | job | fresh
     xfail: dict[str, str] = field(default_factory=dict)  # test kind -> "M-xx: reason"

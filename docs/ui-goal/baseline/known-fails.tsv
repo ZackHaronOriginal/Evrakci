@@ -17,3 +17,5 @@ DEC-CON-01	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/
 DEC-CON-01	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/SidePanel/_Scroll/qt_scrollarea_viewport/QWidget/ValueCard/QFrame/ReadingRow[0]/QLabel[0]	Q6 pending (seen on CI, 2026-11-26)
 DEC-CON-01	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/SidePanel/_Scroll/qt_scrollarea_viewport/QWidget/ValueCard/QLabel[0]	Q6 pending (seen on CI, 2026-11-26)
 DEC-CON-01	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/sablonInspector/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame[2]/QLabel[0]	Q6 pending (seen on CI, 2026-11-26)
+DEC-CON-01	statusBar/QWidget/QStackedWidget/QWidget[5]/statusSlot.yukle/StatusPart[0]/QLabel[1]	Q6 pending (seen on CI, 2026-11-26)
+DEC-CON-01	statusBar/QWidget/QStackedWidget/QWidget[5]/statusSlot.yukle/StatusPart[0]	Q6 pending (seen on CI, 2026-11-26)

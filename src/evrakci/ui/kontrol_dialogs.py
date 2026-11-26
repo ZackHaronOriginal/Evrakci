@@ -8,11 +8,12 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QLocale, Qt, QTimer
 from PySide6.QtWidgets import (
     QBoxLayout,
     QButtonGroup,
     QDialog,
+    QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -22,8 +23,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from evrakci.pipeline.analyze import EMPTY_INK_RATIO
 from evrakci.pipeline.job import Job
-from evrakci.pipeline.select import Criterion, combine, evaluate
+from evrakci.pipeline.select import Criterion, combine, evaluate, ink_range
 from evrakci.ui import fonts, theme
 
 
@@ -147,7 +149,10 @@ class SelectDialog(QDialog):
         ("belge", "Bu belge", ""),
         ("tek", "Tek sayfalar", "Her belgenin 1., 3., 5. ... sayfaları"),
         ("cift", "Çift sayfalar", "Her belgenin 2., 4., 6. ... sayfaları"),
+        ("bos", "Boş sayfalar", ""),
     )
+    INK_RANGE = (0.1, 5.0)  # percent
+    INK_DEBOUNCE_MS = 80
     MODES = (("replace", "Seçimi değiştir"), ("add", "Seçime ekle"),
              ("within", "Seçimle kesiştir"))
 
@@ -200,6 +205,7 @@ class SelectDialog(QDialog):
         self.hint.setWordWrap(True)
         right.addWidget(self.title)
         right.addWidget(self.hint)
+        self._blank_parameters(right)
         right.addSpacing(m.size("s2"))
         self.modes = QButtonGroup(self)
         self._mode_radios: dict[str, QRadioButton] = {}
@@ -221,8 +227,70 @@ class SelectDialog(QDialog):
         self._mode_radios["replace"].setChecked(True)
         self._radios[kind if kind in self._radios else "belge"].setChecked(True)
         self._refresh_counts()
+        self._blank_count_text()
         self._row_changed()
         self.kinds.checkedButton().setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _blank_parameters(self, col: QVBoxLayout) -> None:
+        """The parameter pane of "Boş sayfalar" (ink limit, hint, live count) goes straight into
+        `col`: wrapped labels in a nested widget lose their height at 150 % text."""
+        label = QLabel("En çok mürekkep oranı")
+        self.ink = QDoubleSpinBox()
+        self.ink.setLocale(QLocale(QLocale.Language.Turkish, QLocale.Country.Turkey))
+        self.ink.setDecimals(1)
+        self.ink.setSingleStep(0.1)
+        self.ink.setRange(*self.INK_RANGE)
+        self.ink.setValue(EMPTY_INK_RATIO * 100)
+        self.ink.setSuffix(" %")
+        self.ink.setAccessibleName("En çok mürekkep oranı")
+        label.setBuddy(self.ink)
+        self.ink_hint = QLabel("Bu orandan az mürekkepli sayfalar boş sayılır.")
+        self.ink_hint.setProperty("textRole", "secondary")
+        self.ink_hint.setWordWrap(True)
+        self.ink.setAccessibleDescription(self.ink_hint.text())
+        self.ink_count = QLabel()
+        self.ink_count.setWordWrap(True)
+        self.ink_count.setFont(fonts.tabular(self.ink_count.font()))
+        self.ink_widgets = (label, self.ink, self.ink_hint, self.ink_count)
+        for widget in self.ink_widgets:
+            col.addWidget(widget)
+        # Every key press changes the count; the evaluation waits until the typing pauses.
+        self._ink_timer = QTimer(self)
+        self._ink_timer.setSingleShot(True)
+        self._ink_timer.setInterval(self.INK_DEBOUNCE_MS)
+        self._ink_timer.timeout.connect(self._ink_settled)
+        self.ink.valueChanged.connect(lambda *_: self._ink_timer.start())
+
+    def ink_ratio(self) -> float:
+        """The spin box as a fraction (0,3 % is 0.003)."""
+        return round(self.ink.value() / 100, 6)
+
+    @staticmethod
+    def _percent(ratio: float) -> str:
+        text = f"{round(ratio * 100, 2):.2f}".rstrip("0")
+        text = text + "0" if text.endswith(".") else text
+        return text.replace(".", ",")
+
+    def _ink_settled(self) -> None:
+        self._refresh_counts()
+        self._blank_count_text()
+
+    def _blank_count_text(self) -> None:
+        match = evaluate(self._job, self.criterion("bos"))
+        text = f"{match.count()} sayfa boş"
+        spread = ink_range(self._job, match)
+        details = []
+        if spread:
+            low, high = spread
+            # U+00A0: a number and its unit never part when the line wraps at 150 %
+            details.append(
+                f"en boş {self._percent(low)}\u00a0%, en dolu {self._percent(high)}\u00a0%")
+        deleted = match.reasons.get("silinmis", 0)
+        if deleted:
+            details.append(f"{deleted}\u00a0silinmiş")
+        if details:
+            text += "   (" + ", ".join(details) + ")"
+        self.ink_count.setText(text)
 
     def kind(self) -> str:
         return next(name for name, radio in self._radios.items() if radio.isChecked())
@@ -234,6 +302,8 @@ class SelectDialog(QDialog):
         kind = kind or self.kind()
         if kind == "belge":
             return Criterion("belge", {"number": self._document})
+        if kind == "bos":
+            return Criterion("bos", {"ink": self.ink_ratio()})
         return Criterion(kind, {"within": self.mode() == "within"})
 
     def count(self, kind: str) -> int:
@@ -260,6 +330,8 @@ class SelectDialog(QDialog):
         self.title.setText(text)
         self.hint.setText(hint)
         self.hint.setVisible(bool(hint))
+        for widget in self.ink_widgets:
+            widget.setVisible(name == "bos")
         self.title.setAccessibleName(text)
         for radio in self._mode_radios.values():
             radio.setAccessibleDescription(hint)

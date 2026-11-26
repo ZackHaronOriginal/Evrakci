@@ -138,6 +138,8 @@ Updated after every accepted step. A new session or a compacted one reads this f
    R1 DONE 87b4921, R2 DONE 477c385, R4 checklist 33538d0 (blocked on Q-36), R5 proposal 74965d6 (Q-35), R6 B-104 fixed
    (047e5e9, e96bb73, b67c086; CI to confirm). R1 Q-32: zoom −/+ 24 px as a written AUD-HIT-02 exception in tools/ui_measure.py; drop the two known-fails rows.
    R2 Q-33: retention keeps a job edited after its last export (job_state != last_export.state), window + CLI, tests (HIGH).
+   R3 DONE (all screens): Şablonlar 1348d3b, Rehber 23ea932, Dışa Aktar e7606e0, Değerler 807436b+e87659f, Yükle ecaca1b,
+   Kontrol ebddc7b, shared S-2..S-6 (this commit's parent); each with a Sonnet review and fixes; K-1 waits for the owner.
    R3 DONE so far: Şablonlar (1348d3b, review fixed), Rehber (23ea932; R-6 print card and R-8 look items left). R3 screen proposals Q-10/11/13/14/15 (scratchpad q10-q15-plain.md; re-derive from docs/ui-goal/audit/*-proposals.md and
       *-findings.md if gone): one step per screen (Kontrol, Yükle, Değerler, Şablonlar, Dışa Aktar + Rehber), then the shared
       S-2..S-6 look items; K-1 waits for the owner. Q-01, Q-12 and items already built are skipped.

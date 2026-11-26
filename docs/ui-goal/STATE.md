@@ -121,8 +121,16 @@ Updated after every accepted step. A new session or a compacted one reads this f
   (1fc788a), Q-03 enforced rules in CI (known-fails.tsv: zoom −/+ wait for Q-32; one CI-only row B-104), Q-04 paraphrased,
   export Kontrol gerekenler subfolder + delete warning (13bce0d), Yükle Q7 (a725035), Q-16 fixes + toasts bottom left
   (107f798), texts Q-23/25/26/27 + Değerler D-1..D-3 (bae68d3; full suite 3118 passed). fluent-reference skill added.
-  NEXT: Q5 shortcut fixes (Q-08) + reasons for keys that cannot act (Q-09) (worktree q5). Then a final Opus review of
-  all 2026-11-26 owner items, Phase 5 exit check, final report.
+  Q5 DONE (merged 50319e8): Ctrl+G on every tab (B-027), Ctrl+F label, dead keys fixed (B-026, B-028), reasons for keys that
+  cannot act (src/evrakci/ui/refusals.py, tests/ui/test_refusals.py); 188 strict-xfail contract rows now pass; full suite
+  3354 passed, 11 xfailed. Final review of the 2026-11-26 items: docs/ui-goal/review-owner-2026-11-26.md (0 S1, 1 S2, 4 S3,
+  11 S4); fixes merged ce6509c (R-O-1/3/4/7/8/16); ledger B-107..B-113; owner Q-33, Q-34. B-104 tool fix (98bbfc4).
+  PHASE 5 EXIT RULE MET (2026-11-26): inventory and research files exist and were spot-checked (5a-5c); the ranking is the
+  owner's Q-06 build-first list (decisions.md), other rows unranked or later by the owner; every build-first item is
+  shipped and reviewed: A (review-group-a.md), B (review-group-b.md), C I-07 (review-group-c.md), D (review-group-d.md);
+  I-01 dropped by the owner. Owner answers of 2026-11-26 built and reviewed (review-owner-2026-11-26.md).
+  WAITING ON THE OWNER ONLY: OWNER-QUEUE.md open rows (Q-07, Q-10, Q-11, Q-13, Q-14, Q-15 rest, Q-17, Q-18, Q-19, Q-20,
+  Q-24, Q-31, Q-32, Q-33, Q-34). Watch CI for stale known-fails rows (B-104) and remove them.
   Triage notes (not in git): scratchpad q08-triage.md, q10-q15-plain.md, q02-q16-plain.md; re-derive from the audit
   files if gone. Q-02 rows: decide with the fluent-reference skill. (task spec .claude/gorevler/2026-11-26-c18-i07.md).
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).

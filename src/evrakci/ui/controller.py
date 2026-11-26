@@ -90,23 +90,37 @@ class _GuardedStack(QUndoStack):
     def _controller(self):
         return self._ref()
 
+    def _refused(self) -> bool:
+        """While the job is being deleted, or a Değerler read runs (its readings would be
+        lost or made stale), no undo, redo or jump in the history: whatever route asks."""
+        controller = self._controller
+        if controller.frozen:
+            controller.status.emit(FROZEN_REASON)
+            return True
+        if controller.reading:
+            from evrakci.ui.refusals import READING_NOW
+
+            controller.status.emit(READING_NOW)
+            return True
+        return False
+
     def undo(self) -> None:
-        if self._controller.frozen:
-            self._controller.status.emit(FROZEN_REASON)
-            return
-        super().undo()
+        if not self._refused():
+            super().undo()
 
     def redo(self) -> None:
-        if self._controller.frozen:
-            self._controller.status.emit(FROZEN_REASON)
-            return
-        super().redo()
+        if not self._refused():
+            super().redo()
+
+    def setIndex(self, index: int) -> None:  # noqa: N802
+        if not self._refused():
+            super().setIndex(index)
 
     def canUndo(self) -> bool:
-        return super().canUndo() and not self._controller.frozen
+        return super().canUndo() and not self._controller.frozen and not self._controller.reading
 
     def canRedo(self) -> bool:
-        return super().canRedo() and not self._controller.frozen
+        return super().canRedo() and not self._controller.frozen and not self._controller.reading
 
 
 class JobController(QObject):
@@ -120,6 +134,7 @@ class JobController(QObject):
         super().__init__(parent)
         self.store = store
         self.job = job
+        self.reading = False  # a Değerler read runs: no undo or redo (its steps are pending)
         self.frozen = False  # while the job's folder is deleted: no edit, no save (rule 5)
         # Write-behind: edits hand a snapshot to the saver, the one writer of the job file.
         # It has no parent: its writer thread may outlive the controller by one write.

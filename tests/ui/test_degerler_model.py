@@ -173,3 +173,10 @@ def test_d4_the_sample_grows_with_the_job_and_numbers_get_their_endings():
                                     80, 90, 100, 1000, 3980)] == [
         "1'i", "2'si", "3'ü", "4'ü", "5'i", "6'sı", "7'si", "8'i", "9'u", "10'u", "20'si",
         "30'u", "40'ı", "50'si", "60'ı", "70'i", "80'i", "90'ı", "100'ü", "1 000'i", "3 980'i"]
+
+
+def test_r5_dative_endings():
+    from evrakci.ui.degerler_model import dative
+
+    assert [dative(n) for n in (1, 4, 6, 9, 20, 80, 100, 3980)] == [
+        "1'ine", "4'üne", "6'sına", "9'una", "20'sine", "80'ine", "100'üne", "3 980'ine"]

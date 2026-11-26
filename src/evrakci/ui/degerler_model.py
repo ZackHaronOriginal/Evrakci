@@ -102,6 +102,19 @@ def possessive(number: int) -> str:
     return f"{grouped(number)}'{ending}"
 
 
+def dative(number: int) -> str:
+    """The number with possessive and dative endings: "{n}'sine bakıldı" (20'sine, 4'üne)."""
+    base = possessive(number)
+    ending = base.rsplit("'", 1)[1]
+    return f"{base}{'ne' if ending[-1] in 'iü' else 'na'}"
+
+
+def emin_count(rows: list[Row]) -> int:
+    """Every Emin value the rows hold, reviewed or not (what a sample is a part of)."""
+    return sum(1 for row in rows for cell in row.cells
+               if cell.level == "emin" and cell.value is not None)
+
+
 def section_name(section: int | None) -> str:
     """Section 0 is the template's own box; later ones are its variants (as in Şablonlar)."""
     return "Bölüm 1" if not section else f"Varyant {section + 1}"

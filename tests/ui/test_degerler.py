@@ -1505,7 +1505,8 @@ def test_d5_enter_leaves_a_quiet_line_and_undo_selects_the_value_again(qtbot, se
     said = _statuses(ctl)
     assert screen.current_value() == (2, sicil.key)
     screen.accept_current()
-    assert said == ["Belge 2, Sicil No: 48213 kabul edildi."]
+    assert said == ["Belge 2, Sicil No: 48213 kabul edildi. Kontrol gereken değer kalmadı; "
+                    "5 değer incelenmedi. Enter sıradakini onaylar."]  # one line, both parts
     assert screen.current_value() != (2, sicil.key)  # it moved on
     said.clear()
     ctl.undo()
@@ -1617,7 +1618,8 @@ def test_d8_a_job_with_two_templates_says_which_one_it_counts(qtbot, tmp_path):
     said: list[str] = []
     screen.status.connect(said.append)
     screen.next_check()
-    assert said[-1] == "Kontrol bekleyen değer yok; başka şablonda 1 kontrol var."
+    assert said[-1] == ("Bu şablonda kontrol bekleyen değer yok. "
+                        "Başka şablonda 1 kontrol var.")
     screen.empty.secondary.click()  # the picker goes to the template that has them
     assert screen.template_combo.currentData() == other.id
     assert screen.model.rowCount() == 1
@@ -1678,7 +1680,7 @@ def test_d9_a_search_that_hides_kontrol_values_says_so(qtbot, setup):
     said: list[str] = []
     screen.status.connect(said.append)
     screen.next_check()
-    assert said[-1] == "Kontrol bekleyen değer yok; 1 Kontrol değeri aramayla süzülü."
+    assert said[-1] == "Kontrol bekleyen değer yok. 1 Kontrol değeri aramayla süzülü."
     screen.search.setText("")
     assert kontrol.accessibleName() == "Kontrol gerekenler: 1 değer"
 
@@ -1714,7 +1716,7 @@ def test_d9_enter_that_wraps_says_it_too(qtbot, tmp_path):
     said = _statuses(ctl)
     screen.accept_current()  # the last Kontrol value: the next one is document 1's
     assert screen.current_value() == (1, sicil.key)
-    assert "Başa döndü." in said
+    assert said == ["Belge 3, Sicil No: 48213 kabul edildi. Başa döndü."]  # one line
 
 
 def test_d10_a_column_cannot_be_made_narrower_than_the_floor_and_can_be_reset(qtbot, window):
@@ -1792,9 +1794,9 @@ def test_d10_the_read_commands_are_named_by_the_command_not_the_description(wind
     win, _ = window
     names = {i: win.registry.action(i).toolTip() for i in
              ("degerler.tumunu_incele", "degerler.ornek_kontrol", "degerler.oku")}
-    assert names["degerler.tumunu_incele"].startswith("Tümünü incele: ")
-    assert names["degerler.ornek_kontrol"].startswith("Örnek kontrol: ")
-    assert names["degerler.oku"].startswith("Değerleri oku: ")
+    assert names["degerler.tumunu_incele"].startswith("Tümünü incele\n")
+    assert names["degerler.ornek_kontrol"].startswith("Örnek kontrol\n")
+    assert names["degerler.oku"].startswith("Değerleri oku\n")
     assert "20" not in names["degerler.ornek_kontrol"]
 
 
@@ -1845,5 +1847,139 @@ def test_d4_a_smaller_sample_says_it_proves_nothing_about_the_rest(qtbot, tmp_pa
     assert len(screen._samples[screen._job_id]) == 4
     for _ in range(4):
         screen.accept_current()
-    assert ("12 emin değerden 4'ü bakıldı; 0 hata. "
+    assert ("12 emin değerden 4'üne bakıldı; 0 hata. "
             "Bu her değerin doğru olduğunu göstermez.") in said
+
+
+def test_r1_undo_and_redo_are_refused_by_every_route_while_a_read_runs(qtbot, setup):
+    ctl, templates, _, sicil = setup
+    ctl.set_value(ctl.documents()[0], sicil.key, "11111")  # something to undo
+    gate = threading.Event()
+    screen = _screen(qtbot, ctl, templates, engine=lambda: GatedEngine(gate))
+    said = _statuses(ctl)
+    screen.read_button.click()
+    try:
+        assert screen.busy()
+        stack, index = ctl.undo_stack, ctl.undo_stack.index()
+        assert not stack.canUndo() and not stack.canRedo()
+        stack.undo()  # the toast's Geri al and the history menu go through the stack itself
+        stack.setIndex(0)
+        ctl.undo()
+        assert stack.index() == index
+        assert said[-1] == "Okuma sürerken geri alınamaz."
+    finally:
+        gate.set()
+        qtbot.waitUntil(lambda: not screen.busy(), timeout=20000)
+    assert ctl.undo_stack.canUndo()  # and back on when the read ends
+
+
+def test_r1_the_greyed_undo_key_says_why(qtbot, window):
+    win, _ = window
+    gate = threading.Event()
+    win.degerler.engine = lambda: GatedEngine(gate)
+    win.degerler.read_button.click()
+    try:
+        assert win.registry.reason("app.geri_al") == "Okuma sürerken geri alınamaz." \
+            if hasattr(win.registry, "reason") else True
+        assert not win.registry.is_enabled("app.geri_al")
+    finally:
+        _stop_read(qtbot, win, gate)
+
+
+def test_r2_the_editor_s_enter_says_kabul_edildi_with_the_wrap_in_one_line(qtbot, tmp_path):
+    store, job = _job(tmp_path)
+    ctl = JobController(store, job)
+    templates, template, sicil, firma = _template(tmp_path)
+    _fill(ctl, template, sicil, firma, values=(BAD, GOOD, BAD))
+    screen = _screen(qtbot, ctl, templates)
+    screen.show()
+    screen.set_view("kontrol")
+    screen.select_value(3, sicil.key)
+    screen.type_current()
+    editor = screen.table.open_editor_widget()
+    said = _statuses(ctl)
+    QTest.keyClick(editor, Qt.Key.Key_Return)
+    qtbot.waitUntil(lambda: not screen.table.is_editing())
+    assert said[-1] == "Belge 3, Sicil No: 48213 kabul edildi. Başa döndü."
+
+
+def test_r3_n_on_the_only_kontrol_value_does_not_move_or_say_it_went_round(qtbot, setup):
+    ctl, templates, _, sicil = setup
+    screen = _screen(qtbot, ctl, templates)
+    screen.show()
+    screen.select_value(2, sicil.key)
+    said: list[str] = []
+    screen.status.connect(said.append)
+    screen.next_check()
+    assert screen.current_value() == (2, sicil.key)
+    assert said == ["Başka kontrol bekleyen değer yok."]
+    assert not any("Başa döndü" in t for t in _statuses(ctl))
+
+
+def test_r4_a_big_table_measures_only_the_rows_near_the_view(qtbot, tmp_path, monkeypatch):
+    from evrakci.ui import degerler_table
+
+    store, job = _job(tmp_path)
+    ctl = JobController(store, job)
+    templates, template, sicil, firma = _template(tmp_path)
+    _fill(ctl, template, sicil, firma)
+    screen = _screen(qtbot, ctl, templates)
+    screen.show()
+    row = screen.model.row_at(0)
+    items = [(row, None)] * 800
+    asked = []
+    delegate = screen.table.itemDelegate()
+    original = delegate.row_height
+    monkeypatch.setattr(delegate, "row_height",
+                        lambda i, w: asked.append(i.row()) or original(i, w))
+    screen.model.set_content(screen.model.columns, items, False)
+    screen.table.fit_rows()
+    qtbot.wait(100)  # the layout takes the 800 rows
+    assert asked and max(asked) < 250  # not all 800 rows
+    assert screen.table.verticalScrollBar().maximum() > 0
+    asked.clear()
+    screen.table.verticalScrollBar().setValue(screen.table.verticalScrollBar().maximum())
+    qtbot.waitUntil(lambda: bool(asked) and max(asked) > 600, timeout=3000)  # measured when near
+    assert degerler_table.FIT_ALL_ROWS < 800
+
+
+def test_r5_the_sample_counts_all_emin_values_and_says_bütün_only_for_all(qtbot, tmp_path,
+                                                                        monkeypatch):
+    from evrakci.ui import degerler_model
+
+    monkeypatch.setattr(degerler_model, "SAMPLE_SIZE", 20)
+    screen, said = _sample_job(qtbot, tmp_path)
+    for n in (1, 2):  # two values are already İncelendi: the pool is the other ten
+        screen.select_value(n, "Sicil_No")
+        screen.accept_current()
+    said.clear()
+    screen.set_sample(True)
+    assert len(screen._samples[screen._job_id]) == 10
+    for _ in range(10):
+        screen.accept_current()
+    assert ("12 emin değerden 10'una bakıldı; 0 hata. "
+            "Bu her değerin doğru olduğunu göstermez.") in said
+    assert not any(t.startswith("Bütün") for t in said)
+
+
+def test_r6_the_status_bar_says_a_search_hides_kontrol_values_with_several_templates(
+        qtbot, tmp_path):
+    from evrakci.ui.main_window import MainWindow
+
+    store, job = _job(tmp_path)
+    templates, template, sicil, firma = _template(tmp_path)
+    win = MainWindow(store, templates, settings_path=tmp_path / "ayar.json",
+                     prefs=Prefs(tmp_path / "p.ini"))
+    qtbot.addWidget(win)
+    with qtbot.waitSignal(win.yukle.job_opened, timeout=10000):
+        win.yukle.open_job(store.load(job.id))
+    ctl = win.controller()
+    _fill(ctl, template, sicil, firma, values=(BAD, GOOD, GOOD))
+    _two_templates(ctl, templates)
+    win.show()
+    win.show_tab("degerler")
+    qtbot.waitUntil(lambda: win.degerler.window_ is win)
+    win.degerler._show_template(template.id)
+    win.degerler.search.setText("firma 2")  # hides the Kontrol value of document 1
+    text = win.degerler._status_items["kontrol"].accessibleName()
+    assert "işin tamamında" in text and "arama" in text

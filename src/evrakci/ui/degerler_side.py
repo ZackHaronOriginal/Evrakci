@@ -582,6 +582,8 @@ class ReadingRow(QFrame):
         size = m.size("icon-sm")
         self.icon.setPixmap(make_icon("check", "icon", size).pixmap(size, size))
         self.name.setFixedWidth(QFontMetrics(self.name.font()).horizontalAdvance("Varyant 99"))
+        # AUD-HIT-03: at least 32 px and at least the control height, which grows with the text
+        self.setMinimumHeight(max(self.MIN_HEIGHT, m.size("control-h")))
 
     def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.LeftButton and self.pickable:

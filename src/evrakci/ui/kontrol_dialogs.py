@@ -162,7 +162,7 @@ class SelectDialog(QDialog):
     """Ölçüte göre seç…: a list of criteria with the live count of each, the parameters of the
     chosen one on the right and how the result joins the selection. It only chooses pages: the
     caller turns `criterion()` and `mode()` into a selection, nothing in the job changes.
-    At 150 % text the two columns stack."""
+    The modes sit under the criteria list so the dialog stays short at 150 % text."""
 
     ROWS = (
         ("belge", "Bu belge", ""),
@@ -191,13 +191,11 @@ class SelectDialog(QDialog):
         self._selection = tuple(selection)
         self.setWindowTitle("Sayfaları seç")
         self.setAccessibleName("Sayfaları seç")
-        stacked = m.text_scale() >= 150
         col = QVBoxLayout(self)
         col.setContentsMargins(*(m.size("s6"),) * 4)
         col.setSpacing(m.size("s2"))
-        columns = QBoxLayout(QBoxLayout.Direction.TopToBottom if stacked
-                             else QBoxLayout.Direction.LeftToRight)
-        columns.setSpacing(m.size("s8") if not stacked else m.size("s4"))
+        columns = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        columns.setSpacing(m.size("s8"))
 
         left = QVBoxLayout()
         left.setSpacing(m.size("s1"))
@@ -221,6 +219,15 @@ class SelectDialog(QDialog):
             row.addWidget(count)
             left.addLayout(row)
             radio.toggled.connect(self._row_changed)
+        left.addSpacing(m.size("s4"))
+        self.modes = QButtonGroup(self)
+        self._mode_radios: dict[str, QRadioButton] = {}
+        for name, text in self.MODES:  # how the result joins the selection: under the list
+            radio = QRadioButton(text)
+            self.modes.addButton(radio)
+            self._mode_radios[name] = radio
+            left.addWidget(radio)
+            radio.toggled.connect(self._mode_changed)
         left.addStretch(1)
 
         right = QVBoxLayout()
@@ -233,16 +240,7 @@ class SelectDialog(QDialog):
         right.addWidget(self.title)
         right.addWidget(self.hint)
         self._blank_parameters(right)
-        self._guven_parameters(right, stacked)
-        right.addSpacing(m.size("s2"))
-        self.modes = QButtonGroup(self)
-        self._mode_radios: dict[str, QRadioButton] = {}
-        for name, text in self.MODES:
-            radio = QRadioButton(text)
-            self.modes.addButton(radio)
-            self._mode_radios[name] = radio
-            right.addWidget(radio)
-            radio.toggled.connect(self._mode_changed)
+        self._guven_parameters(right)
         right.addStretch(1)
 
         columns.addLayout(left, 1)
@@ -322,9 +320,9 @@ class SelectDialog(QDialog):
             text += "   (" + ", ".join(details) + ")"
         self.ink_count.setText(text)
 
-    def _guven_parameters(self, col: QVBoxLayout, stacked: bool) -> None:
+    def _guven_parameters(self, col: QVBoxLayout) -> None:
         """The parameter pane of "Kontrol gerekenler": a check box per reason with its icon,
-        word and count (at 150 % the count goes under the word), the pages and the live count."""
+        word and count, the pages and the live count."""
         m = theme.manager()
         every = guven_match(self._job, self._findings, Criterion("guven", {
             "levels": GUVEN_LEVELS, "checks": GUVEN_CHECKS, "pages": "belge"}))
@@ -348,12 +346,9 @@ class SelectDialog(QDialog):
             count.setFont(fonts.tabular(count.font()))
             count.setProperty("textRole", "secondary")
             box.setAccessibleName(f"{GUVEN_WORDS[reason]}, {reason_count_text(reason, n)}")
-            row = QBoxLayout(QBoxLayout.Direction.TopToBottom if stacked
-                             else QBoxLayout.Direction.LeftToRight)
-            row.setSpacing(0 if stacked else m.size("s4"))
+            row = QHBoxLayout()
+            row.setSpacing(m.size("s4"))
             row.addWidget(box, 1)
-            if stacked:
-                count.setIndent(m.size("s6"))
             row.addWidget(count)
             col.addLayout(row)
             self._reason_boxes[reason] = box

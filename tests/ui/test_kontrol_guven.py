@@ -132,3 +132,36 @@ def test_dialog_builds_once_and_opens_fast(qtbot, tmp_path, scale):
     print(f"dialog open (800 pages, 200 documents): {elapsed_ms:.0f} ms")
     assert elapsed_ms < 1500
     assert dialog._reason_totals["kontrol"] == 50
+
+
+def test_dialog_fits_1366x768_at_150_percent_for_every_criterion(qtbot, tmp_path):
+    """Two columns (criteria and modes left, parameters right): at 150 % text the dialog is
+    no taller than a 1366x768 screen allows, and nothing in it is clipped."""
+    import sys
+    from pathlib import Path
+
+    from PySide6.QtWidgets import QApplication
+
+    from evrakci.ui import theme
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+    from screenshots import clipping
+
+    manager = theme.manager()
+    window = _window(qtbot, tmp_path, spec=SPEC)
+    _prepare(window)
+    old = manager.text_scale()
+    manager.set_text_scale(150)
+    try:
+        for kind in ("belge", "tek", "cift", "bos", "guven"):
+            dialog = _dialog(window, qtbot, kind)
+            dialog.show()
+            QApplication.processEvents()
+            assert dialog.kind() == kind
+            assert dialog.sizeHint().height() <= 700, (kind, dialog.sizeHint())
+            assert dialog.height() <= 700, (kind, dialog.size())
+            assert dialog.width() <= 1366
+            assert clipping(dialog, kind) == []
+            dialog.close()
+    finally:
+        manager.set_text_scale(old)

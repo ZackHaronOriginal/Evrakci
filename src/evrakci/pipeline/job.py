@@ -246,12 +246,27 @@ def carry_page_sizes(source: Job, target: Job) -> int:
                                      for pid, info in source.pages.items() if info.has_size})
 
 
+# What the machine fills in, not the person: page sizes, ink and separator guesses, read errors
+# and where a value was read from. A window filling them later is not an edit.
+_NOT_EDITED = ("pages", "read_errors", "value_sources")
+
+
 def job_state(job: Job) -> str:
-    """A fingerprint of everything the job holds except its last export: two jobs with the same
-    text have the same cuts, filters, templates, values and names, so a changed text means the
-    job was edited. Used to tell whether the last export still describes the job."""
-    text = json.dumps(_job_dict(job), sort_keys=True, ensure_ascii=False, default=str)
+    """A fingerprint of what the person edits: files, deleted and restored pages, rotations, cuts,
+    filters, templates, values and the name. Two jobs with the same text were edited the same, so
+    a changed text means the job was edited. Page sizes, read errors and value sources are left
+    out: a window filling them later is not an edit. Used to tell whether the last export still
+    describes the job (print subtitle) and whether retention may delete it (Q-33)."""
+    data = {key: value for key, value in _job_dict(job).items() if key not in _NOT_EDITED}
+    text = json.dumps(data, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def edited_after_export(job: Job) -> bool:
+    """True when the job changed after its last export. A job from before the state was kept
+    (empty state) counts as unchanged; a never exported job is not "edited after export"."""
+    last = job.last_export
+    return bool(last is not None and last.state and job_state(job) != last.state)
 
 
 def job_to_dict(job: Job) -> dict:

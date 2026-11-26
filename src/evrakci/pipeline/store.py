@@ -19,6 +19,7 @@ from evrakci.pipeline.analyze import BatchError, PageInfo, analyze_pdf, count_pa
 from evrakci.pipeline.job import (
     Batch,
     Job,
+    edited_after_export,
     job_from_dict,
     job_to_dict,
     page_id,
@@ -269,7 +270,8 @@ class JobStore:
     ) -> list[str]:
         """Delete exported Evrakçı jobs whose job.json was last changed more than `days` days ago.
 
-        A job that was never exported (last_export is None) is never deleted here. Only real
+        A job that was never exported (last_export is None) or was edited after its last export
+        (Q-33) is never deleted here. Only real
         job folders are touched: not links, and only when job.json is a readable Evrakçı job
         whose id matches its folder. Anything else is left alone.
         """
@@ -285,7 +287,8 @@ class JobStore:
                 if path.stat().st_mtime >= limit:
                     continue
                 job = self.load(folder.name)
-                if job.id != folder.name or job.last_export is None:
+                if (job.id != folder.name or job.last_export is None
+                        or edited_after_export(job)):
                     continue
             except (JobFileError, KeyError, OSError):
                 continue

@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from evrakci.ui import theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.disa_aktar_parts import PartsButton
+from evrakci.ui.widgets import centre_action_buttons
 
 COUNT_ROLE = Qt.ItemDataRole.UserRole + 1
 
@@ -49,6 +50,7 @@ class SearchField(QLineEdit):
         self.clear_action.triggered.connect(self.clear_requested)
         self.addAction(self.clear_action, QLineEdit.ActionPosition.TrailingPosition)
         self.clear_action.setVisible(False)
+        centre_action_buttons(self)
         self.textChanged.connect(self._sync)
         theme.follow(self, self._restyle, "search-field")
 

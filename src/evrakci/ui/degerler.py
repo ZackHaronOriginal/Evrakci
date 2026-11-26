@@ -79,7 +79,7 @@ from evrakci.ui.degerler_table import (
 )
 from evrakci.ui.feedback import undo_last
 from evrakci.ui.thumbnails import to_qimage
-from evrakci.ui.widgets import add_clear_button
+from evrakci.ui.widgets import add_clear_button, centre_action_buttons
 from evrakci.ui.workers import BUSY_REASON, Task, start
 
 ZOOM_KEY = "degerler"
@@ -239,6 +239,8 @@ class DegerlerScreen(QWidget):
         add_clear_button(self.search)  # a 24 px target (WCAG 2.5.8)
         self._search_icon = self.search.addAction(make_icon("search"),
                                                   QLineEdit.ActionPosition.LeadingPosition)
+        centre_action_buttons(self.search)
+        self._search_icon.setToolTip("Ara")  # the icon button has a name (HIG-CTL-06)
         self.search.textChanged.connect(self._search_changed)
         self.search.installEventFilter(self)
         self.template_combo = SlackComboBox()

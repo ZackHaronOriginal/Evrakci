@@ -198,6 +198,10 @@ class LevelWidget(QWidget):
 
 def _label(text: str, kind: str = "inspector-key") -> QLabel:
     label = QLabel(text)
+    if kind == "inspector-key":
+        # caption size in the text colour: text-2 on a card measured 6.9:1 (D10 asks 7:1, Q-16)
+        label.setProperty("textRole", "caption")
+        kind = "inspector-value"
     label.setProperty("kind", kind)
     return label
 

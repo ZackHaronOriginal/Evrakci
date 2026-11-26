@@ -77,6 +77,13 @@ FONT_ROLES: dict[str, tuple[str, str, tuple[str, ...]]] = {
 }
 
 
+def word_role(role: str) -> str:
+    """The colour role for the words of a status or confidence cell: the quiet and the green
+    roles read at the 7:1 text tier (D10, Q-16) in `text`; the icon beside the word keeps the
+    role's colour. Other roles (Kontrol, danger, high contrast) already pass."""
+    return "text" if role in ("ok", "text-2") else role
+
+
 @dataclass(frozen=True)
 class TitleBand:
     """Geometry of the title band at the current text size (see title_band_rule)."""

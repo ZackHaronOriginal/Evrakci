@@ -370,7 +370,7 @@ class LevelText(QWidget):
 def _caption(text: str = "", wrap: bool = False) -> QLabel:
     label = QLabel(text)
     label.setProperty("textRole", "caption")
-    label.setProperty("kind", "inspector-key")
+    label.setProperty("kind", "inspector-value")  # text colour: text-2 was 6.0-6.4:1 (Q-16)
     label.setWordWrap(wrap)
     return label
 
@@ -690,6 +690,10 @@ class ValueCard(QFrame):
 
 class _Scroll(QScrollArea):
     """Takes its content's height, so the actions follow the cards; scrolls when short."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # the cards inside take the focus (Q-16)
 
     def sizeHint(self) -> QSize:  # noqa: N802
         widget = self.widget()

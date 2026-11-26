@@ -5,6 +5,7 @@ Documents of the demo job (test_kontrol_a.SPEC): rows 0-2 | QR 3 | 4-5 | QR 6 | 
 
 from fakes import make_pdf, qr_page, text_page
 from PySide6.QtCore import QItemSelectionModel, QModelIndex, Qt
+from PySide6.QtTest import QTest
 from test_kontrol_a import _key, _screen, _window
 
 from evrakci.cli import main
@@ -110,7 +111,8 @@ def test_the_select_dialog_counts_and_selects_odd_pages(qtbot, tmp_path, monkeyp
     _key(window, Qt.Key.Key_S)
     assert seen["title"] == "Sayfaları seç" and seen["checked"] == "belge"
     # documents of 3, 2, 4, 1; the demo job has no blank page
-    assert seen["counts"] == {"belge": "2", "tek": "6", "cift": "4", "bos": "Hiç yok"}
+    assert seen["counts"] == {"belge": "2", "tek": "6", "cift": "4", "bos": "Hiç yok",
+                              "guven": "Değerler henüz okunmadı"}
     assert seen["hint"] == "Her belgenin 1., 3., 5. ... sayfaları"
     assert _chosen(window) == [0, 2, 4, 7, 9, 12]
     assert window.toaster.current_text() == "6 sayfa seçildi."
@@ -233,3 +235,43 @@ def test_access_keys_are_unique_in_every_menu_including_the_page_context_menu(qt
     screen.menu.close()
     repeated = {k for k in keys if keys.count(k) > 1}
     assert repeated <= {"D"}, keys  # D (Sağa döndür / Değerlerde aç) was already shared before I-09
+
+
+def _tab_stops(dialog, count):
+    from PySide6.QtWidgets import QApplication
+    stops = []
+    for _ in range(count):
+        QTest.keyClick(QApplication.focusWidget(), Qt.Key.Key_Tab)
+        stops.append(QApplication.focusWidget())
+    return stops
+
+
+def test_tab_goes_criterion_then_parameters_then_modes_then_sec(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    dialog = SelectDialog(window.controller().job, 1, [], "bos", parent=window)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.activateWindow()
+    qtbot.waitUntil(dialog.isActiveWindow)
+    dialog._radios["bos"].setFocus()
+    first, second, third = _tab_stops(dialog, 3)
+    assert first is dialog.ink  # the criterion's parameter comes before the modes
+    assert second is dialog._mode_radios["replace"]
+    assert third is dialog.ok
+
+
+def test_tab_from_guven_visits_its_reasons_and_pages_before_the_modes(qtbot, tmp_path):
+    from test_kontrol_guven import SPEC, _dialog, _prepare
+    window = _window(qtbot, tmp_path, spec=SPEC)
+    _prepare(window)
+    dialog = _dialog(window, qtbot)
+    dialog.show()
+    dialog.activateWindow()
+    qtbot.waitUntil(dialog.isActiveWindow)
+    dialog._radios["guven"].setFocus()
+    stops = _tab_stops(dialog, 1)
+    assert stops[0] is next(iter(dialog._reason_boxes.values()))
+    seen = _tab_stops(dialog, 12)
+    modes = dialog._mode_radios["replace"]
+    assert dialog.pages_value in seen[:seen.index(modes)]
+    assert seen[seen.index(modes) + 1] is dialog.ok

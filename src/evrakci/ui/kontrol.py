@@ -29,7 +29,7 @@ from PySide6.QtWidgets import QMenu, QSplitter, QVBoxLayout, QWidget
 
 from evrakci.pipeline.cuts import template_by_page
 from evrakci.pipeline.export import plan_export
-from evrakci.pipeline.select import Criterion, combine, evaluate
+from evrakci.pipeline.select import Criterion, combine, evaluate, guven_text
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
 from evrakci.ui.controller import JobController
@@ -640,7 +640,8 @@ class KontrolScreen(QWidget):
     def select_by(self, kind: str = "belge") -> None:
         """S, Ölçüte göre seç…: the dialog; Seç only changes the selection (no undo step)."""
         chosen = self._chosen_ids()
-        dialog = SelectDialog(self.controller.job, self.current_document(), chosen, kind, self)
+        dialog = SelectDialog(self.controller.job, self.current_document(), chosen, kind, self,
+                              self.templates())
         if not dialog.exec():
             self.timeline.setFocus()
             return
@@ -658,7 +659,9 @@ class KontrolScreen(QWidget):
             self.timeline.setFocus()
             return 0
         self._select_ids(ids)
-        if criterion.kind == "bos":
+        if criterion.kind == "guven":
+            self.controller.status.emit(guven_text(match))
+        elif criterion.kind == "bos":
             self._toast(f"{len(ids)} boş sayfa seçildi. Silmek için Del.", undo=False)
         else:
             self._toast(f"{len(ids)} sayfa seçildi.", undo=False)

@@ -436,7 +436,8 @@ def _effect_odd_selected(c: Ctx) -> None:
 @helper("feedback.kontrol_odd_selected")
 def _feedback_odd_selected(c: Ctx) -> None:
     assert c.data["modals"][0].windowTitle() == "Sayfaları seç"
-    assert c.data["counts"] == {"belge": "7", "tek": "8", "cift": "5", "bos": "1"}, \
+    assert c.data["counts"] == {"belge": "7", "tek": "8", "cift": "5", "bos": "1",
+                                "guven": "1"}, \
             c.data["counts"]
     assert c.win.toaster.current_text() == "8 sayfa seçildi.", heard(c.win)
     assert "8 sayfa seçili" in _status(c), _status(c)

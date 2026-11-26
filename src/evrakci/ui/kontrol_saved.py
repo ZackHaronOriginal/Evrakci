@@ -22,6 +22,7 @@ from evrakci.pipeline.select import Criterion, kinds, select_pages
 from evrakci.pipeline.templates.model import Template, TemplateError, template_to_dict
 from evrakci.ui.feedback import undo_last
 from evrakci.ui.kontrol_chips import (
+    NO_SAVED,
     NO_TEMPLATE,
     NOT_KNOWN_TIP,
     SAVE_FAILED,
@@ -208,7 +209,7 @@ class SavedFiltersMixin:
         """Ctrl+Shift+F, Kayıtlı filtreler: focus goes to the chip row (Esc brings it back)."""
         self._chips_sync()
         if self.chips.isHidden() or not self.chips.focus_row():
-            self.controller.status.emit(count_text(0, 0))
+            self.controller.status.emit(NO_SAVED)
 
     # -- a "select by" result can be saved -----------------------------------------------------
     def _remember_result(self, criterion: Criterion, ids) -> None:

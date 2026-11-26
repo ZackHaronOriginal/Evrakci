@@ -239,11 +239,11 @@ def check_sec(args: argparse.Namespace) -> None:
     --sablon a criterion is still required."""
     parser = args.sec_parser
     if not args.sablon and args.filtre:
-        parser.error("--filtre needs --sablon")
+        parser.error("--filtre için --sablon gerekir.")
     if not args.sablon and not args.olcut:
         parser.error("the following arguments are required: olcut")
     if args.sablon and getattr(args, "sil", False):
-        parser.error("--sil cannot be used with --sablon")
+        parser.error("--sil, --sablon ile birlikte kullanılamaz.")
     if args.filtre:  # a name given twice counts once
         args.filtre = list(dict.fromkeys(args.filtre))
 

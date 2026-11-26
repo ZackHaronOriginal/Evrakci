@@ -43,6 +43,7 @@ SAVE_TEXT = "Kayıtlı filtrelere ekle…"
 NOT_KNOWN = "Tanınmıyor"
 NOT_KNOWN_TIP = "Bu filtreyi bu sürüm tanımıyor"
 NO_TEMPLATE = "Şablon yok"
+NO_SAVED = "Kayıtlı filtre yok"  # Ctrl+Shift+F with no chip to focus
 NONE_ON = "Hiçbir filtre açık değil"
 SAVE_FAILED = ("Şablon kaydedilemedi. Diskte yer olduğundan emin olup "  # the Şablonlar text
                "Şablonu kaydet'e basın.")

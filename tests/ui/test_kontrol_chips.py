@@ -534,7 +534,8 @@ def test_ctrl_shift_f_with_nothing_to_focus_says_so(qtbot, tmp_path):
     window.kontrol.timeline.setFocus()
     _key(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier
          | Qt.KeyboardModifier.ShiftModifier)
-    assert messages[-1] == NONE_ON and QApplication.focusWidget() is window.kontrol.timeline
+    assert messages[-1] == "Kayıtlı filtre yok"
+    assert QApplication.focusWidget() is window.kontrol.timeline
 
 
 def test_del_and_esc_on_a_chip_are_not_page_commands(qtbot, tmp_path):

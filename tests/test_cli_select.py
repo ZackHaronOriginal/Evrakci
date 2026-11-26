@@ -134,7 +134,7 @@ def test_is_sec_sablon_says_unknown_kinds_and_refuses_bad_use(tmp_path, capsys):
     assert secs() == 2  # no criterion and no template: argparse's own message
     assert "required: olcut" in capsys.readouterr().err
     assert secs("--filtre", "Tekler") == 2  # --filtre alone is not ignored
-    assert "--filtre needs --sablon" in capsys.readouterr().err
+    assert "--filtre için --sablon gerekir." in capsys.readouterr().err
     assert secs("--sablon", template_id, "cift", "--sil") == 2
     assert "usage:" in capsys.readouterr().err
 

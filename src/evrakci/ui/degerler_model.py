@@ -166,6 +166,27 @@ class Cell:
     def needs_check(self) -> bool:
         return self.level in NEEDS_CHECK
 
+    @property
+    def main(self) -> str:
+        """The value the cell shows as its main text: the suggestion of a flagged value
+        (what Enter stores), else what the table always showed (Q-12)."""
+        if self.value is not None and self.value.flagged and self.suggestion:
+            return self.suggestion
+        return self.text
+
+    @property
+    def read_note(self) -> str:
+        """What was read, when it differs from the suggestion: shown smaller beside it."""
+        if self.value is not None and self.value.flagged and self.suggestion and self.text \
+                and self.text != self.suggestion:
+            return self.text
+        return ""
+
+    @property
+    def dual(self) -> bool:
+        """Two approvals: the suggestion (Enter) or what was read (Shift+Enter)."""
+        return bool(self.read_note)
+
     def edit_text(self) -> str:
         """What the cell editor starts with: the suggestion of a flagged value."""
         if self.value is None:
@@ -334,7 +355,7 @@ def matches(row: Row, query: str) -> bool:
     """Search over the row's shown values and its document number."""
     if not query:
         return True
-    words = [tr_lower(c.text or c.suggestion) for c in row.cells] + [str(row.number)]
+    words = [tr_lower(f"{c.main} {c.text}") for c in row.cells] + [str(row.number)]
     return tr_lower(query) in " ".join(words)
 
 
@@ -381,6 +402,19 @@ def confirm(job: Job, document: Document, key: str) -> bool:
     if not value.edited:
         values[key] = replace(value, edited=True)
     return True
+
+
+def confirm_read(job: Job, document: Document, key: str) -> bool:
+    """Okunanla onayla: store what was read, not the suggestion, as İncelendi.
+    False when the value has no differing reading to store."""
+    values = _stored(job, document)
+    value = values.get(key)
+    if value is None or not value.flagged:
+        return False
+    text, _source = _okunan(value)
+    if not text:
+        return False
+    return review.set_value(job, document, key, text)
 
 
 def flag_variable(job: Job, documents: Iterable[Document], key: str) -> int:

@@ -238,8 +238,10 @@ degerler	?	app.kisayollar	Klavye kısayolları	Yardım > Klavye kısayolları			
 degerler	Ctrl+K	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
 degerler	Ctrl+Shift+P	app.komut_ara	Komut ara…	Yardım > Komut ara			no	ok
 degerler		app.hakkinda	Evrakçı hakkında	Yardım > Evrakçı hakkında			yes	ok
-degerler	Return	degerler.onayla	Onayla ve sonrakine geç	Düzen > Onayla ve sonrakine geç	_OnceButton | bar Diğer komutlar	value row	yes	ok
-degerler	Enter	degerler.onayla	Onayla ve sonrakine geç	Düzen > Onayla ve sonrakine geç	_OnceButton | bar Diğer komutlar	value row	yes	ok
+degerler	Return	degerler.onayla	Onayla ve sonrakine geç	Düzen > Öneriyle onayla	_OnceButton | bar Diğer komutlar	value row	yes	ok
+degerler	Enter	degerler.onayla	Onayla ve sonrakine geç	Düzen > Öneriyle onayla	_OnceButton | bar Diğer komutlar	value row	yes	ok
+degerler	Shift+Return	degerler.okunanla_onayla	Okunanla onayla	Düzen > Okunanla onayla	_OnceButton | bar Diğer komutlar	value row [state-dependent]	yes	ok
+degerler	Shift+Enter	degerler.okunanla_onayla	Okunanla onayla	Düzen > Okunanla onayla	_OnceButton | bar Diğer komutlar	value row [state-dependent]	yes	ok
 degerler	Ctrl+Return	degerler.secilenleri_onayla	Seçilenleri onayla	Düzen > Seçilenleri onayla	bar	value row	yes	ok
 degerler	Ctrl+Enter	degerler.secilenleri_onayla	Seçilenleri onayla	Düzen > Seçilenleri onayla	bar	value row	yes	ok
 degerler	F2	degerler.elle_yaz	Elle yaz	Düzen > Elle yaz	_OnceButton | bar Diğer komutlar	value row	yes	ok

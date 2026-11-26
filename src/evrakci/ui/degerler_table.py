@@ -196,7 +196,8 @@ class ValuesModel(QAbstractTableModel):
         if kind in VALUE_KINDS:
             if cell is None or cell.value is None:
                 return ""
-            return cell.text or ("boş" if cell.level == "okunamadi" else "")
+            main = cell.main or ("boş" if cell.level == "okunamadi" else "")
+            return main  # the "← okunan …" part is painted, tooltip and spoken text carry it
         level = cell.level if cell is not None else row.level
         percent = sampled.percent if sampled is not None else row.percent
         word = LEVELS[level][2]
@@ -227,6 +228,8 @@ class ValuesModel(QAbstractTableModel):
                 lines = ["Bu değere bakın: okuma emin değil."] if cell.level == "kontrol" else []
                 lines.append(LEVELS[cell.level][2])
                 lines.append(f"Öneri: {cell.suggestion}" if cell.suggestion else text)
+                if cell.dual:
+                    lines.append(f"okunan {cell.read_note}")
                 return "\n".join(line for line in lines if line)
             return text or None  # the whole value, also where a narrow column elides it
         return None
@@ -238,7 +241,8 @@ class ValuesModel(QAbstractTableModel):
             name = cell.title if cell is not None else column.title
             if cell is None or cell.value is None:
                 return f"{name}: okunmadı"
-            parts = [f"{name}: {text or 'boş'}", LEVELS[cell.level][2]]
+            shown = f"{cell.main}, okunan {cell.read_note}" if cell.dual else text
+            parts = [f"{name}: {shown or 'boş'}", LEVELS[cell.level][2]]
             if cell.uncertain:
                 parts.append(f"{len(cell.uncertain)} karakter belirsiz")
             if cell.reviewed:
@@ -293,7 +297,7 @@ class ValuesModel(QAbstractTableModel):
                 return (*_guven_sort(row, sampled), row.number)
             if column.kind in ("var", "value", "name"):
                 cell = sampled if column.kind != "var" else row.cell(column.key)
-                text = (cell.title if column.kind == "name" else cell.text) if cell else ""
+                text = (cell.title if column.kind == "name" else cell.main) if cell else ""
                 number = _as_number(text) if column.style == "number" else None
                 return (number is None, number or 0, text.casefold(), row.number)
             if column.kind == "review":
@@ -325,6 +329,7 @@ class Fonts:
         self.num = m.font("num")
         self.value = m.font("value")
         self.caption = m.font("caption-strong")
+        self.note = m.font("caption")  # the secondary "← okunan …" part of a cell
 
 
 MAX_LINES = 3  # a wrapped value stops here; a longer one elides its last line
@@ -491,10 +496,10 @@ class ValuesDelegate(QStyledItemDelegate):
         if column.kind not in VALUE_KINDS:
             return None
         cell = index.model().cell_at(index)
-        if cell is None or cell.value is None or not cell.text or cell.level == "okunamadi":
+        if cell is None or cell.value is None or not cell.main or cell.level == "okunamadi":
             return None
-        style = column.style if column.kind == "var" else column_kind([cell.text])
-        return (cell.text, self.fonts.body) if style == "text" else None
+        style = column.style if column.kind == "var" else column_kind([cell.main])
+        return (cell.main, self.fonts.body) if style == "text" else None
 
     def _line_count(self, index, width: int) -> tuple[int, QFontMetricsF] | None:
         """How many lines a wrapping cell takes at this column width (None: no wrap)."""
@@ -601,15 +606,48 @@ class ValuesDelegate(QStyledItemDelegate):
             icons.paint(painter, name, QRectF(rect.left(), rect.center().y() - size / 2, size,
                                               size), m.hex(ink or role))
             rect = rect.adjusted(size + 6, 0, 0, 0)
-        if cell.level == "okunamadi" or not cell.text:
+        if cell.level == "okunamadi" or not cell.main:
             self._text(painter, rect, "boş", self.fonts.body, m.color(ink or "text-2"),
                        column.right)
             return
-        style = column.style if column.kind == "var" else column_kind([cell.text])
+        style = column.style if column.kind == "var" else column_kind([cell.main])
         font = {"number": self.fonts.num, "date": self.fonts.num,
                 "code": self.fonts.value}.get(style, self.fonts.body)
-        paint_marked(painter, rect, cell.text, font, m.color(ink or "text"), cell.uncertain,
+        if cell.dual:
+            rect = self._read_note(painter, rect, cell, column, font, ink)
+        # what was read is marked in the inspector; the cell shows the suggestion plain
+        marks = () if cell.dual else cell.uncertain
+        paint_marked(painter, rect, cell.main, font, m.color(ink or "text"), marks,
                      right=column.right, on_highlight=ink is not None, wrap=style == "text")
+
+    def _read_note(self, painter: QPainter, rect: QRectF, cell: Cell, column: Column,
+                   font: QFont, ink: str | None) -> QRectF:
+        """"← okunan 482I3" in the secondary text role beside the suggestion (Q-12). It takes
+        only the room the suggestion leaves and elides first; none left, none drawn (the
+        tooltip and the accessible text carry it). Returns the rect left for the suggestion."""
+        m = theme.manager()
+        main_w = QFontMetricsF(font).horizontalAdvance(cell.main)
+        gap = m.size("s3")
+        note_font = self.fonts.note
+        room = rect.width() - main_w - gap
+        metrics = QFontMetricsF(note_font)
+        if room < metrics.horizontalAdvance("← okunan ") + metrics.averageCharWidth() * 2:
+            return rect
+        arrow = "" if column.right else "← "
+        text = arrow + metrics.elidedText(f"okunan {cell.read_note}",
+                                          Qt.TextElideMode.ElideRight,
+                                          room - metrics.horizontalAdvance(arrow))
+        width = min(room, metrics.horizontalAdvance(text))
+        painter.setFont(note_font)
+        painter.setPen(m.color(ink or "text-2"))
+        if column.right:  # the suggestion keeps the right edge; the note sits left of it
+            box = QRectF(rect.left(), rect.top(), width, rect.height())
+            painter.drawText(box, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                             text)
+            return rect
+        box = QRectF(rect.left() + main_w + gap, rect.top(), width, rect.height())
+        painter.drawText(box, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
+        return rect
 
     @staticmethod
     def _focus_ring(painter: QPainter, rect: QRectF) -> None:
@@ -747,6 +785,7 @@ class ValuesTable(QTableView):
 
     submitted = Signal(int)  # the editor closed: 1 = Enter, 0 = Esc
     return_pressed = Signal()
+    read_pressed = Signal()  # Shift+Enter: store what was read
     reading_key = Signal(int)  # Alt+1..Alt+4 in the open editor: reading 0..3
     hint_keys: Callable[[], list[tuple[str, str]]] | None = None
 
@@ -861,7 +900,9 @@ class ValuesTable(QTableView):
         key = event.key()
         if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and \
                 self.state() != QAbstractItemView.State.EditingState:
-            self.return_pressed.emit()  # only reached when no window action took the key
+            # only reached when no window action took the key
+            (self.read_pressed if event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+             else self.return_pressed).emit()
             event.accept()
             return
         super().keyPressEvent(event)

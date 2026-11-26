@@ -194,9 +194,15 @@ class Toaster(QObject):
     def show(self, text: str, action_text: str | None = None,
              on_action: Callable[[], None] | None = None, kind: str = "info",
              timeout_ms: int = 6000, available: Callable[[], bool] | None = None,
-             spoken: str | None = None) -> None:
+             spoken: str | None = None, replace: bool = False) -> None:
         """Queue a toast; it appears at once when none is visible. With `available`, the
-        action is left off when it returns False at the moment the toast is shown."""
+        action is left off when it returns False at the moment the toast is shown. With
+        `replace` (a confirmation that repeats, one per Enter) it takes the place of the
+        visible toast and of the waiting ones instead of queuing behind them."""
+        if replace:
+            self._queue.clear()
+            if self._current is not None:
+                self.dismiss()
         self._queue.append(_Pending(text, action_text, on_action, kind, timeout_ms, available,
                                     spoken))
         if self._current is None:

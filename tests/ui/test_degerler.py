@@ -490,7 +490,7 @@ def test_every_control_has_a_name(qtbot, setup):
             assert name.strip(), type(widget).__name__
     assert screen.table.accessibleName() == "Değerler tablosu"
     spoken = screen.model.data(screen.cell(2, "Sicil_No"), Qt.ItemDataRole.AccessibleTextRole)
-    assert spoken == "Sicil No: 482I3, Kontrol, 1 karakter belirsiz"
+    assert spoken == "Sicil No: 48213, okunan 482I3, Kontrol, 1 karakter belirsiz"
 
 
 # -- reading (kept from before) ------------------------------------------------------------
@@ -723,37 +723,91 @@ def test_right_click_lists_the_value_commands_with_their_keys(qtbot, window):
     assert screen.table.contextMenuPolicy() == Qt.ContextMenuPolicy.CustomContextMenu
 
 
-# -- F-degerler-46 / B-056 / Q-12: what is stored must equal what the cell shows ---------------
-# Every Q-12 option leads to the same rule; today confirm stores the Öneri while the cell shows
-# the Okunan text, so these fail until the owner's decision is implemented.
-_B056 = pytest.mark.xfail(strict=True, reason="B-056 / Q-12: confirm stores the suggestion "
-                                              "while the cell shows the read text")
-
-
-def _shown_and_stored(qtbot, setup, how):
+# -- F-degerler-46 / B-056 / Q-12: the cell shows the suggestion and the read, two approvals --
+def _flagged_screen(qtbot, setup):
     ctl, templates, _, sicil = setup
     screen = _screen(qtbot, ctl, templates)
     assert screen.current_value() == (2, sicil.key)
+    return ctl, screen, sicil
+
+
+def test_f46_the_cell_shows_the_suggestion_and_the_read(qtbot, setup):
+    _, screen, _ = _flagged_screen(qtbot, setup)
     index = screen.table.currentIndex()
-    shown = screen.model.data(index, Qt.ItemDataRole.DisplayRole)
-    how(screen)
-    return shown, _value(ctl, 1, sicil.key).value
+    assert screen.model.data(index, Qt.ItemDataRole.DisplayRole) == "48213"
+    assert "48213, okunan 482I3" in screen.model.data(index, Qt.ItemDataRole.AccessibleTextRole)
+    cell = screen.model.cell_at(index)
+    assert cell.main == "48213" and cell.read_note == "482I3" and cell.dual
+    tip = screen.model.data(index, Qt.ItemDataRole.ToolTipRole)
+    assert "Öneri: 48213" in tip and "okunan 482I3" in tip
 
 
-@_B056
-def test_f46_enter_stores_what_the_cell_showed(qtbot, setup):
-    def press_enter(screen):
-        screen.table.setFocus()
-        QTest.keyClick(screen.table, Qt.Key.Key_Return)
+def test_f46_a_value_without_a_suggestion_keeps_one_onayla(qtbot, setup):
+    ctl, screen, sicil = _flagged_screen(qtbot, setup)
+    screen.select_value(1, sicil.key)  # an Emin value: nothing flagged
+    cell = screen.model.cell_at(screen.table.currentIndex())
+    assert not cell.dual and screen.model.data(
+        screen.table.currentIndex(), Qt.ItemDataRole.DisplayRole) == cell.text
+    assert screen.side.read_button.isHidden()
+    assert screen.side.accept_button.text().strip() == "Onayla ve sonrakine geç"
 
-    shown, stored = _shown_and_stored(qtbot, setup, press_enter)
-    assert stored == shown
+
+def test_f46_enter_stores_the_suggestion_and_says_so(qtbot, setup):
+    ctl, screen, sicil = _flagged_screen(qtbot, setup)
+    screen.table.setFocus()
+    before = ctl.undo_stack.index()
+    QTest.keyClick(screen.table, Qt.Key.Key_Return)
+    assert _value(ctl, 1, sicil.key).value == "48213"
+    assert ctl.undo_stack.index() == before + 1  # one undo step
+    assert _value(ctl, 1, sicil.key).edited
 
 
-@_B056
-def test_f46_the_accept_button_stores_what_the_cell_showed(qtbot, setup):
-    shown, stored = _shown_and_stored(qtbot, setup, lambda s: s.side.accept_button.click())
-    assert stored == shown
+def test_f46_the_accept_button_stores_the_suggestion(qtbot, setup):
+    ctl, screen, sicil = _flagged_screen(qtbot, setup)
+    assert screen.side.accept_button.text().strip() == "Öneriyle onayla"
+    assert screen.side.read_button.text().strip() == "Okunanla onayla"
+    assert not screen.side.read_button.isHidden()
+    screen.side.accept_button.click()
+    assert _value(ctl, 1, sicil.key).value == "48213"
+
+
+def test_f46_shift_enter_stores_the_read(qtbot, setup):
+    ctl, screen, sicil = _flagged_screen(qtbot, setup)
+    screen.table.setFocus()
+    before = ctl.undo_stack.index()
+    QTest.keyClick(screen.table, Qt.Key.Key_Return, Qt.KeyboardModifier.ShiftModifier)
+    value = _value(ctl, 1, sicil.key)
+    assert value.value == "482I3" and value.edited and not value.flagged
+    assert ctl.undo_stack.index() == before + 1
+    ctl.undo_stack.undo()  # one step back to the flagged value
+    assert _value(ctl, 1, sicil.key).flagged
+
+
+def test_f46_the_read_button_stores_the_read(qtbot, setup):
+    ctl, screen, sicil = _flagged_screen(qtbot, setup)
+    screen.side.read_button.click()
+    assert _value(ctl, 1, sicil.key).value == "482I3"
+
+
+def test_f46_the_confirmations_name_the_value(qtbot, setup):
+    ctl, screen, sicil = _flagged_screen(qtbot, setup)
+    said = []
+    screen._toast = lambda text, *a, **k: said.append(text)
+    screen.accept_current()
+    assert said == ["48213 kaydedildi (öneri)."]
+    ctl.undo_stack.undo()
+    screen.refresh()
+    screen.select_value(2, sicil.key)
+    screen.accept_read()
+    assert said[-1] == "482I3 kaydedildi (okunan)."
+
+
+def test_f46_shift_enter_does_nothing_without_a_different_read(qtbot, setup):
+    ctl, screen, sicil = _flagged_screen(qtbot, setup)
+    screen.select_value(1, sicil.key)
+    before = ctl.undo_stack.index()
+    screen.accept_read()
+    assert ctl.undo_stack.index() == before
 
 
 # -- F-degerler-01: N / Sonraki kontrol through the action must step, not restart ------------

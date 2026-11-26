@@ -7,6 +7,8 @@ Evidence ids are rows of `degerler-findings.md`.
 
 Measured (tests `test_f46_enter_stores_the_suggestion_while_the_cell_shows_the_reading` and `test_f46_the_accept_button_stores_the_suggestion_while_the_cell_shows_the_reading`, tests/ui/test_degerler.py): for a Kontrol value the cell's display text is `482I3` (the Okunan reading); pressing Enter in the table, and the "Onayla ve sonrakine geç" button, both store `48213` (the Öneri) and mark it İncelendi. The Öneri is visible only in the inspector (larger than Okunan) and in a hover tooltip. So the stored value differs from what the cell showed. The two tests assert the current behaviour as evidence; if the owner changes the semantics they must be rewritten with it. Not changed here (owner decision).
 
+Decided and built (owner Q-12, 2026-11-26; B-056): the cell shows the Öneri with the Okunan smaller beside it; Enter stores the Öneri, Shift+Enter the Okunan; the two tests named above were rewritten as test_f46_* for the new behaviour.
+
 Options:
 1. Show the Öneri in the cell for Kontrol values (struck Okunan then Öneri, or "482I3 → 48213"): what is shown is what Enter stores. Changes A's cell look and adds a glyph, maybe text.
 2. Enter confirms what the cell shows (Okunan); a separate key or button takes the Öneri ("Öneriyi kabul et"). Changes the Enter flow and the key contract.

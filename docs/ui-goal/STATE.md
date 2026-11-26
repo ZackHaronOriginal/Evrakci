@@ -87,7 +87,7 @@ Updated after every accepted step. A new session or a compacted one reads this f
   test_cli_select.py, tests/ui/test_kontrol_select.py; 1232 passed on touched files; audits 0. Ledger B-095.
   A I-03 DONE (merged): Boş sayfalar criterion with threshold and live count, Boş sayfaları at switch
   (B-006 fixed), CLI is sec bos --esik; evidence tests/test_select_bos.py, test_cli_select_bos.py,
-  tests/ui/test_kontrol_bos.py (369 passed on touched files); audits 0. Next A: I-06, then I-04.
+  tests/ui/test_kontrol_bos.py (369 passed on touched files); audits 0. Next A: I-06, then I-04 (I-06 done below).
   D step 13 DONE (merged): B-003 fixed, PDF/A failure is Bilgi everywhere (ExportItem.pdfa_note); evidence
   tests/test_exporting.py, test_index.py, test_cli_jobs.py, test_ledger_b.py::test_b003; full suite 2713 passed.
   D step 14 I-35 DONE (merged): index.xlsx "Belge no" first column + Özet sheet, Job.last_export (format 2,
@@ -99,7 +99,11 @@ Updated after every accepted step. A new session or a compacted one reads this f
   replans after 300 ms; evidence tests/test_export.py, test_cli_names.py, tests/ui/test_disa_aktar.py.
   Next D: step 17 I-38 (print preview).
   CI GREEN on b3e182a (all jobs incl. Windows, clean installs, CLA); B-092 fixed (probe colour), B-089 crash gone.
-  IN PROGRESS: A I-06 (branch a06): built; fix round making the Sayfaları seç dialog two columns (fits 768 at 150 %). B-092 attempt b895e1e: check CI. Then A §0 + I-09
+  A I-06 DONE (merged): Kontrol gerekenler criterion with reasons and counts, select.value_page, CLI is sec
+  guven; Sayfaları seç dialog now two columns per spec §0 (648x469 at 150 %, fits 1366x768; test) and Tab order
+  criterion -> parameters -> modes -> Seç; evidence tests/test_select_guven.py, test_cli_select_guven.py,
+  tests/ui/test_kontrol_guven.py, test_kontrol_select.py (173 passed); full suite 2825 passed. Next A: I-04.
+  IN PROGRESS: D17 I-38 print preview (worktree). B-092 attempt b895e1e: check CI. Then A §0 + I-09
   (task spec .claude/gorevler/2026-11-21-a0-i09-select.md), I-03, I-06, I-04; then D, then C.
   D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
   Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no

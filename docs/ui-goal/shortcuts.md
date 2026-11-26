@@ -172,7 +172,8 @@ list and the inspector fields.
 
 | Key | Command | Menu | Note |
 |---|---|---|---|
-| Enter | Onayla ve sonrakine geç | Düzen | accepts the suggestion, marks it İncelendi, moves on; yazarken kapalı (the cell editor keeps its own Enter) |
+| Enter | Onayla ve sonrakine geç (Öneriyle onayla for a value with a suggestion) | Düzen | accepts the suggestion, marks it İncelendi, moves on; yazarken kapalı (the cell editor keeps its own Enter) |
+| Shift+Enter | Okunanla onayla | Düzen | stores what was read, marks it İncelendi, moves on; only for a value whose suggestion differs from the read; yazarken kapalı |
 | Ctrl+Enter | Seçilenleri onayla | Düzen | acts on the current selection only |
 | F2 | Elle yaz | Düzen | |
 | R | Okunana dön | Düzen | puts a corrected or confirmed value back to what the machine read (Kontrol, with the reading as the suggestion); dimmed for a hand-typed value and in Örnek; undoable; yazarken kapalı |

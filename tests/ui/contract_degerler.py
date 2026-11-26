@@ -130,11 +130,31 @@ def _effect_accepted(c: Ctx) -> None:
 
 @helper("feedback.degerler_accepted")
 def _feedback_accepted(c: Ctx) -> None:
+    assert "48213 kaydedildi (öneri)." in heard(c.win), heard(c.win)
+    c.win.toaster.dismiss()  # the confirmation shows first; the hint about what is left follows
     text = heard(c.win)
     assert re.search(r"Kontrol gereken değer kalmadı; \d+ değer incelenmedi\. Enter sıradakini "
                      r"onaylar\.", text), text
     assert "1 / 6 incelendi" in slot_texts(c.win, "degerler"), slot_texts(c.win, "degerler")
     assert c.win.controller().undo_stack.undoText() == "Öneriyi kabul et"
+    assert _in_view(c, 1, 4) and QApplication.focusWidget() is _d(c).table
+
+
+@helper("effect.degerler_read_accepted")
+def _effect_read_accepted(c: Ctx) -> None:
+    d = _d(c)
+    cell = d.model.cell_at(d.model.index(1, 3))
+    assert cell.reviewed and not cell.value.flagged, "the read was not stored"
+    assert cell.value.value == "48Z13" and cell.value.value != cell.value.suggestion, \
+        cell.value
+    assert _cur(c) == (1, 4), _cur(c)
+
+
+@helper("feedback.degerler_read_accepted")
+def _feedback_read_accepted(c: Ctx) -> None:
+    assert "48Z13 kaydedildi (okunan)." in heard(c.win), heard(c.win)
+    assert _toast_undo(c), "the confirmation has no Geri al"
+    assert c.win.controller().undo_stack.undoText() == "Değeri onayla"
     assert _in_view(c, 1, 4) and QApplication.focusWidget() is _d(c).table
 
 
@@ -506,6 +526,10 @@ for _id in ("degerler.onayla",):
                        "feedback.degerler_accepted", na_pre="pre.none",
                        na="na.says.degerler_pick_value",
                        xfail={"na": _M41.format(why="no current value", text=P_PICK_VALUE)})
+PLANS["degerler.okunanla_onayla"] = _plan(
+    "pre.degerler_flagged", "effect.degerler_read_accepted",
+    "feedback.degerler_read_accepted", na_pre="pre.none", na="na.says.degerler_pick_value",
+    xfail={"na": _M41.format(why="no current value", text=P_PICK_VALUE)})
 PLANS["degerler.secilenleri_onayla"] = _plan(
     "pre.degerler_two_rows", "effect.degerler_rows_accepted", "feedback.degerler_rows_accepted",
     na_pre="pre.none", na="na.says.degerler_pick_rows",

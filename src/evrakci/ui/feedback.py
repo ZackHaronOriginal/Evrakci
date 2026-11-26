@@ -153,6 +153,7 @@ class _Pending:
     timeout_ms: int
     available: Callable[[], bool] | None = None
     spoken: str | None = None  # what a screen reader hears when it differs from the shown text
+    key: str | None = None
 
 
 def undo_last(stack) -> tuple[Callable[[], None], Callable[[], bool]]:
@@ -186,6 +187,7 @@ class Toaster(QObject):
         self._window = window
         self._queue: deque[_Pending] = deque()
         self._current: _Toast | None = None
+        self._current_key: str | None = None
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self.dismiss)
@@ -194,11 +196,17 @@ class Toaster(QObject):
     def show(self, text: str, action_text: str | None = None,
              on_action: Callable[[], None] | None = None, kind: str = "info",
              timeout_ms: int = 6000, available: Callable[[], bool] | None = None,
-             spoken: str | None = None) -> None:
+             spoken: str | None = None, key: str | None = None) -> None:
         """Queue a toast; it appears at once when none is visible. With `available`, the
-        action is left off when it returns False at the moment the toast is shown."""
+        action is left off when it returns False at the moment the toast is shown. With
+        `key` (a confirmation that repeats, one per Enter) it takes the place of an earlier
+        toast with the same key, visible or waiting; every other toast keeps its place."""
+        if key is not None:
+            self._queue = deque(p for p in self._queue if p.key != key)
+            if self._current is not None and self._current_key == key:
+                self.dismiss()
         self._queue.append(_Pending(text, action_text, on_action, kind, timeout_ms, available,
-                                    spoken))
+                                    spoken, key))
         if self._current is None:
             self._next()
 
@@ -210,7 +218,7 @@ class Toaster(QObject):
 
     def dismiss(self) -> None:
         """Close the visible toast and show the next one."""
-        toast, self._current = self._current, None
+        toast, self._current, self._current_key = self._current, None, None
         self._timer.stop()
         if toast is not None:
             toast.hide()
@@ -231,6 +239,7 @@ class Toaster(QObject):
             toast.setAccessibleName(item.spoken)
         toast.closed.connect(self.dismiss)
         self._current = toast
+        self._current_key = item.key
         toast.adjustSize()
         self._place()
         toast.raise_()

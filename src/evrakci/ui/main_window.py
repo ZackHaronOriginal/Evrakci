@@ -737,6 +737,7 @@ class MainWindow(QMainWindow):
         self._mirror_check("sablonlar.kutu_ciz", self.sablon.is_drawing())
         self._mirror_check("sablonlar.izgara", self.sablon.is_snapping())
         r.connect("degerler.onayla", self.degerler.accept_current)
+        r.connect("degerler.okunanla_onayla", self.degerler.accept_read)
         r.connect("degerler.elle_yaz", self.degerler.type_current)
         r.connect("degerler.okunana_don", self.degerler.revert_current)
         r.connect("degerler.varyant", lambda: self.degerler.side.variant_button.click())

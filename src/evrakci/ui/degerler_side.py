@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from PySide6.QtCore import QObject, QPointF, QRectF, QRunnable, QSize, Qt, QThreadPool, Signal
 from PySide6.QtGui import QFont, QFontMetrics, QImage, QMouseEvent, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -759,26 +760,42 @@ class SidePanel(QWidget):
         self.accept_button.setProperty("action_id", "degerler.onayla")
         self.accept_button.setProperty("variant", "primary")
         self.accept_button.setProperty("sizeVariant", "lg")
+        self.read_button = _OnceButton(" Okunanla onayla")
+        self.read_button.setProperty("action_id", "degerler.okunanla_onayla")
+        self.read_button.hide()  # only for a value with a suggestion that differs from the read
         self.type_button = _OnceButton(" Elle yaz")
         self.type_button.setProperty("action_id", "degerler.elle_yaz")
         self.variant_button = _OnceButton(" Yeni kutu çiz")
         self.variant_button.setProperty("action_id", "degerler.varyant")
-        pair = QHBoxLayout()
+        self.secondary = QWidget()
+        pair = QHBoxLayout(self.secondary)
+        pair.setContentsMargins(0, 0, 0, 0)
         pair.setSpacing(m.size("s2"))
         pair.addWidget(self.type_button, 1)
         pair.addWidget(self.variant_button, 1)
-        acts.addWidget(self.accept_button)
-        acts.addLayout(pair)
+        # the two approvals share a row at 100 %; at larger text they stack and the second
+        # row of buttons follows the cards, so the pinned group is not taller than before
+        self._large = False
+        self._blank = True
+        self.approve = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        self.approve.setSpacing(m.size("s2"))
+        self.approve.addWidget(self.accept_button, 1)
+        self.approve.addWidget(self.read_button, 1)
+        acts.addLayout(self.approve)
+        acts.addWidget(self.secondary)
+        self.acts = acts
         col.addLayout(acts)
         self.card_scroll = CardScroll(self.scroll, self.accept_button)
         col.addStretch(1)  # index 3: grows in the normal state
-        self._icons = (("accept_button", "check", "text-on-accent"), ("type_button", "pencil",
-                                                                        "icon"),
+        self._icons = (("accept_button", "check", "text-on-accent"),
+                       ("read_button", "check", "icon"), ("type_button", "pencil", "icon"),
                        ("variant_button", "square", "icon"))
         self.accept_button.setToolTip("Onayla ve sonrakine geç (Enter)")
+        self.read_button.setToolTip("Okunanla onayla (Shift+Enter)")
         self.type_button.setToolTip("Elle yaz (F2)")
         self.variant_button.setToolTip("Yeni kutu çiz (V)")
-        for button in (self.accept_button, self.type_button, self.variant_button):
+        for button in (self.accept_button, self.read_button, self.type_button,
+                       self.variant_button):
             button.setAccessibleName(button.toolTip())
         theme.follow(self, self._restyle, "degerler-side")
         self.setMinimumWidth(240 + m.size("s3"))
@@ -792,10 +809,35 @@ class SidePanel(QWidget):
             button: QPushButton = getattr(self, name)
             button.setIcon(make_icon(icon, role, m.size("icon-sm")))
         self.accept_button.setMinimumHeight(m.size("lg-h"))
+        self.read_button.setMinimumHeight(m.size("lg-h"))
+        self._place_read_button(m.text_scale() > 100)
         self.value.split_readings(self.stack if m.text_scale() > 100 else None)
+
+    def _place_read_button(self, large_text: bool) -> None:
+        """At larger text the two approvals' labels do not fit side by side: they stack, both
+        pinned and visible. Elle yaz and Yeni kutu çiz then follow the cards (a third pinned
+        row would leave no room for a whole card); with nothing selected they stay pinned."""
+        self._large = large_text
+        self.approve.setDirection(QBoxLayout.Direction.TopToBottom if large_text
+                                  else QBoxLayout.Direction.LeftToRight)
+        self._place_secondary()
+
+    def _place_secondary(self) -> None:
+        in_cards = self.stack.indexOf(self.secondary) >= 0
+        want = self._large and not self._blank
+        if want != in_cards:
+            if want:
+                self.acts.removeWidget(self.secondary)
+                self.stack.insertWidget(self.stack.count() - 1, self.secondary)
+            else:
+                self.stack.removeWidget(self.secondary)
+                self.acts.addWidget(self.secondary)
+        self.relayout()
 
     def set_blank(self, blank: bool) -> None:
         layout = self.layout()
+        self._blank = blank
+        self._place_secondary()
         layout.setStretch(0, 1 if blank else 0)  # blank: the card on top, actions at the bottom
         layout.setStretch(1, 0)
         layout.setStretch(3, 0 if blank else 1)
@@ -809,7 +851,15 @@ class SidePanel(QWidget):
         self.scroll.updateGeometry()
         self.layout().invalidate()
 
-    def set_actions(self, accept: bool, type_: bool, variant: bool) -> None:
+    def set_actions(self, accept: bool, type_: bool, variant: bool, dual: bool = False) -> None:
+        """`dual`: the value has a suggestion and a different read text, so there are two
+        approvals (the first, highlighted, stores the suggestion)."""
+        self.accept_button.setText(" Öneriyle onayla" if dual else " Onayla ve sonrakine geç")
+        tip = "Öneriyle onayla (Enter)" if dual else "Onayla ve sonrakine geç (Enter)"
+        self.accept_button.setToolTip(tip)
+        self.accept_button.setAccessibleName(tip)
+        self.read_button.setVisible(dual)
+        self.read_button.setEnabled(accept and dual)
         self.accept_button.setEnabled(accept)
         self.type_button.setEnabled(type_)
         self.variant_button.setEnabled(variant)

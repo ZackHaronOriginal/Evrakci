@@ -30,7 +30,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.pipeline.cuts import _template_of, document_template, record_read_error
+from evrakci.pipeline.cuts import (
+    _template_of,
+    current_values,
+    document_template,
+    record_read_error,
+)
 from evrakci.pipeline.job import Job, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.render import render_page
@@ -55,6 +60,7 @@ from evrakci.ui.degerler_model import (
     Row,
     SampleItem,
     confirm,
+    confirm_read,
     count,
     display_name,
     draw_sample,
@@ -87,6 +93,7 @@ VIEW_KEY = "degerler.gorunum"  # the chosen view (prefs.view_state)
 TEMPLATE_KEY = "degerler.sablon"  # the chosen template
 ZOOM_DEFAULT = 200  # A's status bar: "%200"
 UNDO_TEXT = "Değeri onayla"
+TOAST_KEY = "degerler.kaydedildi"  # a newer confirmation replaces an older one
 
 
 class SlackComboBox(QComboBox):
@@ -259,6 +266,7 @@ class DegerlerScreen(QWidget):
         self.table.selectionModel().selectionChanged.connect(lambda *_: self._sync_actions())
         self.table.submitted.connect(self._editor_closed)
         self.table.return_pressed.connect(self.accept_current)
+        self.table.read_pressed.connect(self.accept_read)
         self.table.reading_key.connect(self.pick_reading)
         header = self.table.horizontalHeader()
         header.sectionResized.connect(self._header_moved)
@@ -274,6 +282,7 @@ class DegerlerScreen(QWidget):
         self.splitter.addWidget(self.card)
         self.side = SidePanel(self.images)
         self.side.accept_button.clicked.connect(self.accept_current)
+        self.side.read_button.clicked.connect(self.accept_read)
         self.side.type_button.clicked.connect(self.type_current)
         self.side.value.reading_picked.connect(self.pick_reading)
         self.side.variant_button.clicked.connect(self._draw_variant)
@@ -350,8 +359,8 @@ class DegerlerScreen(QWidget):
         self._header_key = ""
         self.refresh()
 
-    CONTEXT = ("degerler.onayla", "degerler.elle_yaz", "degerler.okunana_don",
-               "degerler.varyant", None,
+    CONTEXT = ("degerler.onayla", "degerler.okunanla_onayla", "degerler.elle_yaz",
+               "degerler.okunana_don", "degerler.varyant", None,
                "degerler.secilenleri_onayla", "degerler.tumunu_sec", None,
                "degerler.tum_sayfa", "degerler.kontrolde_ac", "degerler.sonraki_kontrol")
 
@@ -709,8 +718,29 @@ class DegerlerScreen(QWidget):
             kind = column.style if column.kind == "var" else column.kind
             width = round(WIDTHS.get(kind, 150) * scale)
             if column.kind in ("var", "pages", "doc"):
-                width = max(width, self._content_width(c))
+                width = max(width, self._content_width(c) + self._note_width(c))
             self.table.setColumnWidth(c, width)
+
+    def _note_width(self, column: int, own_line: bool = False) -> int:
+        """Room for the "← okunan …" part of the widest value in a code or number column, so
+        the cell shows what was read beside the suggestion (Q-12); text columns wrap instead."""
+        from PySide6.QtGui import QFontMetrics
+
+        spec = self.model.columns[column]
+        if spec.kind != "var" or spec.style == "text":
+            return 0
+        m = theme.manager()
+        metrics = QFontMetrics(m.font("caption"))
+        notes = [cell.read_note for r in range(min(self.model.rowCount(), 400))
+                 if (cell := self.model.cell_at(self.model.index(r, column))) is not None
+                 and cell.dual]
+        if not notes:
+            return 0
+        if own_line:  # the narrowest the column may get: the read still shows on a second line
+            return max(metrics.horizontalAdvance(f"okunan {n}") for n in notes) \
+                + 2 * m.size("s3") + m.inline_icon(16) + 6
+        widest = max(metrics.horizontalAdvance(f"← okunan {n}") for n in notes)
+        return widest + m.size("s3") + m.inline_icon(16) + 6
 
     def _content_width(self, column: int) -> int:
         from PySide6.QtGui import QFontMetrics
@@ -752,10 +782,10 @@ class DegerlerScreen(QWidget):
             need = max(round(160 * self._scale()), room)
             over = others + need - self.table.viewport().width()
             if over > 0:  # still too wide: the other value columns give way down to a floor
-                floor = round(110 * self._scale())
                 for c, column in enumerate(self.model.columns):
                     if over <= 0 or c == flex or column.kind not in VALUE_KINDS:
                         continue
+                    floor = max(round(110 * self._scale()), self._note_width(c, True))
                     give = min(over, header.sectionSize(c) - floor)
                     if give > 0:
                         header.blockSignals(True)
@@ -1090,7 +1120,7 @@ class DegerlerScreen(QWidget):
             side.source.show_blank("Değer seçilmedi",
                                    "Okunan değerler burada kaynağıyla görünür.")
             side.set_blank(True)
-            side.set_actions(False, False, False)
+            side.set_actions(False, False, False, False)
             self._readings = []
             return
         side.set_blank(False)
@@ -1131,7 +1161,8 @@ class DegerlerScreen(QWidget):
         card.set_readings(self._readings)
         side.relayout()
         # Onayla works on every read value: it accepts, confirms, or (already reviewed) moves on
-        side.set_actions(cell.value is not None, row.read, row.template is not None)
+        side.set_actions(cell.value is not None, row.read, row.template is not None,
+                         cell.dual)
 
     @staticmethod
     def _reading_items(cell: Cell) -> list[ReadingItem]:
@@ -1225,13 +1256,23 @@ class DegerlerScreen(QWidget):
 
     # -- fixing values --------------------------------------------------------------------
     def accept_current(self, *_args) -> None:
-        """Enter: accept the suggestion (or confirm what was read), mark it İncelendi and go
-        to the next value to check. An unreadable value opens the editor instead."""
+        """Enter / Öneriyle onayla: accept the suggestion (or confirm what was read), mark it
+        İncelendi and go to the next value to check. An unreadable value opens the editor."""
+        self._accept(False)
+
+    def accept_read(self, *_args) -> None:
+        """Shift+Enter / Okunanla onayla: store what was read instead of the suggestion
+        (Q-12); only for a value whose read text differs from its suggestion."""
+        self._accept(True)
+
+    def _accept(self, read: bool) -> None:
         controller = self.controller()
         index = self.table.currentIndex()
         row = self.model.row_at(index.row()) if index.isValid() else None
         cell = self._cell_for(index)
         if controller is None or row is None or cell is None or self.table.is_editing():
+            return
+        if read and not cell.dual:
             return
         if cell.level == "okunamadi" or (cell.value is None and row.read):
             self.type_current()
@@ -1240,10 +1281,23 @@ class DegerlerScreen(QWidget):
             return
         anchor = (row.number, index.row(), self.model.value_index(row.number, cell.key).column())
         if not cell.reviewed or cell.value.flagged:
-            text = "Öneriyi kabul et" if cell.value.flagged else UNDO_TEXT
-            controller.run(text, lambda job: confirm(job, row.document, cell.key))
+            flagged = cell.value.flagged
+            if read:
+                text, stored = UNDO_TEXT, cell.read_note
+                action = confirm_read
+            else:
+                text = "Öneriyi kabul et" if flagged else UNDO_TEXT
+                stored = cell.suggestion
+                action = confirm
+            before = controller.undo_stack.index()
+            controller.run(text, lambda job: action(job, row.document, cell.key))
             self.refresh()
             self._sample_progress()
+            if flagged and stored:  # the confirmation names the value (Q-12); one per Enter
+                kept = current_values(controller.job, row.document).get(cell.key)
+                if kept is not None and kept.value:  # what was stored, after cleaning
+                    self._toast(f"{kept.value} kaydedildi ({'okunan' if read else 'öneri'}).",
+                                controller, before + 1, "success", key=TOAST_KEY)
         self._advance(*anchor)
 
     def accept_selected(self, *_args) -> None:
@@ -1278,7 +1332,8 @@ class DegerlerScreen(QWidget):
         self._toast(message, controller, before + 1, "success")
         self._sample_progress()
 
-    def _toast(self, text: str, controller: JobController, index: int, kind: str) -> None:
+    def _toast(self, text: str, controller: JobController, index: int, kind: str,
+               key: str | None = None) -> None:
         """A completed event with Geri al (only while that step is still the last one: same
         index and same command, so Ctrl+Z and a new edit cannot reuse it, B-023)."""
         stack = controller.undo_stack
@@ -1292,7 +1347,7 @@ class DegerlerScreen(QWidget):
                 toaster.show(text, kind=kind, timeout_ms=10000)
             else:
                 toaster.show(text, "Geri al", undo, kind=kind, timeout_ms=10000,
-                             available=available)
+                             available=available, key=key)
         else:
             self._say(text)
 
@@ -1471,8 +1526,11 @@ class DegerlerScreen(QWidget):
         row = self.model.row_at(index.row()) if index.isValid() else None
         has_rows = self.model.rowCount() > 0
         counts = count(self.rows)
+        dual = cell is not None and cell.dual
+        self._label_accept(dual)
         state = {
             "degerler.onayla": self.side.accept_button.isEnabled(),
+            "degerler.okunanla_onayla": self.side.accept_button.isEnabled() and dual,
             "degerler.secilenleri_onayla": has_rows and bool(
                 self.table.selectionModel().selectedRows()),
             "degerler.elle_yaz": row is not None and row.read and cell is not None,
@@ -1490,6 +1548,15 @@ class DegerlerScreen(QWidget):
         for action_id, enabled in state.items():
             r.set_enabled(action_id, enabled)
         self._sync_revert(row, cell)
+
+    def _label_accept(self, dual: bool) -> None:
+        """Enter's action says "Öneriyle onayla" while the value has a differing reading to
+        choose instead (menu, right-click menu and palette follow the side panel button)."""
+        action = self.window_.registry.action("degerler.onayla")
+        if action.property("dual") == dual:
+            return
+        action.setProperty("dual", dual)
+        action.setText("Öneriyle onayl&a" if dual else "Onayl&a ve sonrakine geç")
 
     def _update_status(self) -> None:
         items = self._status_items

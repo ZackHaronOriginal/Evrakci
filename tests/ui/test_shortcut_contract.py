@@ -101,6 +101,7 @@ from contract_helpers import (  # noqa: E402
 # action: sablonlar.degisken_ekle, sablonlar.yukari, sablonlar.asagi, sablonlar.kaydir
 # action: sablonlar.kaydir_1mm, sablonlar.el, degerler.onayla
 # action: degerler.secilenleri_onayla, degerler.elle_yaz, degerler.okunana_don
+# action: degerler.okunanla_onayla
 # action: degerler.varyant
 # action: degerler.vazgec, degerler.tumunu_sec, degerler.tum_sayfa
 # action: degerler.sonraki_kontrol, degerler.onceki_kontrol, degerler.durdur

@@ -95,3 +95,9 @@ The owner will sign off once they have tried the build themselves: "Done after I
 - **Window-scroll rule (Q-16)** (owner, 2026-11-26): the rule is general; a page that needs to scroll as a whole (Rehber reader, Şablonlar canvas) is an exception in the measuring tool.
 - **Keys that cannot act (Q-09)** (owner, 2026-11-26): never silent. Pressing such a key shows a short reason in the status bar; the greyed menu entry shows the same reason as its tooltip. The reason texts are written by the run lead (Q-08 list) and shown to the owner.
 - **Q-30 texts and the export checkbox label "Kontrol gerekenleri ayrı klasöre koy"** (owner, 2026-11-26): approved.
+- **Zoom buttons (Q-32)** (owner, 2026-11-26): the status-bar zoom −/+ stay 24 px (Fluent 2 "small"), a written exception to AUD-HIT-02.
+- **Retention after a later edit (Q-33)** (owner, 2026-11-26): yes. A job edited after its last export counts as not exported and is kept until it is exported again. Deleting stays off by default ("sakla", keep everything).
+- **Undo of a deleted saved filter (Q-31)** (owner, 2026-11-26): keep. One undo history per tab; the toast's Geri al and Şablonlar undo it.
+- **Texts of 2026-11-26 (Q-34)** (owner, 2026-11-26): approved as built.
+- **Screen proposals (Q-10, Q-11, Q-13, Q-14, Q-15)** (owner, 2026-11-26): the run lead's recommendations in the plain-language list are approved with their proposed texts, except K-1 (toasts replacing each other), which waits for the owner after an explanation.
+- **Release (Q-20)** (owner, 2026-11-26): code signing through SignPath (free plan for open source); the project must meet every SignPath requirement, creating what is missing (for example a project website). A GitHub Release with the installer and release notes is wanted. The versioning strategy is still to be decided (Q-35).

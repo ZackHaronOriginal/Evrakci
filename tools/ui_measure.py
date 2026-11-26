@@ -332,12 +332,32 @@ def sample_colours(ctx: Ctx, rect: QRect, declared: int | None = None) -> tuple[
         if n >= 2 and ratio > best_ratio:
             best, best_ratio = colour, ratio
     if ink >= THIN_INK and best is not None and best_ratio >= INK_RATIO:
+        if declared is not None and _blend_of(best, declared & 0xFFFFFF, background):
+            # thin glyphs: the most frequent ink is the declared colour mixed with the
+            # background by anti-aliasing (CI fonts draw ".pdf" lighter, B-104), not a new colour
+            return background, declared & 0xFFFFFF
         return background, best
     if declared is not None:
         return background, declared & 0xFFFFFF
     if ink >= MIN_INK and strongest is not None:
         return background, strongest
     return None
+
+
+def _blend_of(colour: int, declared: int, background: int, slack: float = 0.12) -> bool:
+    """True when `colour` lies between `background` and `declared` (an anti-aliased mix of the
+    declared text colour): every channel moved the same fraction t (0 < t <= 1) of the way."""
+    fractions = []
+    for shift in (16, 8, 0):
+        c, d, b = (colour >> shift) & 255, (declared >> shift) & 255, (background >> shift) & 255
+        if abs(d - b) < 16:
+            if abs(c - b) > 16:
+                return False
+            continue
+        fractions.append((c - b) / (d - b))
+    if not fractions:
+        return False
+    return all(0 < t <= 1 + slack for t in fractions) and max(fractions) - min(fractions) <= slack
 
 
 def _dominant(hist: Counter[int]) -> int:

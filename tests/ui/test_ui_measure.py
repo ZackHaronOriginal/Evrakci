@@ -537,3 +537,13 @@ def test_b104_crop_pixels_measure_declared_colour_or_skip_never_one(name, size, 
     assert um.contrast(*with_declared) > 4.0, name  # its real ratio, nowhere near 1.0
     without = um.sample_colours(ctx, rect)  # nothing declared: a real ink pixel or no answer
     assert without is None or um.contrast(*without) >= 1.5, (name, without)
+
+
+def test_b104_an_anti_aliased_mix_of_the_declared_colour_counts_as_that_colour():
+    """CI drew ".pdf" with more but lighter ink (5.08:1): a pixel on the line from the background
+    to the declared colour is that colour anti-aliased; a different colour is not."""
+    bg, text2 = 0xFFFFFF, 0x5C5C5C
+    mid = 0xA0A0A0  # 60 % of the way from white to text-2 in every channel
+    assert um._blend_of(mid, text2, bg)
+    assert not um._blend_of(0xA06060, text2, bg)  # a red tint is not a mix of grey and white
+    assert not um._blend_of(0x202020, text2, bg)  # darker than declared: a different colour

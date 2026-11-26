@@ -48,7 +48,8 @@ yukle	Alt+Up	yukle.yukari	Partiyi yukarı taşı	Düzen > Partiyi yukarı taşı
 yukle	Alt+Down	yukle.asagi	Partiyi aşağı taşı	Düzen > Partiyi aşağı taşı [state-dependent]	bar [state-dependent]	batch row [state-dependent]	yes	ok
 yukle	Del	yukle.cikar	Partiyi çıkar	Düzen > Partiyi çıkar	bar	batch row	yes	ok
 yukle	F2	yukle.yeniden_adlandir	İşi yeniden adlandır	Düzen > İşi yeniden adlandır	bar Diğer komutlar | panel Diğer		yes	ok
-yukle	Ctrl+.	yukle.iptal	İptal et	Araçlar > İptal et [state-dependent]	bar [state-dependent]		yes	ok
+yukle		yukle.kontrolde_ac	Partiyi Kontrol'de aç	Düzen > Partiyi Kontrol'de aç	bar Diğer komutlar	batch row	yes	ok
+yukle	Ctrl+.	yukle.iptal	İptal et	Araçlar > İptal et [state-dependent]	QPushButton [state-dependent] | bar [state-dependent]		yes	ok
 kontrol	Ctrl+1	app.sekme.yukle	Yükle	Git > Yükle			yes	ok
 kontrol	Ctrl+2	app.sekme.kontrol	Kontrol	Git > Kontrol			yes	ok
 kontrol	Ctrl+3	app.sekme.sablonlar	Şablonlar	Git > Şablonlar			yes	ok

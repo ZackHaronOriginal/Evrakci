@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from evrakci.pipeline.cuts import Document
-from evrakci.pipeline.job import Job, parse_page_id
+from evrakci.pipeline.job import Job, page_id, parse_page_id
 
 # FPDF_COLORSPACE_* (pdfium): the only values scanners produce in practice
 _GRAY, _RGB, _CMYK = 1, 2, 3
@@ -37,10 +37,19 @@ class JobSummary:
     checks: int  # documents that need a look (Kontrol)
     batches: tuple[BatchSummary, ...]
     reason: str
+    # per document: the batches its pages are in, and whether it needs a Kontrol
+    spans: tuple[tuple[frozenset[str], bool], ...] = ()
 
     @property
     def parties(self) -> int:
         return len(self.batches)
+
+    def found_in(self, batch_ids: Iterable[str]) -> tuple[int, int]:
+        """(documents, of them needing a Kontrol) with a page in these batches: what an add
+        brought in. A document that goes on from the batch before counts once."""
+        wanted = set(batch_ids)
+        touched = [needs for owners, needs in self.spans if owners & wanted]
+        return len(touched), sum(touched)
 
 
 def ordinals(numbers: list[int]) -> str:
@@ -49,6 +58,41 @@ def ordinals(numbers: list[int]) -> str:
     if len(parts) <= 1:
         return "".join(parts)
     return ", ".join(parts[:-1]) + " ve " + parts[-1]
+
+
+SHOWN_BATCHES = 3  # batches named in the QR sentence; the rest are counted (F-yukle-11)
+
+_LAST_WORD_SUFFIX = {  # the last spoken word of a number -> its possessive suffix ("2'si", "3'ü")
+    0: "ı", 1: "i", 2: "si", 3: "ü", 4: "ü", 5: "i", 6: "sı", 7: "si", 8: "i", 9: "u",
+    10: "u", 20: "si", 30: "u", 40: "ı", 50: "si", 60: "ı", 70: "i", 80: "i", 90: "ı",
+}
+
+
+def possessive(number: int) -> str:
+    """"2'si", "3'ü", "6'sı", "40'ı": the number with its Turkish third-person suffix."""
+    if number % 10:
+        last = number % 10
+    elif number % 100:
+        last = number % 100
+    elif number % 1000:
+        return f"{number}'ü"  # ...yüz
+    else:
+        return f"{number}'i" if number else "0'ı"  # ...bin (and sıfır)
+    return f"{number}'{_LAST_WORD_SUFFIX[last]}"
+
+
+def batch_edits(job: Job, batch_id: str) -> int:
+    """How many edits the job holds on the pages of this batch: everything
+    `Job.remove_batch` drops (cuts, deletes, rotations, filters, templates, read values);
+    Geri al brings them back."""
+    batch = job.get_batch(batch_id)
+    gone = {page_id(batch.id, i) for i in range(batch.page_count)}
+    keyed = (job.deleted, job.restored, job.manual_cuts, job.removed_cuts, job.rotations,
+             job.values, job.read_errors, job.value_sources)
+    count = sum(len(set(edits) & gone) for edits in keyed)
+    count += sum(len(f.page_ids & gone) for f in job.filters)
+    count += sum(len(t.page_ids & gone) for t in job.templates)
+    return count
 
 
 def reason(qr_by_batch: list[int]) -> str:
@@ -64,8 +108,12 @@ def reason(qr_by_batch: list[int]) -> str:
         return ("Partilerde QR ayıraç yok; belgeleri Kontrol'de filtreyle ya da elle bölün."
                 if len(qr_by_batch) > 1
                 else "Partide QR ayıraç yok; belgeleri Kontrol'de filtreyle ya da elle bölün.")
-    return (f"{with_qr} parti QR ayıraçlı; {ordinals(without)} "
-            f"{'partide' if len(without) == 1 else 'partilerde'} ayıraç yok, "
+    if len(without) > SHOWN_BATCHES:  # name a few, count the rest: "2., 3., 5. ve 37 partide"
+        named = ", ".join(f"{n}." for n in without[:SHOWN_BATCHES])
+        left = f"{named} ve {len(without) - SHOWN_BATCHES} partide"
+    else:
+        left = f"{ordinals(without)} {'partide' if len(without) == 1 else 'partilerde'}"
+    return (f"{with_qr} parti QR ayıraçlı; {left} ayıraç yok, "
             "Kontrol'de filtreyle bölebilirsiniz.")
 
 
@@ -76,6 +124,9 @@ def summarize(job: Job, documents: list[Document],
     checked = list(checked)
     flagged = {parse_page_id(d.page_ids[0])[0] for d in checked if d.page_ids}
     checks = len(checked)
+    needing = {document.page_ids for document in checked}
+    spans = tuple((frozenset(parse_page_id(pid)[0] for pid in d.page_ids), d.page_ids in needing)
+                  for d in documents)
     rows = []
     for batch in job.batches:
         qr = sum(1 for i in range(batch.page_count)
@@ -83,7 +134,7 @@ def summarize(job: Job, documents: list[Document],
         status = "kontrol" if qr == 0 or batch.id in flagged else "hazir"
         rows.append(BatchSummary(batch.id, batch.file_name, batch.page_count, qr, status))
     return JobSummary(job.name, sum(b.pages for b in rows), sum(b.qr for b in rows),
-                      len(documents), checks, tuple(rows), reason([b.qr for b in rows]))
+                      len(documents), checks, tuple(rows), reason([b.qr for b in rows]), spans)
 
 
 # -- scan profile -----------------------------------------------------------------------

@@ -62,7 +62,8 @@ def test_the_same_file_twice_warns_with_undo_and_keeps_the_add(qtbot, tmp_path, 
     assert _batches(screen) == ["tarama-1.pdf"]
     screen.add_batches([b])
     qtbot.waitUntil(lambda: not screen.busy(), timeout=10000)
-    assert screen.last_message == "tarama-2.pdf eklendi."  # a new file: no warning
+    assert screen.last_message.startswith("tarama-2.pdf eklendi")  # a new file: no warning
+    assert "zaten" not in screen.last_message
 
 
 def test_a_repeat_inside_one_multi_add_warns_too(qtbot, tmp_path, files):

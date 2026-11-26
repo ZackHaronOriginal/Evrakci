@@ -47,6 +47,7 @@ STATUSES = {
     "hazir": ("circle-check", "ok", False, "Hazır"),
     "kontrol": ("triangle-alert", "check-text", True, "Kontrol"),
     "okunuyor": ("loader-circle", "text-2", False, "Okunuyor"),
+    "okundu": ("circle-check", "text-2", False, "Okundu"),
     "sirada": ("clock", "text-2", False, "Sırada"),
 }
 
@@ -362,6 +363,7 @@ class BatchTable(QTableView):
     files_dragged = Signal(object)  # QDragEnterEvent / QDragMoveEvent with URLs
     files_left = Signal()
     files_dropped = Signal(object)  # QDropEvent with URLs
+    batch_activated = Signal(str)  # Enter or double click on a batch row: its id
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -433,6 +435,25 @@ class BatchTable(QTableView):
         if target.isValid() and target.row() > rows[-1]:
             return self.model().index(rows[-1], target.column())
         return target
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        plain = not (event.modifiers() & ~Qt.KeyboardModifier.KeypadModifier)
+        if plain and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            batch_id = self.selected_batch()
+            if batch_id is not None:
+                self.batch_activated.emit(batch_id)
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
+        index = self.indexAt(event.position().toPoint())
+        if (event.button() == Qt.MouseButton.LeftButton and index.isValid()
+                and self.model().items[index.row()].kind == "batch"):
+            self.batch_activated.emit(self.model().items[index.row()].batch_id)
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         index = self.indexAt(event.position().toPoint())

@@ -154,7 +154,10 @@ def _effect_yukle_removed(c: Ctx) -> None:
 @helper("feedback.yukle_removed")
 def _feedback_yukle_removed(c: Ctx) -> None:
     win = c.win
-    assert win.toaster.current_text() == f"{c.data['name']} işten çıkarıldı.", heard(win)
+    # the demo job has a template and read values on these pages: they go with the batch
+    assert win.toaster.current_text() == (
+        f"{c.data['name']} işten çıkarıldı; bu partinin sayfalarındaki düzenlemeler de gitti."
+    ), heard(win)
     assert any(b.text() == "Geri al" for b in win.toaster._current.findChildren(QPushButton))
     assert win.controller().undo_stack.undoText() == "Partiyi çıkar"
 

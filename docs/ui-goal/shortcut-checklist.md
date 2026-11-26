@@ -151,7 +151,7 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Yükle | Open Yükle. Setup: none (a job may be open). Press Ctrl+O. | Yükle tab shown; picker; toast '<dosya> eklendi.' (or 'N parti eklendi.') with Geri al; progress band while reading; counts in the status bar update | - | [ ] |
+| Yükle | Open Yükle. Setup: none (a job may be open). Press Ctrl+O. | Yükle tab shown; picker; toast '<dosya> eklendi; 6 belge bulundu, 2'si kontrol bekliyor.' (or 'N parti eklendi; ...') with Geri al; progress band while reading; counts in the status bar update | - | [ ] |
 | Kontrol | Open Kontrol. Setup: none (a job may be open). Press Ctrl+O. | Same as on Yükle (see the Yükle line). | - | [ ] |
 | Şablonlar | Open Şablonlar. Setup: none (a job may be open). Press Ctrl+O. | Same as on Yükle (see the Yükle line). | - | [ ] |
 | Değerler | Open Değerler. Setup: none (a job may be open). Press Ctrl+O. | Same as on Yükle (see the Yükle line). | - | [ ] |
@@ -491,7 +491,7 @@ For the owner, on a real PC with a Turkish Q keyboard and a demo job (Yükle > D
 
 | Tab | What to do | What you should see | Known mismatch | OK |
 |---|---|---|---|---|
-| Yükle | Open Yükle. Setup: a batch is selected and no text field has focus. Press Del. | toast '<dosya> işten çıkarıldı.' with Geri al; selection moves to the neighbouring row / when not applicable, PROPOSED: Önce bir parti seçin. | M-25 | [ ] |
+| Yükle | Open Yükle. Setup: a batch is selected and no text field has focus. Press Del. | toast '<dosya> işten çıkarıldı.' (with '; bu partinin sayfalarındaki düzenlemeler de gitti.' when the batch had edits) with Geri al; selection moves to the neighbouring row / when not applicable, PROPOSED: Önce bir parti seçin. | M-25 | [ ] |
 | Kontrol | Open Kontrol. Setup: a job is open; no text field or button has focus; at least one page selected. Press Del. | toast 'Sayfa 7 silinecek.' / '3 sayfa silinecek.' with Geri al; a document that loses all pages: 'Belge 4: bütün sayfaları silinecek, belge dışa aktarılmayacak.'; the item reads '3 sayfayı sil' / 'Sayfayı geri getir'; restore: side history 'Sayfa 7 geri getirildi' Not applicable: only separator pages selected: status line 'Ayraç sayfaları zaten dışa aktarılmaz. Kesimi kaldırmak için M.'; nothing selected: status line 'Önce sayfaları seçin.' (M-31, fixed) | M-30, M-33 | [ ] |
 | Şablonlar | Open Şablonlar. Setup: a variable is chosen; no text field has focus; the template list does not have focus. Press Del. | box: toast '“Firma” değişkeninin 2. bölümü silindi.' with Geri al; variable: toast '“Firma” değişkeni silindi (2 kutu).' with Geri al; selection moves to a neighbour / when not applicable, PROPOSED: Önce bir değişken ya da kutu seçin. | M-35 | [ ] |
 

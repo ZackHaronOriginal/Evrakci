@@ -45,6 +45,17 @@ include_files.append((str(HERE.parent / "docs" / "tarama-rehberi.md"), "docs/tar
 include_files.append((str(HERE.parent / "src" / "evrakci" / "ui" / "assets" / "fonts"),
                       "lib/evrakci/ui/assets/fonts"))
 
+# Qt's own Turkish texts (OK / Cancel / Yes / No in Qt's dialogs): app.install_qt_translation
+# loads qtbase_tr.qm from the translations folder of the PySide6 package; a missing file fails
+# the build (layout.qt_translation_entry).
+import PySide6  # noqa: E402
+from layout import qt_translation_entry  # noqa: E402
+from PySide6.QtCore import QLibraryInfo  # noqa: E402
+
+include_files.append(qt_translation_entry(
+    Path(PySide6.__file__).parent,
+    Path(QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))))
+
 setup(
     name="Evrakci",
     version=__version__.split("+")[0],

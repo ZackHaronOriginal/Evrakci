@@ -770,7 +770,8 @@ def _effect_batch_added(c: Ctx) -> None:
 def _feedback_batch_added(c: Ctx) -> None:
     win = c.win
     assert c.data["titles"] == ["Parti ekle"]
-    assert wait_until(lambda: "ek.pdf eklendi." in win.toaster.current_text()), heard(win)
+    assert wait_until(lambda: win.toaster.current_text().startswith("ek.pdf eklendi")
+                      and win.toaster.current_text().endswith(".")), heard(win)
     toast = win.toaster._current
     assert any(b.text() == "Geri al" for b in toast.findChildren(QPushButton))
     assert win.controller().undo_stack.undoText() == "Parti ekle"

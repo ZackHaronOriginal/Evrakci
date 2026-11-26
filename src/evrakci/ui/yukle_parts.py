@@ -418,8 +418,12 @@ class EmptyPage(QWidget):
         """"empty" (no job open) or "all" (every job, for "Tüm işler…")."""
         self._mode = mode
         everything = mode == "all"
-        self.title.setText("Tüm işler" if everything else "Henüz iş yok")
+        # Saved jobs listed below mean "no job is open", not "no job yet" (F-yukle-44).
+        some = bool(self.entries)
+        self.title.setText("Tüm işler" if everything else "Açık iş yok" if some
+                           else "Henüz iş yok")
         self.text.setText("Açmak için bir iş seçin ya da adını yazın." if everything
+                          else "Son işlerinizden birini açın ya da yeni bir iş oluşturun." if some
                           else "Taradığınız PDF'leri bırakın ya da yeni bir iş oluşturun.")
         self.group.setText("İşler" if everything else "Son işler")
         self.setAccessibleName(self.title.text())
@@ -439,7 +443,7 @@ class EmptyPage(QWidget):
 
     def set_jobs(self, entries: list[JobEntry]) -> None:
         self.entries = list(entries)
-        self.rebuild()
+        self.set_mode(self._mode)  # the heading depends on whether there are jobs
 
     def rebuild(self, *_args) -> None:
         query = self.search.text().strip().casefold()

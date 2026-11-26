@@ -254,9 +254,11 @@ class Inspector(QWidget):
         head_col.addLayout(top)
         self.title = QLabel("İş açılmadı")
         self.title.setProperty("textRole", "page")
+        self.title.setWordWrap(True)  # "12 belge kontrol bekliyor" is longer than the panel
         self.title.setContentsMargins(0, m.size("s1"), 0, 0)
         self.sub = QLabel("")
         self.sub.setProperty("textRole", "secondary")
+        self.sub.setWordWrap(True)  # the longer sub line must not widen the panel
         self.sub.setContentsMargins(0, 2, 0, 0)
         self.reason = QLabel("")
         self.reason.setWordWrap(True)
@@ -367,21 +369,30 @@ class Inspector(QWidget):
     # -- content -------------------------------------------------------------------------
     def show_job(self, info: JobSummary, profile: ScanProfile | None) -> None:
         self.reading = False
-        self.title.setText(f"{info.pages} sayfa")
-        self.sub.setText(f"{info.parties} parti, {info.documents} belge bulundu")
+        if info.checks:  # the thing to act on leads; the page count moves to the sub line
+            self.title.setText(f"{info.checks} belge kontrol bekliyor")
+            self.sub.setText(f"{info.pages} sayfa, {info.parties} parti, "
+                             f"{info.documents} belge bulundu")
+        else:
+            self.title.setText(f"{info.pages} sayfa")
+            self.sub.setText(f"{info.parties} parti, {info.documents} belge bulundu")
         self.reason.setText(info.reason)
         self.reason.setVisible(bool(info.reason))
         self.qr_row.set(str(info.qr), state="num")
         self.docs_row.set(str(info.documents), state="num")
         if info.checks:
-            self.state_row.set(f"{info.checks} belge", "triangle-alert", "check-text", "kontrol")
+            self.state_row.set(f"{info.checks} belge kontrol bekliyor", "triangle-alert",
+                               "check-text", "kontrol")
+        elif not info.batches:
+            self.state_row.set("Henüz parti yok", "info", "text-2")
         else:
             self.state_row.set("Hazır", "circle-check", "ok", "ok")
         self.profile.set_profile(profile)
         self.set_reading(False)
         self.setAccessibleDescription(
             f"{info.name}: {info.pages} sayfa, {info.parties} parti, {info.documents} belge. "
-            + (f"{info.checks} belge kontrol bekliyor." if info.checks else "Hepsi hazır."))
+            + (f"{info.checks} belge kontrol bekliyor." if info.checks
+               else "Hepsi hazır." if info.batches else "Henüz parti yok."))
 
     def show_reading(self, pages: int, parties: int, qr_so_far: int, waiting: str,
                      profile: ScanProfile | None = None) -> None:

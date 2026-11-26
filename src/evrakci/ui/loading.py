@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.ui import icons, theme
+from evrakci.ui import icons, motion, theme
 from evrakci.ui.chrome import ElidedLabel
 
 
@@ -34,7 +34,10 @@ def assert_window_thread() -> None:
 
 class ProgressCard(QFrame):
     """A .progress card: what is read, the bar, and "%62, Yaklaşık 40 sn kaldı, 3,2 sayfa/sn,
-    İptal ederseniz hiçbir şey değişmez." A live region for screen readers."""
+    İptal ederseniz hiçbir şey değişmez." Yükle's screen reader announcements come from the
+    screen (`feedback.announce`); `add_cancel_button` puts İptal et next to what it stops."""
+
+    stop_requested = Signal()  # the card's own İptal et (Yükle)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -55,6 +58,8 @@ class ProgressCard(QFrame):
         top.addWidget(self.icon)
         top.addWidget(self.title)
         top.addWidget(self.name, 1)
+        self._top = top
+        self.stop_button: QPushButton | None = None
         column.addLayout(top)
         self.bar = QProgressBar()
         self.bar.setTextVisible(False)
@@ -74,8 +79,33 @@ class ProgressCard(QFrame):
             f"background: {theme.manager().hex('track')}; }}"))
         theme.follow(self, self._restyle, "yukle-progress")
 
+    def add_cancel_button(self, key: str, action_id: str) -> QPushButton:
+        """A ghost "İptal et" at the right end of the first row, the same command as the bar's
+        (`action_id`, its key `key`): the cancel sits by the sentence about it (F-yukle-41)."""
+        button = QPushButton("İptal et")
+        button.setProperty("variant", "subtle")
+        button.setProperty("action_id", action_id)
+        button.setAccessibleName(f"İptal et ({key})")
+        button.setToolTip(f"Okumayı iptal et ({key})")
+        button.clicked.connect(self.stop_requested)
+        self._top.addWidget(button)
+        self.stop_button = button
+        self._restyle()
+        return button
+
+    def _indeterminate(self) -> None:
+        """The bar while the length is not known: it runs, or stands still and empty under
+        reduced motion (a looping bar is motion; the words say what happens)."""
+        if motion.reduced_motion():
+            self.bar.setRange(0, 1)
+            self.bar.setValue(0)
+        else:
+            self.bar.setRange(0, 0)
+
     def _restyle(self) -> None:
         m = theme.manager()
+        if self.stop_button is not None:
+            self.stop_button.setIcon(icons.icon("circle-x", m.hex("icon")))
         self.icon.setPixmap(icons.pixmap("scan-text", m.hex("icon"), m.size("icon-md")))
         size = f"font-size: {m.size('fs-caption')}px;"
         for label in (self.percent, self.eta, self.rate, self.note, self.name):
@@ -103,7 +133,9 @@ class ProgressCard(QFrame):
 
     def show_waiting(self, text: str, name: str) -> None:
         """Before the first page is read: an indeterminate bar."""
-        self.bar.setRange(0, 0)
+        self._indeterminate()
+        if self.stop_button is not None:
+            self.stop_button.setEnabled(True)
         self.title.setText(text)
         self.name.setText(name)
         self.percent.setText("")
@@ -173,7 +205,7 @@ class LoadingCard(ProgressCard):
 
     def show_loading(self, title: str, name: str = "", cancellable: bool = True) -> None:
         assert_window_thread()
-        self.bar.setRange(0, 0)
+        self._indeterminate()
         self.title.setText(title)
         self.name.setText(name)
         for label in (self.percent, self.eta, self.rate):

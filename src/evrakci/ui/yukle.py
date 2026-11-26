@@ -40,16 +40,23 @@ from PySide6.QtWidgets import (
 from evrakci import __version__
 from evrakci.pipeline import export
 from evrakci.pipeline.analyze import BatchError, count_pages
-from evrakci.pipeline.job import Job, job_from_dict, job_to_dict, repeated_files
+from evrakci.pipeline.job import Job, job_from_dict, job_to_dict, page_id, repeated_files
 from evrakci.pipeline.store import JobStore
-from evrakci.ui import theme
+from evrakci.ui import actions, theme
 from evrakci.ui.chrome import ActionButton
 from evrakci.ui.controller import JobController
-from evrakci.ui.feedback import InfoBar, undo_last
+from evrakci.ui.feedback import InfoBar, announce, undo_last
 from evrakci.ui.kontrol_actions import NO_JOB_TEXT
 from evrakci.ui.widgets import StatusPart
 from evrakci.ui.workers import BUSY_REASON, CANCELLED_TEXT, Task, run_background, start
-from evrakci.ui.yukle_info import JobSummary, ScanProfile, scan_profile, summarize
+from evrakci.ui.yukle_info import (
+    JobSummary,
+    ScanProfile,
+    batch_edits,
+    possessive,
+    scan_profile,
+    summarize,
+)
 from evrakci.ui.yukle_parts import (
     PDF_LIMIT,
     DropOverlay,
@@ -65,6 +72,7 @@ from evrakci.ui.yukle_side import Inspector
 from evrakci.ui.yukle_table import BatchModel, BatchTable
 
 HEADER_KEY = "yukle/partiler"
+EMPTY_NAME_TEXT = "İş adı boş olamaz."
 REPORT_EVERY = 0.1  # seconds between redraws of the progress while pages are read
 
 
@@ -157,6 +165,18 @@ def _again_text(again: list[str]) -> tuple[str, str]:
     return warn, f"{', '.join(again)} zaten ekli."
 
 
+def added_text(count: int, name: str, documents: int, checks: int) -> str:
+    """The toast after an add: what came in, how many documents it holds and how many of them
+    wait for Kontrol ("3 parti eklendi; 6 belge bulundu, 2'si kontrol bekliyor.")."""
+    head = f"{count} parti eklendi" if count > 1 else f"{name} eklendi"
+    if not documents:
+        return head + "."
+    found = f"{documents} belge bulundu"
+    if checks:
+        found += f", {possessive(checks)} kontrol bekliyor"
+    return f"{head}; {found}."
+
+
 class _Outcome:
     """What a read hands to the window thread: the result and the files that did not open."""
 
@@ -175,6 +195,7 @@ class _Reading:
         self.started = time.monotonic()
         self.shown = 0.0
         self.cancelling = False
+        self.said: set[int] = set()  # announcements made: 0 = start, 25 / 50 / 75 = steps
 
     def set_pages(self, pages: list[int]) -> None:
         """The files' page counts (counted by the worker before it starts reading)."""
@@ -200,7 +221,9 @@ class _Reading:
 
     def rows(self) -> list[tuple[str, int, str]]:
         current = self.current()
-        return [(f.name, n, "okunuyor" if i <= current else "sirada")
+        finished = self.total > 0 and self.done >= self.total  # the last file is done too
+        return [(f.name, n, "okundu" if finished or i < current else
+                 "okunuyor" if i == current else "sirada")
                 for i, (f, n) in enumerate(zip(self.files, self.pages, strict=True))]
 
 
@@ -283,6 +306,7 @@ class YukleScreen(QWidget):
         self.table = BatchTable()
         self.table.setModel(self.model)
         self.table.selectionModel().currentChanged.connect(lambda *_: self._sync_actions())
+        self.table.batch_activated.connect(self.open_in_kontrol)
         self.table.files_dragged.connect(self.drag_over)
         self.table.files_left.connect(self.drag_left)
         self.table.files_dropped.connect(self.dropped)
@@ -298,7 +322,14 @@ class YukleScreen(QWidget):
         card.addWidget(self.dropline)
         self.work.addWidget(self.card, 1)
         self.progress = ProgressCard()
+        self.progress.add_cancel_button(actions.key_text("Ctrl+."), "yukle.iptal")
+        self.progress.stop_requested.connect(self._stop_clicked)  # same command as the bar's
         self.progress.hide()
+        # What a screen reader is told about a read (start, steps, end): a 1 px label whose
+        # name changes and raises an alert; it never takes focus.
+        self._live = QLabel(self)
+        self._live.setFixedSize(1, 1)
+        self._live.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.work.addWidget(self.progress)
         self.splitter.addWidget(work)
         self.side = Inspector(self._fill_more)
@@ -393,9 +424,9 @@ class YukleScreen(QWidget):
         def failed(message: str) -> None:
             if not shiboken6.isValid(self):
                 return
-            if not quiet:
-                self._tell("İş açılamadı: " + (message.strip("'\"") or "dosya okunamadı"),
-                           "kontrol")
+            if not quiet:  # the job by name and what to do, never its internal id (F-yukle-20)
+                shown = name or next((e.name for e in self.empty.entries if e.id == job_id), "")
+                self._tell(f"{shown or 'İş'} açılamadı. İş klasörünü kontrol edin.", "kontrol")
             self.refresh_jobs()
 
         def cancelled() -> None:
@@ -557,9 +588,22 @@ class YukleScreen(QWidget):
         if not paths:
             return
         self._remember_folder(Path(paths[0]))
-        name, ok = QInputDialog.getText(self, "Yeni iş", "İşin adı:", text=Path(paths[0]).stem)
-        if ok and name.strip():
-            self.create_job([Path(p) for p in paths], name.strip())
+        name = self._ask_name("Yeni iş", Path(paths[0]).stem)
+        if name:
+            self.create_job([Path(p) for p in paths], name)
+
+    def _ask_name(self, title: str, text: str) -> str:
+        """The job's name, or "" when the user cancels. An empty name does not end the dialog
+        silently: it asks again and says why (F-yukle-16)."""
+        label = "İşin adı:"
+        while True:
+            name, ok = QInputDialog.getText(self, title, label, text=text)
+            if not ok:
+                return ""
+            if name.strip():
+                return name.strip()
+            self.last_message = EMPTY_NAME_TEXT
+            label = f"İşin adı:\n{EMPTY_NAME_TEXT}"  # the dialog comes back with what was typed
 
     def choose_batch(self) -> None:
         if self.loading():
@@ -688,10 +732,11 @@ class YukleScreen(QWidget):
                 self._tell(head + warn, "kontrol", "Geri al", undo, available,
                            spoken=head + spoken)
                 return
-            self._tell(f"{count} parti eklendi." if count > 1
-                       else f"{_short_name(full)} eklendi.", "success",
+            new = {item.batch.id for item in prepared}
+            documents, checks = self._info.found_in(new) if self._info else (0, 0)
+            self._tell(added_text(count, _short_name(full), documents, checks), "success",
                        "Geri al", undo, available,
-                       spoken=f"{full} eklendi." if count == 1 else None)
+                       spoken=added_text(count, full, documents, checks) if count == 1 else None)
 
     # -- batches: move and remove --------------------------------------------------------
     def move_batch(self, step: int) -> None:
@@ -718,6 +763,7 @@ class YukleScreen(QWidget):
             return
         job = controller.job
         batch = job.get_batch(batch_id)
+        edits = batch_edits(job, batch_id)  # counted before the batch and its edits are gone
         row = self.model.row_of(batch_id)
         if not controller.run("Partiyi çıkar", lambda j: j.remove_batch(batch_id)):
             return
@@ -726,8 +772,31 @@ class YukleScreen(QWidget):
             self.table.selectRow(min(row, count - 1))
             self.table.setCurrentIndex(self.model.index(min(row, count - 1), 2))
         undo, available = undo_last(controller.undo_stack)
-        self._tell(f"{_short_name(batch.file_name)} işten çıkarıldı.", "info", "Geri al", undo,
-                   available, spoken=f"{batch.file_name} işten çıkarıldı.")
+        gone = "; bu partinin sayfalarındaki düzenlemeler de gitti." if edits else "."
+        self._tell(f"{_short_name(batch.file_name)} işten çıkarıldı{gone}", "info", "Geri al",
+                   undo, available, spoken=f"{batch.file_name} işten çıkarıldı{gone}")
+
+    def open_in_kontrol(self, batch_id: str | bool | None = None) -> None:
+        """Enter or double click on a batch (also Düzen and the row's menu): Kontrol, at the
+        first page of that batch."""
+        batch_id = batch_id if isinstance(batch_id, str) else self.table.selected_batch()
+        controller = self._controller
+        if controller is None or batch_id is None:
+            return
+        if self._reading is not None:  # like "Kontrol'e geç": not while a read is running
+            self.refused.emit("Okuma bitince açılır.")
+            return
+        window = self.window_
+        kontrol = getattr(window, "kontrol", None)
+        if window is None or kontrol is None:
+            self.go_tab.emit("kontrol")
+            return
+        window.show_tab("kontrol")
+        try:
+            kontrol.go_to_row(kontrol.model.row_of(page_id(batch_id, 0)))
+        except ValueError:  # the page is not in this view: the tab is open all the same
+            pass
+        window.focus_work_area()
 
     def rename_job(self) -> None:
         """F2: the job's name (undoable; the title band follows)."""
@@ -735,10 +804,8 @@ class YukleScreen(QWidget):
         if controller is None:
             self.refused.emit(NO_JOB_TEXT)
             return
-        name, ok = QInputDialog.getText(self, "İşi yeniden adlandır", "İşin adı:",
-                                        text=controller.job.name)
-        name = name.strip()
-        if ok and name and name != controller.job.name:
+        name = self._ask_name("İşi yeniden adlandır", controller.job.name)
+        if name and name != controller.job.name:
             def rename(job: Job) -> None:
                 job.name = name
 
@@ -871,6 +938,7 @@ class YukleScreen(QWidget):
         for action_id, slot in (("yukle.cikar", self.remove_batch),
                                 ("yukle.klasor_ekle", self.choose_folder),
                                 ("yukle.yeniden_adlandir", self.rename_job),
+                                ("yukle.kontrolde_ac", self.open_in_kontrol),
                                 ("yukle.gezginde_goster", self.show_in_explorer)):
             r.connect(action_id, slot)
         self.go_tab.connect(window.show_tab)
@@ -939,6 +1007,7 @@ class YukleScreen(QWidget):
         pos = ids.index(batch_id) if batch_id in ids else -1
         state = {"yukle.yukari": pos > 0, "yukle.asagi": 0 <= pos < len(ids) - 1,
                  "yukle.cikar": pos >= 0, "yukle.yeniden_adlandir": controller is not None,
+                 "yukle.kontrolde_ac": pos >= 0 and not busy,
                  "yukle.gezginde_goster": controller is not None,
                  "yukle.iptal": busy or self._loading_cancellable(),
                  }
@@ -964,7 +1033,7 @@ class YukleScreen(QWidget):
             self.table.selectRow(index.row())
         r = self.window_.registry
         menu = QMenu(self.table)
-        for action_id in ("yukle.yukari", "yukle.asagi", "yukle.cikar"):
+        for action_id in ("yukle.kontrolde_ac", "yukle.yukari", "yukle.asagi", "yukle.cikar"):
             menu.addAction(r.action(action_id))
         menu.addSeparator()
         menu.addAction(r.action("yukle.gezginde_goster"))
@@ -1092,7 +1161,7 @@ class YukleScreen(QWidget):
         self.task.signals.done.connect(self._done)
         self.task.signals.failed.connect(self._failed)
         self.task.signals.cancelled.connect(self._cancelled)
-        self.progress.show_waiting(f"Dosyalar inceleniyor: {len(files)}", files[0].name)
+        self.progress.show_waiting(f"Dosyalar sayılıyor: {len(files)}", files[0].name)
         self.setCursor(Qt.CursorShape.BusyCursor)
         taskbar = getattr(self.window_, "taskbar", None)
         if taskbar is not None:
@@ -1105,6 +1174,7 @@ class YukleScreen(QWidget):
         if reading is None:
             return
         reading.done = min(done, reading.total)
+        self._announce_progress(reading)
         now = time.monotonic()
         if now - reading.shown < REPORT_EVERY and reading.done < reading.total:
             return
@@ -1127,6 +1197,20 @@ class YukleScreen(QWidget):
                                 info.qr if info else 0)
         self._sync_status(info)
 
+    def _announce_progress(self, reading: _Reading) -> None:
+        """"Okuma başladı: 16 sayfa", then every 25 percent (F-yukle-40)."""
+        if not reading.total:
+            return
+        if 0 not in reading.said:
+            reading.said.add(0)
+            announce(self._live, f"Okuma başladı: {reading.total} sayfa")
+        percent = 100 * reading.done // reading.total
+        for step in (25, 50, 75):
+            if percent >= step and step not in reading.said:
+                reading.said.add(step)
+                if percent < 100:
+                    announce(self._live, f"Okuma: %{step} bitti")
+
     def _done(self, result) -> None:
         failed: list[str] = []
         if isinstance(result, _Outcome):
@@ -1148,6 +1232,8 @@ class YukleScreen(QWidget):
         taskbar = getattr(self.window_, "taskbar", None)
         if taskbar is not None:
             taskbar.clear()
+        if self.progress.isAncestorOf(QApplication.focusWidget()):
+            self.table.setFocus()  # İptal et in the card goes away with the card
         self.progress.hide()
         if self._controller is None and on_done is None:
             self.table.clear()
@@ -1155,8 +1241,12 @@ class YukleScreen(QWidget):
             self._fail(error)
         elif cancelled:
             self._tell(CANCELLED_TEXT, "info")
+        if error is not None or cancelled:  # a failed or cancelled read ends out loud too
+            announce(self._live, self.last_message)
         if on_done is not None:
             on_done(result)
+        if error is None and not cancelled:
+            announce(self._live, "Okuma bitti.")
         if error is None and not cancelled and failed:  # the readable files were kept
             added = len(result) if isinstance(result, list) else len(getattr(result, "batches", ()))
             head = f"{added} parti eklendi.\n" if added else ""
@@ -1187,6 +1277,14 @@ class YukleScreen(QWidget):
             self._reading.cancelling = True
             self.task.cancel()
             self.progress.title.setText("İptal ediliyor…")
+            if self.progress.stop_button is not None:
+                self.progress.stop_button.setEnabled(False)
+
+    def _stop_clicked(self) -> None:
+        """İptal et in the card: cancel, and the card's button goes away, so focus moves to the
+        table at once."""
+        self.cancel()
+        self.table.setFocus()
 
     def _attention(self) -> None:
         """Flash the taskbar button when the window is not the active one (QOL 19)."""
@@ -1214,7 +1312,7 @@ class YukleScreen(QWidget):
         text = message.rstrip(".") + ". Dosyayı kontrol edip yeniden ekleyin."
         bar = InfoBar("error", "Okunamadı", text, "Dosya ekle…", self.choose_batch, True, self)
         self._error = bar
-        self.work.insertWidget(0, bar)
+        self.work.insertWidget(1, bar)  # under the table: the rows keep their place (F-yukle-24)
         self.last_message = text
         taskbar = getattr(self.window_, "taskbar", None)
         if taskbar is not None:

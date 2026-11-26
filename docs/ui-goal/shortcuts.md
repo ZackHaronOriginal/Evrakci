@@ -118,7 +118,8 @@ the part between the two comments.
 | Del | Partiyi çıkar | Düzen | undoable; yazarken kapalı |
 | F2 | İşi yeniden adlandır | Düzen | renames the job (M-27) |
 | Ctrl+Shift+O | Dosya Gezgini'nde göster | Dosya | |
-| Ctrl+. | İptal et | Araçlar | stops reading |
+| Enter / double click on a batch | Partiyi Kontrol'de aç | Düzen | the table's own key, not a registry key (an app key would take Enter from the buttons); Kontrol opens at the batch's first page; off while a read runs (R3, Y-11) |
+| Ctrl+. | İptal et | Araçlar | stops reading; the progress card has the same "İptal et" button (R3, Y-8) |
 
 ### Kontrol
 

@@ -263,8 +263,9 @@ def test_open_errors_are_told_and_leave_the_open_job_alone(qtbot, tmp_path, monk
     card = _wait_card(qtbot, window)
     gate.set()
     qtbot.waitUntil(lambda: not window.loading(), timeout=3000)
-    assert window.yukle.last_message == f"İş açılamadı: {error}"
-    assert f"İş açılamadı: {error}" in window.toaster.current_text()
+    told = f"{second.name} açılamadı. İş klasörünü kontrol edin."  # R3 Y-5: by name, a next step
+    assert window.yukle.last_message == told
+    assert told in window.toaster.current_text()
     qtbot.waitUntil(lambda: not card.isVisible(), timeout=3000)
     assert window.controller() is before[1] and _bytes(store, first.id) == before[0]
 

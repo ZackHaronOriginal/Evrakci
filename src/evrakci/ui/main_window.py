@@ -99,7 +99,7 @@ COMMANDS: dict[str, tuple[Cmd | str, ...]] = {
     "yukle": (Cmd("app.geri_al"), Cmd("app.yinele"), SEP,
               Cmd("app.dosya_ekle", True, "file-up", "Dosya ekle…"),
               Cmd("yukle.klasor_ekle", icon="folder-plus"),
-              Cmd("app.yeni_is", icon="file-plus"), SEP,
+              Cmd("app.yeni_is", True, "file-plus", "Yeni iş"), SEP,
               Cmd("yukle.yukari"), Cmd("yukle.asagi"), Cmd("yukle.cikar"), SEP,
               Cmd("yukle.gezginde_goster", icon="external-link"), GROW,
               Cmd("yukle.iptal", True, "circle-x", "İptal et", hide_disabled=True),

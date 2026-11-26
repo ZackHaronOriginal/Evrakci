@@ -8,7 +8,7 @@
   "S4": "polish"
  },
  "notes": [
-  "Until the owner decides, every rule has enforced:false (reported only). enforceable:true marks rules whose source is verified, a decision id or an audience rule the owner confirmed.",
+  "Owner decided 2026-11-26 (decisions.md, Q-03): the build fails on DEC-TYP (13 px floor, ramp, family), DEC-CON-01/02 (contrast tiers), AUD-A11Y-01, DEC-FOC-01 and AUD-HIT-01..03, so those tool rules have enforced:true. Spacing grid, radii and HIG rows stay enforced:false (reported only). Known fails waiting for the Q6 fixes are listed in docs/ui-goal/baseline/known-fails.tsv (--enforce tolerates them). enforceable:true marks rules whose source is verified, a decision id or an audience rule the owner confirmed.",
   "measure is tool:<check> (a function in tools/ui_measure.py, one TSV row per widget) or manual (not in the TSV). A rule with rows_under shares the check of that rule and writes no rows of its own.",
   "HIG rows keep their paraphrase, Apple URL and verified flag from .claude/gorevler/hig-rules.json; reconcile is same / differs / owner / n-a against our decisions (Fluent 2 direction A and D1-D13 win over HIG).",
   "HIG-WIN-22 is the one row whose Apple page does not state the rule (verified:false); it can never be enforced."
@@ -25,7 +25,7 @@
    "source": "decisions.md#D4; PRODUCT.md (weaker eyesight)",
    "verified": true,
    "enforceable": true,
-   "enforced": false,
+   "enforced": true,
    "params": {
     "base_px": 13
    }
@@ -41,7 +41,7 @@
    "source": "decisions.md#D4",
    "verified": true,
    "enforceable": true,
-   "enforced": false,
+   "enforced": true,
    "params": {
     "steps": [
      13,
@@ -63,7 +63,7 @@
    "source": "decisions.md#D3",
    "verified": true,
    "enforceable": true,
-   "enforced": false,
+   "enforced": true,
    "params": {
     "families": [
      "Inter",
@@ -84,7 +84,7 @@
    "source": "decisions.md#D10; PRODUCT.md (weaker eyesight)",
    "verified": true,
    "enforceable": true,
-   "enforced": false,
+   "enforced": true,
    "params": {
     "min": 7.0
    }
@@ -100,7 +100,7 @@
    "source": "decisions.md#D10",
    "verified": true,
    "enforceable": true,
-   "enforced": false,
+   "enforced": true,
    "params": {
     "min": 4.5,
     "secondary_token": "text-2"
@@ -130,7 +130,7 @@
    "source": "audience: owner 2026-11-19; hit targets",
    "verified": true,
    "enforceable": true,
-   "enforced": false,
+   "enforced": true,
    "params": {
     "min": 24
    }
@@ -146,7 +146,7 @@
    "source": "audience: owner 2026-11-19; decisions.md#D5",
    "verified": true,
    "enforceable": true,
-   "enforced": false,
+   "enforced": true,
    "params": {
     "min": 28,
     "d5_token": "control-h"
@@ -163,7 +163,7 @@
    "source": "audience: owner 2026-11-19; decisions.md#D5",
    "verified": true,
    "enforceable": true,
-   "enforced": false,
+   "enforced": true,
    "params": {
     "min": 32,
     "d5_token": "control-h"
@@ -207,7 +207,7 @@
    "source": "PRODUCT.md (Accessibility & Inclusion)",
    "verified": true,
    "enforceable": true,
-   "enforced": false
+   "enforced": true
   },
   {
    "id": "AUD-TXT-01",
@@ -263,7 +263,7 @@
    "source": "decisions.md#D11",
    "verified": true,
    "enforceable": true,
-   "enforced": false,
+   "enforced": true,
    "params": {
     "min_px": 3
    }

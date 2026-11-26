@@ -68,7 +68,7 @@ def write_index(items: Sequence[ExportItem], job: Job, path: Path,
         positions = ", ".join(str(job.position_of(pid)) for pid in item.document.page_ids)
         fixed = [
             str(item.number),
-            f"{item.name}.pdf",
+            item.relative,
             str(len(item.document.page_ids)),
             positions,
             item.template_name or "",
@@ -118,7 +118,7 @@ def _write_check_sheet(book: Workbook, items: Sequence[ExportItem], job: Job) ->
         _set_text(sheet.cell(row=2, column=1), "Kontrol gerektiren belge yok.")
     for row, item in enumerate(flagged, start=2):
         positions = ", ".join(str(job.position_of(pid)) for pid in item.document.page_ids)
-        texts = [str(item.number), f"{item.name}.pdf", positions, "\n".join(item.checks)]
+        texts = [str(item.number), item.relative, positions, "\n".join(item.checks)]
         for column, text in enumerate(texts, start=1):
             cell = sheet.cell(row=row, column=column)
             _set_text(cell, text)

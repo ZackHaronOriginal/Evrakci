@@ -138,7 +138,7 @@ def test_main_state_grades_the_findings_and_lists_flagged_files_first(qtbot, tmp
     assert levels[0] == "tamam" and "kontrol" in levels and "eksik" in levels
     model = screen.results.model()
     first = model.row_at(0)
-    assert first.state == "kontrol" and first.name.startswith("belge_002")
+    assert first.state == "kontrol" and first.name == "Kontrol gerekenler/belge_002.pdf"
     assert model.data(model.index(0, 0)).startswith("Kontrol")
     assert screen.export_button.isEnabled()
     assert screen.filter_button.trail() == "1"
@@ -214,7 +214,8 @@ def test_the_pattern_edit_is_one_undoable_change_and_drives_the_names(qtbot, tmp
     assert ctl.undo_stack.undoText() == "Dosya adı kalıbı"
     names = [screen.results.model().row_at(i).name for i in range(3)]
     # the second document keeps its numbered name: its required Sicil no needs a check
-    assert sorted(names) == ["Ege Kalıp (2).pdf", "Ege Kalıp.pdf", "belge_002.pdf"]
+    assert sorted(names) == ["Ege Kalıp (2).pdf", "Ege Kalıp.pdf",
+                             "Kontrol gerekenler/belge_002.pdf"]
     ctl.undo()
     assert screen.pattern.text() == "{Sicil no}_{Firma}"
     assert screen.pattern_text() == "{Sicil no}_{Firma}"
@@ -231,8 +232,8 @@ def test_the_changed_pattern_is_what_is_written(qtbot, tmp_path):
     screen.side.pattern_committed.emit("{Firma}")
     with qtbot.waitSignal(screen.finished, timeout=30000):
         screen.export_button.click()
-    assert {p.name for p in out.glob("*.pdf")} == {"Ege Kalıp.pdf", "belge_002.pdf",
-                                                    "Ege Kalıp (2).pdf"}
+    assert {p.relative_to(out).as_posix() for p in out.rglob("*.pdf")} == {
+        "Ege Kalıp.pdf", "Kontrol gerekenler/belge_002.pdf", "Ege Kalıp (2).pdf"}
 
 
 def test_a_name_clash_is_a_bilgi_with_the_suffix_marked(qtbot, tmp_path):
@@ -395,7 +396,7 @@ def test_copy_names_and_the_printable_index(qtbot, tmp_path):
     html = screen.index_html()
     assert "Kasım 2026" in html and "belge_002.pdf" in html and "Kontrol" in html
     assert "<th align='left'>No</th>" in html
-    assert "<td align='right'>2</td><td>belge_002.pdf</td>" in html
+    assert "<td align='right'>2</td><td>Kontrol gerekenler/belge_002.pdf</td>" in html
     printer = QPrinter()
     printer.setOutputFileName(str(tmp_path / "dizin.pdf"))
     screen.print_index(printer)
@@ -716,7 +717,7 @@ def test_the_list_equals_onizle_and_the_files_written(qtbot, tmp_path, capsys):
     with qtbot.waitSignal(screen.finished, timeout=30000):
         screen.export_button.click()
     written = {line.split("\t")[1] for line in shown[1:]}
-    assert written == {p.name for p in out.glob("*.pdf")}
+    assert written == {p.relative_to(out).as_posix() for p in out.rglob("*.pdf")}
 
 
 def test_typing_a_folder_plans_once_after_a_pause(qtbot, tmp_path, monkeypatch):
@@ -1025,3 +1026,164 @@ def test_the_copied_list_is_in_document_order(qtbot, tmp_path):
     screen.model.all_rows = lambda: monkey_rows
     names = [line.split("\t")[1] for line in screen.list_text().split("\n")[1:]]
     assert names == [r.name for r in sorted(monkey_rows, key=lambda r: r.number)]
+
+
+# -- "Kontrol gerekenler" subfolder and the delete warning (Q4) ---------------------------
+def _core_export(tmp_path, out, **kw):
+    from evrakci.pipeline.exporting import export_job
+
+    store, templates, ctl, _template = _job(tmp_path)
+    tpl = {t.id: t for t in templates.list()}
+    return ctl, export_job(ctl.job, store.batch_files(ctl.job), tpl, out, with_layer=False, **kw)
+
+
+def test_core_writes_the_documents_to_check_into_the_subfolder_by_default(tmp_path):
+    import openpyxl
+
+    out = tmp_path / "out"
+    _ctl, result = _core_export(tmp_path, out)
+    assert [i.relative for i in result.items] == [
+        "48190_Ege Kalıp.pdf", "Kontrol gerekenler/belge_002.pdf", "48192_Ege Kalıp.pdf"]
+    assert sorted(p.relative_to(out).as_posix() for p in out.rglob("*.pdf")) == sorted(
+        i.relative for i in result.items)
+    book = openpyxl.load_workbook(out / "index.xlsx")
+    assert [r[1].value for r in book["Belgeler"].iter_rows(min_row=2)] == [
+        i.relative for i in result.items]
+    assert book["Kontrol gerekenler"]["B2"].value == "Kontrol gerekenler/belge_002.pdf"
+
+
+def test_core_can_leave_everything_in_one_folder(tmp_path):
+    out = tmp_path / "out"
+    _ctl, result = _core_export(tmp_path, out, check_subfolder=False)
+    assert all(i.folder == "" for i in result.items)
+    assert sorted(p.name for p in out.glob("*.pdf")) == [
+        "48190_Ege Kalıp.pdf", "48192_Ege Kalıp.pdf", "belge_002.pdf"]
+    assert not (out / "Kontrol gerekenler").exists()
+
+
+def test_clashes_are_checked_per_folder_and_the_path_limit_counts_the_subfolder(tmp_path):
+    from evrakci.pipeline.exporting import plan_names
+    from evrakci.pipeline.naming import PATH_LIMIT
+
+    store, templates, ctl, template = _job(tmp_path)
+    template.set_pattern("{Firma}")
+    templates.save(template)
+    tpl = {t.id: t for t in templates.list()}
+    items = plan_names(ctl.job, tpl, tmp_path / "o")
+    # the flagged document is in the subfolder, so it has no clash with the other two
+    assert [(i.folder, i.name) for i in items] == [
+        ("", "Ege Kalıp"), ("Kontrol gerekenler", "belge_002"), ("", "Ege Kalıp (2)")]
+    deep = tmp_path / ("x" * (PATH_LIMIT - len(str(tmp_path)) - 60))
+    for item in plan_names(ctl.job, tpl, deep):
+        folder = deep / item.folder if item.folder else deep
+        assert len(str(folder / f"{item.name}.pdf")) <= PATH_LIMIT
+
+
+def test_a_name_cut_by_the_path_limit_moves_into_the_subfolder(tmp_path):
+    from evrakci.pipeline.exporting import plan_names
+
+    store, templates, ctl, template = _job(tmp_path)
+    template.set_pattern("{Firma} " + "uzun" * 12)
+    templates.save(template)
+    tpl = {t.id: t for t in templates.list()}
+    deep = tmp_path / ("y" * (192 - len(str(tmp_path)) - 1))
+    items = plan_names(ctl.job, tpl, deep)
+    cut = [i for i in items if any("kısaltıldı" in c for c in i.checks)]
+    assert cut and all(i.folder == "Kontrol gerekenler" for i in cut)
+    for item in items:  # every name fits the folder it is really written to
+        folder = deep / item.folder if item.folder else deep
+        assert len(str(folder / f"{item.name}.pdf")) <= 250
+
+
+def test_an_older_settings_file_loads_with_the_subfolder_on(tmp_path):
+    from evrakci.pipeline.settings import Settings, load_settings, save_settings
+
+    path = tmp_path / "ayar.json"
+    path.write_text('{"saklama": "30"}', encoding="utf-8")
+    assert load_settings(path) == Settings("30", True)
+    save_settings(Settings("sakla", False), path)
+    assert load_settings(path) == Settings("sakla", False)
+
+
+def test_the_window_and_the_cli_give_the_same_names_and_folders(qtbot, tmp_path, capsys):
+    from evrakci.cli import main
+
+    screen, ctl = _clash_screen(qtbot, tmp_path)
+    out = tmp_path / "out"
+    screen.folder.setText(str(out))
+    assert screen.separate.isChecked()
+    base = ["--kok", str(tmp_path / "jobs"), "--sablon-kok", str(tmp_path / "tpl"),
+            "is", "disa-aktar", ctl.job.id, "--cikti", str(out), "--onizle"]
+    assert main(base) == 0
+    shown = capsys.readouterr().out.rstrip("\n").split("\n")
+    assert shown == screen.list_text().split("\n")
+    assert any(line.split("\t")[1].startswith("Kontrol gerekenler/") for line in shown[1:])
+    screen.separate.setChecked(False)
+    assert main(base + ["--kontrol-ayri-yok"]) == 0
+    flat = capsys.readouterr().out.rstrip("\n").split("\n")
+    assert flat == screen.list_text().split("\n")
+    assert not any("Kontrol gerekenler/" in line for line in flat)
+
+
+def test_the_checkbox_is_saved_and_shared_with_ayarlar(qtbot, tmp_path):
+    from evrakci.pipeline.settings import load_settings
+    from evrakci.ui.settings_dialog import SettingsDialog
+
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    assert screen.separate.text() == "" and screen.separate.accessibleName() == \
+        "Kontrol gerekenleri ayrı klasöre koy"
+    screen.separate.setChecked(False)
+    assert load_settings(tmp_path / "ayar.json").check_subfolder is False
+    dialog = SettingsDialog(Prefs(tmp_path / "p2.ini"), MainWindow.__dict__.get("x") or
+                            _registry(qtbot, tmp_path), retention_settings_path=tmp_path /
+                            "ayar.json")
+    qtbot.addWidget(dialog)
+    assert dialog.check_subfolder.text() == "Kontrol gerekenleri ayrı klasöre koy"
+    assert not dialog.check_subfolder.isChecked()
+    dialog.check_subfolder.setChecked(True)
+    assert load_settings(tmp_path / "ayar.json").check_subfolder is True
+    dialog.retention.setCurrentIndex(1)  # saving the retention keeps the other choice
+    assert load_settings(tmp_path / "ayar.json").check_subfolder is True
+    screen.refresh()
+    assert screen.separate.isChecked()
+
+
+def _registry(qtbot, tmp_path):
+    window, _screen_ = _window(qtbot, tmp_path)
+    return window.registry
+
+
+def test_the_delete_warning_shows_only_when_the_job_will_be_deleted(qtbot, tmp_path):
+    from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, save_settings
+    from evrakci.ui.disa_aktar_model import DELETE_WARNING
+
+    screen, ctl, _t = _screen(qtbot, tmp_path, names=("Ege Kalıp", "Akdeniz", "Ege Kalıp"))
+    screen.folder.setText(str(tmp_path / "out"))
+    assert not [f for f in screen._findings if f.title == DELETE_WARNING]
+    save_settings(Settings(DELETE_AFTER_EXPORT), tmp_path / "ayar.json")
+    screen._sync_after_pattern()
+    # a document needs a check: the job is kept, so nothing is announced
+    assert not [f for f in screen._findings if f.title == DELETE_WARNING]
+    clean = findings(Summary(3, 6, 0, True, 0, (), "", 0, 0), folder_state(""), deletes_job=True)
+    assert [f.title for f in clean if f.level == "kontrol"] == [DELETE_WARNING]
+    off = findings(Summary(3, 6, 0, True, 0, (), "", 0, 0), folder_state(""))
+    assert not [f for f in off if f.title == DELETE_WARNING]
+    screen.layer.setChecked(False)  # without the text layer the job is kept as well
+    assert not screen._deletes_job()
+    screen.layer.setChecked(True)
+    assert screen._deletes_job()
+
+
+def test_planning_800_documents_with_the_subfolder_stays_fast(tmp_path):
+    import time
+
+    from fakes import job_from_kinds
+
+    from evrakci.pipeline.exporting import plan_names
+
+    job = job_from_kinds({"b": "qp" * 800})  # a separator and a page, 800 documents
+    started = time.perf_counter()
+    items = plan_names(job, {}, tmp_path / "o")
+    elapsed = time.perf_counter() - started
+    assert len(items) == 800 and elapsed < 3, elapsed
+    assert len({(i.folder, i.name) for i in items}) == 800

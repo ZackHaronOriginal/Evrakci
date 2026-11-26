@@ -586,7 +586,7 @@ def _effect_export_written(c: Ctx) -> None:
     assert wait_until(lambda: d._written and d.task is None), "the export did not finish"
     out = c.data["out"]
     assert (out / "index.xlsx").is_file()
-    assert len(list(out.glob("*.pdf"))) == 3
+    assert len(list(out.rglob("*.pdf"))) == 3
 
 
 @helper("feedback.export_done")

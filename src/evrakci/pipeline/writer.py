@@ -35,17 +35,22 @@ def write_documents(
         raise ValueError("Aynı dosya adı iki kez yazılamaz.")  # one file would overwrite another
     # Never mix with an earlier export: any old PDF or index would look like part of this one.
     # Letter case is ignored: a USB stick or Windows share treats Belge.PDF as belge.pdf.
-    if out_dir.is_dir():
-        old = sorted(p for p in out_dir.iterdir()
-                     if p.suffix.lower() == ".pdf" or p.name.lower() == "index.xlsx")
-        if old:
-            raise FileExistsError(old[0].name)
+    # Names may carry a subfolder ("Kontrol gerekenler/ad"): its old PDFs count too.
+    folders = {out_dir} | {out_dir / Path(n).parent for n in names if Path(n).parent != Path(".")}
+    for folder in sorted(folders):
+        if folder.is_dir():
+            old = sorted(p for p in folder.iterdir()
+                         if p.suffix.lower() == ".pdf"
+                         or (folder == out_dir and p.name.lower() == "index.xlsx"))
+            if old:
+                raise FileExistsError(old[0].name)
     out_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     with ExitStack() as stack:
         sources: dict[str, pikepdf.Pdf] = {}
         for number, document in enumerate(documents, start=1):
             target = out_dir / f"{names[number - 1]}.pdf"
+            target.parent.mkdir(parents=True, exist_ok=True)
             with pikepdf.new() as output:
                 for pid in document.page_ids:
                     batch_id, index = parse_page_id(pid)

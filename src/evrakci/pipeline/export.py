@@ -23,6 +23,7 @@ from evrakci.pipeline.templates.model import (
 
 NOTE_INVALID = "Geçersiz karakter silindi"
 NOTE_SHORTENED = "Dosya adı kısaltıldı (klasör yolu uzun)"
+CHECK_SUBFOLDER = "Kontrol gerekenler"  # subfolder of the export folder for documents to check
 
 
 @dataclass
@@ -38,6 +39,12 @@ class ExportItem:
     keep: int = 0  # characters of `name` that must stay so required values survive
     sources: list[str] = field(default_factory=list)  # scan files of the pages, in order, once
     name_note: str = ""  # "" or why the written name differs from the pattern (I-39)
+    folder: str = ""  # "" or the subfolder of the export folder this file goes into
+
+    @property
+    def relative(self) -> str:
+        """The file's path below the export folder, with "/" ("Kontrol gerekenler/ad.pdf")."""
+        return f"{self.folder}/{self.name}.pdf" if self.folder else f"{self.name}.pdf"
 
 
 def sources_text(sources) -> str:

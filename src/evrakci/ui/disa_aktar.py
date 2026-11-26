@@ -39,7 +39,7 @@ from PySide6.QtWidgets import (
 )
 
 from evrakci.pipeline.cuts import document_template
-from evrakci.pipeline.export import PREVIEW_HEADER, plan_export, preview_line
+from evrakci.pipeline.export import CHECK_SUBFOLDER, PREVIEW_HEADER, plan_export, preview_line
 from evrakci.pipeline.exporting import (
     ExportError,
     export_job,
@@ -50,7 +50,12 @@ from evrakci.pipeline.job import job_from_dict, job_to_dict
 from evrakci.pipeline.naming import safe_filename
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.pdfium_lock import PDFIUM_LOCK
-from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, SettingsError, load_settings
+from evrakci.pipeline.settings import (
+    DELETE_AFTER_EXPORT,
+    SettingsError,
+    load_settings,
+    save_settings,
+)
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import disa_aktar_print as print_view
 from evrakci.ui import theme
@@ -250,6 +255,7 @@ class DisaAktarScreen(QWidget):
         self.side = SidePanel()
         self.folder = self.side.folder
         self.layer = self.side.layer
+        self.separate = self.side.separate
         self.pattern = self.side.pattern
         self.export_button = self.side.export_button
         self.again_button = self.side.again_button
@@ -257,6 +263,8 @@ class DisaAktarScreen(QWidget):
         self.splitter.setStretchFactor(0, 1)
         self.splitter.setStretchFactor(1, 0)
         self.side.choose_clicked.connect(self.choose_folder)
+        self.separate.toggled.connect(self._separate_toggled)
+        self.layer.toggled.connect(lambda _on: self._sync_after_pattern())
         self.folder.textChanged.connect(self._folder_changed)
         self.folder.textEdited.connect(self._folder_edited)
         self.side.pattern_committed.connect(self._pattern_committed)
@@ -399,7 +407,7 @@ class DisaAktarScreen(QWidget):
             header.resizeSection(1, source_w)
             deficit = header.sectionSize(0) + pages_wanted + source_w + others + need - view
         if deficit > 0:  # then Durum narrows (its reason caption elides)
-            header.resizeSection(0, max(round(140 * scale()), header.sectionSize(0) - deficit))
+            header.resizeSection(0, max(round(130 * scale()), header.sectionSize(0) - deficit))
         others = header.sectionSize(0) + header.sectionSize(pages) + source_w + (
             0 if hide_template else template_w)
         header.resizeSection(FilesModel.NAME, max(need, view - others))
@@ -473,10 +481,15 @@ class DisaAktarScreen(QWidget):
         text = self.folder.text().strip()
         if text:
             try:
-                return plan_names(job, templates, Path(text))
+                return plan_names(job, templates, Path(text), self.separate.isChecked())
             except (ValueError, OSError):
                 pass  # a path too long for any name: the pre-flight and export say so
-        return plan_export(job, templates)
+        items = plan_export(job, templates)
+        if self.separate.isChecked():
+            for item in items:
+                if item.checks:
+                    item.folder = CHECK_SUBFOLDER
+        return items
 
     def refresh(self) -> None:
         controller = self.controller()
@@ -489,6 +502,8 @@ class DisaAktarScreen(QWidget):
             self._written = False  # another job is open: show its names again
             self._written_rows, self._outcome = [], None
         if not self._written:
+            if self.task is None:
+                self._load_separate()
             self._plan(controller)
             self._prefill_folder(controller)
             self._folder = folder_state(self.folder.text())  # the disk may have changed
@@ -531,7 +546,40 @@ class DisaAktarScreen(QWidget):
         if not self._items:
             return [Finding("bilgi", "", "Belge, kontrol ve eksik değer denetimi iş açılınca "
                             "burada görünür.", None, count_text="–")]
-        return findings(self._summary, self._folder, self._problem)
+        return findings(self._summary, self._folder, self._problem, self._deletes_job())
+
+    def _settings(self):
+        try:
+            return load_settings(self.settings_path)
+        except SettingsError:
+            return None  # a broken settings file never deletes a job
+
+    def _deletes_job(self) -> bool:
+        """The job is deleted after this export: "delete after export" is set and the text layer
+        will be added (without it, or with a document to check, the job stays)."""
+        settings = self._settings()
+        return (settings is not None and settings.retention == DELETE_AFTER_EXPORT
+                and self.layer.isChecked())
+
+    def _load_separate(self) -> None:
+        """The box shows the saved choice (Ayarlar > Dışa aktarma has the same one)."""
+        settings = self._settings()
+        want = True if settings is None else settings.check_subfolder
+        if self.separate.isChecked() != want:
+            self.separate.blockSignals(True)
+            self.separate.setChecked(want)
+            self.separate.blockSignals(False)
+
+    def _separate_toggled(self, on: bool) -> None:
+        settings = self._settings()
+        if settings is not None:
+            try:
+                save_settings(dataclasses.replace(settings, check_subfolder=on),
+                              self.settings_path)
+            except OSError:
+                pass  # the choice still applies to this export
+        if self.task is None and not self._written:
+            self._sync_after_pattern()
 
     def _sync(self) -> None:
         """Make every part show the current state (one place; cheap when nothing changed)."""
@@ -1088,6 +1136,7 @@ class DisaAktarScreen(QWidget):
                 if i is not None and templates.get(i) is not None}
         templates = self._effective(job, templates, used)
         with_layer = self.layer.isChecked()
+        check_subfolder = self.separate.isChecked()
         self._with_layer = with_layer
 
         def report(progress, stage, done, total):
@@ -1097,6 +1146,7 @@ class DisaAktarScreen(QWidget):
         def work(progress):
             try:
                 return export_job(job, files, templates, out_dir, with_layer=with_layer,
+                                  check_subfolder=check_subfolder,
                                   progress=lambda stage, done, total: report(progress, stage,
                                                                              done, total))
             except EngineUnavailable as error:
@@ -1172,7 +1222,7 @@ class DisaAktarScreen(QWidget):
 
     def _done(self, result) -> None:
         controller, job = self._exporting  # the job that was exported, not the open one
-        names = [p.name for p in result.paths]
+        names = [i.relative for i in result.items]
         self._written_rows = file_rows(job, result.items, names)
         self._written = True
         self._written_for = controller
@@ -1294,7 +1344,7 @@ class DisaAktarScreen(QWidget):
         self._finish("Dışa aktarma tamamlanamadı", None)
 
     def _cancelled(self) -> None:
-        written = sorted(p.name for p in self.out_dir.glob("*.pdf")) if self.out_dir else []
+        written = sorted(p.name for p in self.out_dir.glob("**/*.pdf")) if self.out_dir else []
         self._outcome = {
             "kind": "stopped", "title": "Dışa aktarma durduruldu",
             "message": f"Dışa aktarma durduruldu: {len(written)} dosya yazıldı, index.xlsx "

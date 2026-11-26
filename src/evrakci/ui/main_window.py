@@ -1794,6 +1794,7 @@ class MainWindow(QMainWindow):
                     QTimer.singleShot(0, self, self.close)
                 else:  # the close is refused: later edits and tasks go on as usual
                     self._closing = False
+                    self._ask_close_unsaved()
 
             self._settle_job(written)
             event.ignore()
@@ -1803,6 +1804,24 @@ class MainWindow(QMainWindow):
         self.prefs.save_window(self)
         QApplication.instance().removeEventFilter(self.alt_menus)
         event.accept()
+
+    def _ask_close_unsaved(self) -> None:
+        """The save failed again: Yes closes anyway (the last changes are lost), No keeps the job
+        open. The question does not block the event loop, so a close can never get stuck (B-035);
+        the status line keeps the reason and a second close attempt also goes ahead."""
+        dialog = getattr(self, "_close_question", None)
+        if dialog is not None and shiboken6.isValid(dialog) and dialog.isVisible():
+            return
+        dialog = QMessageBox(
+            QMessageBox.Icon.Question, "Evrakçı",
+            "Değişiklikler kaydedilemedi. Yine de kapatılsın mı? Son değişiklikler kaybolur.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
+        dialog.setDefaultButton(QMessageBox.StandardButton.No)
+        dialog.setWindowModality(Qt.WindowModality.WindowModal)
+        dialog.finished.connect(lambda code: self.close()
+                                if code == QMessageBox.StandardButton.Yes else None)
+        self._close_question = dialog
+        dialog.open()
 
     def _work_stopped(self) -> None:
         if self._closing and not self._busy_screens():

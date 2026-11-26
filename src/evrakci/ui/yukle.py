@@ -39,8 +39,8 @@ from PySide6.QtWidgets import (
 
 from evrakci import __version__
 from evrakci.pipeline import export
-from evrakci.pipeline.analyze import count_pages
-from evrakci.pipeline.job import Job, job_from_dict, job_to_dict
+from evrakci.pipeline.analyze import BatchError, count_pages
+from evrakci.pipeline.job import Job, job_from_dict, job_to_dict, repeated_files
 from evrakci.pipeline.store import JobStore
 from evrakci.ui import theme
 from evrakci.ui.chrome import ActionButton
@@ -138,6 +138,15 @@ class _Dropline(QWidget):
                                 theme.manager().color("stroke-soft"))
 
 
+def failed_text(lines: list[str]) -> str:
+    """Every file that could not be read, one line each; a PDF that would not open also gets
+    the password hint (a protected file reads as damaged)."""
+    text = "\n".join(lines)
+    if any(line.startswith("PDF açılamadı") for line in lines):
+        text += "\nParola korumalı olabilir"
+    return text
+
+
 class _Reading:
     """Bookkeeping of one read: which files, how many pages, and the speed so far."""
 
@@ -218,6 +227,8 @@ class YukleScreen(QWidget):
         self._drop_key: tuple | None = None
         self._info: JobSummary | None = None
         self._queued: list[Path] = []
+        self._readable: list[Path] = []
+        self._failed_files: list[str] = []  # files the current read could not open
         self._rows: list | None = None
         self.window_ = None  # the MainWindow once attached
         self.last_message = ""
@@ -590,7 +601,7 @@ class YukleScreen(QWidget):
     def create_job(self, paths: list[Path], name: str) -> None:
         paths = [Path(p) for p in paths]
         self._begin(paths, lambda _total: (
-            lambda progress: self.store.create_job(name, paths, progress)), self._swap_job)
+            lambda progress: self.store.create_job(name, self._readable, progress)), self._swap_job)
 
     def add_batch(self, path: Path) -> None:
         self.add_batches([Path(path)])
@@ -609,9 +620,13 @@ class YukleScreen(QWidget):
             def work(progress):
                 made, prepared, base = [], [], 0
                 try:
-                    for path in paths:
-                        result = store.prepare_batch(
-                            snapshot, path, lambda d, _t, base=base: progress(base + d, total))
+                    for path in self._readable:
+                        try:
+                            result = store.prepare_batch(
+                                snapshot, path, lambda d, _t, base=base: progress(base + d, total))
+                        except BatchError as error:  # this file only: the good ones are kept
+                            self._failed_files.append(str(error))
+                            continue
                         made.append(store.batch_file(snapshot, result.batch))
                         prepared.append(result)
                         base += result.batch.page_count
@@ -630,6 +645,8 @@ class YukleScreen(QWidget):
         if controller is None or not prepared:
             return
         count = len(prepared)
+        again = repeated_files((b.file_name for b in controller.job.batches),
+                               (item.batch.file_name for item in prepared))
         text = "Parti ekle" if count == 1 else f"{count} parti ekle"
 
         def attach(job: Job) -> None:
@@ -640,6 +657,12 @@ class YukleScreen(QWidget):
             self.table.select_batch(prepared[0].batch.id)
             undo, available = undo_last(controller.undo_stack)
             full = prepared[0].batch.file_name
+            if again:  # a warning, not a refusal: the add stays and Geri al takes it back
+                names = _short_name(again[0]) if len(again) == 1 else \
+                    f"{_short_name(again[0])} ve {len(again) - 1} dosya daha"
+                self._tell(f"{names} zaten ekli.", "kontrol", "Geri al", undo, available,
+                           spoken=f"{', '.join(again)} zaten ekli.")
+                return
             self._tell(f"{count} parti eklendi." if count > 1
                        else f"{_short_name(full)} eklendi.", "success",
                        "Geri al", undo, available,
@@ -1015,11 +1038,24 @@ class YukleScreen(QWidget):
             return
         self._clear_error()
         reading = _Reading(files)
+        self._failed_files = failed = []  # one line per file that could not be read
 
         def work(progress):
             # Counting opens every file: it runs here, in the worker, never on the GUI
             # thread (a folder of thousands of scans would freeze the window first).
-            reading.set_pages([count_pages(p) for p in files])
+            counts, readable = [], []
+            for path in files:
+                try:
+                    counts.append(count_pages(path))
+                except BatchError as error:  # one broken file never spoils the others
+                    failed.append(str(error))
+                    counts.append(0)
+                else:
+                    readable.append(path)
+            if not readable:  # nothing to keep: the failure bar names every file
+                raise BatchError(failed_text(failed))
+            reading.set_pages(counts)
+            self._readable = readable  # what `make_work` reads: the files that opened
             return make_work(reading.total)(progress)
 
         self._reading = reading
@@ -1090,6 +1126,8 @@ class YukleScreen(QWidget):
             self._tell(CANCELLED_TEXT, "info")
         if on_done is not None:
             on_done(result)
+        if error is None and not cancelled and self._failed_files:
+            self._fail(failed_text(self._failed_files))  # the readable files were kept
         queued, self._queued = self._queued, []
         self._sync_state()
         self._attention()

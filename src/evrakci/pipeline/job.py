@@ -66,6 +66,19 @@ class LastExport:
     needing_check: int
 
 
+def repeated_files(existing: Iterable[str], new: Iterable[str]) -> list[str]:
+    """The names in `new` that are already in `existing` or came earlier in `new` (case does
+    not matter, as on Windows). Each repeated name is listed once, in the order met."""
+    seen = {name.casefold() for name in existing}
+    found: list[str] = []
+    for name in new:
+        key = name.casefold()
+        if key in seen and name not in found:
+            found.append(name)
+        seen.add(key)
+    return found
+
+
 @dataclass
 class Job:
     id: str

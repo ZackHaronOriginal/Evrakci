@@ -5,6 +5,8 @@ Evidence ids are rows of `yukle-findings.md`.
 
 ## P-yukle-01 (F-yukle-18, S3): the same file added twice
 
+Done in Q7 (owner approved): see tests/ui/test_q7_yukle.py.
+
 Measured: P-139, `batches 2 -> 4` after two adds of one file; pages, Kontrol and the export count the scan twice.
 Needs new text (a warning) and a decision on behaviour. Options:
 1. Warn after the read: "tarama-1.pdf zaten ekli." with "Geri al" in the toast (the add is already one undoable edit, so no question is needed).
@@ -13,6 +15,8 @@ Needs new text (a warning) and a decision on behaviour. Options:
 Recommendation: option 1; no behaviour change, only a sentence. Needs the owner's yes for the sentence.
 
 ## P-yukle-02 (F-yukle-19, S3): one unreadable file drops the good ones
+
+Done in Q7 (owner approved): see tests/ui/test_q7_yukle.py.
 
 Measured: P-135 (`batches 1 (before 1)` after one good and one broken file), P-140. The failure is raised while counting pages
 (`ui/yukle.py:_begin work`) and while analysing (`add_batches work`), before anything is attached, so the whole add is dropped.
@@ -55,6 +59,8 @@ off the window thread; not done. F-yukle-26 (search icon is a button), 27 (thous
 margins), 36 (keys with no job), 38 (tool limits) and 49 (announce after a move) need no text but are S4: left open.
 
 ## P-app-01 (B-035): the close confirmation after a failed save
+
+Done in Q7 (owner approved): see tests/ui/test_q7_yukle.py.
 
 Done without new text: when the last save failed, closing the window (also Ctrl+Q), İşi kapat (Ctrl+W) and opening another job first retry
 the save (`main_window.py:_unsaved_refusal`). If it still fails, the close is blocked and the existing "Kaydedilemedi: ..." status is shown.

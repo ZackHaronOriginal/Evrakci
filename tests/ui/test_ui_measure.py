@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QIcon, QPalette, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -141,10 +141,91 @@ def test_known_fails_file_is_dated_and_every_row_has_a_reason():
     assert "2026-11-26" in path.read_text(encoding="utf-8").splitlines()[0]
     rows = [ln.split("\t") for ln in path.read_text(encoding="utf-8").splitlines()
             if ln and not ln.startswith("#") and not ln.startswith("rule\t")]
-    assert rows and all(len(r) == 3 and r[2] for r in rows)
+    # rule, widget, reason (every case) or rule, widget, theme, size, text, reason (one case)
+    assert rows and all(len(r) in (3, 6) and r[-1] for r in rows)
+    # a waiver for a case seen on one machine names the case (B-104, R-O-5): never every case
+    assert all(len(r) == 6 and r[2] in ("light", "dark", "hc") and r[4] in ("100", "150")
+               for r in rows if r[0] == "DEC-CON-01")
     assert {r[0] for r in rows} <= ENFORCED_IDS
     assert len(um.load_known_fails(path)) == len(rows)
     assert um.load_known_fails(path / "missing") == set()
+
+
+def test_narrow_known_fail_covers_only_its_theme_size_and_text(tmp_path):
+    path = tmp_path / "known.tsv"
+    path.write_text("rule\twidget\treason\nDEC-CON-01\tw\tlight\t1366x768\t100\tCI\n"
+                    "AUD-HIT-02\tz\tevery case\n", encoding="utf-8")
+    known = um.load_known_fails(path)
+    assert known == {("DEC-CON-01", "w", "light", "1366x768", "100"), ("AUD-HIT-02", "z")}
+    rules = um.load_rules()
+
+    def row(theme_, size="1366x768", text="100", widget="w", rule="DEC-CON-01"):
+        return ("tab", theme_, size, text, widget, "QWidget", rule, "1.01", "7", "fail", "S3")
+    assert um.enforced_failures([row("light")], rules, known) == 0
+    for other in (row("dark"), row("light", "1920x1080"), row("light", text="150"),
+                  row("light", widget="other")):
+        assert um.enforced_failures([other], rules, known) == 1
+    assert um.enforced_failures([row("hc", rule="AUD-HIT-02", widget="z")], rules, known) == 0
+    # stale: the narrow entry is stale unless that very case fails
+    assert ("DEC-CON-01", "w", "light", "1366x768", "100") in um.stale_known_fails(
+        [row("dark")], known)
+    assert ("DEC-CON-01", "w", "light", "1366x768", "100") not in um.stale_known_fails(
+        [row("light")], known)
+
+
+def test_unpainted_rows_are_the_contrast_fails_near_one():
+    near = _row("DEC-CON-01")[:7] + ("1.01", "7", "fail", "S3")
+    low = _row("DEC-CON-01")[:7] + ("6.91", "7", "fail", "S3")
+    other = _row("DEC-TYP-01")[:7] + ("1.01", "7", "fail", "S3")
+    assert um.unpainted([near, low, other, _row("DEC-CON-01", result="pass")]) == [near]
+
+
+def test_measure_waits_for_text_that_paints_late(light_100):
+    """B-104: text that is not painted yet (a worker's result, a late layout pass) reads about
+    1:1 and failed only on a slow machine; the tool waits until the picture is settled and
+    measures again."""
+    qapp = light_100
+    root = QWidget()
+    root.setObjectName("late")
+    layout = QVBoxLayout(root)
+    label = QLabel("Belge 3")
+    label.setObjectName("lateLabel")
+    ink = QPalette(label.palette())
+    ink.setColor(QPalette.ColorRole.WindowText, QColor("#fefefe"))  # as if not painted yet
+    label.setPalette(ink)
+    layout.addWidget(label)
+    root.resize(300, 120)
+    root.show()
+
+    def paint_text() -> None:
+        ink.setColor(QPalette.ColorRole.WindowText, QColor("#000000"))
+        label.setPalette(ink)
+
+    early = um.measure_tree(qapp, um.make_ctx(root, "light", 100, (300, 120), um.load_rules()),
+                            um.load_rules(), "late")
+    assert um.unpainted(early)  # the probe reads as unpainted before the late change
+    QTimer.singleShot(700, paint_text)
+    rules = um.load_rules()
+    rows = um.measure_settled(qapp, root, "light", 100, (300, 120), rules, "late")
+    mine = [r for r in rows if r[4].endswith("lateLabel") and r[6] in ("DEC-CON-01", "DEC-CON-02")]
+    assert mine and all(r[9] == "pass" for r in mine), mine
+    assert not um.unpainted(rows)
+
+
+def test_settled_reports_a_picture_that_never_stops_changing(light_100):
+    qapp = light_100
+    root = QWidget()
+    label = QLabel("0")
+    QVBoxLayout(root).addWidget(label)
+    root.resize(200, 80)
+    root.show()
+    count = iter(range(1, 10**6))
+    timer = QTimer(root)
+    timer.timeout.connect(lambda: label.setText(str(next(count))))
+    timer.start(10)
+    assert um.settled(qapp, root, limit_ms=400) is False
+    timer.stop()
+    assert um.settled(qapp, root, limit_ms=1000) is True
 
 
 def test_canvas_and_reader_exemptions():

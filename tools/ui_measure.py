@@ -48,7 +48,12 @@ never holds one). The focus probe puts every focus policy back, so a result does
 the order of sizes or tabs. Window caption buttons and a QLineEdit's clear action are exempt
 from AUD-KBD-01 ("skip"). Button height (AUD-HIT-02) uses the D5 density value, not the text
 size step. The truncation check also counts cut table cells (screenshots._cells).
-Each state waits 300 ms (longer than the longest D7 duration) before it is measured.
+Each state waits 300 ms (longer than the longest D7 duration) and then until it is settled
+(B-104): no pool worker runs and two grabs 40 ms apart are the same picture. A contrast row
+whose text colour is hardly distinct from its background (below 1.5:1, what an unpainted or
+still-loading widget measures) is measured again after a longer wait, up to twice; one that
+stays that low is a real failure. Known fails (known-fails.tsv) name rule, widget and, for a
+case seen on one machine only, theme, size and text scale.
 """
 
 from __future__ import annotations
@@ -77,6 +82,7 @@ from PySide6.QtCore import (  # noqa: E402
     QPoint,
     QRect,
     Qt,
+    QThreadPool,
 )
 from PySide6.QtGui import QAccessible, QFontInfo, QImage  # noqa: E402
 from PySide6.QtTest import QTest  # noqa: E402
@@ -115,6 +121,7 @@ KNOWN_FAILS_PATH = ROOT / "docs/ui-goal/baseline/known-fails.tsv"
 COLUMNS = ("tab", "theme", "size", "text", "widget", "class", "rule", "value", "limit", "result",
            "severity")
 SETTLE_MS = 300
+IDLE_MS = 3000  # the longest wait for a settled picture
 Row = tuple[str, ...]
 Res = tuple[str, str, str]  # value, limit, "pass" | "fail" | "skip"
 
@@ -148,18 +155,30 @@ def exempt_row(rule_id: str, path: str) -> bool:
     return rule_id in CANVAS_EXEMPT_RULES and "/PageCanvas/" in f"{path}/"
 
 
-def load_known_fails(path: Path = KNOWN_FAILS_PATH) -> set[tuple[str, str]]:
-    """(rule id, widget path) pairs --enforce tolerates; file columns: rule, widget, reason."""
+def load_known_fails(path: Path = KNOWN_FAILS_PATH) -> set[tuple[str, ...]]:
+    """What --enforce tolerates. File columns: rule, widget, reason (every case of that widget)
+    or rule, widget, theme, size, text, reason (only that case, e.g. "light 1366x768 100", so a
+    regression of the widget at another theme, size or text scale still fails). Keys are
+    (rule, widget) or (rule, widget, theme, size, text)."""
     if not path.exists():
         return set()
-    known = set()
+    known: set[tuple[str, ...]] = set()
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip() or line.startswith("#") or line.startswith("rule\t"):
             continue
         cols = line.split("\t")
-        if len(cols) >= 2:
+        if len(cols) >= 6:
+            known.add(tuple(cols[:5]))
+        elif len(cols) >= 2:
             known.add((cols[0], cols[1]))
     return known
+
+
+def known_fail_matches(key: tuple[str, ...], row: Row) -> bool:
+    """True when a known-fail key covers the row (rule, widget [, theme, size, text])."""
+    if key[:2] != (row[6], row[4]):
+        return False
+    return len(key) < 5 or key[2:5] == (row[1], row[2], row[3])
 
 
 # -- colours ------------------------------------------------------------------------------
@@ -841,6 +860,7 @@ CHECKS = {
 
 
 CONTRAST_CHECKS = ("contrast-body", "contrast-secondary")
+CONTRAST_RULES = ("DEC-CON-01", "DEC-CON-02")
 
 
 # -- measuring ----------------------------------------------------------------------------
@@ -896,11 +916,62 @@ def sort_rows(rows: list[Row]) -> list[Row]:
     return sorted(rows)
 
 
-def calm(app: QApplication, window: QWidget | None = None) -> None:
-    """Settle the window and let every animation (longest 240 ms, D7) finish."""
+def settled(app: QApplication, window: QWidget, limit_ms: int = IDLE_MS) -> bool:
+    """Spin the event loop until no pool worker runs and two grabs 40 ms apart are the same
+    picture (text read in a worker, a layout pass or a repaint still queued on a slow machine
+    changes it). False when it never settles within `limit_ms` (a blinking cursor)."""
+    pool = QThreadPool.globalInstance()
+    deadline = time.monotonic() + limit_ms / 1000
+    last = None
+    while time.monotonic() < deadline:
+        app.processEvents()
+        if pool.activeThreadCount() == 0:
+            image = window.grab().toImage()
+            if last is not None and image == last:
+                return True
+            last = image
+        QTest.qWait(40)
+    return False
+
+
+def calm(app: QApplication, window: QWidget | None = None, extra_ms: int = 0) -> None:
+    """Settle the window and let every animation (longest 240 ms, D7) finish; then wait until
+    nothing is still loading or repainting (see `settled`)."""
     screenshots._settle(app, window=window)
-    QTest.qWait(SETTLE_MS)
+    QTest.qWait(SETTLE_MS + extra_ms)
     screenshots._settle(app, rounds=10, window=window)
+    if window is not None:
+        settled(app, window)
+
+
+UNPAINTED = 1.5  # a text colour closer to its background than this is "not painted (yet)"
+REMEASURE = 2
+
+
+def unpainted(rows: list[Row]) -> list[Row]:
+    """Failing contrast rows that read as an empty or not-yet-painted widget (about 1:1)."""
+    return [row for row in rows if row[6] in CONTRAST_RULES and row[9] == "fail"
+            and _ratio(row[7]) < UNPAINTED]
+
+
+def _ratio(value: str) -> float:
+    try:
+        return float(value)
+    except ValueError:
+        return UNPAINTED
+
+
+def measure_settled(app: QApplication, window: QWidget, mode: str, text: int,
+                    size: tuple[int, int], rules: list[dict], slug: str) -> list[Row]:
+    """Rows of one tab; when some contrast rows read as unpainted, wait longer and measure the
+    tab again (the later rows replace the earlier ones)."""
+    rows = measure_tree(app, make_ctx(window, mode, text, size, rules), rules, slug)
+    for attempt in range(1, REMEASURE + 1):
+        if not unpainted(rows):
+            break
+        calm(app, window, extra_ms=SETTLE_MS * attempt)
+        rows = measure_tree(app, make_ctx(window, mode, text, size, rules), rules, slug)
+    return rows
 
 
 def run(app: QApplication, tmp: Path, rules: list[dict], tabs=screenshots.SLUGS,
@@ -920,8 +991,8 @@ def run(app: QApplication, tmp: Path, rules: list[dict], tabs=screenshots.SLUGS,
                 for slug in tabs:
                     window.tabs.setCurrentIndex(screenshots.SLUGS.index(slug))
                     calm(app, window)
-                    ctx = make_ctx(window, mode, text, (width, height), rules)
-                    rows += measure_tree(app, ctx, rules, slug)
+                    rows += measure_settled(app, window, mode, text, (width, height), rules,
+                                            slug)
                     if progress:
                         progress(slug, mode, f"{width}x{height}", text, len(rows))
             window.close()
@@ -953,22 +1024,23 @@ def format_summary(rows: list[Row], rules: list[dict]) -> str:
 
 
 def enforced_fail_rows(rows: list[Row], rules: list[dict],
-                       known: set[tuple[str, str]] = frozenset()) -> list[Row]:
+                       known: set[tuple[str, ...]] = frozenset()) -> list[Row]:
     """Failing rows of enforced rules that are not on the known-fail list."""
     enforced = {r["id"] for r in rules if r.get("enforced")}
     return [row for row in rows if row[6] in enforced and row[9] == "fail"
-            and (row[6], row[4]) not in known]
+            and not any(known_fail_matches(key, row) for key in known)]
 
 
 def enforced_failures(rows: list[Row], rules: list[dict],
-                      known: set[tuple[str, str]] = frozenset()) -> int:
+                      known: set[tuple[str, ...]] = frozenset()) -> int:
     return len(enforced_fail_rows(rows, rules, known))
 
 
-def stale_known_fails(rows: list[Row], known: set[tuple[str, str]]) -> list[tuple[str, str]]:
+def stale_known_fails(rows: list[Row], known: set[tuple[str, ...]]) -> list[tuple[str, ...]]:
     """Known-fail entries that no longer fail (a fix landed): the list can shrink."""
-    failing = {(row[6], row[4]) for row in rows if row[9] == "fail"}
-    return sorted(known - failing)
+    failing = [row for row in rows if row[9] == "fail"]
+    return sorted(key for key in known
+                  if not any(known_fail_matches(key, row) for row in failing))
 
 
 def to_tsv(rows: list[Row], header: str = "") -> str:
@@ -1017,8 +1089,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.enforce:
         return 0
     known = load_known_fails(args.known_fails)
-    for rule_id, widget in stale_known_fails(rows, known) if not args.tab else []:
-        print(f"known-fail no longer fails (remove it): {rule_id}\t{widget}")
+    for key in stale_known_fails(rows, known) if not args.tab else []:
+        print("known-fail no longer fails (remove it): " + "\t".join(key))
     failed = enforced_fail_rows(rows, rules, known)
     for row in failed[:20]:
         print(f"ENFORCED FAIL {row[6]} {row[0]}/{row[1]}/{row[2]}/{row[3]} {row[4]}: {row[7]}")

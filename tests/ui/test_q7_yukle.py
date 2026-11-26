@@ -131,6 +131,15 @@ def test_a_file_that_breaks_while_reading_keeps_the_others(qtbot, tmp_path, file
     assert "PDF açılamadı: tarama-2.pdf" in screen.last_message
 
 
+def test_a_new_job_from_a_repeated_file_warns_like_the_cli(qtbot, tmp_path, files):
+    """R-O-7: creating a job from several files warns about a repeat, as `is olustur` does."""
+    a, b, _bad, _bad2 = files
+    window = _window(qtbot, tmp_path)
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=20000):
+        window.yukle.create_job([a, b, a], "Kasım")
+    assert window.yukle.last_message == "tarama-1.pdf zaten ekli."
+
+
 def test_cli_warns_about_a_repeated_file_and_still_adds(tmp_path, capsys, files):
     a, _b, _bad, _bad2 = files
     root = tmp_path / "kok"

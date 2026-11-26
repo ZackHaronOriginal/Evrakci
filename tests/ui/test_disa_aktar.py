@@ -1267,3 +1267,39 @@ def test_a_click_on_the_label_focuses_the_box_and_toggles_only_inside(qtbot, tmp
     QTest.mousePress(label, Qt.MouseButton.LeftButton, pos=label.rect().center())
     QTest.mouseRelease(label, Qt.MouseButton.LeftButton, pos=QPoint(-20, -20))
     assert not box.isChecked()  # released outside the label: no change
+
+
+def test_a_failed_save_of_the_checkbox_is_said_and_the_box_goes_back(qtbot, tmp_path,
+                                                                     monkeypatch):
+    """R-O-3: the box shows what is saved, so a tab change does not flip it silently."""
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    said = []
+    monkeypatch.setattr(screen, "_say_status", said.append)
+
+    def refuse(*_args):
+        raise OSError("disk dolu")
+
+    monkeypatch.setattr("evrakci.ui.disa_aktar.save_settings", refuse)
+    screen.separate.setChecked(False)
+    assert screen.separate.isChecked()
+    assert said == ["Ayar kaydedilemedi: disk dolu"]
+
+
+def test_a_failed_save_in_ayarlar_is_said_on_the_export_page(qtbot, tmp_path, monkeypatch):
+    """R-O-4: not on the Saklama note."""
+    from evrakci.ui.settings_dialog import SettingsDialog
+
+    dialog = SettingsDialog(Prefs(tmp_path / "p2.ini"), _registry(qtbot, tmp_path),
+                            retention_settings_path=tmp_path / "ayar.json")
+    qtbot.addWidget(dialog)
+    note = dialog.retention_note.text()
+
+    def refuse(*_args):
+        raise OSError("disk dolu")
+
+    monkeypatch.setattr("evrakci.ui.settings_dialog.save_settings", refuse)
+    dialog.check_subfolder.setChecked(False)
+    assert dialog.check_subfolder.isChecked()
+    assert dialog.export_note.text() == "Ayar kaydedilemedi: disk dolu"
+    assert not dialog.export_note.isHidden()
+    assert dialog.retention_note.text() == note

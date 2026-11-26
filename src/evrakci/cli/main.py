@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -41,14 +42,18 @@ def _show_settings(args: argparse.Namespace, store: JobStore) -> int:
 
 def _set_retention(args: argparse.Namespace, store: JobStore) -> int:
     try:
-        settings = Settings(args.deger)
+        try:
+            current = load_settings()
+        except SettingsError:
+            current = Settings()  # a broken file falls back to the defaults, as the dialog does
+        settings = dataclasses.replace(current, retention=args.deger)
     except SettingsError as error:
         raise UserError(str(error)) from None
     save_settings(settings)
     meaning = {
         "sakla": "işler hiçbir zaman kendiliğinden silinmez",
         "disa-aktarinca-sil": "iş, tüm dosyalar dışa aktarılınca silinir",
-    }.get(settings.retention, f"{settings.retention} günden eski işler silinir")
+    }.get(settings.retention, f"{settings.retention} gün sonra dışa aktarılmış işler silinir")
     print(f"Saklama: {settings.retention} ({meaning})")
     return 0
 

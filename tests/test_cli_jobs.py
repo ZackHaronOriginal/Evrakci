@@ -4,6 +4,7 @@ import pikepdf
 from fakes import make_pdf, qr_page, text_page
 
 from evrakci.cli import main
+from evrakci.pipeline.store import JobStore
 
 
 def created_id(capsys) -> str:
@@ -116,3 +117,18 @@ def test_cli_export_names_the_check_sheet_only_when_something_needs_a_check(
     assert "1 belge kontrol gerektiriyor" in out and lines[-1] == line
     sheet = openpyxl.load_workbook(tmp_path / "isaretli" / "index.xlsx")["Kontrol gerekenler"]
     assert [c.value for c in sheet[2]][3] == "değerler okunmadı"
+
+
+def test_create_keeps_the_good_files_and_lists_each_broken_one(tmp_path, capsys):
+    """R-O-7: the same as the window: one broken file does not spoil the job."""
+    good = make_pdf(tmp_path / "iyi.pdf", [text_page()])
+    bad, bad2 = tmp_path / "bozuk.pdf", tmp_path / "bozuk-2.pdf"
+    bad.write_bytes(b"nope")
+    bad2.write_bytes(b"nope")
+    root = tmp_path / "kok"
+    assert main(["--kok", str(root), "is", "olustur", "x", str(bad), str(good), str(bad2)]) == 0
+    captured = capsys.readouterr()
+    assert "PDF açılamadı: bozuk.pdf" in captured.err
+    assert "PDF açılamadı: bozuk-2.pdf" in captured.err
+    job_id = captured.out.strip().splitlines()[-1]
+    assert [b.file_name for b in JobStore(root).load(job_id).batches] == ["iyi.pdf"]

@@ -17,6 +17,9 @@ def prepare(printer: QPrinter) -> None:
     printer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
     printer.setPageOrientation(QPageLayout.Orientation.Portrait)
     printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout.Unit.Millimeter)
+    # The QR is on both sides of a sheet: ask for two-sided, long edge (a one-sided printer
+    # ignores it and the pages come out one per sheet).
+    printer.setDuplex(QPrinter.DuplexMode.DuplexLongSide)
 
 
 def _to_qimage(page: Image.Image) -> QImage:

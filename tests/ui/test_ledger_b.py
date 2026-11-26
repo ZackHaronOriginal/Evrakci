@@ -180,8 +180,6 @@ def test_b006_a_window_command_exists_for_dropping_blank_pages():
     assert found
 
 
-@pytest.mark.xfail(strict=True, reason="B-007: 'Kaç adet ... sayfa' counts sheets but prints "
-                   "twice as many pages (rehber_print.print_separators)")
 def test_b007_the_count_unit_matches_what_is_printed(qtbot, tmp_path):
     from evrakci.ui.rehber import RehberScreen
 

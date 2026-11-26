@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.pipeline.ocr.models import data_dir
 from evrakci.pipeline.separator import make_separator_pdf
-from evrakci.ui import actions, refusals, theme
+from evrakci.ui import actions, refusals, settings_dialog, theme
 from evrakci.ui import rehber_print as printing
 from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import make_icon
@@ -241,19 +241,22 @@ class RehberScreen(QWidget):
             "QSpinBox::up-button, QSpinBox::down-button { width: 0; height: 0; border: 0;"
             " image: none; }"
             "QSpinBox::up-arrow, QSpinBox::down-arrow { image: none; width: 0; height: 0; }")
-        self.count.setAccessibleName("Kaç adet ayıraç sayfası")
-        self.count.setToolTip("Yazdırılacak ayıraç sayfası sayısı (1 ile 200 arası)")
+        self.count.setAccessibleName("Kaç adet ayıraç yaprağı")
+        self.count.setToolTip("Yazdırılacak ayıraç yaprağı sayısı (1 ile 200 arası)")
         self.count_label.setBuddy(self.count)
         line.addWidget(self.count_label)
         line.addWidget(self.count)
-        line.addWidget(QLabel("sayfa"))
+        line.addWidget(QLabel("yaprak"))
         line.addStretch(1)
         lay.addLayout(line)
         paper = QHBoxLayout()
         paper.setSpacing(m.size("s3"))
         paper_key = QLabel("Kâğıt")
         paper_key.setProperty("textRole", "caption")
-        self.paper = QLabel("A4, iki yüze aynı QR")
+        self.paper = QLabel()
+        self.paper.setToolTip("A4, uzun kenardan çift taraflı baskı istenir")
+        self.count.valueChanged.connect(self._paper_line)
+        self._paper_line()
         paper.addWidget(paper_key)
         paper.addWidget(self.paper, 1)
         lay.addLayout(paper)
@@ -266,6 +269,11 @@ class RehberScreen(QWidget):
         lay.addWidget(self.print_button)
         self._key_column = (self.count_label, paper_key)
         return card
+
+    def _paper_line(self, *_args) -> None:
+        """"20 yaprak = 40 sayfa": a sheet has the QR on both sides, so a page is half a sheet."""
+        n = self.count.value()
+        self.paper.setText(f"{n} yaprak = {2 * n} sayfa")
 
     def _wire(self) -> None:
         self.search.textChanged.connect(self._search_changed)
@@ -578,8 +586,17 @@ class RehberScreen(QWidget):
 
     def _link(self, url: QUrl) -> None:
         if url.scheme() == "rehber":
-            if url.path() == "gizle":
+            target = url.path()
+            window = self.window_
+            if target == "gizle":
                 self.dismiss_note()
+            elif target == "saklama" and window is not None:
+                window.open_settings()
+                dialog = window.settings_dialog
+                if dialog is not None:
+                    dialog.nav.setCurrentRow(settings_dialog.SECTIONS.index("Saklama"))
+            elif target == "disa-aktar" and window is not None:
+                window.show_tab("disa_aktar")
             return
         QDesktopServices.openUrl(url)
 
@@ -638,7 +655,7 @@ class RehberScreen(QWidget):
             self._tell(f"Ayıraç sayfaları yazdırılamadı: {error}. PDF olarak açıp oradan "
                        "yazdırabilirsiniz.", "PDF olarak aç", self.open_separators)
             return None
-        self._tell(f"{sheets} ayıraç sayfası ({pages} sayfa) yazıcıya gönderildi.", kind="success")
+        self._tell(f"{sheets} yaprak ({pages} sayfa) yazıcıya gönderildi.", kind="success")
         return pages
 
     def _tell(self, text: str, action: str | None = None, slot=None, kind: str = "info") -> None:

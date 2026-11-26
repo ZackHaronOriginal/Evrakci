@@ -80,7 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     separator = commands.add_parser("ayirac", help="QR ayıraç sayfası PDF'i yazar")
     separator.add_argument("cikti", type=Path, metavar="CIKTI.pdf", help="yazılacak PDF")
-    separator.add_argument("--adet", type=int, default=10, help="yaprak sayısı (varsayılan 10)")
+    separator.add_argument("--adet", type=int, default=10, help="yaprak sayısı (varsayılan 20)")
     separator.set_defaults(handler=_separator)
 
     settings = commands.add_parser("ayar", help="uygulama ayarları")

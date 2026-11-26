@@ -25,7 +25,7 @@ from evrakci.pipeline.exporting import (
     may_delete_after_export,
     plan_names,
 )
-from evrakci.pipeline.job import Job, apply_page_sizes, job_to_dict, parse_page_id
+from evrakci.pipeline.job import Job, apply_page_sizes, job_to_dict, parse_page_id, repeated_files
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
@@ -106,6 +106,8 @@ def apply_retention(store: JobStore) -> None:
 
 def create(args: argparse.Namespace, store: JobStore) -> int:
     apply_retention(store)
+    for name in repeated_files([], [Path(p).name for p in args.pdf]):
+        print(f"{name} zaten ekli.", file=sys.stderr)
     job = store.create_job(args.ad, args.pdf, progress=_progress)
     print(job.id)
     return 0
@@ -124,6 +126,8 @@ def list_jobs(args: argparse.Namespace, store: JobStore) -> int:
 
 def add(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
+    for name in repeated_files((b.file_name for b in job.batches), [Path(args.pdf).name]):
+        print(f"{name} zaten ekli.", file=sys.stderr)  # a warning: the file is still added
     batch = store.add_batch(job, args.pdf)
     print(f"{batch.id} eklendi ({batch.page_count} sayfa)")
     return 0

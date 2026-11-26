@@ -128,7 +128,7 @@ def _feedback_accepted(c: Ctx) -> None:
     assert re.search(r"Kontrol gereken değer kalmadı; \d+ değer incelenmedi\. Enter sıradakini "
                      r"onaylar\.", text), text
     assert "1 / 6 incelendi" in slot_texts(c.win, "degerler"), slot_texts(c.win, "degerler")
-    assert c.win.controller().undo_stack.undoText() == "Öneriyi kabul et"
+    assert c.win.controller().undo_stack.undoText() == "Onayla"
     assert _in_view(c, 1, 4) and QApplication.focusWidget() is _d(c).table
 
 
@@ -146,7 +146,7 @@ def _effect_read_accepted(c: Ctx) -> None:
 def _feedback_read_accepted(c: Ctx) -> None:
     assert "48Z13 kaydedildi (okunan)." in heard(c.win), heard(c.win)
     assert _toast_undo(c), "the confirmation has no Geri al"
-    assert c.win.controller().undo_stack.undoText() == "Değeri onayla"
+    assert c.win.controller().undo_stack.undoText() == "Onayla"
     assert _in_view(c, 1, 4) and QApplication.focusWidget() is _d(c).table
 
 
@@ -400,7 +400,7 @@ def _broken_no_check(c: Ctx) -> None:
     d = _d(c)
     row = d.model.row_at(1)
     cell = d.model.cell_at(d.model.index(1, 3))
-    assert c.win.controller().run("Değeri onayla", lambda job: confirm(job, row.document,
+    assert c.win.controller().run("Onayla", lambda job: confirm(job, row.document,
                                                                        cell.key))
     d.refresh()
     settle()

@@ -42,12 +42,28 @@ def _turkish(error: Exception) -> str:
 class _Snapshot(QUndoCommand):
     """An applied edit, stored as the whole job before and after it."""
 
-    def __init__(self, controller: JobController, text: str, before: dict, after: dict) -> None:
+    MERGE_ID = 7101  # steps of one group that follow each other become one (a read in batches)
+
+    def __init__(self, controller: JobController, text: str, before: dict, after: dict,
+                 merge: int | None = None) -> None:
         super().__init__(text)
         self._ref = weakref.ref(controller)
         self._before = before
         self._after = after
         self._first = True
+        self._merge = merge
+
+    def id(self) -> int:
+        return -1 if self._merge is None else self.MERGE_ID
+
+    def mergeWith(self, other) -> bool:  # noqa: N802
+        """The step pushed right after this one, of the same group (nothing between): one step
+        from this step's start to the other's end. Only adjacent steps of one group are ever
+        merged, so Geri al goes back exactly to where the group began."""
+        if not isinstance(other, _Snapshot) or other._merge != self._merge:
+            return False
+        self._after = other._after
+        return True
 
     def redo(self) -> None:
         if self._first:  # the edit is already applied when the command is pushed
@@ -74,23 +90,37 @@ class _GuardedStack(QUndoStack):
     def _controller(self):
         return self._ref()
 
+    def _refused(self) -> bool:
+        """While the job is being deleted, or a Değerler read runs (its readings would be
+        lost or made stale), no undo, redo or jump in the history: whatever route asks."""
+        controller = self._controller
+        if controller.frozen:
+            controller.status.emit(FROZEN_REASON)
+            return True
+        if controller.reading:
+            from evrakci.ui.refusals import READING_NOW
+
+            controller.status.emit(READING_NOW)
+            return True
+        return False
+
     def undo(self) -> None:
-        if self._controller.frozen:
-            self._controller.status.emit(FROZEN_REASON)
-            return
-        super().undo()
+        if not self._refused():
+            super().undo()
 
     def redo(self) -> None:
-        if self._controller.frozen:
-            self._controller.status.emit(FROZEN_REASON)
-            return
-        super().redo()
+        if not self._refused():
+            super().redo()
+
+    def setIndex(self, index: int) -> None:  # noqa: N802
+        if not self._refused():
+            super().setIndex(index)
 
     def canUndo(self) -> bool:
-        return super().canUndo() and not self._controller.frozen
+        return super().canUndo() and not self._controller.frozen and not self._controller.reading
 
     def canRedo(self) -> bool:
-        return super().canRedo() and not self._controller.frozen
+        return super().canRedo() and not self._controller.frozen and not self._controller.reading
 
 
 class JobController(QObject):
@@ -104,6 +134,7 @@ class JobController(QObject):
         super().__init__(parent)
         self.store = store
         self.job = job
+        self.reading = False  # a Değerler read runs: no undo or redo (its steps are pending)
         self.frozen = False  # while the job's folder is deleted: no edit, no save (rule 5)
         # Write-behind: edits hand a snapshot to the saver, the one writer of the job file.
         # It has no parent: its writer thread may outlive the controller by one write.
@@ -182,9 +213,12 @@ class JobController(QObject):
     def accept_suggestion(self, document: Document, key: str) -> bool:
         return self._edit("Öneriyi kabul et", lambda j: review.accept_suggestion(j, document, key))
 
-    def run(self, text: str, change: Callable[[Job], None]) -> bool:
-        """Any other core change (for example, recording read values) as one undoable edit."""
-        return self._edit(text, change)
+    def run(self, text: str, change: Callable[[Job], None], merge: int | None = None) -> bool:
+        """Any other core change (for example, recording read values) as one undoable edit.
+        `merge`: a group number; steps of one group pushed one right after the other become
+        one step (a read stored in batches is still one step). Another group, or any other
+        step in between, keeps them apart."""
+        return self._edit(text, change, merge)
 
     def undo(self) -> None:
         self.undo_stack.undo()
@@ -211,7 +245,7 @@ class JobController(QObject):
         self.saver.frozen = False
         self.undo_stack.indexChanged.emit(self.undo_stack.index())
 
-    def _edit(self, text: str, change: Callable[[Job], None]) -> bool:
+    def _edit(self, text: str, change: Callable[[Job], None], merge: int | None = None) -> bool:
         if self.frozen:
             self.status.emit(FROZEN_REASON)
             return False
@@ -225,7 +259,7 @@ class JobController(QObject):
         after = job_to_dict(self.job)
         if after == before:
             return True
-        self.undo_stack.push(_Snapshot(self, text, before, after))
+        self.undo_stack.push(_Snapshot(self, text, before, after, merge))
         self._changed(after)
         return True
 

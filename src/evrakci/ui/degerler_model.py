@@ -11,6 +11,7 @@ core field is needed.
 
 from __future__ import annotations
 
+import math
 import random
 import re
 from collections.abc import Iterable, Mapping
@@ -34,7 +35,8 @@ from evrakci.pipeline.templates.values import (
     value_level,
 )
 
-SAMPLE_SIZE = 20  # Örnek kontrol: how many Emin values are checked by hand
+SAMPLE_SIZE = 20  # Örnek kontrol: the fewest Emin values checked by hand
+SAMPLE_SHARE = 0.02  # ... and 2 % of the Emin values of a big job, whichever is larger (D-4)
 CONFUSABLE = "OoIlBSZG"  # letters OCR mixes up with digits (0, 1, 8, 5, 2, 6)
 
 # Güven levels: (Lucide icon, colour role, word, semibold). Status is never colour alone.
@@ -72,6 +74,45 @@ def joined(names: list[str]) -> str:
     if len(names) <= 1:
         return "".join(names)
     return f"{', '.join(names[:-1])} ve {names[-1]}"
+
+
+def grouped(number: int) -> str:
+    """1234 -> "1 234": thousands in groups of three, as the approved sentences write them."""
+    return f"{number:,}".replace(",", " ")
+
+
+def possessive(number: int) -> str:
+    """The number with its Turkish possessive ending, by the last word spoken: 20'si, 80'i,
+    100'ü, 2 000'i."""
+    n = abs(number)
+    if n % 10:
+        ending = {1: "i", 2: "si", 3: "ü", 4: "ü", 5: "i", 6: "sı", 7: "si", 8: "i",
+                  9: "u"}[n % 10]
+    elif n % 100:  # on, yirmi, otuz, kırk, elli, altmış, yetmiş, seksen, doksan
+        ending = {1: "u", 2: "si", 3: "u", 4: "ı", 5: "si", 6: "ı", 7: "i", 8: "i",
+                  9: "ı"}[n % 100 // 10]
+    elif n % 1000:
+        ending = "ü"  # yüz
+    elif n == 0:
+        ending = "ı"  # sıfır
+    elif n % 1_000_000:
+        ending = "i"  # bin
+    else:
+        ending = "u"  # milyon
+    return f"{grouped(number)}'{ending}"
+
+
+def dative(number: int) -> str:
+    """The number with possessive and dative endings: "{n}'sine bakıldı" (20'sine, 4'üne)."""
+    base = possessive(number)
+    ending = base.rsplit("'", 1)[1]
+    return f"{base}{'ne' if ending[-1] in 'iü' else 'na'}"
+
+
+def emin_count(rows: list[Row]) -> int:
+    """Every Emin value the rows hold, reviewed or not (what a sample is a part of)."""
+    return sum(1 for row in rows for cell in row.cells
+               if cell.level == "emin" and cell.value is not None)
 
 
 def section_name(section: int | None) -> str:
@@ -367,13 +408,25 @@ class SampleItem:
     text: str  # the value when it was drawn: a different value later is an error found
 
 
-def draw_sample(rows: list[Row], seed: str, size: int = SAMPLE_SIZE) -> list[SampleItem]:
-    """Up to `size` random Emin values nobody has looked at (else any Emin value)."""
+def sample_pool(rows: list[Row]) -> list[tuple[Row, Cell]]:
+    """The values a sample is drawn from: Emin values nobody has looked at (else any Emin)."""
     emin = [(row, cell) for row in rows for cell in row.cells
             if cell.level == "emin" and cell.value is not None]
     fresh = [(r, c) for r, c in emin if not c.reviewed]
-    pool = fresh or emin
-    picked = random.Random(seed).sample(pool, min(size, len(pool)))
+    return fresh or emin
+
+
+def sample_size(pool: int) -> int:
+    """How many values the sample holds: 20, or 2 % of the pool when that is more (D-4)."""
+    return min(pool, max(SAMPLE_SIZE, math.ceil(pool * SAMPLE_SHARE)))
+
+
+def draw_sample(rows: list[Row], seed: str, size: int | None = None) -> list[SampleItem]:
+    """Random Emin values nobody has looked at (else any Emin value): `size` of them, by
+    default `sample_size` of the pool."""
+    pool = sample_pool(rows)
+    wanted = sample_size(len(pool)) if size is None else min(size, len(pool))
+    picked = random.Random(seed).sample(pool, wanted)
     order = {id(c): (r.number, i) for r, _ in picked for i, c in enumerate(r.cells)}
     picked.sort(key=lambda rc: order[id(rc[1])])
     return [SampleItem(r.document.page_ids[0], c.key, c.text) for r, c in picked]

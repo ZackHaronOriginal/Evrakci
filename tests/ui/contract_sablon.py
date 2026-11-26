@@ -556,16 +556,13 @@ def _plan(pre, effect, feedback, **kw):
 
 PLANS["sablonlar.kutu_ciz"] = _plan(
     "pre.sablon_page", "effect.sablon_drawing_on", "feedback.sablon_drawing_on",
-    na_pre="pre.none", na="na.says.sablon_no_page_b", xfail={"na": f"{_M36} {P_NO_PAGE_B!r}"})
+    na_pre="pre.none", na="na.says.sablon_no_page_b")
 PLANS["sablonlar.izgara"] = _plan(
     "pre.sablon_page", "effect.sablon_snap_flipped", "feedback.sablon_snap_flipped",
-    na_pre="pre.none", na="na.says.sablon_no_page_g", xfail={"na": f"{_M36} {P_NO_PAGE_G!r}"})
+    na_pre="pre.none", na="na.says.sablon_no_page_g")
 PLANS["sablonlar.dene"] = _plan(
     "pre.sablon_dene", "effect.sablon_dene", "feedback.sablon_dene", na_pre="pre.none",
-    na="na.says.sablon_no_page_dene", marks=(needs_tesseract,),
-    xfail={"na": "M-37: no page: Ctrl+T is disabled and silent; INTENDED: the key stays on "
-                 f"and shows {NO_PAGE_DENE!r}; conflicts with "
-                 "test_sablon_window.py::test_nothing_is_usable_without_a_template; owner Q-09"})
+    na="na.says.sablon_no_page_dene", marks=(needs_tesseract,))
 PLANS["sablonlar.sonraki_zayif"] = _plan(
     "pre.sablon_weak", "effect.sablon_weak_next", "feedback.sablon_weak_opened",
     na_pre="pre.sablon_no_try", na_window="job_sablon", na="na.sablon_weak_off")
@@ -577,25 +574,20 @@ PLANS["sablonlar.zayif_ornekler"] = _plan(
     na_pre="pre.sablon_no_try", na_window="job_sablon", na="na.sablon_weak_off")
 PLANS["sablonlar.kutu_sil"] = _plan(
     "pre.sablon_box_chosen", "effect.sablon_box_deleted", "feedback.sablon_box_deleted",
-    na_pre="pre.none", na="na.says.sablon_nothing_chosen",
-    xfail={"na": _M35.format(why="no variable chosen", text=P_NOTHING_CHOSEN)})
+    na_pre="pre.none", na="na.says.sablon_nothing_chosen")
 PLANS["sablonlar.kutu_cogalt"] = _plan(
     "pre.sablon_box_one", "effect.sablon_box_copied", "feedback.sablon_box_copied",
-    na_pre="pre.sablon_no_box_chosen", na_window="job_sablon", na="na.sablon_stays_and_says_no_box",
-    xfail={"na": _M35.format(why="no box chosen", text=P_NO_BOX)})
+    na_pre="pre.sablon_no_box_chosen", na_window="job_sablon", na="na.sablon_stays_and_says_no_box")
 PLANS["sablonlar.degisken_ekle"] = _plan(
     "pre.sablon_add_variable", "effect.sablon_variable_added", "feedback.sablon_variable_added",
-    na_pre="pre.none", na="na.says.sablon_no_template",
-    xfail={"na": _M35.format(why="no template", text=P_NO_TEMPLATE)})
+    na_pre="pre.none", na="na.says.sablon_no_template")
 PLANS["sablonlar.yukari"] = _plan(
     "pre.sablon_second_variable", "effect.sablon_moved_up", "feedback.sablon_moved_up",
-    na_pre="pre.sablon_first_variable", na_window="job_sablon", na="na.sablon_stays_and_says_first",
-    xfail={"na": _M35.format(why="already first", text=P_FIRST)})
+    na_pre="pre.sablon_first_variable", na_window="job_sablon", na="na.sablon_stays_and_says_first")
 PLANS["sablonlar.asagi"] = _plan(
     "pre.sablon_first_variable", "effect.sablon_moved_down", "feedback.sablon_moved_down",
     na_pre="pre.sablon_second_variable", na_window="job_sablon",
-    na="na.sablon_stays_and_says_last", xfail={"na": _M35.format(why="already last",
-                                                                  text=P_LAST)})
+    na="na.sablon_stays_and_says_last")
 for _key, _name in (("Left", "left"), ("Up", "up"), ("Right", "right"), ("Down", "down")):
     PLANS["sablonlar.kaydir", "sablonlar", _key] = _plan(
         "pre.sablon_nudge", f"effect.sablon_nudged_{_name}", "feedback.sablon_nudged",

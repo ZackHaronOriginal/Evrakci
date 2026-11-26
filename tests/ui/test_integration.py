@@ -63,7 +63,8 @@ def test_one_undo_history_names_the_step_on_every_tab(window):
     window.show_tab("degerler")
     assert _undo_tip(window) == "Geri al: Kesim ekle (Ctrl+Z)"  # the same job history
     window.show_tab("sablonlar")  # the template editor's own history, named the same way
-    assert not r.is_enabled("app.geri_al") and _undo_tip(window) == "Geri al (Ctrl+Z)"
+    assert not r.is_enabled("app.geri_al")  # nothing to undo there, and the tooltip says so
+    assert _undo_tip(window) == "Geri alınacak bir şey yok."
     window.show_tab("kontrol")
     window.kontrol.timeline.setFocus()
     _key(window, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)

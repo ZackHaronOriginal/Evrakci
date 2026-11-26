@@ -41,7 +41,7 @@ from evrakci import __version__
 from evrakci.pipeline.store import JobFileError, JobStore, default_root
 from evrakci.pipeline.templates.model import TemplateError, template_from_dict, template_to_dict
 from evrakci.pipeline.templates.store import TemplateStore
-from evrakci.ui import actions, icons, kontrol_empty, motion, ocr_engine, style, theme
+from evrakci.ui import actions, icons, kontrol_empty, motion, ocr_engine, refusals, style, theme
 from evrakci.ui.chrome import (
     AboutDialog,
     CommandBar,
@@ -145,7 +145,7 @@ PANEL_NAMES = {"yukle": "Ayrıntı panelini", "kontrol": "Ayrıntı panelini",
 # Tabs whose status line starts with the window's own job counts ("96 belge  640 sayfa
 # ⚠ 7 belge kontrol bekliyor"); every other tab's mockup draws its own line instead.
 STATUS_COUNTS = frozenset({"disa_aktar"})
-NO_GO_TO_TABS = ("yukle", "sablonlar", "disa_aktar", "rehber")  # Ctrl+G only says "no job"
+NO_GO_TO_TABS = ("yukle", "rehber")  # no document list: Ctrl+G says where to go
 JOB_TABS = ("yukle", "kontrol", "degerler", "disa_aktar")
 TEXT_STEPS = theme.TEXT_SIZES
 STATUS_INSET = 2  # QStatusBar's own item margin
@@ -421,6 +421,9 @@ class MainWindow(QMainWindow):
         for screen in (self.yukle, self.sablon, self.degerler, self.disa_aktar, self.rehber):
             screen.attach(self)
 
+        # A key that cannot act says why (Q-09): the texts are in refusals.py.
+        self.registry.refused.connect(self._refused)
+        self.registry.set_reason_source(partial(refusals.reason, self))
         self._restore_state()
         self._restoring = False
         self._tab_changed(self.tabs.currentIndex())
@@ -590,6 +593,8 @@ class MainWindow(QMainWindow):
 
     def _fill_menu(self, menu: QMenu, title: str) -> None:
         menu.clear()
+        menu.setToolTipsVisible(True)  # a greyed item's tooltip is the reason (Q-09)
+        self.registry.refresh_reasons()
         items = dict(actions.menu_structure(self.registry.context))[title]
         for item in items:
             if item is None:
@@ -695,10 +700,13 @@ class MainWindow(QMainWindow):
         r.connect_tab("app.bul", "kontrol", self._find_in_kontrol)
         r.connect_tab("app.bul", "sablonlar", self.sablon.find_variable)
         r.connect_tab("app.bul", "disa_aktar", self._find_in_disa_aktar)
-        # Ctrl+G with no job says what to do first on the tabs that have no go-to of their own
-        # (L5); with a job it stays off there (M-01 waits for the owner).
+        # Ctrl+G on every tab (M-01, B-027): Kontrol and Değerler open the go-to dialog on
+        # their own list, Şablonlar picks the Örnek, Dışa Aktar the file row; Yükle and Rehber
+        # have no document list and say where to go (no job: what to do first).
+        r.connect_tab("app.git", "sablonlar", self.sablon.go_to_example)
+        r.connect_tab("app.git", "disa_aktar", self.disa_aktar.go_to_file)
         for tab in NO_GO_TO_TABS:
-            r.connect_tab("app.git", tab, self.say_no_job)
+            r.connect_tab("app.git", tab, self._say_go_to_elsewhere)
         r.connect("app.yeni_is", self._new_job)
         r.connect("app.dosya_ekle", self._add_files)
         # Ctrl+S answers on every tab that has something to save: Şablonlar saves the
@@ -719,6 +727,8 @@ class MainWindow(QMainWindow):
         r.connect("app.yazi_kucult", lambda: self.step_text_size(-1))
         r.connect("app.tam_ekran", self.set_full_screen)
         r.connect("app.yenile", self._refresh_key)
+        for tab in ("kontrol", "rehber"):  # nothing to refresh there: off, with its reason (M-22)
+            r.set_enabled_for("app.yenile", tab, False)
         r.connect("app.ayarlar", self.open_settings)
         r.connect("app.yardim", self._show_guide)
         r.connect("app.kisayollar", self.open_shortcut_sheet)
@@ -790,9 +800,19 @@ class MainWindow(QMainWindow):
         action.blockSignals(False)
         action.changed.emit()
 
+    def _refused(self, _action_id: str, text: str) -> None:
+        """The key of a greyed command was pressed: the status bar says why."""
+        self.message.setText(text)
+
     def say_no_job(self) -> None:
         """A key that needs an open job says what to do first instead of staying silent."""
         self.message.setText(NO_JOB_TEXT)
+
+    def _say_go_to_elsewhere(self) -> None:
+        if self.controller() is None:
+            self.say_no_job()
+        else:
+            self.message.setText(refusals.GO_TO_ELSEWHERE)
 
     def _find_in_kontrol(self) -> None:
         if self.kontrol is None:
@@ -810,8 +830,6 @@ class MainWindow(QMainWindow):
         # Ctrl+S, Ctrl+F and Ctrl+E stay on with no job: their handlers say so. Ctrl+W stays
         # off (M-15: the effect test of Ctrl+W asserts the item is disabled after closing).
         self.registry.set_enabled("app.isi_kapat", self.controller() is not None)
-        for tab in NO_GO_TO_TABS:
-            self.registry.set_enabled_for("app.git", tab, self.controller() is None)
         self._sync_export_action()
         self._sync_undo()
 
@@ -1608,6 +1626,7 @@ class MainWindow(QMainWindow):
                 self.title_band.fit()  # show the new tab (option b keeps it in the strip)
                 self.title_band.update()  # and its right foot
         self.registry.set_context(tab)
+        self._sync_tab_labels(tab)
         self._sync_export_action()
         if hasattr(self, "command_bars"):
             self.command_bars.setCurrentIndex(index)
@@ -1626,6 +1645,23 @@ class MainWindow(QMainWindow):
             self.degerler.refresh()
         elif tab == "disa_aktar":
             self.disa_aktar.refresh()
+
+    def _sync_tab_labels(self, tab: str) -> None:
+        """Two app-wide items say what they do on this tab (M-03, M-20): Ctrl+F opens the go-to
+        dialog on Kontrol, and Ctrl+0 puts thumbnails and guide text back to the default size."""
+        registry = self.registry
+        for action_id, tabs, text, tip in (
+                ("app.bul", ("kontrol",), "&Belgeye veya sayfaya git…",
+                 "Belgeye veya sayfaya git"),
+                ("app.sigdir", ("kontrol", "rehber"), "&Varsayılan boyut",
+                 "Varsayılan boyuta dön")):
+            action, spec = registry.action(action_id), registry.spec(action_id)
+            if tab in tabs:
+                action.setText(text)
+                action.setToolTip(f"{tip} ({actions.key_text(spec.shortcuts[0])})")
+            else:
+                action.setText(spec.text)
+                action.setToolTip(actions.tooltip_for(spec))
 
     def _open_in_degerler(self, number: int) -> None:
         """Kontrol's "Değerlerde aç": Değerler with that document selected, focus in its table."""

@@ -23,8 +23,8 @@ from dataclasses import dataclass
 from functools import partial
 from typing import NamedTuple
 
-from PySide6.QtCore import QObject, Qt
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractButton,
     QAbstractSpinBox,
@@ -222,7 +222,7 @@ SPECS: tuple[ActionSpec, ...] = (
        menu="duzen", kw="sırala"),
     _a("yukle.cikar", "Partiyi çı&kar", "trash-2", "Del", ctx="yukle", menu="duzen",
        tip="Partiyi çıkar (geri alınabilir)", kw="sil kaldır"),
-    _a("yukle.yeniden_adlandir", "Yeniden a&dlandır", "pencil", "F2", ctx="yukle",
+    _a("yukle.yeniden_adlandir", "İşi yeniden a&dlandır", "pencil", "F2", ctx="yukle",
        menu="duzen", kw="ad isim"),
     _a("yukle.iptal", "İ&ptal et", "square", "Ctrl+.", ctx="yukle", menu="araclar",
        tip="Okumayı iptal et", kw="durdur"),
@@ -344,8 +344,7 @@ SPECS: tuple[ActionSpec, ...] = (
        kw="geri al düzeltme okunan"),
     _a("degerler.varyant", "Yeni &varyant çiz", "scan", "V", ctx="degerler", menu="duzen",
        kw="kutu"),
-    _a("degerler.vazgec", "Va&zgeç", None, "Esc", ctx="degerler", menu="duzen",
-       tip="Değişikliği bırak"),
+    _a("degerler.vazgec", "Seçimi &kaldır", None, "Esc", ctx="degerler", menu="duzen"),
     _a("degerler.tumunu_sec", "&Tümünü seç", "check-check", "Ctrl+A", ctx="degerler",
        menu="duzen"),
     _a("degerler.tum_sayfa", "Tüm sayfayı &göster", "file-text", "Space", ctx="degerler",
@@ -602,7 +601,15 @@ class Registry(QObject):
     An action is enabled when a handler is connected, the screen has not disabled it, and it
     belongs to "app" or the current tab. Tab actions of other tabs are also hidden, so their
     keys are free for the current tab.
+
+    A key that cannot act never stays silent (Q-09): `set_reason_source(fn)` gives the registry
+    `fn(action_id, tab) -> text or None`. While an action of the current tab is disabled and
+    `fn` has a reason for it, the menu item and the button stay greyed with that reason as their
+    tooltip, `disabled_reason()` returns it (the palette shows it), and pressing the action's key
+    (or choosing it in the palette) emits `refused(action_id, reason)` instead of doing nothing.
     """
+
+    refused = Signal(str, str)
 
     def __init__(self, window: QWidget, specs: tuple[ActionSpec, ...] = SPECS) -> None:
         super().__init__(window)
@@ -617,6 +624,10 @@ class Registry(QObject):
         self._typing = False
         self._on_button = False
         self._character_keys = True
+        self._reason_source: Callable[[str, str], str | None] | None = None
+        self._speakers: dict[str, list[QShortcut]] = {}
+        self._tip_before: dict[str, str] = {}   # tooltip an action had before a reason replaced it
+        self._tip_reason: dict[str, str] = {}   # the reason text now in the tooltip
         for s in specs:
             text = plain_text(s.text) if not s.menu else s.text
             if s.local and s.menu and s.shortcuts:  # the menu names its unbound key
@@ -629,6 +640,8 @@ class Registry(QObject):
             action.setProperty("lucide", s.icon or "")
             window.addAction(action)
             self._actions[s.id] = action
+            action.changed.connect(partial(self._tip_changed, s.id))
+        self._window = window
         self._refresh()
 
     # Lookup
@@ -679,6 +692,30 @@ class Registry(QObject):
         (self._tab_disabled.discard if enabled else self._tab_disabled.add)(key)
         if tab == self._context:
             self._refresh(action_id)
+
+    def set_reason_source(self, source: Callable[[str, str], str | None]) -> None:
+        """`source(action_id, tab)` is the reason a disabled action cannot act now, or None."""
+        self._reason_source = source
+        self._refresh()
+
+    def disabled_reason(self, action_id: str) -> str:
+        """Why the action cannot act now (empty when it can, or when it has no reason)."""
+        s = self._specs[action_id]
+        if (self._reason_source is None or not _active(s, self._context)
+                or self._actions[action_id].isEnabled()):
+            return ""
+        return self._reason_source(action_id, self._context) or ""
+
+    def refresh_reasons(self) -> None:
+        """Recompute the reason tooltips (state a reason reads may have changed)."""
+        self._refresh()
+
+    def refuse(self, action_id: str) -> bool:
+        """Say why a disabled action cannot act: emits `refused`. False when it has no reason."""
+        reason = self.disabled_reason(action_id)
+        if reason:
+            self.refused.emit(action_id, reason)
+        return bool(reason)
 
     def routes(self, action_id: str) -> tuple[str, ...]:
         """The tabs that answer a routed action."""
@@ -757,6 +794,45 @@ class Registry(QObject):
             if not self._character_keys and s.single_key:
                 keys = [k for k in keys if not is_character_key(k)]
             action.setShortcuts(keys)
+            self._sync_reason(s, action, keys)
+
+    def _tip_changed(self, action_id: str) -> None:
+        """A screen set the tooltip of a greyed action (e.g. "Geri al: <adım>"): the reason
+        stays on top while the action cannot act, the new tooltip returns with it."""
+        reason = self._tip_reason.get(action_id)
+        action = self._actions[action_id]
+        if reason and action.toolTip() != reason and not action.isEnabled():
+            self._tip_before[action_id] = action.toolTip()
+            action.setToolTip(reason)
+
+    def _sync_reason(self, s: ActionSpec, action: QAction, keys: list[QKeySequence]) -> None:
+        """A disabled action with a reason: its tooltip is the reason and its keys go to a
+        speaker shortcut that says it; otherwise the tooltip is put back and the speaker off."""
+        reason = self.disabled_reason(s.id) if not action.isEnabled() else ""
+        current = action.toolTip()
+        if reason:
+            if current != reason:
+                if s.id not in self._tip_reason:
+                    self._tip_before[s.id] = current
+                self._tip_reason[s.id] = reason
+                action.setToolTip(reason)
+        elif s.id in self._tip_reason:
+            shown = self._tip_reason.pop(s.id)
+            if current == shown:
+                action.setToolTip(self._tip_before.get(s.id, tooltip_for(s)))
+            self._tip_before.pop(s.id, None)
+        speakers = self._speakers.get(s.id)
+        if speakers is None and reason:
+            speakers = self._speakers[s.id] = []
+            for key in s.shortcuts:
+                if s.local:
+                    continue
+                speaker = QShortcut(key_sequence(key), self._window, partial(self.refuse, s.id))
+                speaker.setContext(Qt.ShortcutContext.WindowShortcut)
+                speaker.setEnabled(False)
+                speakers.append(speaker)
+        for speaker in speakers or ():
+            speaker.setEnabled(bool(reason) and speaker.key() in keys)
 
     # Derived views with live state
     def palette_entries(self, tab: str | None = None) -> list[PaletteEntry]:

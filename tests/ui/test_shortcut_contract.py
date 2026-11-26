@@ -51,6 +51,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -77,6 +78,8 @@ from contract_helpers import (  # noqa: E402
     via,
     wait_until,
 )
+
+from evrakci.ui import actions  # noqa: E402
 
 # action: app.sekme.yukle, app.sekme.kontrol, app.sekme.sablonlar, app.sekme.degerler
 # action: app.sekme.disa_aktar, app.sekme.rehber, app.sonraki_sekme, app.onceki_sekme
@@ -282,9 +285,6 @@ def test_export_key_with_no_job_on_the_export_tab(windows, tmp_path):
 
 
 @pytest.mark.action("app.git")
-@pytest.mark.xfail(strict=True, reason="M-02 Q-08: a job is open but Değerler has no rows: "
-                                       "go_to() returns without a word; INTENDED status line "
-                                       "'PROPOSED: Gidilecek bir belge yok.'")
 def test_degerler_go_to_with_a_job_but_no_rows_says_so(windows, tmp_path):
     row = {"tab": "degerler", "key": "Ctrl+G", "action_id": "app.git"}
     ctx = _start(row, windows, "fresh", tmp_path)
@@ -340,11 +340,7 @@ def test_kontrol_refusals(case, windows, tmp_path):
 
 
 @pytest.mark.parametrize("case", [pytest.param(case, id=f"{case[0]}[kontrol]{case[1]}",
-                                               marks=[pytest.mark.action(case[0]),
-                                                      pytest.mark.xfail(
-                                                          strict=True, reason="M-30: no job: "
-                                                          "every Kontrol key is disabled and "
-                                                          "silent")])
+                                               marks=pytest.mark.action(case[0]))
                                   for case in contract_kontrol.NO_JOB_KEYS])
 def test_kontrol_key_with_no_job_says_it(case, windows, tmp_path):
     """No job open: the key says 'Önce Yükle sekmesinden bir iş açın (Ctrl+1).' (M-30)."""
@@ -352,6 +348,11 @@ def test_kontrol_key_with_no_job_says_it(case, windows, tmp_path):
     ctx = _start({"tab": "kontrol", "key": key, "action_id": action_id}, windows, "empty",
                  tmp_path)
     try:
+        if actions.is_button_key(key):
+            # Enter and Space belong to a focused button (the placeholder's own button opens
+            # the way to Yükle); from anywhere else the key says why it cannot act
+            ctx.win.title_tabs.setFocus(Qt.FocusReason.TabFocusReason)
+            settle()
         press(ctx.win, key)
         HELPERS["na.says_no_job"](ctx)
     finally:
@@ -396,10 +397,6 @@ def test_sablon_delete_removes_a_variable_that_has_no_box_chosen(windows, tmp_pa
                  marks=pytest.mark.action("sablonlar.yukari")),
     pytest.param(("sablonlar.asagi", "Alt+Down", "Bölümü aşağı taşı"), id="Alt+Down",
                  marks=pytest.mark.action("sablonlar.asagi"))])
-@pytest.mark.xfail(strict=True, reason="M-38 Q-08: with a section of a multi-box variable chosen "
-                                       "the item still reads 'Değişkeni yukarı/aşağı taşı' but "
-                                       "the section moves; INTENDED 'PROPOSED: Bölümü yukarı / "
-                                       "aşağı taşı'")
 def test_sablon_move_item_names_a_section(case, windows, tmp_path):
     action_id, key, text = case
     row = {"tab": "sablonlar", "key": key, "action_id": action_id}
@@ -416,9 +413,6 @@ def test_sablon_move_item_names_a_section(case, windows, tmp_path):
 
 
 @pytest.mark.action("yukle.yeniden_adlandir")
-@pytest.mark.xfail(strict=True, reason="M-27: the item reads 'Yeniden adlandır' next to a batch "
-                                       "list but F2 renames the JOB; INTENDED 'İşi yeniden "
-                                       "adlandır' (existing dialog title; the owner decides)")
 def test_yukle_rename_item_names_the_job(windows, tmp_path):
     row = {"tab": "yukle", "key": "F2", "action_id": "yukle.yeniden_adlandir"}
     ctx = _start(row, windows, "job", tmp_path)

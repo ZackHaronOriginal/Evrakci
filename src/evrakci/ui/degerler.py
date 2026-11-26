@@ -844,6 +844,7 @@ class DegerlerScreen(QWidget):
                 say()
             return
         if not self.rows:
+            self._say("Gidilecek bir belge yok.")
             return
         current = self.model.row_at(self.table.currentIndex().row()) \
             if self.table.currentIndex().isValid() else None
@@ -1398,10 +1399,8 @@ class DegerlerScreen(QWidget):
         r = self.window_.registry
         r.set_enabled("degerler.okunana_don", enabled)
         action = r.action("degerler.okunana_don")
-        if enabled or value is None or not value.edited or self._view == "ornek":
-            action.setToolTip(tooltip_for(r.spec("degerler.okunana_don")))
-        else:
-            action.setToolTip("Bu değer elle yazıldı; okunmuş bir değer yok.")
+        action.setToolTip(tooltip_for(r.spec("degerler.okunana_don")))  # the registry's reason
+        r.refresh_reasons()  # replaces it while the key cannot act (refusals.py)
 
     def _apply_edit(self, row: Row, key: str, text: str) -> None:
         """A value typed in the table (Enter, Tab, or leaving the editor)."""

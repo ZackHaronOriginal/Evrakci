@@ -84,6 +84,15 @@ SPLITTER_NAME = "disa_aktar"
 STOP_HINT = ("Durdur (Ctrl+.) ile durdurursanız yazılan dosyalar kalır, index.xlsx yazılmaz.")
 
 
+def _covers(pages: str, number: int) -> bool:
+    """Whether a file's "Sayfalar" text ("12" or "12–15") holds page `number`."""
+    first, _dash, last = pages.partition("–")
+    try:
+        return int(first) <= number <= int(last or first)
+    except ValueError:
+        return False
+
+
 def open_path(path: Path) -> None:
     """Open a file or folder with the system's default app."""
     QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
@@ -807,6 +816,46 @@ class DisaAktarScreen(QWidget):
         self.results.setFocus(Qt.FocusReason.ShortcutFocusReason)
         if not self.results.currentIndex().isValid() and self.model.rowCount():
             self.results.setCurrentIndex(self.model.index(0, FilesModel.NAME))
+
+    def go_to_file(self) -> None:
+        """Ctrl+G: the Belgeye veya sayfaya git dialog; the file row of that document (or of
+        the document holding that page) is chosen in the list (M-01)."""
+        from evrakci.ui.kontrol_dialogs import GoToDialog
+
+        controller = self.controller()
+        if controller is None:
+            say = getattr(self.window(), "say_no_job", None)
+            if say is not None:
+                say()
+            return
+        rows = self.model.all_rows()
+        if not rows:
+            self._say_status("Gidilecek bir belge yok.")
+            return
+        pages = len(controller.job.ordered_page_ids())
+        current = self.results.currentIndex()
+        here = self.model.row_at(current.row()) if current.isValid() else None
+        dialog = GoToDialog(max(r.number for r in rows), pages, "belge",
+                            here.number if here is not None else 1, self)
+        if dialog.exec():
+            number, kind = dialog.value(), dialog.kind()
+            if kind == "sayfa":
+                number = next((r.number for r in rows if _covers(r.pages, number)), 0)
+            self._choose_number(number)
+        self.results.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _choose_number(self, number: int) -> None:
+        row = self.model.row_of(lambda r: r.number == number)
+        if row >= 0:
+            self.results.setCurrentIndex(self.model.index(row, FilesModel.NAME))
+            return
+        self._say_status(f"Belge {number} bu görünümde yok.")
+
+    def _say_status(self, text: str) -> None:
+        window = self.window()
+        message = getattr(window, "message", None)
+        if message is not None:
+            message.setText(text)
 
     # -- actions of the window -------------------------------------------------------------
     def can_export(self) -> bool:

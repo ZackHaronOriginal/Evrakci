@@ -29,9 +29,9 @@ from PySide6.QtWidgets import QApplication, QDialog
 
 from evrakci.ui import disa_aktar
 
-P_NO_FOLDER = "Gösterilecek bir klasör yok."  # PROPOSED (Q-08)
-P_NO_INDEX = "Yazdırılacak bir dizin yok."  # PROPOSED (Q-08)
-P_NOTHING_RUNNING = "Şu an durdurulacak bir iş yok."  # PROPOSED (Q-08)
+P_NO_FOLDER = "Gösterilecek bir klasör yok."  
+P_NO_INDEX = "Yazdırılacak dizin sayfası yok."
+P_NOTHING_RUNNING = "Şu an durdurulacak bir iş yok."  
 for _name, _text in (("no_folder", P_NO_FOLDER), ("no_index", P_NO_INDEX),
                      ("export_nothing_running", P_NOTHING_RUNNING)):
     _says(f"export_{_name}", _text)
@@ -275,20 +275,16 @@ _M44 = "M-44 Q-08: {why}: the key is disabled and silent; INTENDED status line {
 PLANS["disa_aktar.gezginde_goster"] = Plan(
     pre="pre.export_reveal", snap="snap.export", effect="effect.export_revealed",
     feedback="feedback.export_revealed", window="job_disa", na_pre="pre.none",
-    na="na.says.export_no_folder",
-    xfail={"na": _M44.format(why="no folder to show", text=P_NO_FOLDER)})
+    na="na.says.export_no_folder")
 # B-047 (fixed in 3E): print_index used to receive the QAction's checked flag as its printer.
 PLANS["disa_aktar.yazdir"] = Plan(
     pre="pre.export_print", snap="snap.export", effect="effect.export_printed",
     feedback="feedback.export_printed", window="job_disa", na_pre="pre.none",
-    na="na.says.export_no_index",
-    xfail={"na": _M44.format(why="empty list", text=P_NO_INDEX)})
+    na="na.says.export_no_index")
 PLANS["disa_aktar.durdur"] = Plan(
     pre="pre.export_running", snap="snap.export", effect="effect.export_stopped",
     feedback="feedback.export_stopped", window="fresh", na_pre="pre.none", na_window="job_disa",
-    na="na.export_stop_says",
-    xfail={"na": "M-28 Q-08: nothing running: Ctrl+. is disabled and silent; INTENDED status "
-                 f"line {P_NOTHING_RUNNING!r}"})
+    na="na.export_stop_says")
 PLANS["rehber.yazdir"] = Plan(
     pre="pre.rehber_print", snap="snap.export", effect="effect.rehber_printed",
     feedback="feedback.rehber_printed", window="job_disa", na_pre="same",

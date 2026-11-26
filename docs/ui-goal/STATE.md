@@ -133,6 +133,7 @@ Updated after every accepted step. A new session or a compacted one reads this f
   I-09 6afc1e5 (review-group-a.md, fixes 2c82730); B I-17 4e0d900, I-19 fb66733, I-21 473aa88, I-22 60a0fa2, I-23 2f68421,
   I-28 89035ee, I-47 a+b 82c436f (review-group-b.md); C I-07 f590a5f (review-group-c.md, fixes f939c94); D I-35 2f9e5e4,
   I-38 c148240, I-39 b3d2db0, I-40 b3e182a, B-003 (review-group-d.md, fixes 4a8e1dc); I-01 dropped by the owner.
+  CI GREEN on ce6509c (last code commit): CI, Linux build, Windows installer, CLA all success.
   WAITING ON THE OWNER ONLY: OWNER-QUEUE.md open rows (Q-07, Q-10, Q-11, Q-13, Q-14, Q-15 rest, Q-17, Q-18, Q-19, Q-20,
   Q-24, Q-31, Q-32, Q-33, Q-34). Watch CI for stale known-fails rows (B-104) and remove them.
   Triage notes (not in git): scratchpad q08-triage.md, q10-q15-plain.md, q02-q16-plain.md; re-derive from the audit

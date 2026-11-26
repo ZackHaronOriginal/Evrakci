@@ -147,6 +147,14 @@ def failed_text(lines: list[str]) -> str:
     return text
 
 
+class _Outcome:
+    """What a read hands to the window thread: the result and the files that did not open."""
+
+    def __init__(self, value, failed: list[str]) -> None:
+        self.value = value
+        self.failed = failed
+
+
 class _Reading:
     """Bookkeeping of one read: which files, how many pages, and the speed so far."""
 
@@ -227,8 +235,6 @@ class YukleScreen(QWidget):
         self._drop_key: tuple | None = None
         self._info: JobSummary | None = None
         self._queued: list[Path] = []
-        self._readable: list[Path] = []
-        self._failed_files: list[str] = []  # files the current read could not open
         self._rows: list | None = None
         self.window_ = None  # the MainWindow once attached
         self.last_message = ""
@@ -600,8 +606,9 @@ class YukleScreen(QWidget):
 
     def create_job(self, paths: list[Path], name: str) -> None:
         paths = [Path(p) for p in paths]
-        self._begin(paths, lambda _total: (
-            lambda progress: self.store.create_job(name, self._readable, progress)), self._swap_job)
+        self._begin(paths, lambda _total, readable, _failed: (
+            lambda progress: self.store.create_job(name, readable, progress)), self._swap_job,
+            split=True)
 
     def add_batch(self, path: Path) -> None:
         self.add_batches([Path(path)])
@@ -616,16 +623,16 @@ class YukleScreen(QWidget):
         snapshot = job_from_dict(job_to_dict(self._controller.job))
         store = self.store
 
-        def make_work(total: int):
+        def make_work(total: int, readable: list[Path], failed: list[str]):
             def work(progress):
                 made, prepared, base = [], [], 0
                 try:
-                    for path in self._readable:
+                    for path in readable:
                         try:
                             result = store.prepare_batch(
                                 snapshot, path, lambda d, _t, base=base: progress(base + d, total))
                         except BatchError as error:  # this file only: the good ones are kept
-                            self._failed_files.append(str(error))
+                            failed.append(str(error))  # the worker's own list
                             continue
                         made.append(store.batch_file(snapshot, result.batch))
                         prepared.append(result)
@@ -638,7 +645,7 @@ class YukleScreen(QWidget):
 
             return work
 
-        self._begin(paths, make_work, self._batches_prepared)
+        self._begin(paths, make_work, self._batches_prepared, split=True)
 
     def _batches_prepared(self, prepared: list) -> None:
         controller = self._controller
@@ -658,10 +665,14 @@ class YukleScreen(QWidget):
             undo, available = undo_last(controller.undo_stack)
             full = prepared[0].batch.file_name
             if again:  # a warning, not a refusal: the add stays and Geri al takes it back
-                names = _short_name(again[0]) if len(again) == 1 else \
-                    f"{_short_name(again[0])} ve {len(again) - 1} dosya daha"
-                self._tell(f"{names} zaten ekli.", "kontrol", "Geri al", undo, available,
-                           spoken=f"{', '.join(again)} zaten ekli.")
+                if len(again) == 1:
+                    warn = f"{_short_name(again[0])} zaten ekli."
+                else:
+                    shown = ", ".join(_short_name(n) for n in again[:3])
+                    warn = f"{len(again)} dosya zaten ekli: {shown}{'…' if len(again) > 3 else ''}"
+                head = f"{count} parti eklendi. " if count > 1 else ""
+                self._tell(head + warn, "kontrol", "Geri al", undo, available,
+                           spoken=f"{head}{', '.join(again)} zaten ekli.")
                 return
             self._tell(f"{count} parti eklendi." if count > 1
                        else f"{_short_name(full)} eklendi.", "success",
@@ -1031,18 +1042,18 @@ class YukleScreen(QWidget):
         return False
 
     # -- background work -----------------------------------------------------------------
-    def _begin(self, files: list[Path], make_work, on_done) -> None:
+    def _begin(self, files: list[Path], make_work, on_done, split: bool = False) -> None:
         """Start reading `files`: `make_work(total pages)` returns the function the worker runs
         (it reports pages done of the total)."""
         if self.task is not None:
             return
         self._clear_error()
         reading = _Reading(files)
-        self._failed_files = failed = []  # one line per file that could not be read
 
         def work(progress):
             # Counting opens every file: it runs here, in the worker, never on the GUI
             # thread (a folder of thousands of scans would freeze the window first).
+            failed: list[str] = []  # the worker's own lists: the window gets them in the result
             counts, readable = [], []
             for path in files:
                 try:
@@ -1055,8 +1066,10 @@ class YukleScreen(QWidget):
             if not readable:  # nothing to keep: the failure bar names every file
                 raise BatchError(failed_text(failed))
             reading.set_pages(counts)
-            self._readable = readable  # what `make_work` reads: the files that opened
-            return make_work(reading.total)(progress)
+            if not split:
+                return make_work(reading.total)(progress)
+            value = make_work(reading.total, readable, failed)(progress)
+            return _Outcome(value, failed)
 
         self._reading = reading
         self._on_done = on_done
@@ -1101,7 +1114,10 @@ class YukleScreen(QWidget):
         self._sync_status(info)
 
     def _done(self, result) -> None:
-        self._finish(self._on_done, result)
+        failed: list[str] = []
+        if isinstance(result, _Outcome):
+            result, failed = result.value, result.failed
+        self._finish(self._on_done, result, failed=failed)
 
     def _failed(self, message: str) -> None:
         self._finish(None, None, error=message)
@@ -1109,7 +1125,8 @@ class YukleScreen(QWidget):
     def _cancelled(self) -> None:
         self._finish(None, None, cancelled=True)
 
-    def _finish(self, on_done, result, error: str | None = None, cancelled: bool = False) -> None:
+    def _finish(self, on_done, result, error: str | None = None, cancelled: bool = False,
+                failed: list[str] | None = None) -> None:
         self.task = None
         self._reading = None
         self._rows = None
@@ -1126,8 +1143,10 @@ class YukleScreen(QWidget):
             self._tell(CANCELLED_TEXT, "info")
         if on_done is not None:
             on_done(result)
-        if error is None and not cancelled and self._failed_files:
-            self._fail(failed_text(self._failed_files))  # the readable files were kept
+        if error is None and not cancelled and failed:  # the readable files were kept
+            added = len(result) if isinstance(result, list) else len(getattr(result, "batches", ()))
+            head = f"{added} parti eklendi.\n" if added else ""
+            self._fail(head + failed_text(failed))
         queued, self._queued = self._queued, []
         self._sync_state()
         self._attention()

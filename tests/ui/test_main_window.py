@@ -126,7 +126,8 @@ def test_close_after_failed_save_is_blocked_with_the_status(qtbot, tmp_path, mon
     qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
     assert window.message.text() == "Kaydedilemedi: salt okunur"
     assert window.controller() is not None
-    assert window.close() is True  # second attempt goes ahead
+    assert window.close() is False  # Q7: every attempt retries and asks again, never silent
+    assert window.controller() is not None and not window._closed
 
 
 def test_close_retries_the_save_and_closes_when_it_works(qtbot, tmp_path, monkeypatch):
@@ -137,15 +138,15 @@ def test_close_retries_the_save_and_closes_when_it_works(qtbot, tmp_path, monkey
     assert window.job_switch.save_state.state() == "saved"
 
 
-def test_quit_shortcut_blocks_once_then_goes_ahead(qtbot, tmp_path, monkeypatch):
+def test_quit_shortcut_keeps_asking_while_the_save_fails(qtbot, tmp_path, monkeypatch):
     window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
     window.registry.action("app.cikis").trigger()
     qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
     assert window.isVisible() or window.controller() is not None
     assert window.message.text().startswith("Kaydedilemedi")
-    window.registry.action("app.cikis").trigger()  # second attempt: not blocked
+    window.registry.action("app.cikis").trigger()  # still blocked: the edits are not on disk
     assert window.message.text().startswith("Kaydedilemedi")
-    assert not window._unsaved_pending()
+    assert window._unsaved_pending() and not window._closed
 
 
 def test_closing_or_switching_the_job_after_failed_save(qtbot, tmp_path, monkeypatch):
@@ -154,30 +155,26 @@ def test_closing_or_switching_the_job_after_failed_save(qtbot, tmp_path, monkeyp
     qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
     assert window.controller() is not None
     assert window.message.text() == "Kaydedilemedi: salt okunur"
-    assert window.yukle.can_switch() is None  # a job switch is not blocked again ...
-    assert not window._unsaved_pending()  # ... the second attempt goes ahead
+    assert window._unsaved_pending()  # the retry failed: nothing may drop the edits silently
+    window.close_job()  # the second Ctrl+W retries again and is refused again
+    qtbot.waitUntil(lambda: window.controller().saver.idle and window._close_warned, timeout=3000)
+    qtbot.wait(100)  # the retry's answer has been taken
+    assert window.controller() is not None
+    state["fail"] = False  # the disk works again: the retry saves and the job closes
     window.close_job()
-    assert window.controller() is None
+    qtbot.waitUntil(lambda: window.controller() is None, timeout=3000)
 
 
 def test_a_success_or_new_failed_edit_resets_the_warning(qtbot, tmp_path, monkeypatch):
     window, state = _failed_save_window(qtbot, tmp_path, monkeypatch)
-    assert window._unsaved_pending()  # the last write failed and nobody was warned yet
+    assert window._unsaved_pending()  # the last write failed
     window.close_job()
     qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
-    assert not window._unsaved_pending()
+    assert window._unsaved_pending()  # still pending: only a save or a Yes lets the edits go
     window.controller()._changed()  # a new edit that fails again
     qtbot.waitUntil(lambda: not window._close_warned, timeout=3000)
-    assert window._unsaved_pending()  # warns again
-    window.close_job()  # ... and the next close is refused again with the message
-    qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
-    assert window.message.text() == "Kaydedilemedi: salt okunur"
-    assert window.controller() is not None
+    assert window._unsaved_pending()
     state["fail"] = False
     window.save_job()
     qtbot.waitUntil(lambda: window.job_switch.save_state.state() == "saved", timeout=3000)
-    assert not window._close_warned
-    state["fail"] = True
-    window.controller()._changed()
-    qtbot.waitUntil(lambda: window.job_switch.save_state.state() == "failed", timeout=3000)
-    assert window._unsaved_pending()
+    assert not window._close_warned and not window._unsaved_pending()

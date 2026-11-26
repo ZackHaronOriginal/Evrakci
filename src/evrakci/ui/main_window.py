@@ -387,6 +387,7 @@ class MainWindow(QMainWindow):
         self.about_dialog: AboutDialog | None = None
         self._closing = False
         self._close_warned = False  # a failed save already blocked one close (B-035)
+        self._discard_ok = False  # the owner answered Yes: the unsaved edits may be dropped
         self._save_waiting = False  # Ctrl+S is waiting for its write (one answer, not a pile)
         self._restoring = True
         self._zoom: dict[str, tuple[ZoomController, str]] = {}
@@ -1522,6 +1523,7 @@ class MainWindow(QMainWindow):
 
     def _close_open_job(self) -> None:
         self._close_warned = False
+        self._discard_ok = False
         self._unwire_controller()
         self.yukle._close_now()  # the screen's own reset (its close_job comes back here)
         self._retire_thumbnails()
@@ -1540,10 +1542,12 @@ class MainWindow(QMainWindow):
 
     def _saved(self, when: datetime | None = None) -> None:
         self._close_warned = False
+        self._discard_ok = False
         self.job_switch.save_state.set_saved(when or datetime.now())
 
     def _save_failed(self, error: str) -> None:
         self._close_warned = False  # a new failed edit: the next close warns again
+        self._discard_ok = False
         self.job_switch.save_state.set_failed(f"Kaydedilemedi: {error}", self.save_job)
 
     def _saved_now(self, *_args) -> None:
@@ -1734,13 +1738,13 @@ class MainWindow(QMainWindow):
 
     def _unsaved_pending(self) -> bool:
         """Whether leaving the job (close, Ctrl+W, a job switch) must first wait for the saver:
-        something is queued, or the last write failed and has not been warned about (B-035: the
-        second attempt goes ahead, the edits stay unsaved; also when the write hangs, `stalled`)."""
+        something is queued, or the last write failed (B-035): every attempt retries the save, and
+        only the owner's Yes to the close question (`_discard_ok`) lets unsaved edits go."""
         controller = self.controller()
         if controller is None or controller.frozen or controller.saver.clean:
             return False
         saver = controller.saver
-        return not (self._close_warned and (saver.idle or saver.stalled))
+        return not (self._discard_ok and (saver.idle or saver.stalled))
 
     def _settle_job(self, then: Callable[[bool], None]) -> None:
         """Make the file on disk equal the open job, then call `then(True)`; at once when it is
@@ -1788,6 +1792,9 @@ class MainWindow(QMainWindow):
             self.message.setText("Durduruluyor… Pencere iş durunca kapanır.")
             event.ignore()
             return
+        if self._question_open():  # the question is the only way out
+            event.ignore()
+            return
         if self._unsaved_pending():  # write what is queued first, then close from the event loop
             def written(ok: bool) -> None:
                 if ok:
@@ -1805,12 +1812,20 @@ class MainWindow(QMainWindow):
         QApplication.instance().removeEventFilter(self.alt_menus)
         event.accept()
 
+    def _question_open(self) -> bool:
+        dialog = getattr(self, "_close_question", None)
+        return dialog is not None and shiboken6.isValid(dialog) and dialog.isVisible()
+
+    def _question_answered(self, code: int) -> None:
+        if code == QMessageBox.StandardButton.Yes and shiboken6.isValid(self):
+            self._discard_ok = True  # only this answer lets the edits go
+            self.close()
+
     def _ask_close_unsaved(self) -> None:
         """The save failed again: Yes closes anyway (the last changes are lost), No keeps the job
         open. The question does not block the event loop, so a close can never get stuck (B-035);
         the status line keeps the reason and a second close attempt also goes ahead."""
-        dialog = getattr(self, "_close_question", None)
-        if dialog is not None and shiboken6.isValid(dialog) and dialog.isVisible():
+        if self._question_open():
             return
         dialog = QMessageBox(
             QMessageBox.Icon.Question, "Evrakçı",
@@ -1818,8 +1833,7 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
         dialog.setDefaultButton(QMessageBox.StandardButton.No)
         dialog.setWindowModality(Qt.WindowModality.WindowModal)
-        dialog.finished.connect(lambda code: self.close()
-                                if code == QMessageBox.StandardButton.Yes else None)
+        dialog.finished.connect(self._question_answered)
         self._close_question = dialog
         dialog.open()
 

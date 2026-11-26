@@ -71,8 +71,17 @@ def test_a_repeat_inside_one_multi_add_warns_too(qtbot, tmp_path, files):
     screen = _open(qtbot, window, [a])
     screen.add_batches([b, b, b])
     qtbot.waitUntil(lambda: not screen.busy(), timeout=10000)
-    assert screen.last_message == "tarama-2.pdf zaten ekli."
+    assert screen.last_message == "3 parti eklendi. tarama-2.pdf zaten ekli."  # the count stays
     assert len(_batches(screen)) == 4
+
+
+def test_several_repeats_are_listed_by_name(qtbot, tmp_path, files):
+    a, b, _bad, _bad2 = files
+    window = _window(qtbot, tmp_path)
+    screen = _open(qtbot, window, [a, b])
+    screen.add_batches([a, b])
+    qtbot.waitUntil(lambda: not screen.busy(), timeout=10000)
+    assert screen.last_message == "2 parti eklendi. 2 dosya zaten ekli: tarama-1.pdf, tarama-2.pdf"
 
 
 def test_a_broken_file_keeps_the_good_files_and_every_failure_is_listed(qtbot, tmp_path, files):
@@ -85,7 +94,9 @@ def test_a_broken_file_keeps_the_good_files_and_every_failure_is_listed(qtbot, t
     text = screen.last_message
     assert "PDF açılamadı: bozuk.pdf" in text and "PDF açılamadı: bozuk-2.pdf" in text
     assert "Parola korumalı olabilir." in text
+    assert text.startswith("1 parti eklendi.")  # not only "Okunamadı": the good file was added
     assert screen._error is not None
+    assert not hasattr(screen, "_readable") and not hasattr(screen, "_failed_files")  # thread rule
 
 
 def test_only_broken_files_change_nothing_and_name_each(qtbot, tmp_path, files):
@@ -194,3 +205,20 @@ def test_a_hung_write_does_not_hold_the_close_for_ever(qtbot, tmp_path, monkeypa
     _question(window).button(QMessageBox.StandardButton.Yes).click()
     qtbot.waitUntil(lambda: window._closed, timeout=3000)
     gate.set()
+
+
+def test_no_then_another_close_never_closes_silently(qtbot, tmp_path, monkeypatch):
+    window = _failing_window(qtbot, tmp_path, monkeypatch)
+    assert window.close() is False
+    qtbot.waitUntil(lambda: getattr(window, "_close_question", None) is not None
+                    and _question(window).isVisible(), timeout=3000)
+    # a second close while the question is up must not close the window
+    assert window.close() is False and not window._closed
+    _question(window).button(QMessageBox.StandardButton.No).click()
+    qtbot.waitUntil(lambda: not _question(window).isVisible(), timeout=3000)
+    window.registry.action("app.cikis").trigger()  # Ctrl+Q after No: retried, asked again
+    qtbot.waitUntil(lambda: _question(window).isVisible(), timeout=3000)
+    assert not window._closed and window.controller() is not None
+    window.close_job()  # Ctrl+W: retried, refused with the status, the job stays
+    qtbot.waitUntil(lambda: window.message.text() == "Kaydedilemedi: salt okunur", timeout=3000)
+    assert window.controller() is not None

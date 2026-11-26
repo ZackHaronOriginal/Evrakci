@@ -12,7 +12,7 @@ import time
 import pytest
 from fakes import make_pdf, qr_page, text_page
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 from saving import wait_saved
 
 from evrakci.pipeline.job import job_to_dict
@@ -344,7 +344,7 @@ def test_a_job_switch_writes_the_old_job_first(qtbot, tmp_path, disk):
     assert window.yukle.can_switch() is None
 
 
-def test_a_failed_write_keeps_the_old_job_open_and_the_second_try_goes_ahead(
+def test_a_failed_write_keeps_the_old_job_open_on_every_try(
         qtbot, tmp_path, disk):
     window, store, jobs = _window(qtbot, tmp_path)
     old = window.controller()
@@ -355,7 +355,11 @@ def test_a_failed_write_keeps_the_old_job_open_and_the_second_try_goes_ahead(
     qtbot.waitUntil(lambda: window.message.text() == "Kaydedilemedi: salt okunur", timeout=3000)
     qtbot.wait(100)
     assert window.controller() is old and old.job.name == "Kaydedilemeyen"  # stays open
-    window.yukle.open_job_id(jobs[1].id)  # second attempt: the edits stay unsaved, it goes on
+    window.yukle.open_job_id(jobs[1].id)  # second attempt: retried, refused again (Q7)
+    qtbot.wait(300)
+    assert window.controller() is old and old.job.name == "Kaydedilemeyen"
+    disk.fail = None  # the disk works again: the retry saves and the switch goes ahead
+    window.yukle.open_job_id(jobs[1].id)
     qtbot.waitUntil(lambda: window.controller() is not old, timeout=5000)
     assert window.controller().job.id == jobs[1].id
 
@@ -470,7 +474,7 @@ def test_an_error_that_is_not_oserror_is_reported_not_swallowed(qtbot, tmp_path,
     assert controller.saver.error == "yazılamaz" and not controller.saver._running
 
 
-def test_close_after_a_failed_write_is_refused_once_as_before(qtbot, tmp_path, disk):
+def test_close_after_a_failed_write_is_refused_every_time(qtbot, tmp_path, disk):
     window, _store, _jobs = _window(qtbot, tmp_path)
     controller = window.controller()
     disk.fail = "salt okunur"
@@ -480,7 +484,8 @@ def test_close_after_a_failed_write_is_refused_once_as_before(qtbot, tmp_path, d
     qtbot.waitUntil(lambda: window._close_warned, timeout=3000)
     assert window.message.text() == "Kaydedilemedi: salt okunur"
     assert window.isVisible() and window.controller() is controller
-    assert window.close() is True  # the second attempt goes ahead; the edits stay unsaved
+    assert window.close() is False  # Q7: the second attempt retries and is refused again
+    assert window.controller() is controller and not window._closed
     assert controller.saver.idle
 
 
@@ -525,7 +530,7 @@ def _hang(monkeypatch, disk):
 TIMED_OUT = os.strerror(errno.ETIMEDOUT)
 
 
-def test_a_hung_write_refuses_the_close_once_and_the_second_close_goes_ahead(
+def test_a_hung_write_refuses_the_close_until_the_owner_says_yes(
         qtbot, tmp_path, monkeypatch, disk):
     window, _store, _jobs = _window(qtbot, tmp_path)
     controller = window.controller()
@@ -540,8 +545,9 @@ def test_a_hung_write_refuses_the_close_once_and_the_second_close_goes_ahead(
     assert window.controller() is controller and not window._closed
     assert controller.saver.stalled and not controller.saver.idle  # the write still hangs
     assert disk.writes[0][0].daemon  # it cannot keep the process alive
-    assert window.close() is True  # B-035: the second attempt goes ahead
-    assert window._closed
+    qtbot.waitUntil(lambda: window._question_open(), timeout=3000)
+    window._close_question.button(QMessageBox.StandardButton.Yes).click()  # only Yes lets go
+    qtbot.waitUntil(lambda: window._closed, timeout=3000)
     disk.release()  # the hung write ends; its late result is taken before the window goes
     wait_saved(controller)
 
@@ -564,7 +570,9 @@ def test_after_a_hang_ctrl_s_and_job_switch_are_not_dead_ends(
     qtbot.waitUntil(lambda: window.message.text() == f"Kaydedilemedi: {TIMED_OUT}", timeout=5000)
     qtbot.waitUntil(lambda: window.yukle.can_switch() is None, timeout=5000)  # not BUSY for ever
     assert not window.yukle.swapping and window.controller() is controller
-    window.yukle.open_job_id(jobs[1].id)  # ... and the second attempt goes ahead
+    assert window.yukle.can_switch() is None
+    disk.release()  # the hung write ends and the disk works: the switch retries and goes on
+    window.yukle.open_job_id(jobs[1].id)
     qtbot.waitUntil(lambda: window.controller() is not controller, timeout=5000)
     disk.release()  # the hung write ends; its late result is taken before the window goes
     wait_saved(controller)

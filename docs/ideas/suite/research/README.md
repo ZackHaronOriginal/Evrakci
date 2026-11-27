@@ -11,6 +11,7 @@ and unverified points marked. The reports were not re-checked claim by claim; tr
 | 4 | [Prior art](04-prior-art.md) | Nobody covers this for a small offline Windows office; open-source DMS are Linux servers; fill tools break leading zeros and dates. |
 | 5 | [Local network sharing](05-local-network-sharing.md) | Local work plus check-out/check-in on a shared folder; no live database on a share; no server for offices without IT. |
 | 6 | [Extensible architecture](06-extensible-architecture.md) | Pull the abstraction from 2-3 real job kinds; design only boundaries and saved-file formats up front; version every file. |
+| 8 | [Introduction and warm-up](08-introduction-and-warm-up.md) | Naming chambers already using it beats features; demo on their own pile, one job; tours get skipped, so a sample job, teaching empty screens and printed sheets; an 18-step plan for one chamber. |
 | 7 | [Adoption and physical workflow](07-adoption-and-physical-workflow.md) | Paper prep is the hidden cost; usefulness and fit with current work drive adoption; champions, small wins, a 13-step playbook for office heads. |
 
 ## Where the reports agree
@@ -44,7 +45,8 @@ and unverified points marked. The reports were not re-checked claim by claim; tr
 
 - **Rejected:** planting known wrong values to measure reviewers (report 3). These are real official documents; a
   planted error could leave the office. Not to be built in any form.
-- **Wanted, not yet researched:** how to introduce the app and warm an office up to it (first contact, pitching to
-  office heads, the first days). Treated as important as adoption.
+- **Wanted:** how to introduce the app and warm an office up to it, treated as important as adoption: report 8.
+- **Dropped** (owner): building in batch sample checks and the ASLI GİBİDİR rules (report 7). Kept: Evrakçı never
+  suggests destroying originals; what institutions do with paper is their responsibility.
 - **UI technology:** the owner would like a React (npm) UI, being used to it and because good UI tooling and skills
   exist for the web. To be researched against the Python backend before deciding.

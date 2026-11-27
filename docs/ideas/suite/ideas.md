@@ -9,7 +9,7 @@ This is an interpretation of the owner's own message and of a follow-up message,
 - Today Evrakçı is mostly about reading documents.
 - The owner wants it to be common ground for several tools: a suite that hosts several tools, of which document reading is one.
 - Tools mentioned or implied: document reading (existing), a print-template library, spreadsheet/data import, document editing, and export to spreadsheet or PDF.
-- Evrakçı should be able to do what the standalone Member Search / Bilgi Formu tool does. The tool is an example of the idea, not a part to move in. (Corrected 2026-11-27 by the owner: the earlier line here said the tool itself should become part of Evrakçı.)
+- The standalone Member Search / Bilgi Formu tool is inspiration only: an example of the kind of work meant. Evrakçı does not have to copy it. (Corrected 2026-11-27 by the owner.)
 
 ## 2. Print-template library
 
@@ -99,4 +99,25 @@ Storage
 
 Scope
 13. OCR was dropped for the standalone tool as too much work. Evrakçı already reads documents, so does that existing capability replace the need for it?
-14. Which parts of what the Member Search tool does matter most for the Evrakçı version?
+14. (Removed 2026-11-27: the member tool is inspiration only, not something to port.)
+
+## 9. More from the owner (2026-11-27, paraphrased)
+
+**Direction.**
+- Generalise: today Evrakçı is made for one job (scan a pile, split it, read values, export). It should become a
+  general tool for the chamber's document and photocopy work, for everything a chamber needs there.
+- It does not try to replace PDF editors. It handles specific, repeated office jobs that are done by hand today.
+- It is a manual-job replacer, so the groundwork must take future additions well and scale a lot. More QoL features
+  will keep coming.
+- It must not burn people's heads: the jobs should get easier, not more complicated.
+- Round one lesson the owner agreed with: focus on building the product, less on rules, audits and documents.
+
+**New ideas.**
+- **Check or fill a spreadsheet from real documents.** Scan the documents and give Evrakçı an Excel template. OCR puts
+  the values into the right cells, or checks the values already there against the documents and shows mismatches.
+- **Easy editing on the document itself,** in the spirit of the HTML tool: tick boxes, type into fields on the form.
+- **Data from several places into one document.** Download Excel data from TOBB, take other data from elsewhere, and
+  fill it into a document (Excel, Word, ending as PDF).
+- **Examples of manual work to replace:** checking a document by hand against the real documents; scanning a large
+  number of documents only to send them off one by one; collecting data from TOBB and other sources and typing it into
+  a document.

@@ -27,9 +27,12 @@ Everything here is anonymized and paraphrased. The standalone tool and its sampl
 4. **Editing playground (a maybe).** Load an example spreadsheet, connect its columns to places in a document, edit
    freely and produce new files from it, the way the standalone tool does for one form.
 5. **Editing and output.** Documents should be easy to edit inside Evrakçı and export as spreadsheet or PDF.
-6. **Something like the standalone tool, inside Evrakçı.** The owner wants Evrakçı to do what the Member Search / Bilgi
-   Formu HTML tool does (find a person in the data, fill a form, print or export). The tool itself is an example, not
-   something to move in. (Corrected 2026-11-27: an earlier version said "bring the tool in", which the owner did not say.)
+6. **The standalone tool is inspiration only.** The Member Search / Bilgi Formu HTML tool shows the kind of thing the
+   owner means (find data, fill a form, tick boxes and type on it, print or export). Evrakçı does not have to copy
+   what it does. (Corrected 2026-11-27 by the owner: earlier versions said to bring the tool in, then to do what it
+   does; neither was said.)
+
+More ideas from the owner on 2026-11-27 are in `ideas.md` section 9.
 
 Data note from the owner: the handoff holds no real member data only because the session that made it never had any.
 Evrakçı keeps data on the PC and publishes nothing, so holding real member data locally is fine.

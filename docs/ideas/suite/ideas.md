@@ -128,5 +128,10 @@ Scope
 - much bigger piles;
 - maybe a local network setup (several PCs in the office), to be thought through.
 
-**TOBB exports** come as PDF, Excel or similar formats, so data import must take PDFs as a data source too, not only
-spreadsheets.
+**TOBB exports** come as PDF, Excel or similar formats. PDFs are already a data source today through templates (draw
+boxes, read values), so a TOBB PDF can go through the same reading.
+
+**Network: sharing and handing work on (owner, 2026-11-27).**
+- Easily share files between staff, look at each other's work, take over or edit someone's work, get their outputs.
+- Easily get a prepared file to the institution it is for. Today staff email it or carry it on a USB stick; that
+  hand-off should be much easier.

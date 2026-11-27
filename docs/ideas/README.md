@@ -8,6 +8,8 @@ until the owner picks it. Collected 2026-11-27.
 - Evrakçı becomes a general tool for the chamber's document and photocopy work, a manual-job replacer. Not a PDF
   editor. Groundwork that takes future additions well; easy for staff. (`suite/ideas.md` §1, §9)
 - "Scalable" means more job kinds, more field kinds, bigger piles, maybe a local network setup. (§9)
+- Network: share files and work between staff, take over or edit someone's work, get outputs; send prepared files to
+  institutions easily instead of email or USB sticks. (§9)
 - Print-template library: A5 sheet, folder labels, binder spines, EK-1 Bilgi Formu, more at the chamber. (§2)
 - Data in: predefined mappings for known exports, or load/paste any spreadsheet and map its headers yourself. TOBB
   exports come as PDF, Excel and similar. (§3, §9)

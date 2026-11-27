@@ -2,7 +2,7 @@
 
 **Status of everything below: ideas to talk about. Nothing here is decided, scheduled or approved for implementation.** The owner said so explicitly in a follow-up.
 
-This is an interpretation of the owner's own message (kept privately, see `README.md`) and of a follow-up message, written by the assistant of the session that built the standalone tool. That assistant had not seen the Evrakçı codebase. It adds structure and questions; it adds no requirements. Where it and the owner's message differ, the owner's message is right. In this public copy the owner's words are paraphrased, not quoted.
+This is an interpretation of the owner's own message and of a follow-up message, written by the assistant of the session that built the standalone tool. That assistant had not seen the Evrakçı codebase. It adds structure and questions; it adds no requirements. Where it and the owner's message differ, the owner's message is right. In this public copy the owner's words are paraphrased, not quoted.
 
 ## 1. Direction: Evrakçı becomes a suite
 
@@ -46,7 +46,7 @@ One way to read it:
 - A playground area lets the owner open a document or template, connect spreadsheet columns to places in it, edit freely, and produce new files from the result.
 - It is the same thing the standalone tool does for one fixed workbook and one fixed form, opened up so the owner can do it with any spreadsheet and any document.
 
-`reference/sample-member-workbook.synthetic.xlsx` (private folder) is a made-up workbook with the same two sheets and headers the standalone tool expects. It can serve as a starting example.
+A made-up workbook with the same two sheets and headers the standalone tool expects could serve as a starting example.
 
 The owner called this a maybe. How it relates to the template library (the same feature, or a separate free-form area) is open.
 

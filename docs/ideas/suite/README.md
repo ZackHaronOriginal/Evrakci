@@ -5,20 +5,13 @@ Do not plan or build any of it until the owner brings it up. The owner wants to 
 editing side when they do. Planned and built work lives in `docs/ui-goal/` and `specs/`; this folder is kept apart
 from it on purpose.
 
-## Where the material is
+## Files
 
-| What | Where | Committed? |
-|---|---|---|
-| This summary | `docs/ideas/suite/README.md` | yes |
-| The ideas organised into parts, with questions for later | `docs/ideas/suite/ideas.md` | yes |
-| How the standalone Member Search / Bilgi Formu tool works | `docs/ideas/suite/member-search-reference.md` | yes |
-| The owner's own message, unchanged (the source of truth) | `.claude/ideas-private/suite-2026-11-27/01-my-words-verbatim.md` | no, private |
-| The full handoff as received: prompt, original notes, the working tool (`member-search.html`), the blank EK-1 form template, synthetic sample workbooks, two screenshots | `.claude/ideas-private/suite-2026-11-27/` and the original zip at `.claude/ideas-private/evrakci-suite-handoff.zip` | no, private |
+- `ideas.md`: the ideas organised into parts, with questions kept for later.
+- `member-search-reference.md`: how the owner's standalone Member Search / Bilgi Formu tool (an offline HTML file, not
+  in this repository) works, as background.
 
-The private folder is in `.gitignore` because this repository is public. The owner's own words, a real form
-template and screenshots must not be published. The folder lives only in the working copy where it was saved. A later
-session that needs it must get the zip from the owner again. If the owner's message and anything in this folder
-disagree, the owner's message wins.
+Everything here is anonymized and paraphrased. The standalone tool and its sample files are not part of the repository.
 
 ## The ideas in one screen (paraphrased)
 

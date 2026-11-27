@@ -1,6 +1,6 @@
 # Member Search / Bilgi Formu filler: reference
 
-What the standalone tool in `reference/member-search.html` does, how the notable parts work, and which decisions the owner already made. Function names refer to the script inside that file. The tool and `reference/` are in the private folder `.claude/ideas-private/suite-2026-11-27/` (see `README.md`); they are not in the repository.
+What the standalone tool (`member-search.html`, not in this repository) does, how the notable parts work, and which decisions the owner already made. Function names refer to the script inside that file.
 
 **Status: reference for an idea, not decided.**
 
@@ -22,7 +22,7 @@ Doing this by hand means finding the person in two sheets, copying values into t
 
 ## About the data
 
-The tool was built and tested only with synthetic data from its own sample generator. The real member workbook and the real filled forms were never shared with the session that built it, which is why nothing real is in this folder. `reference/sample-member-workbook.synthetic.xlsx` reproduces the two sheets and their headers with made-up people and companies.
+The tool was built and tested only with synthetic data from its own sample generator. The real member workbook and the real filled forms were never shared with the session that built it, which is why nothing real is in this folder. a synthetic sample workbook reproduces the two sheets and their headers with made-up people and companies.
 
 ## What it is
 

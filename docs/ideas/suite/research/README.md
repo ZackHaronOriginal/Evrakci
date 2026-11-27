@@ -39,3 +39,12 @@ and unverified points marked. The reports were not re-checked claim by claim; tr
   (whether a chamber counts is unclear).
 - Whether the 2020 official-correspondence regulation and Devlet Arşivleri digitisation rules bind TOBB chambers.
 - The AI-agent benchmark numbers (Python 70 % vs C# 40 %) come from one benchmark.
+
+## Owner rulings on the findings (2026-11-27)
+
+- **Rejected:** planting known wrong values to measure reviewers (report 3). These are real official documents; a
+  planted error could leave the office. Not to be built in any form.
+- **Wanted, not yet researched:** how to introduce the app and warm an office up to it (first contact, pitching to
+  office heads, the first days). Treated as important as adoption.
+- **UI technology:** the owner would like a React (npm) UI, being used to it and because good UI tooling and skills
+  exist for the web. To be researched against the Python backend before deciding.

@@ -124,7 +124,7 @@ jobs:
         run: |
           export PATH="$(cygpath "$RUNNER_TEMP")/tesseract-test:$PATH"
           ruff check .
-          pytest -q -rfE
+          pytest -q -rfE -n auto
           python .claude/skills/shortcut-audit/audit_shortcuts.py --check
           python .claude/skills/shortcut-audit/audit_shortcuts.py --contract docs/ui-goal/shortcut-contract.tsv
 

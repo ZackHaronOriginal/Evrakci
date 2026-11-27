@@ -46,7 +46,7 @@ library, and tools run as separate programs.
 
 | Component | License | How it is used |
 |---|---|---|
-| pytest, pytest-qt | MIT | Running the tests, including window tests without a screen |
+| pytest, pytest-qt, pytest-xdist (with execnet) | MIT | Running the tests, including window tests without a screen, on several processes at once |
 | ruff | MIT | Code style checks |
 
 ## Build tools and bundled programs (Windows installer)

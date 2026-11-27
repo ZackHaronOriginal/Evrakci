@@ -369,6 +369,10 @@ et-xmlfile==2.0.0 \
     --hash=sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa \
     --hash=sha256:dab3f4764309081ce75662649be815c4c9081e88f0837825f90fd28317d4da54
     # via openpyxl
+execnet==2.1.2 \
+    --hash=sha256:63d83bfdd9a23e35b9c6a3261412324f964c2ec8dcd8d3c6916ee9373e0befcd \
+    --hash=sha256:67fba928dd5a544b783f6056f449e5e3931a5c378b128bc18501f7ea79e296ec
+    # via pytest-xdist
 filelock==4.2.9 \
     --hash=sha256:96530b7c538d4ea08493ab067247aab7948c54d8cd622cce711c97cccc5d9896 \
     --hash=sha256:a379c50a729e5b68c8519a4d26489f755d9769960a236ecd838190e2a78db2e9
@@ -1206,9 +1210,14 @@ pytest==9.2.0 \
     # via
     #   evrakci (pyproject.toml)
     #   pytest-qt
+    #   pytest-xdist
 pytest-qt==4.5.0 \
     --hash=sha256:51620e01c488f065d2036425cbc1cbcf8a6972295105fd285321eb47e66a319f \
     --hash=sha256:ed21ea9b861247f7d18090a26bfbda8fb51d7a8a7b6f776157426ff2ccf26eff
+    # via evrakci (pyproject.toml)
+pytest-xdist==3.8.0 \
+    --hash=sha256:202ca578cfeb7370784a8c33d6d05bc6e13b4f25b5053c30a152269fd10f0b88 \
+    --hash=sha256:7e578125ec9bc6050861aa93f2d59f1d8d085595d6551c2c90b6f4fad8d3a9f1
     # via evrakci (pyproject.toml)
 python-msilib==0.7.3 ; python_full_version >= '3.13' and sys_platform == 'win32' \
     --hash=sha256:09f35b2d56e4d771e679326b292e257bf4a06fbfc6c57ffd62125c60327832b7 \

@@ -61,7 +61,7 @@ jobs:
         run: |
           ruff check .
           # -v names each test before it runs, so a crash (segfault) shows which test it was in
-          pytest -v -p no:cacheprovider -o faulthandler_timeout=600
+          pytest -v -n auto -p no:cacheprovider -o faulthandler_timeout=600
 
       - name: Download and verify tur_best
         run: |

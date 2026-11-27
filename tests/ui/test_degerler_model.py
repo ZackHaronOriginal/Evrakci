@@ -60,7 +60,7 @@ def test_why_names_the_variant_and_the_swaps():
     cell = make_cell(VAR, VariableValue("", 0.0, None, True, "34-0172-K/8",
                                          (SectionReading(0, "34-0I72-K/B", 0.4),
                                           SectionReading(1, "34-0172-K/8", 0.55))))
-    assert cell.why() == "Varyant 2 ile okundu: I yerine 1, B yerine 8."
+    assert cell.why() == "Bölüm 2 ile okundu: I yerine 1, B yerine 8."
 
 
 def test_column_kinds_and_words():
@@ -135,3 +135,48 @@ def test_refresh_stays_quick_at_1000_documents(qtbot, tmp_path):
     screen.accept_current()  # one undoable edit + refresh + move on
     assert time.perf_counter() - started < 3.0
     assert screen.current_value() == (8, "k1")
+
+
+def test_page_of_and_source_follow_the_core_helpers():
+    """I-06: Row.page_of is select.value_page, and a cell's box is values.box_section."""
+    from evrakci.pipeline.cuts import compute_documents
+    from evrakci.pipeline.select import value_page
+    from evrakci.pipeline.templates.values import box_section
+
+    job, template = _job(3)
+    last = Variable("Tarih", [Section(1, (1, 1, 5, 5)), Section(-1, (1, 1, 5, 5))], key="k3")
+    template.variables.append(last)
+    two = (SectionReading(0, "1.1.26", 0.3), SectionReading(1, "1.1.2026", 0.55))
+    values = [VariableValue("1.1.2026", 0.95, 1, False),
+              VariableValue("", 0.0, None, True, "1.1.2026", two),
+              VariableValue("", 0.0, None, True, "", (SectionReading(0, "", 0.0),)),
+              VariableValue("", 0.0, None, True, "1.1.2026", ())]
+    for document, value in zip(compute_documents(job), values, strict=False):
+        stored = current_values(job, document)
+        stored["k3"] = value
+    rows = build_rows(job, compute_documents(job), {template.id: template})
+    for row in rows:
+        for cell in row.cells:
+            if cell.value is None:
+                continue
+            assert cell.source == box_section(cell.value)
+            assert row.page_of(cell) == value_page(
+                template, cell.key, cell.source, len(row.document.page_ids))
+
+
+def test_d4_the_sample_grows_with_the_job_and_numbers_get_their_endings():
+    from evrakci.ui.degerler_model import grouped, possessive, sample_size
+
+    assert [sample_size(n) for n in (0, 5, 20, 1000, 4000, 100_001)] == [0, 5, 20, 20, 80, 2001]
+    assert grouped(3980) == "3 980" and grouped(12) == "12"
+    assert [possessive(n) for n in (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70,
+                                    80, 90, 100, 1000, 3980)] == [
+        "1'i", "2'si", "3'ü", "4'ü", "5'i", "6'sı", "7'si", "8'i", "9'u", "10'u", "20'si",
+        "30'u", "40'ı", "50'si", "60'ı", "70'i", "80'i", "90'ı", "100'ü", "1 000'i", "3 980'i"]
+
+
+def test_r5_dative_endings():
+    from evrakci.ui.degerler_model import dative
+
+    assert [dative(n) for n in (1, 4, 6, 9, 20, 80, 100, 3980)] == [
+        "1'ine", "4'üne", "6'sına", "9'una", "20'sine", "80'ine", "100'üne", "3 980'ine"]

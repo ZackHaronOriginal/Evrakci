@@ -1,0 +1,204 @@
+# Run state
+
+Updated after every accepted step. A new session or a compacted one reads this first.
+
+## Where we are (2026-11-20)
+
+- Phase 0: done except the exit's owner part: Q-01 (B-005, last open S1 besides B-032 which is
+  Phase 2's fix by plan order). Evidence complete: suite.txt (2 runs), perf-before.json v2
+  (real path, abe8da4; v1 kept), shortcuts/keywalk/screenshots twice, ledger triaged. Review:
+  .claude/gorevler/p0-phase-review.md; all its must-fixes done (B-020 29b5e01, perf script
+  5b4d613, bookkeeping 302bb99).
+- Phase 1: done. Review must-fixes done (be87491); measure-before re-baselined (d8c0538: 234
+  fails, run twice identical). Phase-end full suite at d8c0538: 1110 passed, 6 skipped,
+  27 xfailed, 2 failed (test_ui_measure probes broken by a stylesheet left by earlier tests);
+  fixed in a075e9c and checked with tests/ui (664 passed, 27 xfailed; old file: 2 failed).
+  ruff clean. Phase 0+1 report sent. Owner: Q-02 (25 conflict
+  rows), Q-03 (enforcement). Then write the Phase 0+1 report (max 15 lines) to the owner.
+- Phase 2: CLOSED. Fix bfb92bc + review fixes f35f56b; perf-after-phase2.json all targets met;
+  full suite 1118 passed / 6 skipped / 26 xfailed (before f35f56b, which was checked with the
+  Kontrol test files); Opus review found no S1/S2 (.claude/gorevler/p2-phase-review.md); F6/F7
+  ledgered (B-042, B-043). Owner check Q-07. Report sent.
+- Phase 3: DONE except its exit rule, which waits on the owner: 110 of 319 rows keep a strict
+  xfail (Q-08 texts/decisions, Q-09 keys kept disabled because older tests pin it). Last fixes
+  be26e31 (3F). Full suite on 3F: 2121 passed / 6 skipped / 205 xfailed, 1 flaky (margin test,
+  fixed in be26e31, passes 3/3 under load). Review .claude/gorevler/p3-phase-review.md; leftovers
+  ledgered B-048..B-050. Report sent.
+- Phase 4: DONE except what waits on the owner. Six screens audited (inventory, states, click
+  paths, motion, copy, lenses: docs/ui-goal/audit/), fix steps 2663135, 4e5d62e, 9a31c1c,
+  b0cbd1e, a7bbce8, 876cd37, f7741f0, review must-fixes 7f14c61. Evidence: measure-after (220
+  fails vs 234), quick perf all targets, full suite at 7f14c61: 2205 passed / 6 skipped / 203
+  xfailed / 0 failed, keywalk clean, clipping 0. Review .claude/gorevler/p4-phase-review.md.
+  Open S1 waiting on the owner: B-005 (Q-01), B-056 (Q-12). Owner Q-10..Q-17. Report sent.
+- Phase 5: 5a-5d done; Q-06 answered. 5e specs A-D written, reconciled, Turkish terms checked,
+  every decision settled by evidence (docs/ui-goal/specs/README.md); I-01 dropped (QR is only the
+  separator); I-47 rewritten (background work + loading view). Readable page for the owner:
+  https://claude.ai/artifact/HsKTkfuka1QDq89p351XuX. Specs APPROVED 2026-11-20 (f69cb85). Building in README §1 order.
+  Step 1 I-47 part a DONE (see last commit): `run_background` + `LoadingCard` (ui/workers.py, ui/loading.py), job open /
+  job list / recent jobs / delete in workers, OCR engine made in the worker (ui/ocr_engine.py), commands off with
+  the reason while loading, controller frozen during a delete. Evidence: tests/ui/test_workers.py (29 tests,
+  incl. (a) longest event-loop gap < 100 ms while JobStore.load blocks 1.5 s); tests/ui 1793 passed / 203
+  xfailed; core tests 732 passed / 6 skipped; ruff and both shortcut audits clean; perf 800 pages equal to HEAD
+  (first paint 76 ms, paint p95 14.5 ms); screenshot matrix 0 clipping; loading card shot in 3 themes x 100/150 %.
+  Two review rounds (Sonnet), fixes verified by mutation. Ledgered: B-083, B-085, B-086, B-087 (B-084 older).
+  Step I-47 part b DONE (see git log): write-behind saver ui/saver.py (one writer at a time, coalescing,
+  daemon thread, 10 s stall -> existing "Kaydedilemedi" + retry), store.save_dict with 3 tries on a blocked
+  replace, flush before close / Ctrl+S / export / job switch / delete. Evidence: tests/ui/test_saver.py,
+  tests/test_store.py; tests/ui 1823 passed / 203 xfailed; core 737 passed / 6 skipped; ruff, audits clean;
+  Kapı G clean. Fixed on the way: B-088. CI fix c1275eb. Lesson: never `git stash` while an agent edits.
+  Step I-21 DONE (see git log): D on Kontrol / K on Değerler (+ Araçlar menu, context menu) carry the
+  document; B-012 fixed. Evidence tests/ui/test_carry_document.py, test_ledger_c.py::test_b012...; touched
+  test files 888 passed; audits clean; Kapı G 0 clipping, menu labels un-elided at 150 %.
+  OPEN: CI segfault at ~31 % of `pytest -q` since I-47 part b (Linux), and Windows read PermissionError in
+  test_saver; a Sonnet agent works on both in scratchpad worktree segwt (not yet merged).
+  Step I-19 DONE (see git log): "Tüm okumalar" block in the Değerler value card (2+ readings, max 4 rows +
+  "+N daha", "Öneri" on matching rows, click or Alt+1..4 in the editor fills it, Enter stores, one undo step).
+  Evidence tests/ui/test_degerler.py (64 passed), tests/ui 1847 passed; matrix 0 clipping; 150 % card checked.
+  The Alt+1..4 contract row waits on Q-23 (a name). Ledgered B-090.
+  OPEN: CI Linux segfault at ~31 % still after 46dabfd; a Sonnet agent reproduces on Python 3.12 in worktree
+  scratchpad/seg2. Windows saver read test fixed in 6c00e43.
+  Step I-17 DONE (see git log): pipeline/templates/values.value_level + EMIN_AT (one rule for window, CLI,
+  sablon_read); CLI prints "[kontrol, öneri: …]" / "[okunamadı]" (O-7); Değerler cells that need a check show
+  their level icon, Kontrol tooltip "Bu değere bakın: okuma emin değil.". Evidence tests/test_values.py,
+  test_cli_values.py::test_cli_levels_match_the_window_levels, test_degerler.py icon tests; matrix 0 clipping.
+  OPEN: tests/ui/test_card_scroll.py::test_every_side_panel_at_1366_wide (Değerler) fails in full runs and on
+  Windows CI since I-19 (afe9ada), passes alone; being fixed next.
+  Step I-28 DONE (merge cde7e7c): weakest examples first in Şablonlar (core weakest_examples, flagged_count in
+  core; N / Shift+N, Ctrl+L list "Zayıf örnekler" with title; keys say "Önce Ctrl+T ile örnekleri deneyin."
+  before a try-all; popup deleted on close; scrolling only for that popup). Evidence tests/ui/test_sablon_weak.py,
+  tests/test_template_read.py; 930 passed on the touched files after the merge; audits clean; matrix 0 clipping.
+  Step I-23 DONE (merge 5a0393f): "Okunana dön" (R, Düzen menu, context menu; one undo step; review.can_revert;
+  CLI refuses only a hand-typed value with no reading). Evidence tests/test_review.py, test_cli_values.py,
+  test_degerler.py test_i23_*; 929 passed on touched files; audits clean; matrix 0 clipping.
+  CI segfault: fixed by 5b9f3aa (controller/undo-stack reference cycle; CI ran to 100 % without crash).
+  Side panel whole-card fix fb66733 (Q-24). A test_ui_measure order failure is being fixed (main tree).
+  Step I-22 DONE (merge c66d42a): required values marked ("Firma *", "· zorunlu"); emptying one stores Kontrol
+  with the toast (Geri al only for its own step) and the same CLI sentence; review.set_value(required=).
+  GROUP B CLOSED (471b7dd): all 8 items built; CI crash fixed (B-089: gc_guard c7008ab, controller cycle
+  5b9f3aa, CardScroll filter 3ba18d1); group review docs/ui-goal/review-group-b.md (0 S1, 0 S2, 7 S3, 10 S4):
+  R-B-1/3/4/6/7 fixed in 471b7dd, R-B-2 ledgered B-093, R-B-5 half waits on Q-25 (B-091); B-092 needs-repro.
+  Full suite at the fix: 2686 passed, 4 skipped, 202 xfailed, 0 failed; ruff clean; action paths 285 pairs,
+  0 problems. Group B report sent to the owner.
+  GROUP A: I-08 DONE (merged): Filtreyi kaldır (Shift+F), Şablonu kaldır (Shift+T), Boş sayfayı geri getir,
+  Job.remove_filter, CLI is filtre-kaldir; evidence tests/ui/test_kontrol_a.py, test_job.py, test_cuts.py,
+  test_cli_edit.py (927 passed on touched files), audits 0, matrix 0 clipping.
+  A §0 + I-09 DONE (merged): pipeline/select.py, Sayfaları seç dialog (S), B, Ctrl+Space (B-081 fixed),
+  Alt+Left/Right with Git menu items, CLI is sec belge|tek|cift; evidence tests/test_select.py,
+  test_cli_select.py, tests/ui/test_kontrol_select.py; 1232 passed on touched files; audits 0. Ledger B-095.
+  A I-03 DONE (merged): Boş sayfalar criterion with threshold and live count, Boş sayfaları at switch
+  (B-006 fixed), CLI is sec bos --esik; evidence tests/test_select_bos.py, test_cli_select_bos.py,
+  tests/ui/test_kontrol_bos.py (369 passed on touched files); audits 0. Next A: I-06, then I-04 (I-06 done below).
+  D step 13 DONE (merged): B-003 fixed, PDF/A failure is Bilgi everywhere (ExportItem.pdfa_note); evidence
+  tests/test_exporting.py, test_index.py, test_cli_jobs.py, test_ledger_b.py::test_b003; full suite 2713 passed.
+  D step 14 I-35 DONE (merged): index.xlsx "Belge no" first column + Özet sheet, Job.last_export (format 2,
+  saved after export in window and CLI), printed No column; evidence tests/test_job_format.py, test_index.py,
+  test_exporting.py, tests/ui/test_disa_aktar.py (104 passed). D step 15 I-40 DONE (merged): "Kontrol gerekenler" sheet + CLI line;
+  evidence tests/test_index.py, test_exporting.py, test_cli_jobs.py, tests/ui/test_disa_aktar.py; tests/ui 1967 passed.
+  D step 16 I-39 DONE (merged): rename preview with Kaynak (scan file) column off by default, Adı değişenler
+  filter, Ad listesini kopyala (Ctrl+Shift+C), core plan_names/notes (window == CLI --onizle); folder typing
+  replans after 300 ms; evidence tests/test_export.py, test_cli_names.py, tests/ui/test_disa_aktar.py.
+  D step 17 I-38 DONE (merged): Baskı önizleme on Ctrl+P (Enter prints, Kapat), repeated header, footer
+  Sayfa n / m with date and job name, subtitle plan/written, HTML in a worker with the loading card; B-096 (one
+  ~380 ms block on 800 rows, card painted first). Q-26 (failure sentence). GROUP D BUILT: B-003, I-35, I-40, I-39, I-38.
+  CI GREEN on b3e182a (all jobs incl. Windows, clean installs, CLA); B-092 fixed (probe colour), B-089 crash gone.
+  A I-06 DONE (merged): Kontrol gerekenler criterion with reasons and counts, select.value_page, CLI is sec
+  guven; Sayfaları seç dialog now two columns per spec §0 (648x469 at 150 %, fits 1366x768; test) and Tab order
+  criterion -> parameters -> modes -> Seç; evidence tests/test_select_guven.py, test_cli_select_guven.py,
+  tests/ui/test_kontrol_guven.py, test_kontrol_select.py (173 passed); full suite 2825 passed. Next A: I-04.
+  A I-04 DONE (merged 152be91): page sizes in the job (format 2), old jobs filled once off the window thread,
+  select kind farkli + CLI is sec farkli (read-only), dialog row, tile marks (icon + word, not orange), Görünüm
+  toggle, Git jumps; evidence tests/test_select_farkli.py, test_cli_select_farkli.py, tests/ui/test_kontrol_farkli.py;
+  perf_kontrol 800 pages within limits; fill 800 pages 11 ms. Decision (Opus): tile marks use the whole-job
+  reference; Her belge only in the dialog and CLI. GROUP A BUILT: I-08, I-09, I-03, I-06, I-04.
+  Group D review fixes merged (4a8e1dc). Late-callback CI error fixed (5627f63, tests/ui/test_late_callbacks.py).
+  GROUP A CLOSED: Opus review docs/ui-goal/review-group-a.md (0 S1, 0 S2, 4 S3, 8 S4; suite 2944 passed);
+  fixes R-A-1/2/3/5/8/10/12 merged 2c82730; R-A-4 B-100, R-A-9 B-101, R-A-6/7 Q-28.
+  C I-07 DONE (merged f590a5f): saved filters as chips with the template, select_pages, CLI sablon filtre-* and is sec
+  --sablon/--filtre; evidence tests/ui/test_kontrol_chips.py, test_select.py, test_cli_select.py, test_template_model.py;
+  full suite 3007 passed on the branch. GROUP C BUILT. B-005 FIXED (Q-01 c). Q-04 done. fluent-reference skill added.
+  GROUP C CLOSED: review docs/ui-goal/review-group-c.md (0 S1, 0 S2, 3 S3, 10 S4), fixes merged f939c94; Q-31 asked.
+  Owner build queue of 2026-11-26 DONE except Q5 (running): B-005 fixed (Q-01 c), B-056 fixed (Q-12, 75350ac), B-057 fixed
+  (1fc788a), Q-03 enforced rules in CI (known-fails.tsv: zoom −/+ wait for Q-32; one CI-only row B-104), Q-04 paraphrased,
+  export Kontrol gerekenler subfolder + delete warning (13bce0d), Yükle Q7 (a725035), Q-16 fixes + toasts bottom left
+  (107f798), texts Q-23/25/26/27 + Değerler D-1..D-3 (bae68d3; full suite 3118 passed). fluent-reference skill added.
+  Q5 DONE (merged 50319e8): Ctrl+G on every tab (B-027), Ctrl+F label, dead keys fixed (B-026, B-028), reasons for keys that
+  cannot act (src/evrakci/ui/refusals.py, tests/ui/test_refusals.py); 188 strict-xfail contract rows now pass; full suite
+  3354 passed, 11 xfailed. Final review of the 2026-11-26 items: docs/ui-goal/review-owner-2026-11-26.md (0 S1, 1 S2, 4 S3,
+  11 S4); fixes merged ce6509c (R-O-1/3/4/7/8/16); ledger B-107..B-113; owner Q-33, Q-34. B-104 tool fix (98bbfc4).
+  PHASE 5 EXIT RULE MET (2026-11-26): inventory and research files exist and were spot-checked (5a-5c); the ranking is the
+  owner's Q-06 build-first list (decisions.md), other rows unranked or later by the owner; every build-first item is
+  shipped and reviewed: A (review-group-a.md), B (review-group-b.md), C I-07 (review-group-c.md), D (review-group-d.md);
+  I-01 dropped by the owner. Owner answers of 2026-11-26 built and reviewed (review-owner-2026-11-26.md).
+  Exit evidence per build-first item (decisions.md Q-06): A I-03 ef93cbb, I-04 50f8021, I-06 867ce8b, I-08 ed7bd69,
+  I-09 6afc1e5 (review-group-a.md, fixes 2c82730); B I-17 4e0d900, I-19 fb66733, I-21 473aa88, I-22 60a0fa2, I-23 2f68421,
+  I-28 89035ee, I-47 a+b 82c436f (review-group-b.md); C I-07 f590a5f (review-group-c.md, fixes f939c94); D I-35 2f9e5e4,
+  I-38 c148240, I-39 b3d2db0, I-40 b3e182a, B-003 (review-group-d.md, fixes 4a8e1dc); I-01 dropped by the owner.
+  CI GREEN on ce6509c (last code commit): CI, Linux build, Windows installer, CLA all success.
+  NEW QUEUE from the owner's answers of 2026-11-26 evening (decisions.md last entries), one worktree step each:
+   R1 DONE 87b4921, R2 DONE 477c385, R4 checklist 33538d0 (blocked on Q-36), R5 proposal 74965d6 (Q-35), R6 B-104 fixed
+   (047e5e9, e96bb73, b67c086; CI to confirm). R1 Q-32: zoom −/+ 24 px as a written AUD-HIT-02 exception in tools/ui_measure.py; drop the two known-fails rows.
+   R2 Q-33: retention keeps a job edited after its last export (job_state != last_export.state), window + CLI, tests (HIGH).
+   R3 DONE (all screens): Şablonlar 1348d3b, Rehber 23ea932, Dışa Aktar e7606e0, Değerler 807436b+e87659f, Yükle ecaca1b,
+   Kontrol ebddc7b, shared S-2..S-6 (this commit's parent); each with a Sonnet review and fixes; K-1 waits for the owner.
+   R3 DONE so far: Şablonlar (1348d3b, review fixed), Rehber (23ea932; R-6 print card and R-8 look items left). R3 screen proposals Q-10/11/13/14/15 (scratchpad q10-q15-plain.md; re-derive from docs/ui-goal/audit/*-proposals.md and
+      *-findings.md if gone): one step per screen (Kontrol, Yükle, Değerler, Şablonlar, Dışa Aktar + Rehber), then the shared
+      S-2..S-6 look items; K-1 waits for the owner. Q-01, Q-12 and items already built are skipped.
+   R4 SignPath readiness: list SignPath's open-source requirements, check the repo, create what is missing.
+   R5 Q-35: one-page versioning proposal for the owner.
+   R6 B-104: CI uploads crops of failing contrast rows (3452a9f); compare with local pixels.
+  WAITING ON THE OWNER ONLY: OWNER-QUEUE.md open rows (Q-07, Q-10, Q-11, Q-13, Q-14, Q-15 rest, Q-17, Q-18, Q-19, Q-20,
+  Q-24, Q-31, Q-32, Q-33, Q-34). Watch CI for stale known-fails rows (B-104) and remove them.
+  Triage notes (not in git): scratchpad q08-triage.md, q10-q15-plain.md, q02-q16-plain.md; re-derive from the audit
+  files if gone. Q-02 rows: decide with the fluent-reference skill. (task spec .claude/gorevler/2026-11-26-c18-i07.md).
+  D, C per README §1. Task specs for I-21, I-19, I-17 are written in .claude/gorevler/ (git-ignored).
+  Also done: shortcut conventions index (research/shortcut-conventions.md); owner rule "no
+  shortcut-only actions" with audit --paths, tests/test_action_paths.py and a CI step (aa863c8,
+  d94d41b; CI green on both): 280 tab x action pairs, 0 key-only, 27 exempt. Ledger B-081 (Ctrl+Space,
+  fixed by spec A I-09), B-082 (perf needs-repro).
+- Phase 6: everything that does not need the owner is DONE.
+  CI on PR #6 (https://github.com/ZackHaronOriginal/Evrakci/pull/6) is GREEN on Linux and Windows at
+  c00a2cb: test (Linux), build (Linux and Windows workflows: tests, freeze, packaging), clean-system
+  installs on debian:12 and ubuntu:24.04 all succeeded (runs 44652072306, 44652072513, 44652072282,
+  44652066358, 44652066251). Only the CLA check fails: it waits on the owner (Q-21).
+  Fixes found by CI after the PR opened: card stepping (d732b83), Windows memory reading and the
+  modal-dialog guard (d732b83), Windows test step timeout (8a26648), thumbnail service teardown
+  crash B-077 S1 (9dd95d6), delete-after-export on Windows B-078 and inspector width B-079
+  (1d392bc), Şablonlar wide fonts and the Explorer contract (c00a2cb).
+  Later: B-080 S2 (Şablonlar name field overwritten while typing; Windows CI flake) fixed in 5635f34.
+  CI GREEN again at ac9a004 on Linux and Windows (runs 44663802628 CI, 44663802631 and 44663796505
+  Linux build, 44663802564 and 44663796548 Windows installer); full suite locally 2226 passed /
+  6 skipped / 203 xfailed / 0 failed. CLA still fails (Q-21).
+  Phase 6 exit now waits only on the owner: Q-18 real scans, Q-19 clean Windows install, Q-20
+  signing/version/publish/sign-off, Q-21 CLA, plus the blocking answers listed in OWNER-QUEUE.md.
+
+- Phase 5d: ideas-ranking.md committed (e71981c), Q-06 waits for the owner. 5e waits on Q-06.
+- Next after Phase 2: Phase 3 (shortcut contract; skill shortcut-audit), then Phase 4.
+
+## Phase 0 evidence (docs/ui-goal/baseline/)
+
+- Suite (baseline/suite.txt): run 1 at 0a28b16 1093 passed / 6 skipped, 330 s; run 2 at 79c2405 1094 passed / 6
+  skipped / 31 xfailed (added: perf-script test, ledger repros). The plan's "1081 at e1e3276"
+  differs because e1e3276 and HEAD collect the same 1099 tests; 1093 + 6 is the full set.
+  ruff clean both times.
+- screenshots-matrix.txt (72 shots, 0 clipping, run twice identical), shortcuts.tsv (run
+  twice identical), shortcuts-divergent.txt and shortcuts-check.txt (exit 1: 40 bindings have no
+  test; Phase 3; second run added after the review, identical),
+  keywalk.txt (all six tabs OK, default and dark/150 %, run twice identical).
+- perf-before.json (v1, forced repaint per step; the review showed this hides B-032): fake x2
+  sets, slow, real once (first-paint spread 21 %); being re-measured.
+  Real-PDF RSS ~1186 MB after the sweep (fake ~211 MB): Phase 2 memory target.
+  Frame log (real scroll path, backing store): ~304/309 frames show a wrong page and 305
+  stale while the service is 100 % loaded: B-032. The Phase 0 review checks whether this is
+  the real bug or an offscreen artifact; Phase 2 must not use it before that verdict.
+- Ledger (see bugs.md): S1 B-011, B-020, B-021, B-023, B-029 fixed; B-005 waits for Q-01;
+  B-032 S1 for Phase 2. New: B-033, B-034 needs-repro; B-035 S2, B-036 S3, B-037 S4, B-038 S2.
+
+## Notes for later phases
+
+- Selective undo (a queued toast undoing its own older step) is a Phase 5 idea, not built.
+- tests/ui/test_feedback.py::test_toast_times_out failed once under heavy parallel load and
+  passes alone: timing-sensitive; watch it in full-suite runs.
+- Phase 2 inputs: B-032, perf-before.json, findings-performance.md (cap cache by bytes).
+
+- Last commit: see `git log -1` (see git log)
+- Open owner questions: `OWNER-QUEUE.md` (Q-01, Q-02, Q-03 blocking)

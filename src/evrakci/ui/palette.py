@@ -288,7 +288,12 @@ class CommandPalette(QDialog):
         action_id = item.data(ID_ROLE)
         action = self._registry.action(action_id)
         if not self._registry.is_enabled(action_id):
-            return  # greyed out: nothing runs, the palette stays open
+            # greyed out: nothing runs; with a reason the palette closes and the status bar
+            # says it (same as the key), else it stays open
+            if self._registry.disabled_reason(action_id):
+                self.close()
+                self._registry.refuse(action_id)
+            return
         remember(action_id)
         self.close()
         action.trigger()

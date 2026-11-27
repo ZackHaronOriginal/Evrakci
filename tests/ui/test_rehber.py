@@ -59,10 +59,11 @@ class _Dialog:
 
 
 # -- the guide as data -------------------------------------------------------------------------
-def test_the_guide_has_seven_sections_and_the_keys_come_last(qtbot):
+def test_the_guide_has_eight_sections_and_the_keys_come_last(qtbot):
     guide = rehber_content.with_shortcuts(rehber_content.parse_guide(rehber_content.guide_text()))
-    assert guide.titles() == ["Hazırlık", "QR ayıraç sayfaları", "Küçük makbuzlar",
-                              "Tarayıcı ayarları", "Yükleme", "Sonrası", "Kısayollar"]
+    assert guide.titles() == ["Hazırlık", "QR ayraç sayfaları", "Küçük makbuzlar",
+                              "Tarayıcı ayarları", "Evrakı Evrakçı'ya yükleyin", "Taramadan sonra",
+                              "Sözlük", "Kısayollar"]
     assert guide.title == "Tarama rehberi" and guide.lead
     kinds = {b.kind for s in guide.sections for b in s.blocks}
     assert {"ol", "ul", "table", "h3", "p"} <= kinds
@@ -81,7 +82,7 @@ def test_the_shortcut_table_is_read_from_the_registry():
     assert rows["Sonraki ve önceki sonuç"] == ["F3", "Shift+F3"]
     assert rows["Aramayı temizle"] == ["Esc"]
     assert rows["Yardım konularını aç"] == ["F1"]
-    assert rows["Ayıraç sayfasını yazdır"] == ["Ctrl+P"]
+    assert rows["Ayraç sayfasını yazdır"] == ["Ctrl+P"]
     assert rows["Klavye kısayollarını göster"] == ["Shift+F1"]
     assert rows["Yazıyı büyüt ve küçült (Ctrl+tekerlek de çalışır)"][1] == "Ctrl+-"
     sheet = {r.text: r.keys for r in actions.shortcut_sheet("rehber")}
@@ -105,7 +106,7 @@ def test_every_common_topic_has_a_hit(qtbot):
 # -- search -------------------------------------------------------------------------------------
 def test_typing_marks_hits_and_counts_them_per_section(qtbot):
     screen = _screen(qtbot)
-    screen.search.setText("ayıraç")
+    screen.search.setText("ayraç")
     hits = screen.text.hits()
     assert len(hits) > 3
     assert screen.text.current() == 0
@@ -113,14 +114,14 @@ def test_typing_marks_hits_and_counts_them_per_section(qtbot):
     assert len(screen.text.extraSelections()) == len(hits)
     counts = [screen.toc.item(i).data(Qt.ItemDataRole.UserRole + 1) or 0
               for i in range(screen.toc.count())]
-    assert sum(counts) == len(hits) and counts[1] > 0  # "QR ayıraç sayfaları"
+    assert sum(counts) == len(hits) and counts[1] > 0  # "QR ayraç sayfaları"
     assert screen.previous_button.isEnabled() and screen.next_button.isEnabled()
-    assert screen._status_hits.parts()[1] == " sonuç: ayıraç"
+    assert screen._status_hits.parts()[1] == " sonuç: ayraç"
 
 
 def test_stepping_wraps_and_scrolls_to_the_hit(qtbot):
     screen = _screen(qtbot)
-    screen.search.setText("ayıraç")
+    screen.search.setText("ayraç")
     total = len(screen.text.hits())
     screen.step(-1)
     assert screen.text.current() == total - 1
@@ -134,7 +135,7 @@ def test_stepping_wraps_and_scrolls_to_the_hit(qtbot):
 
 def test_enter_and_shift_enter_in_the_field_step(qtbot):
     screen = _screen(qtbot)
-    screen.search.setText("ayıraç")
+    screen.search.setText("ayraç")
     screen.search.setFocus()
     QTest.keyClick(screen.search, Qt.Key.Key_Return)
     assert screen.text.current() == 1
@@ -147,7 +148,7 @@ def test_no_hits_shows_the_empty_state_with_a_way_out(qtbot):
     screen.search.setText("laminasyon")
     assert screen.stack.currentWidget() is screen.empty
     assert screen.empty.title.text() == "“laminasyon” için sonuç yok"
-    assert "Sık aranan konular: ayıraç" in screen.empty.topics.text()
+    assert "Sık aranan konular: ayraç" in screen.empty.topics.text()
     assert screen.result.accessibleName() == "laminasyon için sonuç yok"
     assert not screen.next_button.isEnabled()
     assert screen.toc.currentRow() == -1
@@ -187,15 +188,15 @@ def test_the_x_button_clears_and_shows_only_with_text(qtbot):
 # -- contents and the section being read -----------------------------------------------------
 def test_the_contents_list_scrolls_and_follows_the_reader(qtbot):
     screen = _screen(qtbot)
-    assert screen.toc.count() == 7 and screen.toc.currentRow() == 0
+    assert screen.toc.count() == 8 and screen.toc.currentRow() == 0
     screen.toc.section_chosen.emit(3)
     assert screen.section() == 3 and screen.toc.currentRow() == 3
     assert screen.text.verticalScrollBar().value() > 0
     screen.text.verticalScrollBar().setValue(0)  # the reader scrolls by hand: pin released
     assert screen.section() == 0 and screen.toc.currentRow() == 0
     screen.text.verticalScrollBar().setValue(screen.text.verticalScrollBar().maximum())
-    assert screen.section() == 6
-    assert screen._status_section.parts() == ("Bölüm ", "7", " / 7")
+    assert screen.section() == 7
+    assert screen._status_section.parts() == ("Bölüm ", "8", " / 8")
 
 
 def test_clicking_a_contents_row_goes_there(qtbot):
@@ -216,7 +217,7 @@ def _wheel(widget, delta: int) -> None:
 
 def test_ctrl_wheel_and_keys_zoom_the_text_and_keep_hits(qtbot):
     screen = _screen(qtbot)
-    screen.search.setText("ayıraç")
+    screen.search.setText("ayraç")
     before = screen.text.document().defaultFont().pixelSize()
     hits = len(screen.text.hits())
     _wheel(screen.text, 120)
@@ -245,18 +246,18 @@ def test_the_tab_wires_its_actions_and_fills_the_bar_and_status(qtbot, tmp_path)
     # F3 / Shift+F3 step through hits, so they wait for a search that finds something.
     for action_id in ("app.sonraki_sonuc", "app.onceki_sonuc"):
         assert not r.is_enabled(action_id), action_id
-    window.rehber.search.setText("ayıraç")
+    window.rehber.search.setText("ayraç")
     QApplication.processEvents()
     for action_id in ("app.sonraki_sonuc", "app.onceki_sonuc"):
         assert r.is_enabled(action_id), action_id
     window.rehber.search.clear()
     QApplication.processEvents()
     names = [b.accessibleName() or b.toolTip() for b in window.command_bar("rehber").buttons()]
-    assert any(n.startswith("Ayıraç sayfasını yazdır") for n in names)
+    assert any(n.startswith("Ayraç sayfasını yazdır") for n in names)
     assert "PDF olarak aç" in names
     assert names.index("PDF olarak aç") == next(
-        i for i, n in enumerate(names) if n.startswith("Ayıraç sayfasını yazdır")) + 1
-    assert window.rehber._status_section.parts() == ("Bölüm ", "1", " / 7")
+        i for i, n in enumerate(names) if n.startswith("Ayraç sayfasını yazdır")) + 1
+    assert window.rehber._status_section.parts() == ("Bölüm ", "1", " / 8")
     assert window.zoom_controller("rehber") is window.rehber.zoom
     assert window.zoom_slider.isVisible()
 
@@ -267,13 +268,13 @@ def test_ctrl_f_focuses_the_field_and_f3_only_acts_on_this_tab(qtbot, tmp_path):
     screen.text.setFocus()
     QTest.keyClick(window, Qt.Key.Key_F, Qt.KeyboardModifier.ControlModifier)
     assert screen.focusWidget() is screen.search
-    screen.search.setText("ayıraç")
+    screen.search.setText("ayraç")
     QTest.keyClick(screen.search, Qt.Key.Key_F3)
     assert screen.text.current() == 1
     QTest.keyClick(screen.search, Qt.Key.Key_F3, Qt.KeyboardModifier.ShiftModifier)
     assert screen.text.current() == 0
     window.show_tab("yukle")
-    screen.search.setText("ayıraç")
+    screen.search.setText("ayraç")
     window.registry.action("app.sonraki_sonuc").trigger()
     assert screen.text.current() == 0  # another tab: Rehber ignores the app-wide key
 
@@ -325,8 +326,8 @@ def test_every_control_has_an_accessible_name(qtbot, tmp_path):
     assert screen.search.accessibleName() == "Rehberde ara"
     assert screen.previous_button.accessibleName() == "Önceki sonuç (Shift+F3)"
     assert screen.next_button.accessibleName() == "Sonraki sonuç (F3)"
-    assert screen.print_button.accessibleName() == "Ayıraç sayfasını yazdır (Ctrl+P)"
-    assert screen.toc.item(1).data(Qt.ItemDataRole.AccessibleTextRole) == "2. QR ayıraç sayfaları"
+    assert screen.print_button.accessibleName() == "Ayraç sayfasını yazdır (Ctrl+P)"
+    assert screen.toc.item(1).data(Qt.ItemDataRole.AccessibleTextRole) == "2. QR ayraç sayfaları"
     assert screen.search.lead.text() == "Ara"
     assert screen.search.clear_action.text() == "Aramayı temizle"
     assert screen.search.clear_action.toolTip() == "Aramayı temizle (Esc)"
@@ -414,3 +415,29 @@ def test_page_keys_scroll_the_reader(qtbot):
     bar = screen.text.verticalScrollBar()
     QTest.keyClick(screen.text, Qt.Key.Key_PageDown)
     assert bar.value() > 0
+
+
+# -- R3: sheets versus pages, where the data goes -------------------------------------------
+def test_the_paper_line_says_sheets_and_pages_and_two_sided_is_asked(qtbot, tmp_path):
+    screen = RehberScreen()
+    qtbot.addWidget(screen)
+    screen.count.setValue(20)
+    assert screen.paper.text() == "20 yaprak = 40 sayfa"
+    screen.count.setValue(3)
+    assert "3 yaprak = 6 sayfa" in screen.paper.text()
+    from unittest.mock import MagicMock
+
+    printer = MagicMock()  # a real QPrinter without a two-sided device ignores the request
+    printing.prepare(printer)
+    printer.setDuplex.assert_called_once_with(QPrinter.DuplexMode.DuplexLongSide)
+
+
+def test_the_guide_tells_where_the_data_goes_and_links_the_setting(qtbot):
+    guide = rehber_content.with_shortcuts(rehber_content.parse_guide(rehber_content.guide_text()))
+    section = next(s for s in guide.sections if s.title == "Taramadan sonra")
+    assert [b.kind for b in section.blocks] == ["ul", "h3", "ul"]
+    assert section.blocks[1].items == ["Dışa aktardıktan sonra"]
+    lines = section.blocks[2].items
+    assert len(lines) == 3
+    assert "SHA-256" in lines[0] and "toplamaz" in lines[0]
+    assert "(rehber:saklama)" in lines[2]

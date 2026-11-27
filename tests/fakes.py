@@ -34,6 +34,21 @@ def empty_page(speckles: int = 30) -> Image.Image:
     return page
 
 
+def a5_page() -> Image.Image:
+    """A5 portrait (148 x 210 mm) at 100 dpi, with text-like blocks."""
+    page = Image.new("L", (583, 827), 255)
+    draw = ImageDraw.Draw(page)
+    for row in range(8):
+        top = 100 + row * 60
+        draw.rectangle((80, top, 500 - (row % 3) * 60, top + 14), fill=30)
+    return page
+
+
+def landscape_page() -> Image.Image:
+    """An A4 page scanned sideways (297 x 210 mm)."""
+    return text_page().rotate(90, expand=True, fillcolor=255)
+
+
 def qr_page(scale: float = 1.0, angle: float = 0.0) -> Image.Image:
     """A separator page, optionally shrunk and rotated like a poor photocopy."""
     image = render_separator_image(dpi=DPI)
@@ -109,3 +124,11 @@ def page_text(path: Path, index: int) -> str:
             page.close()
     finally:
         pdf.close()
+
+
+def without_sizes(data: dict) -> dict:
+    """A job dict as an older program wrote it: no page sizes."""
+    for page in data["pages"].values():
+        page.pop("width_mm", None)
+        page.pop("height_mm", None)
+    return data

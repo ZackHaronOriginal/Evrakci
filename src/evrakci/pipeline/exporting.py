@@ -8,13 +8,21 @@ from __future__ import annotations
 import os
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 import pikepdf
 
-from evrakci.pipeline.export import ExportItem, plan_export
+from evrakci.pipeline.disk_errors import NO_ROOM, disk_message, disk_reason, technical
+from evrakci.pipeline.export import (
+    CHECK_SUBFOLDER,
+    NOTE_SHORTENED,
+    ExportItem,
+    clash_note,
+    plan_export,
+)
 from evrakci.pipeline.index import write_index
-from evrakci.pipeline.job import Job
+from evrakci.pipeline.job import Job, LastExport, job_state
 from evrakci.pipeline.naming import fit_names, unique_names
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.textlayer import add_text_layer
@@ -42,6 +50,55 @@ class ExportResult:
         return sum(1 for item in self.items if item.checks)
 
 
+def plan_names(job: Job, templates: Mapping[str, Template | None], out_dir: Path,
+               check_subfolder: bool = True) -> list[ExportItem]:
+    """The documents with the names that will be written into `out_dir` (cut to fit the folder
+    path, made unique per folder) and `name_note` saying why a name differs from the pattern.
+    With `check_subfolder`, documents that need a check get `folder` = "Kontrol gerekenler".
+    The window's list, the CLI and `export_job` all use this, so the preview equals the files
+    written. Raises ValueError (Turkish message) when the folder path is too long for any name."""
+    items = plan_export(job, templates)
+    out_dir = Path(out_dir)
+    original = [i.name for i in items]
+    separate = {n for n, i in enumerate(items) if i.checks} if check_subfolder else set()
+    while True:  # a name cut by the path limit gets a check, which moves it one folder deeper
+        fitted = _fit(original, separate, out_dir)
+        moved = {n for n, (a, b) in enumerate(zip(original, fitted, strict=True))
+                 if a != b and n not in separate} if check_subfolder else set()
+        if not moved:
+            break
+        separate |= moved
+    for n, (item, name) in enumerate(zip(items, fitted, strict=True)):
+        if n in separate:
+            item.folder = CHECK_SUBFOLDER
+        if name == item.name:
+            continue
+        if len(name) < item.keep:  # a required value would be cut: never silently
+            item.checks.append("zorunlu değer dosya adına sığmadı (klasör yolu uzun)")
+            name = f"belge_{item.number:03d}"
+            item.name_note = ""  # the fallback name has nothing left of an earlier note
+        else:
+            item.checks.append(NOTE_SHORTENED.lower())
+            item.name_note = NOTE_SHORTENED
+        item.name = name
+    for folder in dict.fromkeys(i.folder for i in items):  # clashes are per folder
+        group = [i for i in items if i.folder == folder]
+        for item, name in zip(group, unique_names([i.name for i in group]), strict=True):
+            if name != item.name:
+                item.name_note = clash_note(name[len(item.name):])
+            item.name = name
+    return items
+
+
+def _fit(names: list[str], separate: set[int], out_dir: Path) -> list[str]:
+    """Names cut to fit their own folder: the export folder, or its check subfolder."""
+    main = fit_names(names, out_dir)
+    if not separate:
+        return main
+    deep = fit_names(names, out_dir / CHECK_SUBFOLDER)
+    return [deep[n] if n in separate else main[n] for n in range(len(names))]
+
+
 def export_job(
     job: Job,
     batch_files: Mapping[str, Path],
@@ -52,27 +109,16 @@ def export_job(
     engine=None,
     add_layer=add_text_layer,
     tessdata=None,
+    check_subfolder: bool = True,
 ) -> ExportResult:
     """Raises EngineUnavailable before writing anything if the text layer cannot be made."""
     out_dir = Path(out_dir)
     if out_dir.exists() and not out_dir.is_dir():
         raise ExportError(f"Hedef bir klasör değil, bir dosya: {out_dir}. Bir klasör seçin.")
-    items = plan_export(job, templates)
     try:
-        fitted = fit_names([i.name for i in items], out_dir)
+        items = plan_names(job, templates, out_dir, check_subfolder)
     except ValueError as error:
         raise ExportError(str(error)) from None
-    for item, name in zip(items, fitted, strict=True):
-        if name == item.name:
-            continue
-        if len(name) < item.keep:  # a required value would be cut: never silently
-            item.checks.append("zorunlu değer dosya adına sığmadı (klasör yolu uzun)")
-            name = f"belge_{item.number:03d}"
-        else:
-            item.checks.append("dosya adı kısaltıldı (klasör yolu uzun)")
-        item.name = name
-    for item, name in zip(items, unique_names([i.name for i in items]), strict=True):
-        item.name = name
     if with_layer and items:
         if engine is None:
             from evrakci.pipeline.ocr.tesseract import default_engine
@@ -81,31 +127,37 @@ def export_job(
         reason = engine.available()
         if reason:
             raise EngineUnavailable(reason)
+    exported_at = datetime.now()  # one time for both places that write index.xlsx
     report = progress or (lambda stage, done, total: None)
     report("write", 0, len(items))
     def written_so_far() -> str:
-        names = sorted(p.name for p in out_dir.glob("*.pdf")) if out_dir.is_dir() else []
+        names = sorted(p.name for p in out_dir.glob("**/*.pdf")) if out_dir.is_dir() else []
         return ", ".join(names) or "yok"
 
     try:
         paths = write_documents(
             [i.document for i in items], batch_files, job.rotations, out_dir,
-            names=[i.name for i in items],
+            names=[i.relative[:-4] for i in items],
             progress=lambda done, total: report("write", done, total),
         )
     except FileExistsError as error:
-        raise ExportError(
-            f"Çıktı klasöründe önceki bir dışa aktarımdan dosya var ({error}): {out_dir}. "
-            "Lütfen boş bir klasör seçin."
-        ) from None
+        earlier = (f" Önceki bir dışa aktarımdan kalmış olabilir: {out_dir}."
+                   if error.errno is None else "")
+        raise ExportError(f"{disk_message(error, out_dir)}{earlier} Boş bir klasör seçin.") \
+            from None
     except OSError as error:
+        reason = disk_reason(error, out_dir)
+        advice = ("Yer açıp boş bir klasöre yeniden dışa aktarın." if reason == NO_ROOM
+                  else "Sorunu giderip boş bir klasöre yeniden dışa aktarın.")
         raise ExportError(
-            f"Dosyalar yazılamadı ({error.strerror or error}). Yazılanlar: {written_so_far()}. "
-            "index.xlsx yazılmadı; yer açıp boş bir klasöre yeniden dışa aktarın."
+            f"Dosyalar yazılamadı: {disk_message(error, out_dir)} "
+            f"Yazılanlar: {written_so_far()}. "
+            f"index.xlsx yazılmadı. {advice}"
         ) from None
     except (pikepdf.PdfError, KeyError, IndexError) as error:
         raise ExportError(
-            f"Taranan dosyalardan biri okunamadı ({error}). Yazılanlar: {written_so_far()}. "
+            f"Taranan dosya okunamadı: {_scan_name(error, batch_files)}. ({technical(error)}) "
+            f"Yazılanlar: {written_so_far()}. "
             "index.xlsx yazılmadı; işin partilerini kontrol edin."
         ) from None
     result = ExportResult(items, paths, with_layer=with_layer and bool(paths))
@@ -118,35 +170,70 @@ def export_job(
                 layer = add_layer(path, layered, tessdata=tessdata)
                 os.replace(layered, path)
             except (EngineUnavailable, OSError) as error:
+                why = disk_message(error, out_dir) if isinstance(error, OSError) else str(error)
                 done = ", ".join(p.name for p in paths[: number - 1]) or "yok"
                 for later in items[number - 1:]:
                     later.checks.append("metin katmanı eklenmedi")
-                index_note = _write_index_quietly(items, job, out_dir)
+                index_note = _write_index_quietly(items, job, out_dir, exported_at, result)
                 raise ExportError(
-                    f"{path.name}: {error}. Tüm belgeler yazıldı; metin katmanı eklenenler: {done}."
+                    f"{path.name}: {why.rstrip('.')}. Tüm belgeler yazıldı; "
+                    f"metin katmanı eklenenler: {done}."
                     f" {index_note}"
                 ) from None
             finally:
                 layered.unlink(missing_ok=True)
             item.pdfa = layer.pdfa
             if not layer.pdfa and layer.note:
-                item.checks.append(f"PDF/A değil: {layer.note}")
+                item.pdfa_note = layer.note
             result.notes[path] = (layer.pdfa, layer.note)
         report("layer", len(paths), len(paths))
     if paths:
         try:
-            write_index(items, job, out_dir / "index.xlsx")
+            write_index(items, job, out_dir / "index.xlsx", exported_at)
         except Exception as error:  # the PDFs are safe; say clearly what is missing
-            raise ExportError(f"PDF'ler yazıldı ama index.xlsx yazılamadı: {error}") from None
+            raise ExportError(f"PDF'ler yazıldı ama index.xlsx yazılamadı: "
+                              f"{_index_reason(error, out_dir)}") from None
         result.index_written = True
+        _record_export(job, out_dir, exported_at, result)
     return result
 
 
-def _write_index_quietly(items, job: Job, out_dir: Path) -> str:
+def _index_reason(error: Exception, out_dir: Path) -> str:
+    """Why index.xlsx was not written, in Turkish (the disk's own text is English)."""
+    if isinstance(error, OSError):
+        return disk_message(error, out_dir)
+    return f"dosya hazırlanamadı ({technical(error)})."
+
+
+def _scan_name(error: BaseException, batch_files: Mapping[str, Path]) -> str:
+    """The scan file a read error is about: found in the error's text or key, else the first
+    scan file of the job that is missing or unreadable."""
+    text = str(error)
+    for key, path in batch_files.items():
+        if str(path) in text or path.name in text or (error.args and error.args[0] == key):
+            return path.name
+    for path in batch_files.values():
+        try:
+            with pikepdf.open(path):
+                pass
+        except Exception:  # noqa: BLE001 - any failure to open names this file
+            return path.name
+    return "bilinmiyor"
+
+
+def _record_export(job: Job, out_dir: Path, exported_at: datetime, result: ExportResult) -> None:
+    job.last_export = LastExport(
+        exported_at.isoformat(timespec="minutes"), str(out_dir), len(result.items),
+        result.needing_check, job_state(job))
+
+
+def _write_index_quietly(items, job: Job, out_dir: Path, exported_at: datetime,
+                         result: ExportResult) -> str:
     try:
-        write_index(items, job, out_dir / "index.xlsx")
+        write_index(items, job, out_dir / "index.xlsx", exported_at)
     except Exception as error:
-        return f"index.xlsx da yazılamadı: {error}"
+        return f"index.xlsx da yazılamadı: {_index_reason(error, out_dir)}"
+    _record_export(job, out_dir, exported_at, result)  # files and index are on disk
     return "index.xlsx yazıldı; metin katmanı eksik olanlar orada işaretli."
 
 

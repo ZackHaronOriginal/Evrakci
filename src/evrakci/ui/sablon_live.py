@@ -11,17 +11,19 @@ from __future__ import annotations
 from PySide6.QtCore import QTimer
 
 from evrakci.pipeline.templates.model import template_from_dict, template_to_dict
+from evrakci.pipeline.templates.read import flagged_count
 from evrakci.ui import sablon_read as reading
-from evrakci.ui.workers import Task, start
+from evrakci.ui.refusals import READ_FAILED
+from evrakci.ui.workers import BUSY_REASON, Task, start
 
 
 class LiveReads:
     def _engine(self):
         if self.engine is not None:
             return self.engine()
-        from evrakci.pipeline.ocr.tesseract import default_engine
+        from evrakci.ui.ocr_engine import LazyEngine
 
-        return default_engine()
+        return LazyEngine()  # the real one is made in the worker, at its first use
 
     def _read_input(self, numbers: list[int] | None = None) -> reading.ReadInput:
         """Everything a worker needs, copied here on the window thread."""
@@ -42,6 +44,8 @@ class LiveReads:
             return
         if self._read_task is not None or self._all_task is not None:
             self._reread = True
+            return
+        if getattr(self.window(), "loading", lambda: False)():  # a job is loading: no read now
             return
         job = self._read_input()
         number = self._read_number = self.example
@@ -67,10 +71,10 @@ class LiveReads:
 
     def _read_failed(self, message: str) -> None:
         self.values = {}
-        self.read_lines = [f"Okunamadı: {message}"]
+        self.read_lines = ["Örnek sayfa okunamadı."]  # never the raw path (F-sablonlar-18)
         self._push_readings()
         self._read_finished()
-        self.message.setText(f"Okuma yapılamadı: {message}")
+        self.message.setText(READ_FAILED)
         self._sync_all()
 
     def _show_reads(self, values) -> None:
@@ -83,7 +87,7 @@ class LiveReads:
         self.values = values
         self.example_values[self.example] = values
         self.read_lines = reading.lines(self._read_template, values)
-        if self.message.text().startswith("Okuma yapılamadı"):
+        if self.message.text() == READ_FAILED:
             self.message.setText("")
         self._read_finished()
         self._push_readings()
@@ -117,20 +121,37 @@ class LiveReads:
             return
         if self._all_task is not None:
             return
+        window = self.window()
+        if getattr(window, "loading", lambda: False)():  # a job is loading: no read now
+            window.message.setText(BUSY_REASON)
+            return
         numbers = list(range(1, len(self._documents()) + 1))
         if not numbers:
             return
         if self._read_task is not None:
             self._reread = False  # the live read finishes first, then this starts
-            QTimer.singleShot(100, self.read_all_examples)
+            QTimer.singleShot(100, self, self.read_all_examples)
             return
         job = self._read_input(numbers)
         self._read_template = job.template
         task = Task(lambda progress: reading.read_examples(job, numbers, progress))
         task.signals.progress.connect(self._all_progress)
-        task.signals.done.connect(self._all_done)
-        task.signals.failed.connect(self._all_failed)
-        task.signals.cancelled.connect(self._all_cancelled)
+        key = (self.job_id, self.template.id if self.template is not None else None)
+
+        def current(handler):
+            # a result of another job / template than the one now open is dropped
+            def call(*args):
+                if task is not self._all_task:
+                    return
+                if key != (self.job_id, self.template.id if self.template is not None else None):
+                    self._all_stopped()
+                    return
+                handler(*args)
+            return call
+
+        task.signals.done.connect(current(self._all_done))
+        task.signals.failed.connect(current(self._all_failed))
+        task.signals.cancelled.connect(current(self._all_cancelled))
         self._all_task = task
         self._all_progress(0, len(numbers))
         self._sync_actions()
@@ -161,12 +182,13 @@ class LiveReads:
 
     def _all_done(self, results: dict) -> None:
         self.example_values = results
+        self.tried_all = True
         self.values = results.get(self.example, self.values)
         self.read_lines = reading.lines(self._read_template, self.values)
         self._all_stopped()
         self._mark_example_checks()
         self._push_readings()
-        flagged = sum(reading.flagged_count(v) for v in results.values())
+        flagged = sum(flagged_count(v) for v in results.values())
         total = len(results)
         window = self.window()
         if window is not None and not window.isActiveWindow():  # QOL 19: the reads ended

@@ -11,6 +11,7 @@ core field is needed.
 
 from __future__ import annotations
 
+import math
 import random
 import re
 from collections.abc import Iterable, Mapping
@@ -25,11 +26,17 @@ from evrakci.pipeline.cuts import (
     document_template,
 )
 from evrakci.pipeline.job import Job
+from evrakci.pipeline.select import value_page
 from evrakci.pipeline.templates.model import Template, Variable
-from evrakci.pipeline.templates.values import VariableValue
+from evrakci.pipeline.templates.values import (
+    VariableValue,
+    read_text,
+    suggestion_reading,
+    value_level,
+)
 
-EMIN_AT = 0.90  # at or above: Emin; below (and not flagged): Orta
-SAMPLE_SIZE = 20  # Örnek kontrol: how many Emin values are checked by hand
+SAMPLE_SIZE = 20  # Örnek kontrol: the fewest Emin values checked by hand
+SAMPLE_SHARE = 0.02  # ... and 2 % of the Emin values of a big job, whichever is larger (D-4)
 CONFUSABLE = "OoIlBSZG"  # letters OCR mixes up with digits (0, 1, 8, 5, 2, 6)
 
 # Güven levels: (Lucide icon, colour role, word, semibold). Status is never colour alone.
@@ -38,7 +45,7 @@ LEVELS: dict[str, tuple[str, str, str, bool]] = {
     "orta": ("signal-medium", "text-2", "Orta", False),
     "kontrol": ("triangle-alert", "check-text", "Kontrol", True),
     "okunamadi": ("circle-x", "danger", "Okunamadı", True),
-    "okunmadi": ("clock", "text-2", "Okunmadı", False),
+    "okunmadi": ("clock", "text-2", "Henüz okunmadı", False),
 }
 RANK = {"emin": 0, "orta": 1, "okunmadi": 2, "kontrol": 3, "okunamadi": 4}
 NEEDS_CHECK = ("kontrol", "okunamadi")
@@ -69,9 +76,48 @@ def joined(names: list[str]) -> str:
     return f"{', '.join(names[:-1])} ve {names[-1]}"
 
 
+def grouped(number: int) -> str:
+    """1234 -> "1 234": thousands in groups of three, as the approved sentences write them."""
+    return f"{number:,}".replace(",", " ")
+
+
+def possessive(number: int) -> str:
+    """The number with its Turkish possessive ending, by the last word spoken: 20'si, 80'i,
+    100'ü, 2 000'i."""
+    n = abs(number)
+    if n % 10:
+        ending = {1: "i", 2: "si", 3: "ü", 4: "ü", 5: "i", 6: "sı", 7: "si", 8: "i",
+                  9: "u"}[n % 10]
+    elif n % 100:  # on, yirmi, otuz, kırk, elli, altmış, yetmiş, seksen, doksan
+        ending = {1: "u", 2: "si", 3: "u", 4: "ı", 5: "si", 6: "ı", 7: "i", 8: "i",
+                  9: "ı"}[n % 100 // 10]
+    elif n % 1000:
+        ending = "ü"  # yüz
+    elif n == 0:
+        ending = "ı"  # sıfır
+    elif n % 1_000_000:
+        ending = "i"  # bin
+    else:
+        ending = "u"  # milyon
+    return f"{grouped(number)}'{ending}"
+
+
+def dative(number: int) -> str:
+    """The number with possessive and dative endings: "{n}'sine bakıldı" (20'sine, 4'üne)."""
+    base = possessive(number)
+    ending = base.rsplit("'", 1)[1]
+    return f"{base}{'ne' if ending[-1] in 'iü' else 'na'}"
+
+
+def emin_count(rows: list[Row]) -> int:
+    """Every Emin value the rows hold, reviewed or not (what a sample is a part of)."""
+    return sum(1 for row in rows for cell in row.cells
+               if cell.level == "emin" and cell.value is not None)
+
+
 def section_name(section: int | None) -> str:
     """Section 0 is the template's own box; later ones are its variants (as in Şablonlar)."""
-    return "Bölüm 1" if not section else f"Varyant {section + 1}"
+    return "Bölüm 1" if not section else f"Bölüm {section + 1}"
 
 
 def page_range(first: int, last: int) -> str:
@@ -161,6 +207,27 @@ class Cell:
     def needs_check(self) -> bool:
         return self.level in NEEDS_CHECK
 
+    @property
+    def main(self) -> str:
+        """The value the cell shows as its main text: the suggestion of a flagged value
+        (what Enter stores), else what the table always showed (Q-12)."""
+        if self.value is not None and self.value.flagged and self.suggestion:
+            return self.suggestion
+        return self.text
+
+    @property
+    def read_note(self) -> str:
+        """What was read, when it differs from the suggestion: shown smaller beside it."""
+        if self.value is not None and self.value.flagged and self.suggestion and self.text \
+                and self.text != self.suggestion:
+            return self.text
+        return ""
+
+    @property
+    def dual(self) -> bool:
+        """Two approvals: the suggestion (Enter) or what was read (Shift+Enter)."""
+        return bool(self.read_note)
+
     def edit_text(self) -> str:
         """What the cell editor starts with: the suggestion of a flagged value."""
         if self.value is None:
@@ -173,8 +240,11 @@ class Cell:
         """The inspector's one line under the value."""
         if self.value is None:
             return "Bu değer henüz okunmadı. Değerleri oku ile okunur."
+        if self.required and not self.value.value and (
+                self.level == "okunamadi" or not self.value.flagged):
+            return "Zorunlu değer boş: dosya adı için bir değer yazın."
         if self.level == "okunamadi":
-            return "Kutuda okunacak yazı bulunamadı: değeri elle yazın ya da yeni bir kutu çizin."
+            return "Kutuda okunacak yazı bulunamadı: değeri elle yazın ya da yeni bir bölüm çizin."
         if self.value.flagged and self.suggestion:
             parts = [f"{a} yerine {b}" for a, b in swaps(self.text, self.suggestion)]
             where = section_name(self.source)
@@ -188,31 +258,16 @@ class Cell:
         return ""
 
 
-def _okunan(value: VariableValue) -> tuple[str, int | None]:
-    """What was read for a flagged value (its text, else the first reading), and its box."""
-    if value.value:
-        return value.value, value.section
-    for reading in sorted(value.readings, key=lambda r: r.section):
-        if reading.text:
-            return reading.text, reading.section
-    return value.suggestion, None
-
-
-def _suggestion_source(value: VariableValue) -> tuple[int | None, float | None]:
-    matches = [r for r in value.readings if r.text == value.suggestion]
-    if not matches:
-        read = [r for r in value.readings if r.text]
-        return (None, max(r.confidence for r in read)) if read else (None, None)
-    best = max(matches, key=lambda r: r.confidence)
-    return best.section, best.confidence
+_okunan = read_text
+_suggestion_source = suggestion_reading
 
 
 def make_cell(variable: Variable, value: VariableValue | None) -> Cell:
     if value is None:
         return Cell(variable.key, variable.name, variable.required, None, "", "okunmadi",
                     None, False)
+    level = value_level(value)
     if not value.flagged:
-        level = "emin" if value.edited or value.confidence >= EMIN_AT else "orta"
         # A value a person accepted or typed is "Emin, İncelendi" with no percentage: the
         # reader's score no longer applies, and a re-scored %100 next to the row's %90
         # would be two numbers for one fact.
@@ -220,13 +275,13 @@ def make_cell(variable: Variable, value: VariableValue | None) -> Cell:
         return Cell(variable.key, variable.name, variable.required, value, value.value, level,
                     percent, value.edited, source=value.section)
     text, source = _okunan(value)
-    if not text and not value.suggestion:
+    if level == "okunamadi":
         return Cell(variable.key, variable.name, variable.required, value, "", "okunamadi",
                     None, False)
     section, confidence = _suggestion_source(value)
     percent = round((confidence if confidence is not None else value.confidence) * 100)
     others = [r.text for r in value.readings] + [value.suggestion]
-    return Cell(variable.key, variable.name, variable.required, value, text, "kontrol",
+    return Cell(variable.key, variable.name, variable.required, value, text, level,
                 percent, False, uncertain_positions(text, others, True), value.suggestion,
                 changed_positions(text, value.suggestion),
                 section if section is not None else source)
@@ -274,15 +329,7 @@ class Row:
 
     def page_of(self, cell: Cell) -> int:
         """Index (in the document) of the page the cell's box is on."""
-        if self.template is None:
-            return 0
-        variable = next((v for v in self.template.variables if v.key == cell.key), None)
-        if variable is None or not variable.sections:
-            return 0
-        section = variable.sections[min(cell.source or 0, len(variable.sections) - 1)]
-        count = len(self.document.page_ids)
-        index = section.page - 1 if section.page > 0 else count + section.page
-        return max(0, min(count - 1, index))
+        return value_page(self.template, cell.key, cell.source, len(self.document.page_ids))
 
 
 def build_rows(job: Job, documents: list[Document],
@@ -349,7 +396,7 @@ def matches(row: Row, query: str) -> bool:
     """Search over the row's shown values and its document number."""
     if not query:
         return True
-    words = [tr_lower(c.text or c.suggestion) for c in row.cells] + [str(row.number)]
+    words = [tr_lower(f"{c.main} {c.text}") for c in row.cells] + [str(row.number)]
     return tr_lower(query) in " ".join(words)
 
 
@@ -361,13 +408,25 @@ class SampleItem:
     text: str  # the value when it was drawn: a different value later is an error found
 
 
-def draw_sample(rows: list[Row], seed: str, size: int = SAMPLE_SIZE) -> list[SampleItem]:
-    """Up to `size` random Emin values nobody has looked at (else any Emin value)."""
+def sample_pool(rows: list[Row]) -> list[tuple[Row, Cell]]:
+    """The values a sample is drawn from: Emin values nobody has looked at (else any Emin)."""
     emin = [(row, cell) for row in rows for cell in row.cells
             if cell.level == "emin" and cell.value is not None]
     fresh = [(r, c) for r, c in emin if not c.reviewed]
-    pool = fresh or emin
-    picked = random.Random(seed).sample(pool, min(size, len(pool)))
+    return fresh or emin
+
+
+def sample_size(pool: int) -> int:
+    """How many values the sample holds: 20, or 2 % of the pool when that is more (D-4)."""
+    return min(pool, max(SAMPLE_SIZE, math.ceil(pool * SAMPLE_SHARE)))
+
+
+def draw_sample(rows: list[Row], seed: str, size: int | None = None) -> list[SampleItem]:
+    """Random Emin values nobody has looked at (else any Emin value): `size` of them, by
+    default `sample_size` of the pool."""
+    pool = sample_pool(rows)
+    wanted = sample_size(len(pool)) if size is None else min(size, len(pool))
+    picked = random.Random(seed).sample(pool, wanted)
     order = {id(c): (r.number, i) for r, _ in picked for i, c in enumerate(r.cells)}
     picked.sort(key=lambda rc: order[id(rc[1])])
     return [SampleItem(r.document.page_ids[0], c.key, c.text) for r, c in picked]
@@ -396,6 +455,19 @@ def confirm(job: Job, document: Document, key: str) -> bool:
     if not value.edited:
         values[key] = replace(value, edited=True)
     return True
+
+
+def confirm_read(job: Job, document: Document, key: str) -> bool:
+    """Okunanla onayla: store what was read, not the suggestion, as İncelendi.
+    False when the value has no differing reading to store."""
+    values = _stored(job, document)
+    value = values.get(key)
+    if value is None or not value.flagged:
+        return False
+    text, _source = _okunan(value)
+    if not text:
+        return False
+    return review.set_value(job, document, key, text)
 
 
 def flag_variable(job: Job, documents: Iterable[Document], key: str) -> int:

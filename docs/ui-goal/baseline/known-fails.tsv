@@ -1,0 +1,3 @@
+# Known fails --enforce tolerates (2026-11-26). Q6 (Q-16) fixed all of them except the rows below.
+# A row that no longer fails is reported by --enforce so it can be removed. Columns: rule, widget, reason (every case) or rule, widget, theme, size, text, reason (that case only).
+rule	widget	reason

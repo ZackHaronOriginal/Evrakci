@@ -1,11 +1,13 @@
 import os
 import sys
 import time
+from dataclasses import replace
 
 import pytest
 from fakes import make_pdf, text_page
 
 from evrakci.cli import main
+from evrakci.pipeline.job import LastExport, job_state
 from evrakci.pipeline.settings import Settings, SettingsError, load_settings, save_settings
 from evrakci.pipeline.store import JobStore
 
@@ -20,14 +22,102 @@ def test_settings_round_trip_and_validation(tmp_path):
             Settings(bad)
 
 
+def mark_exported(store, job):
+    job.last_export = LastExport("2026-01-01T10:00:00", "/tmp/o", 1, 0)
+    store.save(job)
+
+
+def age(tmp_path, job, days):
+    stamp = time.time() - days * 86400
+    os.utime(tmp_path / "jobs" / job.id / "job.json", (stamp, stamp))
+
+
 def test_delete_older_than_uses_mtime(tmp_path):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     store = JobStore(tmp_path / "jobs")
     old, new = store.create_job("eski", [pdf]), store.create_job("yeni", [pdf])
-    ten_days_ago = time.time() - 10 * 86400
-    os.utime(tmp_path / "jobs" / old.id / "job.json", (ten_days_ago, ten_days_ago))
+    mark_exported(store, old)
+    mark_exported(store, new)
+    age(tmp_path, old, 10)
     assert store.delete_older_than(7) == [old.id]
     assert [j.id for j in store.list_jobs()] == [new.id]
+
+
+def test_delete_older_than_keeps_a_never_exported_job(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    never, done = store.create_job("hic", [pdf]), store.create_job("disa", [pdf])
+    mark_exported(store, done)
+    age(tmp_path, never, 400)
+    age(tmp_path, done, 400)
+    assert store.delete_older_than(7) == [done.id]
+    assert [j.id for j in store.list_jobs()] == [never.id]
+
+
+def mark_exported_with_state(store, job, state=None):
+    job.last_export = LastExport("2026-01-01T10:00:00", "/tmp/o", 1, 0,
+                                 job_state(job) if state is None else state)
+    store.save(job)
+
+
+def test_delete_older_than_keeps_a_job_edited_after_its_export(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    edited = store.create_job("duzenli", [pdf])
+    mark_exported_with_state(store, edited)
+    edited.drop_empty = not edited.drop_empty  # an edit after the export
+    store.save(edited)
+    age(tmp_path, edited, 400)
+    assert store.delete_older_than(7) == []
+    assert [j.id for j in store.list_jobs()] == [edited.id]
+
+
+def test_delete_older_than_deletes_an_exported_job_that_was_not_edited(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("ayni", [pdf])
+    mark_exported_with_state(store, job)
+    age(tmp_path, job, 400)
+    assert store.delete_older_than(7) == [job.id]
+
+
+def test_delete_older_than_treats_an_export_without_a_state_as_unchanged(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("eski", [pdf])
+    mark_exported_with_state(store, job, state="")  # a file from before the state was kept
+    job.drop_empty = not job.drop_empty
+    store.save(job)
+    age(tmp_path, job, 400)
+    assert store.delete_older_than(7) == [job.id]
+
+
+def test_page_sizes_filled_later_are_not_an_edit(tmp_path):
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("boyut", [pdf])
+    mark_exported_with_state(store, job)
+    before = job_state(job)
+    pid = next(iter(job.pages))
+    job.pages[pid] = replace(job.pages[pid], width_mm=210.0, height_mm=297.0)
+    job.read_errors["x"] = "oops"
+    assert job_state(job) == before
+    store.save(job)
+    age(tmp_path, job, 400)
+    assert store.delete_older_than(7) == [job.id]
+
+
+def test_the_default_settings_delete_nothing(tmp_path, monkeypatch):
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(tmp_path / "yok.json"))
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
+    store = JobStore(tmp_path / "jobs")
+    job = store.create_job("sakla", [pdf])
+    mark_exported_with_state(store, job)
+    age(tmp_path, job, 4000)
+    assert load_settings(tmp_path / "yok.json").retention == "sakla"
+    assert load_settings(tmp_path / "yok.json").retention_days is None
+    assert cli(tmp_path, "is", "listele") == 0  # the CLI start applies retention
+    assert [j.id for j in store.list_jobs()] == [job.id]
 
 
 def cli(tmp_path, *args):
@@ -65,12 +155,14 @@ def test_day_limit_applied_on_listing(tmp_path, monkeypatch, capsys):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     store = JobStore(tmp_path / "jobs")
     job = store.create_job("eski", [pdf])
-    long_ago = time.time() - 40 * 86400
-    os.utime(tmp_path / "jobs" / job.id / "job.json", (long_ago, long_ago))
+    never = store.create_job("hic", [pdf])
+    mark_exported(store, job)
+    age(tmp_path, job, 40)
+    age(tmp_path, never, 40)
     capsys.readouterr()
     assert cli(tmp_path, "is", "listele") == 0
     assert f"Saklama süresi doldu, silindi: {job.id}" in capsys.readouterr().err
-    assert store.list_jobs() == []
+    assert [j.id for j in store.list_jobs()] == [never.id]
 
 
 def test_delete_after_export_only_on_success(tmp_path, monkeypatch, capsys):
@@ -139,6 +231,7 @@ def test_retention_only_deletes_real_jobs(tmp_path):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     store = JobStore(tmp_path / "jobs")
     job = store.create_job("eski", [pdf])
+    mark_exported(store, job)
     stranger = tmp_path / "jobs" / "baska"
     stranger.mkdir()
     (stranger / "job.json").write_text("{}", encoding="utf-8")
@@ -215,3 +308,13 @@ def test_bad_settings_file_falls_back_to_keep(tmp_path, monkeypatch, capsys):
     pdf = make_pdf(tmp_path / "t.pdf", [text_page()])
     assert cli(tmp_path, "is", "olustur", "İş", str(pdf)) == 0
     assert "Ayar dosyası okunamadı" in capsys.readouterr().err
+
+
+def test_cli_retention_keeps_the_other_settings(tmp_path, monkeypatch, capsys):
+    """R-O-1: `ayar saklama` changes the retention only."""
+    path = tmp_path / "ayarlar.json"
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(path))
+    save_settings(Settings("sakla", False), path)
+    assert main(["--kok", str(tmp_path / "k"), "ayar", "saklama", "30"]) == 0
+    assert load_settings(path) == Settings("30", False)
+    assert "30 gün sonra dışa aktarılmış işler silinir" in capsys.readouterr().out

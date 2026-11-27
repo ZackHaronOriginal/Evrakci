@@ -97,13 +97,16 @@ def test_last_page_and_missing_page():
     assert read_by_name(template(last), 2, page, engine)["Ünvan"].value == "X"
     assert seen == [1]
     value = read_by_name(template(third), 2, page, engine)["Ünvan"]
-    assert value.flagged and value.readings[0].problem == "sayfa yok"
+    assert value.flagged
+    assert value.readings[0].problem == (
+        "Bu örnekte böyle bir sayfa yok. Kutunun sayfasını değiştirin.")
 
 
 def test_box_outside_page():
     outside = Section(1, (230.0, 10.0, 260.0, 20.0))
     value = read_by_name(template(outside), 1, blank, SizeEngine({}))["Ünvan"]
-    assert value.flagged and value.readings[0].problem == "kutu sayfa dışında"
+    assert value.flagged
+    assert value.readings[0].problem == "Kutu sayfanın dışında. Kutuyu sayfa içine taşıyın."
 
 
 def test_variable_without_sections():
@@ -120,3 +123,50 @@ def test_real_tesseract_reads_box():
     t = template(Section(1, (15.0, 25.0, 150.0, 45.0)))
     value = read_by_name(t, 1, lambda i: page, default_engine())["Ünvan"]
     assert value.value == "Örnek Kayıt 2026" and value.confidence > 0.7
+
+
+# -- weakest examples first (I-28) --------------------------------------------------------------
+def _weak_value(*confidences, flagged=True):
+    from evrakci.pipeline.templates.values import SectionReading, VariableValue
+
+    readings = tuple(SectionReading(i, "x", c) for i, c in enumerate(confidences))
+    return VariableValue("" if flagged else "x", 0.0 if flagged else 0.95, None, flagged,
+                         "x" if flagged else "", readings)
+
+
+def test_weakest_examples_are_ordered_by_flagged_count_then_lowest_confidence():
+    from evrakci.pipeline.templates.read import ExampleWeakness, weakest_examples
+
+    results = {
+        1: {"a": _weak_value(0.6)},
+        2: {"a": _weak_value(0.5), "b": _weak_value(0.3)},
+        3: {"a": _weak_value(0.2)},
+        4: {"a": _weak_value(0.9, flagged=False)},
+    }
+    got = weakest_examples(results)
+    assert got == [ExampleWeakness(2, 2, 0.3), ExampleWeakness(3, 1, 0.2),
+                   ExampleWeakness(1, 1, 0.6)]  # example 4 has nothing to check: left out
+    assert [w.number for w in weakest_examples(results, limit=2)] == [2, 3]
+
+
+def test_weakest_examples_break_a_full_tie_by_example_number():
+    from evrakci.pipeline.templates.read import weakest_examples
+
+    results = {5: {"a": _weak_value(0.4)}, 2: {"a": _weak_value(0.4)}, 9: {"a": _weak_value(0.4)}}
+    assert [w.number for w in weakest_examples(results)] == [2, 5, 9]
+
+
+def test_weakest_examples_use_the_best_reading_of_a_flagged_variable():
+    from evrakci.pipeline.templates.read import weakest_examples
+
+    got = weakest_examples({1: {"a": _weak_value(0.2, 0.55)}})
+    assert got[0].lowest_confidence == 0.55  # the reading it would suggest, not the worst box
+
+
+def test_a_variable_with_no_box_is_not_counted_as_weak():
+    from evrakci.pipeline.templates.read import flagged_count, weakest_examples
+    from evrakci.pipeline.templates.values import VariableValue
+
+    nothing = VariableValue("", 0.0, None, True)  # no box: nothing was tried
+    assert flagged_count({"k": nothing}) == 0
+    assert weakest_examples({1: {"k": nothing}, 2: {}}) == []

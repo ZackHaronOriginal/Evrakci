@@ -10,6 +10,7 @@ from pathlib import Path
 import pypdfium2 as pdfium
 
 from evrakci.cli.errors import UserError
+from evrakci.pipeline.analyze import EMPTY_INK_RATIO, BatchError, count_pages
 from evrakci.pipeline.cuts import (
     Document,
     compute_documents,
@@ -17,18 +18,39 @@ from evrakci.pipeline.cuts import (
     document_template,
     record_read_error,
 )
-from evrakci.pipeline.export import plan_export
-from evrakci.pipeline.exporting import ExportError, export_job, may_delete_after_export
-from evrakci.pipeline.job import Job, job_to_dict, parse_page_id
+from evrakci.pipeline.export import PREVIEW_HEADER, plan_export, preview_line, sources_text
+from evrakci.pipeline.exporting import (
+    ExportError,
+    export_job,
+    may_delete_after_export,
+    plan_names,
+)
+from evrakci.pipeline.job import Job, apply_page_sizes, job_to_dict, parse_page_id, repeated_files
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.ocr.tesseract import default_engine, default_tessdata
 from evrakci.pipeline.ocr.textlayer import add_text_layer
 from evrakci.pipeline.render import render_page
 from evrakci.pipeline.review import needs_reading, store_reading
+from evrakci.pipeline.select import (
+    FARKLI_BY,
+    FARKLI_REFERENCE,
+    GUVEN_CHECKS,
+    GUVEN_LEVELS,
+    GUVEN_WORDS,
+    Criterion,
+    evaluate,
+    guven_text,
+    reason_count_text,
+    values_read,
+)
+from evrakci.pipeline.select import (
+    select_pages as select_by_filters,
+)
 from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, SettingsError, load_settings
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.model import Template, TemplateError, template_revision
 from evrakci.pipeline.templates.read import read_document
+from evrakci.pipeline.templates.values import value_level
 
 
 def load_job(store: JobStore, job_id: str) -> Job:
@@ -84,7 +106,21 @@ def apply_retention(store: JobStore) -> None:
 
 def create(args: argparse.Namespace, store: JobStore) -> int:
     apply_retention(store)
-    job = store.create_job(args.ad, args.pdf, progress=_progress)
+    for name in repeated_files([], [Path(p).name for p in args.pdf]):
+        print(f"{name} zaten ekli.", file=sys.stderr)
+    readable, failed = [], []
+    for path in args.pdf:  # one broken file never spoils the others (as in the window)
+        try:
+            count_pages(Path(path))
+        except BatchError as error:
+            failed.append(str(error))
+        else:
+            readable.append(path)
+    if not readable:
+        raise BatchError("\n".join(failed))
+    job = store.create_job(args.ad, readable, progress=_progress)
+    for line in failed:  # every file that was left out, one line each
+        print(line, file=sys.stderr)
     print(job.id)
     return 0
 
@@ -102,6 +138,8 @@ def list_jobs(args: argparse.Namespace, store: JobStore) -> int:
 
 def add(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
+    for name in repeated_files((b.file_name for b in job.batches), [Path(args.pdf).name]):
+        print(f"{name} zaten ekli.", file=sys.stderr)  # a warning: the file is still added
     batch = store.add_batch(job, args.pdf)
     print(f"{batch.id} eklendi ({batch.page_count} sayfa)")
     return 0
@@ -186,6 +224,159 @@ def apply_filter(args: argparse.Namespace, store: JobStore) -> int:
     return 0
 
 
+def remove_filter(args: argparse.Namespace, store: JobStore) -> int:
+    job = load_job(store, args.id)
+    start, end = parse_range(args.aralik)
+    page_ids = [page_id_at(job, position) for position in range(start, end + 1)]
+    filtered = {pid for f in job.filters for pid in f.page_ids}
+    count = sum(1 for pid in page_ids if pid in filtered)
+    if not count:
+        raise UserError("Bu sayfalarda filtre yok.")
+    job.remove_filter(page_ids)
+    store.save(job)
+    print(f"Filtre kaldırıldı, {count} sayfa.")
+    return 0
+
+
+def blank_percent(text: str) -> float:
+    """`--esik`: a percentage, the decimal comma or point (0,3), from 0,1 to 5,0."""
+    try:
+        value = float(text.replace(",", "."))
+    except ValueError:
+        value = float("nan")
+    if not 0.1 <= value <= 5.0:
+        raise argparse.ArgumentTypeError("En çok mürekkep oranı: 0,1–5,0 %")
+    return value
+
+
+def check_sec(args: argparse.Namespace) -> None:
+    """Usage errors of `is sec`, raised through argparse (exit 2, its usage text) once the
+    arguments are read: --filtre needs --sablon, --sil does not go with --sablon, and without
+    --sablon a criterion is still required."""
+    parser = args.sec_parser
+    if not args.sablon and args.filtre:
+        parser.error("--filtre için --sablon gerekir.")
+    if not args.sablon and not args.olcut:
+        parser.error("the following arguments are required: olcut")
+    if args.sablon and getattr(args, "sil", False):
+        parser.error("--sil, --sablon ile birlikte kullanılamaz.")
+    if args.filtre:  # a name given twice counts once
+        args.filtre = list(dict.fromkeys(args.filtre))
+
+
+def select_saved(args: argparse.Namespace, store: JobStore,
+                 extra: Criterion | None = None) -> int:
+    """`is sec --sablon ŞABLON [--filtre AD ...] [ÖLÇÜT ...]`: the pages the window's
+    saved-filter chips select (AND of the filters, all of the template's when none is named,
+    and of `extra`, a criterion given on the command line); one function, select_pages, for
+    the window and for this command. A filter this version cannot run is refused."""
+    from evrakci.cli.templates import load_template, template_store
+
+    job = load_job(store, args.id)
+    template = load_template(template_store(args), args.sablon)
+    try:
+        chosen = ([template.saved_filter(name) for name in args.filtre] if args.filtre
+                  else list(template.saved_filters))
+    except TemplateError as error:
+        raise UserError(str(error)) from None
+    if not chosen and extra is None:
+        print("Kayıtlı filtre yok")
+        return 0
+    every = {t.id: t for t in template_store(args).list()}  # what the window's chips see
+    if any(c.kind == "farkli" for c in (*chosen, *([extra] if extra else []))):
+        # An older job: read the missing sizes in memory, as the window does when it opens the
+        # job and as `is sec farkli` does; the file is not written.
+        apply_page_sizes(job, store.read_sizes(store.size_requests(job)))
+    criteria = [Criterion(f.kind, f.params) for f in chosen]
+    result = select_by_filters(job, [*criteria, *([extra] if extra else [])], every)
+    broken = [chosen[n].name for n in result.unknown_at if n < len(chosen)]
+    if broken:
+        raise UserError("\n".join(f"{name}: Bu filtreyi bu sürüm tanımıyor" for name in broken))
+    for item, count in zip(chosen, result.per_filter_counts, strict=False):
+        print(f"{item.name}: {count} sayfa")
+    if not result.page_ids:
+        print("Eşleşen sayfa yok.")
+        return 0
+    position = {pid: n for n, pid in enumerate(job.ordered_page_ids(), start=1)}
+    print(f"{len(criteria) + (1 if extra else 0)} filtre açık: {len(result.page_ids)} sayfa")
+    print(f"sayfa {positions_text([position[pid] for pid in result.page_ids])}")
+    return 0
+
+
+def select_pages(args: argparse.Namespace, store: JobStore) -> int:
+    """`is sec`: the pages the window's "Ölçüte göre seç…" would select; `--sil` deletes them."""
+    job = load_job(store, args.id)
+    params: dict = {}
+    if args.olcut == "belge":
+        params = {"number": args.numara}
+    elif args.olcut == "bos":
+        params = {"ink": round(args.esik / 100, 6)}
+    elif args.olcut == "guven":
+        if args.sablon:
+            return select_saved(args, store, _guven_criterion(args))
+        return select_guven(args, job)
+    elif args.olcut == "farkli":
+        # An older job: read the missing sizes in memory, for this count only. The file is not
+        # written, so a window that has the job open is never overwritten.
+        apply_page_sizes(job, store.read_sizes(store.size_requests(job)))
+        by = [name for name in FARKLI_BY if getattr(args, name)] or list(FARKLI_BY)
+        params = {"by": by, "reference": args.karsilastir}
+    if args.sablon:
+        return select_saved(args, store, Criterion(args.olcut, params))
+    match = evaluate(job, Criterion(args.olcut, params))
+    unknown = match.reasons.get("bilinmiyor", 0) if args.olcut == "farkli" else 0
+    if not match.page_ids:
+        print("Eşleşen sayfa yok.")
+        if unknown:
+            print(f"Boyutu bilinmiyor ({unknown})")
+        return 0
+    position = {pid: n for n, pid in enumerate(job.ordered_page_ids(), start=1)}
+    positions = [position[pid] for pid in match.page_ids]
+    print(f"{len(positions)} sayfa seçildi.")
+    print(f"sayfa {positions_text(positions)}")
+    if unknown:
+        print(f"Boyutu bilinmiyor ({unknown})")
+    if args.sil:
+        for pid in match.page_ids:
+            job.delete_page(pid)
+        store.save(job)
+        print(f"Sayfa {positions_text(positions)} silindi")
+    return 0
+
+
+GUVEN_NAMES = {"kontrol": "kontrol", "okunamadi": "okunamadi", "orta": "orta",
+               "okunmadi": "okunmadi", "eksik-sayfa": "eksik sayfa",
+               "karisik-sablon": "karışık şablon"}
+
+
+def _guven_criterion(args: argparse.Namespace) -> Criterion:
+    asked = [GUVEN_NAMES[name] for name in (args.neden or [
+        "kontrol", "okunamadi", "okunmadi", "eksik-sayfa", "karisik-sablon"])]
+    return Criterion("guven", {
+        "levels": [r for r in asked if r in GUVEN_LEVELS],
+        "checks": [r for r in asked if r in GUVEN_CHECKS],
+        "pages": args.sayfalar})
+
+
+def select_guven(args: argparse.Namespace, job: Job) -> int:
+    """`is sec guven`: the window's "Kontrol gerekenler", with its reasons and counts."""
+    templates = _job_templates(args, job)
+    if not values_read(job):
+        print("Değerler henüz okunmadı")
+        return 0
+    match = evaluate(job, _guven_criterion(args), templates=templates)
+    for reason, n in match.reasons.items():
+        print(f"{GUVEN_WORDS[reason]}  {reason_count_text(reason, n)}")
+    if not match.page_ids:
+        print("Eşleşen sayfa yok.")
+        return 0
+    position = {pid: n for n, pid in enumerate(job.ordered_page_ids(), start=1)}
+    print(guven_text(match))
+    print(f"{match.documents} belge, {match.count()} sayfa")
+    print(f"sayfa {positions_text([position[pid] for pid in match.page_ids])}")
+    return 0
+
+
 def cut(args: argparse.Namespace, store: JobStore) -> int:
     job = load_job(store, args.id)
     pid = page_id_at(job, args.sayfa)
@@ -255,7 +446,29 @@ def _job_templates(args: argparse.Namespace, job: Job) -> dict[str, Template | N
     return found
 
 
+def _check_subfolder(args: argparse.Namespace) -> bool:
+    """Documents to check go into their own subfolder: the setting, unless --kontrol-ayri-yok."""
+    return not args.kontrol_ayri_yok and _settings().check_subfolder
+
+
+def preview_names(args: argparse.Namespace, store: JobStore) -> int:
+    """`--onizle`: the names an export into --cikti would write (Kaynak, new name, note), the
+    same lines as the window's "Ad listesini kopyala"; nothing is written."""
+    job = load_job(store, args.id)
+    try:
+        items = plan_names(job, _job_templates(args, job), Path(args.cikti),
+                           _check_subfolder(args))
+    except ValueError as error:
+        raise UserError(str(error)) from None
+    print(PREVIEW_HEADER)
+    for item in items:
+        print(preview_line(sources_text(item.sources), item.relative, item.name_note))
+    return 0
+
+
 def export(args: argparse.Namespace, store: JobStore) -> int:
+    if args.onizle:
+        return preview_names(args, store)
     job = load_job(store, args.id)
     store.save(job)  # marks the job as in use, so the day limit never removes it mid-export
     with_layer = not args.metin_katmani_yok
@@ -274,25 +487,33 @@ def export(args: argparse.Namespace, store: JobStore) -> int:
             job, store.batch_files(job), _job_templates(args, job), Path(args.cikti),
             with_layer=with_layer, progress=progress, engine=default_engine() if with_layer
             else None, add_layer=add_text_layer, tessdata=tessdata,
+            check_subfolder=_check_subfolder(args),
         )
     except EngineUnavailable as error:
         raise UserError(
             f"{error}. Metin katmanı olmadan yazmak için --metin-katmani-yok kullanın."
         ) from None
     except ExportError as error:
+        if job.last_export is not None:  # files and index.xlsx are on disk (text layer failed)
+            store.save(job)
         raise UserError(str(error)) from None
     finally:
         if with_layer:
             print(file=sys.stderr)
+    store.save(job)  # the export time (job.last_export) reaches the job file
     items, paths = result.items, result.paths
     notes = {path: _layer_note(pdfa, note) for path, (pdfa, note) in result.notes.items()}
     for path, item in zip(paths, items, strict=True):
         positions = [job.position_of(pid) for pid in item.document.page_ids]
         checks = f" [kontrol: {', '.join(item.checks)}]" if item.checks else ""
-        print(f"{path.name}: sayfa {positions_text(positions)}{notes.get(path, '')}{checks}")
+        name_note = f" [ad: {item.name_note}]" if item.name_note else ""
+        print(f"{item.relative}: sayfa {positions_text(positions)}{notes.get(path, '')}"
+              f"{name_note}{checks}")
     needing = result.needing_check
     listing = " Liste: index.xlsx" if paths else ""
     print(f"{len(paths)} belge yazıldı, {needing} belge kontrol gerektiriyor.{listing}")
+    if needing:
+        print("Kontrol listesi: index.xlsx, sayfa 'Kontrol gerekenler'.")
     if _settings().retention == DELETE_AFTER_EXPORT:
         if may_delete_after_export(result):
             store.delete(job.id)
@@ -453,7 +674,12 @@ def list_values(args: argparse.Namespace, store: JobStore) -> int:
                 print(f"  {variable.name}: [okunmadı]")
             elif value.flagged:
                 hint = f", öneri: {value.suggestion}" if value.suggestion else ""
-                print(f"  {variable.name}: [okunamadı{hint}]")
+                if value_level(value) == "okunamadi":
+                    print(f"  {variable.name}: [okunamadı{hint}]")
+                else:
+                    read = value.value or next((r.text for r in sorted(
+                        value.readings, key=lambda r: r.section) if r.text), "")
+                    print(f"  {variable.name}: {read + ' ' if read else ''}[kontrol{hint}]")
             else:
                 mark = " [düzeltildi]" if value.edited else ""
                 print(f"  {variable.name}: {value.value}{mark}")
@@ -461,7 +687,13 @@ def list_values(args: argparse.Namespace, store: JobStore) -> int:
 
 
 def fix_value(args: argparse.Namespace, store: JobStore) -> int:
-    from evrakci.pipeline.review import accept_suggestion, revert_value, set_value
+    from evrakci.pipeline.review import (
+        REQUIRED_EMPTY,
+        accept_suggestion,
+        can_revert,
+        revert_value,
+        set_value,
+    )
 
     job = load_job(store, args.id)
     found = {n: (d, t) for n, d, t in _templated_documents(args, job)}
@@ -478,11 +710,23 @@ def fix_value(args: argparse.Namespace, store: JobStore) -> int:
         if args.oneri:
             accept_suggestion(job, document, key)
         elif args.geri_al:
+            current = current_values(job, document)
+            value = current.get(key) if current is not None else None
+            # like the window's Okunana dön: nothing to go back to for a value nobody
+            # corrected (Q-25), nor for a hand-typed one with no reading
+            if value is not None and not value.edited:
+                raise UserError("Bu değer düzeltilmedi; geri alınacak bir şey yok.")
+            if value is not None and not can_revert(value):
+                raise UserError(f"{args.ad}: Bu değer elle yazıldı; okunmuş bir değer yok.")
             revert_value(job, document, key)
         else:
             if args.deger is None:
                 raise UserError("Yeni değeri yazın, ya da --oneri veya --geri-al kullanın.")
-            set_value(job, document, key, args.deger)
+            variable = template.variable(args.ad)
+            if not set_value(job, document, key, args.deger, variable.required):
+                store.save(job)
+                print(REQUIRED_EMPTY)
+                return 0
     except KeyError:
         raise UserError(f"{args.belge}. belgenin değerleri okunmadı (is oku).") from None
     except ValueError:
@@ -558,6 +802,43 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     p.add_argument("n", type=int, metavar="N", help="kaç sayfada bir belge")
     p.set_defaults(handler=apply_filter)
 
+    p = job_commands.add_parser("filtre-kaldir", help="Filtreyi kaldır")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("aralik", metavar="BAS-SON", help="sayfa aralığı, örn. 1-40")
+    p.set_defaults(handler=remove_filter)
+
+    p = job_commands.add_parser("sec", help="Ölçüte göre seç…")
+    p.add_argument("id", help="iş numarası")
+    p.add_argument("--sablon", metavar="SABLON", help="Kayıtlı filtreler: şablon numarası")
+    p.add_argument("--filtre", action="append", metavar="AD",
+                   help="Kayıtlı filtreler: filtrenin adı (birden çok kez verilebilir; "
+                        "verilmezse hepsi)")
+    p.set_defaults(handler=select_saved, sec_parser=p, check=check_sec, sil=False)
+    criteria = p.add_subparsers(dest="olcut", required=False)
+    for name, label in (("belge", "Bu belge"), ("tek", "Tek sayfalar"), ("cift", "Çift sayfalar")):
+        q = criteria.add_parser(name, help=label)
+        if name == "belge":
+            q.add_argument("--numara", type=int, required=True, metavar="N")
+        q.add_argument("--sil", action="store_true", help="Sayfayı sil")
+        q.set_defaults(handler=select_pages)
+    q = criteria.add_parser("bos", help="Boş sayfalar")
+    q.add_argument("--esik", type=blank_percent, default=EMPTY_INK_RATIO * 100, metavar="ORAN",
+                   help="En çok mürekkep oranı: 0,1–5,0 %% (0,3)")
+    q.add_argument("--sil", action="store_true", help="Sayfayı sil")
+    q.set_defaults(handler=select_pages)
+    q = criteria.add_parser("farkli", help="Farklı boyut veya yön")
+    q.add_argument("--boyut", action="store_true", help="Boyut")
+    q.add_argument("--yon", action="store_true", help="Yön")
+    q.add_argument("--karsilastir", choices=FARKLI_REFERENCE, default="is",
+                   help="Karşılaştır: Bütün iş / Her belge")
+    q.set_defaults(handler=select_pages, sil=False)
+    q = criteria.add_parser("guven", help="Kontrol gerekenler")
+    q.add_argument("--neden", action="append", choices=list(GUVEN_NAMES), metavar="NEDEN",
+                   help="Kontrol gerekenler: " + ", ".join(GUVEN_NAMES))
+    q.add_argument("--sayfalar", choices=("deger", "belge"), default="deger",
+                   help="Sayfalar: deger (Değerin sayfası), belge (Belgenin bütün sayfaları)")
+    q.set_defaults(handler=select_pages)
+
     p = job_commands.add_parser("kes", help="bir sayfanın önüne kesim ekler veya kaldırır")
     p.add_argument("id", help="iş numarası")
     p.add_argument("sayfa", type=int, metavar="SAYFA", help="sayfa numarası")
@@ -623,5 +904,15 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
         "--metin-katmani-yok",
         action="store_true",
         help="aranabilir metin katmanı ve PDF/A olmadan yaz",
+    )
+    p.add_argument(
+        "--kontrol-ayri-yok",
+        action="store_true",
+        help="kontrol gerekenleri ayrı klasöre koyma",
+    )
+    p.add_argument(
+        "--onizle",
+        action="store_true",
+        help="Adları karşılaştır",
     )
     p.set_defaults(handler=export)

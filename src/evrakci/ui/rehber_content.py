@@ -17,13 +17,13 @@ from evrakci.pipeline.ocr.models import app_dir
 from evrakci.ui import actions
 
 KEYS_TITLE = "Kısayollar"
-# A's empty state: "Sık aranan konular: ayıraç, çözünürlük, zımba, makbuz".
-COMMON_TOPICS = ("ayıraç", "çözünürlük", "zımba", "makbuz")
+# A's empty state: "Sık aranan konular: ayraç, çözünürlük, zımba, makbuz".
+COMMON_TOPICS = ("ayraç", "çözünürlük", "zımba", "makbuz")
 _WORDS_PER_MINUTE = 180
 NOTE_TEXT = "Ctrl+F ile rehberde arayın, Ctrl+tekerlek ile yazıyı büyütün."
 NOTE_DISMISS = "Bir daha gösterme"
 KEYS_LEAD = "Bu sekmede geçerli tuşlar. Diğer sekmelerin tuşları için {sheet} tuşuna basın."
-MISSING = "# Tarama rehberi\n\nRehber dosyası bulunamadı."
+MISSING = "# Tarama rehberi\n\nRehber dosyası bulunamadı. Evrakçı'yı yeniden kurun."
 
 
 def guide_text() -> str:
@@ -171,7 +171,7 @@ def shortcut_rows() -> list[KeyRow]:
         ([keys("Rehber", "Aramayı temizle")], "Aramayı temizle"),
         ([keys("Görünüm", "Yakınlaştır"), keys("Görünüm", "Uzaklaştır")],
          "Yazıyı büyüt ve küçült (Ctrl+tekerlek de çalışır)"),
-        ([keys("Rehber", "Ayıraç sayfasını yazdır")], "Ayıraç sayfasını yazdır"),
+        ([keys("Rehber", "Ayraç sayfasını yazdır")], "Ayraç sayfasını yazdır"),
         ([keys("Yardım", "Klavye kısayolları")], "Klavye kısayollarını göster"),
         ([keys("Yardım", "Komut ara")], "Komut ara"),
     ]
@@ -203,6 +203,7 @@ def with_shortcuts(guide: Guide) -> Guide:
 # -- HTML for QTextBrowser -----------------------------------------------------------------
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
 _CODE = re.compile(r"`([^`]+)`")
+_LINK = re.compile(r"\[([^\]]+)\]\((rehber:[a-z-]+)\)")  # [text](rehber:saklama): an in-app link
 
 
 @dataclass(frozen=True)
@@ -229,7 +230,9 @@ def inline(text: str, look: Look) -> str:
     out = _CODE.sub(lambda m: f'<span style="font-family:{look.mono}; font-size:{look.caption}px;'
                               f' background-color:{look.well};">&nbsp;{m.group(1)}&nbsp;</span>',
                     out)
-    return _BOLD.sub(lambda m: f'<b style="font-weight:600;">{m.group(1)}</b>', out)
+    out = _BOLD.sub(lambda m: f'<b style="font-weight:600;">{m.group(1)}</b>', out)
+    return _LINK.sub(lambda m: f'<a href="{m.group(2)}" style="color:{look.accent};">'
+                               f'{m.group(1)}</a>', out)
 
 
 def _block_html(block: Block, look: Look) -> str:
@@ -287,16 +290,16 @@ def guide_html(guide: Guide, look: Look, note: bool = True) -> str:
              f'<p style="margin-top:0; margin-bottom:{s1}px; font-size:{look.page}px;'
              f' font-weight:600;">{html.escape(guide.title)}</p>']
     if guide.lead:
-        parts.append(f'<p style="margin-top:0; margin-bottom:{s4}px; color:{look.text_2};">'
-                     f"{inline(guide.lead, look)}</p>")
+        parts.append(f'<p style="margin-top:0; margin-bottom:{s4}px;">'
+                     f"{inline(guide.lead, look)}</p>")  # text tier, not text-2 (S-5: 7:1)
     if note:
         parts.append(
             f'<table width="100%" cellspacing="0" cellpadding="{s3}"'
             f' bgcolor="{look.well}" style="margin-top:{s4}px;"><tr>'
             f'<td width="{look.body}"><img src="rehber:info" width="{look.body}"'
             f' height="{look.body}"></td><td>{html.escape(NOTE_TEXT)}</td>'
-            f'<td align="right"><a href="rehber:gizle" style="color:{look.accent};'
-            f' font-weight:600; text-decoration:none;">{html.escape(NOTE_DISMISS)}</a>'
+            f'<td align="right"><a href="rehber:gizle" style="color:{look.text};'
+            f' font-weight:600; text-decoration:underline;">{html.escape(NOTE_DISMISS)}</a>'
             f"</td></tr></table>")
     for section in guide.sections:
         parts.append(

@@ -3,8 +3,8 @@ inspector, status bar, empty state, persistence and accessible names."""
 
 from fakes import job_from_kinds
 from PIL import Image
-from PySide6.QtCore import QEvent, QItemSelectionModel, QPoint, QRect, Qt
-from PySide6.QtGui import QShortcut
+from PySide6.QtCore import QEvent, QItemSelectionModel, QModelIndex, QPoint, QPointF, QRect, Qt
+from PySide6.QtGui import QMouseEvent, QShortcut
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import (
     QAbstractButton,
@@ -13,7 +13,9 @@ from PySide6.QtWidgets import (
     QMenu,
     QWidget,
 )
+from saving import wait_saved
 
+from evrakci.pipeline.cuts import template_by_page
 from evrakci.pipeline.store import JobStore
 from evrakci.pipeline.templates.store import TemplateStore
 from evrakci.ui import kontrol_paint, theme
@@ -64,7 +66,8 @@ def _window(qtbot, tmp_path, spec=SPEC, show=True):
                         settings_path=tmp_path / "ayar.json", prefs=Prefs(tmp_path / "p.ini"))
     qtbot.addWidget(window)
     window.resize(1366, 768)
-    window.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(job.id))
     window.show_tab("kontrol")
     qtbot.wait(1)  # the screen takes over the commands once the window has placed it
     if show:
@@ -166,12 +169,21 @@ def test_every_kontrol_command_is_wired_and_enabled_with_a_job(qtbot, tmp_path):
             assert not window.registry.is_enabled(action_id), action_id
 
 
+def _open_other(qtbot, window, job_id="other"):
+    """Open a second job: the open job is not read again (reopening it keeps it as it is)."""
+    other = job_from_kinds(SPEC)
+    other.id = job_id
+    window.store.save(other)
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(window.store.load(job_id))
+
+
 def test_one_binder_per_window_and_a_new_job_takes_over(qtbot, tmp_path):
     window = _window(qtbot, tmp_path, show=False)
     binder = KontrolBinder.for_registry(window.registry)
     assert binder.screen() is window.kontrol
     first = window.kontrol
-    window.yukle.open_job(window.store.load("test"))
+    _open_other(qtbot, window)
     qtbot.wait(1)
     assert window.kontrol is not first
     assert KontrolBinder.for_registry(window.registry) is binder
@@ -258,7 +270,9 @@ def test_delete_names_the_count_is_undoable_and_never_silent(qtbot, tmp_path):
     assert "2 sayfayı sil" in action.toolTip()
     _key(window, Qt.Key.Key_Delete)
     assert {"a/4", "a/5"} <= ctl.job.deleted
-    assert "Belge 2: bütün sayfaları silinecek" in window.toaster.current_text()
+    assert "Belge 2 (sayfa 5–6): bütün sayfaları silinecek" in window.toaster.current_text()
+    assert screen.selected_rows() == [7]  # the selection moved on (K-3): nothing contradicts
+    screen.timeline.select_rows(4, 5, 5)  # choose the two deleted pages again
     assert action.text().replace("&", "") == "2 sayfayı geri getir"
     _key(window, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
     assert not ctl.job.deleted
@@ -274,7 +288,9 @@ def test_deleting_a_single_page_toasts_with_undo(qtbot, tmp_path):
     index = screen.model.index(0)
     assert index.data(Roles.STATE) == "deleted"
     assert "silinecek" in index.data(Qt.ItemDataRole.AccessibleTextRole)
-    screen.toggle_delete()  # Del again restores
+    assert screen.selected_rows() == [1]  # K-3: the selection moved to the next page
+    screen.timeline.select_rows(0, 0, 0)  # choose the deleted page again: Del restores it
+    screen.toggle_delete()
     assert not window.controller().job.deleted
 
 
@@ -342,7 +358,7 @@ def test_inspector_explains_why_a_document_starts_here(qtbot, tmp_path):
     number = screen.current_document()
     assert side.title.text() == f"Belge {number}"
     assert side.cut_row.value.text() == "Filtre, her 2 sayfada"
-    assert side.reason.text() == "QR ayıraç yok, filtre kesti."
+    assert side.reason.text() == "QR ayraç yok, filtre kesti."
     assert side.previous_row.value.text().startswith(f"Belge {number - 1}, ")
     assert side.state_row.value.text() == "İncelenmedi"
     assert side.selection_label.text() == "Seçim: 1 sayfa (sayfa 10)"
@@ -392,7 +408,7 @@ def test_status_bar_zoom_sets_thumbnail_size_and_is_remembered(qtbot, tmp_path):
     window.registry.action("app.sigdir").trigger()
     assert screen.timeline.zoom == 100
     window.registry.action("app.yakinlastir").trigger()
-    window.yukle.open_job(window.store.load("test"))  # a new screen starts at the saved size
+    _open_other(qtbot, window)  # a new screen starts at the saved size
     assert window.kontrol.timeline.zoom == 110
 
 
@@ -400,7 +416,7 @@ def test_splitter_is_named_and_restored(qtbot, tmp_path):
     window = _window(qtbot, tmp_path, show=False)
     assert window.kontrol.body.objectName() == SPLITTER
     window.prefs.set_splitter_sizes(SPLITTER, [900, 360])
-    window.yukle.open_job(window.store.load("test"))
+    _open_other(qtbot, window)
     assert window.kontrol.body.sizes()[1] == 360 or window.kontrol.body.sizes()[1] > 300
 
 
@@ -423,10 +439,62 @@ def test_1000_pages_wrap_and_paint_only_what_is_in_view(qtbot, tmp_path):
     screen = _screen(qtbot, ctl, renderer)
     screen.timeline.viewport().repaint()
     qtbot.wait(200)
-    assert 0 < len({p for p, _h in renderer.calls}) <= 30
+    # the pages in view plus the prefetch margin, never the whole job (was <= 30: view only)
+    visible, margin = screen.timeline.prefetch_rows()
+    assert 0 < len({p for p, _h in renderer.calls}) <= len(visible) + len(margin)
     screen.go_to_row(990)
     qtbot.wait(100)
     assert screen.strip.visible[1] == 100
+
+
+def test_large_viewport_small_zoom_scrolling_does_not_rerender_the_margin(qtbot, tmp_path):
+    ctl = _controller(tmp_path, {"b1": ("p" * 9 + "q") * 300})
+    renderer = Renderer()
+    screen = _screen(qtbot, ctl, renderer, size=(3440, 1440))
+    screen.set_zoom(50)
+    view = screen.timeline
+    view.verticalScrollBar().setValue(view.metrics.row_h * 5)
+    # Wait until the first visible + margin load has finished, not a fixed time: on a busy
+    # machine (full suite) 400 ms was not enough and the setup renders were counted below.
+    # set_zoom starts the THUMB_DELAY_MS re-render timer; under load it can fire after the
+    # service went idle and re-render everything inside the counted window, so wait for it too.
+    qtbot.waitUntil(lambda: not screen._thumb_timer.isActive(), timeout=20000)
+    qtbot.waitUntil(screen.thumbnails.idle, timeout=20000)
+    qtbot.wait(50)
+    visible, margin = view.prefetch_rows()
+    assert len(visible) + len(margin) > 400  # more pages wanted than the old 400 count cap
+    renderer.calls.clear()
+    bar = view.verticalScrollBar()
+    for i in range(20):  # one notch down, one notch up, as a wheel does
+        bar.setValue(bar.value() + (view.metrics.row_h if i % 2 == 0 else -view.metrics.row_h))
+        qtbot.wait(30)
+    qtbot.wait(300)
+    # a notch brings in about one new row; rows already requested must not render again
+    rows = len(view._rows_between(bar.value(), bar.value() + view.viewport().height()))
+    per_row = max(1, len(visible) // max(1, rows))
+    assert len(renderer.calls) <= len(visible) + 20 * per_row
+
+
+def test_job_switch_detaches_the_old_screen_from_the_retired_service(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    old_screen, old_service = window.kontrol, window.thumbnails
+    requests = []
+    original = old_service.request
+    old_service.request = lambda pid: (requests.append(pid), original(pid))[1]
+    second = job_from_kinds(SPEC)
+    second.id = "second"
+    window.store.save(second)
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(window.store.load("second"))
+    assert window.thumbnails is not old_service and window.kontrol is not old_screen
+    requests.clear()
+    # what the old screen would still do on the event loop: a layout, a scroll, a zoom pause
+    old_screen.timeline.load_thumbnails()
+    old_screen.timeline.verticalScrollBar().setValue(old_screen.timeline.verticalScrollBar().value())
+    old_screen.set_zoom(60)
+    old_screen._thumb_timer.timeout.emit()
+    qtbot.wait(250)
+    assert requests == []
 
 
 # -- empty state and accessible names ----------------------------------------------------------
@@ -465,3 +533,349 @@ def test_every_control_has_an_accessible_name(qtbot, tmp_path):
     assert screen.side.accessibleName() == "Belge ayrıntısı"
     assert screen.strip.accessibleName().startswith("Tüm iş: ")
 
+
+# -- scrolling loads and draws the right pages (Phase 2, B-032) ---------------------------------
+def _colour(pid):
+    n = int(pid.split("/")[1]) % 1000
+    return tuple(20 + 24 * d for d in (n // 100, n // 10 % 10, n % 10))
+
+
+class ColourRenderer:
+    """A solid colour unique per page, so a tile showing another page's image is detectable."""
+
+    def __call__(self, pid, height):
+        return Image.new("RGB", (int(height * 0.7), height), _colour(pid))
+
+
+def _thousand(qtbot, tmp_path, service=None):
+    ctl = _controller(tmp_path, {"b1": ("p" * 9 + "q") * 100})
+    service = service or ThumbnailService(ColourRenderer(), height=100)
+    screen = KontrolScreen(ctl, service, templates=dict)
+    qtbot.addWidget(screen)
+    screen.resize(1366, 640)
+    screen.show()
+    qtbot.waitExposed(screen)
+    return screen, service
+
+
+def _visible_loaded(screen, service):
+    view = screen.timeline
+    model = view.model()
+    rows = [r for r in view.visible_rows() if model.state(r) != "separator"]
+    return bool(rows) and all(service.is_current(model.page_id(r)) for r in rows)
+
+
+def test_a_jump_with_no_mouse_or_repaint_loads_every_visible_row(qtbot, tmp_path):
+    screen, service = _thousand(qtbot, tmp_path)
+    qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+    bar = screen.timeline.verticalScrollBar()
+    for fraction in (0.5, 0.9, 0.1):
+        bar.setValue(round(bar.maximum() * fraction))  # no repaint(), no mouse event
+        qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+
+
+def test_the_margin_ahead_of_the_scroll_is_loaded_before_it_is_needed(qtbot, tmp_path):
+    screen, service = _thousand(qtbot, tmp_path)
+    view = screen.timeline
+    bar = view.verticalScrollBar()
+    qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+    bar.setValue(5000)
+    bar.setValue(bar.value() + 120)
+    visible, margin = view.prefetch_rows()
+    assert margin and margin[0] >= visible[-1] and margin[-1] > visible[-1]  # ahead is below
+    model = view.model()
+    wanted = [model.page_id(r) for r in visible + margin if model.state(r) != "separator"]
+    qtbot.waitUntil(lambda: all(service.is_current(pid) for pid in wanted), timeout=5000)
+    bar.setValue(bar.value() - 240)  # now moving up: the margin leads upwards
+    visible, margin = view.prefetch_rows()
+    assert margin[0] < visible[0] or margin[-1] < visible[0]
+
+
+def test_a_fast_scroll_never_leaves_another_pages_image_in_a_slot(qtbot, tmp_path):
+    screen, service = _thousand(qtbot, tmp_path)
+    view = screen.timeline
+    bar = view.verticalScrollBar()
+    qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+    for step in list(range(0, 60)) + list(range(60, 0, -3)):
+        bar.setValue(step * 120)
+        QApplication.processEvents()  # the app paints between wheel notches
+    qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+    qtbot.wait(100)
+    window = screen.window()
+    backing = window.screen().grabWindow(window.winId()).toImage()  # what the screen shows
+    origin = view.viewport().mapTo(window, QPoint(0, 0))
+    model = view.model()
+    for row in view.visible_rows():
+        if model.state(row) == "separator":
+            continue  # a tile with no scan
+        centre = view.page_rect(row).center()
+        if not view.viewport().rect().contains(centre):
+            continue  # a row only partly in view: its centre is outside the viewport
+        colour = backing.pixelColor(origin.x() + centre.x(), origin.y() + centre.y())
+        shown = (colour.red(), colour.green(), colour.blue())
+        want = _colour(model.page_id(row))
+        assert all(abs(a - b) <= 3 for a, b in zip(shown, want, strict=True)), (row, shown, want)
+
+
+def test_the_cache_stays_under_its_byte_ceiling_after_a_long_sweep(qtbot, tmp_path):
+    ceiling = 3_000_000  # about 32 thumbnails of 146 x 209 px x 3 bytes: the view and its margin
+    service = ThumbnailService(ColourRenderer(), height=100, max_bytes=ceiling)
+    screen, service = _thousand(qtbot, tmp_path, service)
+    view = screen.timeline
+    bar = view.verticalScrollBar()
+    for step in range(0, bar.maximum(), 240):  # the whole job, top to bottom
+        bar.setValue(step)
+        QApplication.processEvents()
+        qtbot.wait(5)
+        assert service.cache_bytes <= ceiling
+    qtbot.waitUntil(lambda: _visible_loaded(screen, service), timeout=5000)
+    assert service.cache_bytes == sum(i.sizeInBytes() for i in service.cache.values())
+    assert 0 < service.cache_bytes <= ceiling
+    assert len(service.cache) < 200  # not one image per page of the 1000
+
+
+# -- F-kontrol-01 / 02: a Shift range is the pages between, not a rectangle ----------------------
+def _wrapped_view(qtbot, tmp_path):
+    ctl = _controller(tmp_path, {"a": "p" * 24})
+    screen = _screen(qtbot, ctl, size=(760, 640))
+    view = screen.timeline
+    tops = sorted({view.page_rect(r).top() for r in range(24)})
+    assert len(tops) >= 3
+    return screen, view
+
+
+def test_shift_click_over_a_row_wrap_selects_every_page_between(qtbot, tmp_path):
+    screen, view = _wrapped_view(qtbot, tmp_path)
+    per_row = next(r for r in range(24) if view.page_rect(r).top() != view.page_rect(0).top())
+    start, end = per_row + 1, 2 * per_row + 2
+    QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton, pos=view.page_rect(start).center())
+    QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.ShiftModifier, view.page_rect(end).center())
+    assert screen.selected_rows() == list(range(start, end + 1))
+    # and back over the anchor: the range follows the click, nothing stays behind
+    QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.ShiftModifier, view.page_rect(start - 1).center())
+    assert screen.selected_rows() == [start - 1, start]
+
+
+def test_shift_right_over_a_row_wrap_selects_a_contiguous_range(qtbot, tmp_path):
+    screen, view = _wrapped_view(qtbot, tmp_path)
+    per_row = next(r for r in range(24) if view.page_rect(r).top() != view.page_rect(0).top())
+    start = per_row - 1
+    QTest.mouseClick(view.viewport(), Qt.MouseButton.LeftButton, pos=view.page_rect(start).center())
+    view.setFocus()
+    QTest.keyClick(view, Qt.Key.Key_Right, Qt.KeyboardModifier.ShiftModifier)
+    QTest.keyClick(view, Qt.Key.Key_Right, Qt.KeyboardModifier.ShiftModifier)
+    assert screen.selected_rows() == [start, start + 1, start + 2]
+
+
+# -- F-kontrol-03: a long template name must not widen the inspector ----------------------------
+def test_a_long_template_name_does_not_widen_the_inspector(qtbot):
+    from evrakci.ui.kontrol_inspector import DocumentInfo, Inspector
+
+    side = Inspector()
+    qtbot.addWidget(side)
+    side.resize(320, 700)
+    side.show()
+    for name in ("Ekspertiz Raporu Ek Belgeler Dosyası 2024", "E" * 45):
+        side.show_document(DocumentInfo(
+            number=3, template=name, first=2, last=9, pages=8,
+            reason="QR ayraç yok, filtre kesti.",
+            cut_icon=None, cut_role="text-2", cut_text="Filtre, her 2 sayfada",
+            previous="Belge 2, 1 sayfa", check=False, reviewed=False))
+        QApplication.processEvents()
+        bar = side.scroll.horizontalScrollBar()
+        assert bar.maximum() == 0, f"{name!r}: content is {bar.maximum()} px wider than the view"
+        assert side.sub.text().startswith(name)  # the full text stays for the screen reader
+        assert side.sub.toolTip().startswith(name)
+
+
+# -- F-kontrol-04 / 05: Enter presses the focused "Belgeyi onayla"; a double click presses once --
+def test_enter_on_the_focused_approve_button_approves(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    screen.go_to_row(0)
+    screen.side.approve_button.setFocus()
+    QApplication.processEvents()
+    QTest.keyClick(screen.side.approve_button, Qt.Key.Key_Return)
+    assert screen.current_document() == 2
+    assert screen.reviews.is_reviewed(screen.controller.documents()[0])
+
+
+def test_double_click_on_approve_approves_one_document(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    screen.go_to_row(0)
+    button = screen.side.approve_button
+    QTest.mouseClick(button, Qt.MouseButton.LeftButton)  # what a double click starts with
+    assert screen.current_document() == 2
+    # its second half, as the window system sends it: double-click event, then release
+    pos = QPointF(button.rect().center())
+    for kind, buttons in ((QEvent.Type.MouseButtonDblClick, Qt.MouseButton.LeftButton),
+                          (QEvent.Type.MouseButtonRelease, Qt.MouseButton.NoButton)):
+        QApplication.sendEvent(button, QMouseEvent(kind, pos, button.mapToGlobal(pos),
+                                                   Qt.MouseButton.LeftButton, buttons,
+                                                   Qt.KeyboardModifier.NoModifier))
+    assert screen.current_document() == 2
+    docs = screen.controller.documents()
+    assert not screen.reviews.is_reviewed(docs[1])
+
+
+# -- I-08: remove a filter, remove a template, bring a blank page back ----------------------------
+def _says(controller):
+    said: list[str] = []
+    controller.status.connect(said.append)
+    return said
+
+
+def _shift_key(window, key):
+    _key(window, key, Qt.KeyboardModifier.ShiftModifier)
+
+
+def test_shift_f_takes_the_filter_back_and_ctrl_z_puts_it_there_again(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+    before = [d.page_ids for d in ctl.documents()]
+    screen.timeline.select_rows(4, 10, 4)
+    screen.apply_filter(3)
+    assert [d.page_ids for d in ctl.documents()] != before and ctl.job.filters
+    _shift_key(window, Qt.Key.Key_F)
+    assert not ctl.job.filters
+    assert [d.page_ids for d in ctl.documents()] == before
+    assert ctl.undo_stack.undoText() == "Filtreyi kaldır"
+    assert window.toaster.current_text() == "Filtre kaldırıldı, 6 sayfa."
+    assert screen.side.filter_button.value.text() == "Filtre yok"
+    _key(window, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    assert [f.every_n for f in ctl.job.filters] == [3]
+    assert [d.page_ids for d in ctl.documents()] != before
+    assert screen.side.filter_button.value.text() == "Her 3 sayfa"
+
+
+def test_shift_f_without_a_filter_or_a_selection_says_so(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+    said = _says(ctl)
+    screen.timeline.select_rows(4, 5, 4)
+    index = ctl.undo_stack.index()
+    _shift_key(window, Qt.Key.Key_F)
+    assert said == ["Bu sayfalarda filtre yok."]
+    assert ctl.undo_stack.index() == index and not ctl.job.filters
+    screen.timeline.selectionModel().clearSelection()
+    screen.timeline.selectionModel().setCurrentIndex(
+        QModelIndex(), QItemSelectionModel.SelectionFlag.NoUpdate)
+    said.clear()
+    _shift_key(window, Qt.Key.Key_F)
+    assert said == ["Önce sayfaları seçin."]
+
+
+def test_shift_f_takes_only_the_selected_pages_out_of_a_filter(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+    screen.timeline.select_rows(4, 10, 4)
+    screen.apply_filter(2)
+    screen.timeline.select_rows(6, 7, 6)
+    screen.remove_filter()
+    assert len(ctl.job.filters) == 1
+    assert ctl.job.filters[0].page_ids == {"a/4", "a/5", "a/8", "a/9", "a/10"}
+    assert window.toaster.current_text() == "Filtre kaldırıldı, 1 sayfa."
+
+
+def test_shift_t_removes_the_template_and_says_so_when_there_is_none(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+    said = _says(ctl)
+    screen.timeline.select_rows(0, 2, 0)
+    _shift_key(window, Qt.Key.Key_T)
+    assert said == ["Bu sayfalarda şablon yok."]
+    assert ctl.apply_template(["a/0", "a/1", "a/2"], "t1")
+    index = ctl.undo_stack.index()
+    _shift_key(window, Qt.Key.Key_T)
+    assert ctl.undo_stack.index() == index + 1
+    assert ctl.undo_stack.undoText() == "Şablonu kaldır"
+    assert window.toaster.current_text() == "Şablon kaldırıldı, 3 sayfa."
+    assert not template_by_page(ctl.job)
+    _key(window, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    assert template_by_page(ctl.job) == {"a/0": "t1", "a/1": "t1", "a/2": "t1"}
+
+
+def test_a_dropped_blank_page_comes_back_in_one_undo_step(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path, spec={"a": "ppepp"})
+    screen = window.kontrol
+    ctl = window.controller()
+    said = _says(ctl)
+    action = window.registry.action("kontrol.bos_geri_getir")
+    screen.timeline.select_rows(0, 0, 0)
+    assert not action.isVisible()  # Boş sayfaları at is off: not offered
+    assert ctl.set_drop_empty(True)
+    screen.timeline.select_rows(0, 0, 0)
+    assert action.isVisible() and action.isEnabled()
+    screen.restore_empty()
+    assert said[-1] == "Silinen boş sayfa yok."
+    screen.timeline.select_rows(2, 2, 2)
+    assert [len(d.page_ids) for d in ctl.documents()] == [4]
+    action.trigger()
+    assert ctl.job.restored == {"a/2"}
+    assert [len(d.page_ids) for d in ctl.documents()] == [5]
+    assert ctl.undo_stack.undoText() == "Boş sayfayı geri getir"
+    assert window.toaster.current_text() == "Boş sayfa geri getirildi."
+    ctl.undo()
+    assert ctl.job.restored == set() and ctl.job.drop_empty
+
+
+def test_context_menu_order_and_dimmed_entries(qtbot, tmp_path):
+    window = _window(qtbot, tmp_path)
+    screen = window.kontrol
+    ctl = window.controller()
+
+    def entries():
+        screen.timeline.select_rows(4, 5, 4)
+        screen._context_menu(screen.timeline.page_rect(4).center())
+        return {a.text().replace("&", "").split("\t")[0]: a
+                for a in screen.menu.actions() if not a.isSeparator() and a.text()}
+
+    found = entries()
+    names = list(found)
+    start = names.index("Şablon uygula")
+    assert names[start:start + 4] == ["Şablon uygula", "Şablonu kaldır", "Filtre uygula…",
+                                      "Filtreyi kaldır"]
+    assert "Boş sayfayı geri getir" not in names  # the job keeps blank pages
+    assert not found["Filtreyi kaldır"].isEnabled()  # dimmed, still listed
+    assert not found["Şablonu kaldır"].isEnabled()
+    assert found["Filtre uygula…"].isEnabled()
+    assert found["Filtreyi kaldır"].text().endswith("Shift+F")
+    screen.menu.close()
+    screen.apply_filter(2)
+    assert ctl.job.filters
+    found = entries()
+    assert found["Filtreyi kaldır"].isEnabled()
+    found["Filtreyi kaldır"].trigger()
+    assert not ctl.job.filters
+    screen.menu.close()
+
+
+def test_the_window_and_the_command_line_remove_a_filter_the_same_way(qtbot, tmp_path):
+    import shutil
+
+    from fakes import make_pdf, text_page
+
+    from evrakci.cli import main
+    from evrakci.pipeline.job import job_to_dict
+
+    root = tmp_path / "kok"
+    pdf = make_pdf(tmp_path / "t.pdf", [text_page()] * 6)
+    assert main(["--kok", str(root), "is", "olustur", "Test", str(pdf)]) == 0
+    job_id = JobStore(root).list_jobs()[0].id
+    assert main(["--kok", str(root), "is", "filtre", job_id, "1-6", "2"]) == 0
+    other = tmp_path / "kok2"
+    shutil.copytree(root, other)
+    assert main(["--kok", str(root), "is", "filtre-kaldir", job_id, "3-4"]) == 0
+    store = JobStore(other)
+    ctl = JobController(store, store.load(job_id))
+    assert ctl.remove_filter([ctl.job.page_at(3), ctl.job.page_at(4)])
+    wait_saved(ctl)
+    assert job_to_dict(ctl.job) == job_to_dict(JobStore(root).load(job_id))
+    assert job_to_dict(store.load(job_id)) == job_to_dict(JobStore(root).load(job_id))

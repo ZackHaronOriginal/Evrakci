@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import weakref
 from collections.abc import Callable, Iterable
 
 from PySide6.QtCore import QObject, Signal
@@ -9,8 +10,15 @@ from PySide6.QtGui import QUndoCommand, QUndoStack
 
 from evrakci.pipeline import review
 from evrakci.pipeline.cuts import Document, compute_documents, cut_kinds
-from evrakci.pipeline.job import Job, job_from_dict, job_to_dict
+from evrakci.pipeline.job import (
+    Job,
+    apply_page_sizes,
+    carry_page_sizes,
+    job_from_dict,
+    job_to_dict,
+)
 from evrakci.pipeline.store import JobStore
+from evrakci.ui.saver import JobSaver
 
 
 def _turkish(error: Exception) -> str:
@@ -34,32 +42,107 @@ def _turkish(error: Exception) -> str:
 class _Snapshot(QUndoCommand):
     """An applied edit, stored as the whole job before and after it."""
 
-    def __init__(self, controller: JobController, text: str, before: dict, after: dict) -> None:
+    MERGE_ID = 7101  # steps of one group that follow each other become one (a read in batches)
+
+    def __init__(self, controller: JobController, text: str, before: dict, after: dict,
+                 merge: int | None = None) -> None:
         super().__init__(text)
-        self._controller = controller
+        self._ref = weakref.ref(controller)
         self._before = before
         self._after = after
         self._first = True
+        self._merge = merge
+
+    def id(self) -> int:
+        return -1 if self._merge is None else self.MERGE_ID
+
+    def mergeWith(self, other) -> bool:  # noqa: N802
+        """The step pushed right after this one, of the same group (nothing between): one step
+        from this step's start to the other's end. Only adjacent steps of one group are ever
+        merged, so Geri al goes back exactly to where the group began."""
+        if not isinstance(other, _Snapshot) or other._merge != self._merge:
+            return False
+        self._after = other._after
+        return True
 
     def redo(self) -> None:
         if self._first:  # the edit is already applied when the command is pushed
             self._first = False
             return
-        self._controller._restore(self._after)
+        self._ref()._restore(self._after)
 
     def undo(self) -> None:
-        self._controller._restore(self._before)
+        self._ref()._restore(self._before)
+
+
+FROZEN_REASON = "İş siliniyor"  # an existing title: shown when a frozen job refuses a change
+
+
+class _GuardedStack(QUndoStack):
+    """The job's undo stack: while the job is being deleted it neither undoes nor redoes
+    (memory and disk must not part), and says why."""
+
+    def __init__(self, controller: JobController) -> None:
+        super().__init__(controller)
+        self._ref = weakref.ref(controller)
+
+    @property
+    def _controller(self):
+        return self._ref()
+
+    def _refused(self) -> bool:
+        """While the job is being deleted, or a Değerler read runs (its readings would be
+        lost or made stale), no undo, redo or jump in the history: whatever route asks."""
+        controller = self._controller
+        if controller.frozen:
+            controller.status.emit(FROZEN_REASON)
+            return True
+        if controller.reading:
+            from evrakci.ui.refusals import READING_NOW
+
+            controller.status.emit(READING_NOW)
+            return True
+        return False
+
+    def undo(self) -> None:
+        if not self._refused():
+            super().undo()
+
+    def redo(self) -> None:
+        if not self._refused():
+            super().redo()
+
+    def setIndex(self, index: int) -> None:  # noqa: N802
+        if not self._refused():
+            super().setIndex(index)
+
+    def canUndo(self) -> bool:
+        return super().canUndo() and not self._controller.frozen and not self._controller.reading
+
+    def canRedo(self) -> bool:
+        return super().canRedo() and not self._controller.frozen and not self._controller.reading
 
 
 class JobController(QObject):
     job_changed = Signal()
     status = Signal(str)
+    save_failed = Signal(str)  # the write failed; the edit stays in memory
+    saving = Signal()  # a write is pending long enough to say "Kaydediliyor…"
+    saved = Signal()  # nothing is pending and the file on disk is the job
 
     def __init__(self, store: JobStore, job: Job, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self.store = store
         self.job = job
-        self.undo_stack = QUndoStack(self)
+        self.reading = False  # a Değerler read runs: no undo or redo (its steps are pending)
+        self.frozen = False  # while the job's folder is deleted: no edit, no save (rule 5)
+        # Write-behind: edits hand a snapshot to the saver, the one writer of the job file.
+        # It has no parent: its writer thread may outlive the controller by one write.
+        self.saver = JobSaver(store)
+        self.saver.saving.connect(self.saving)
+        self.saver.saved.connect(self.saved)
+        self.saver.failed.connect(self._write_failed)
+        self.undo_stack = _GuardedStack(self)
         self._documents: list[Document] | None = None
         self._kinds: dict[str, str] | None = None
 
@@ -78,6 +161,19 @@ class JobController(QObject):
     def apply_filter(self, page_ids: Iterable[str], every_n: int) -> bool:
         ids = list(page_ids)
         return self._edit(f"Filtre: her {every_n} sayfa", lambda j: j.apply_filter(ids, every_n))
+
+    def remove_filter(self, page_ids: Iterable[str]) -> bool:
+        ids = list(page_ids)
+        return self._edit("Filtreyi kaldır", lambda j: j.remove_filter(ids))
+
+    def remove_template(self, page_ids: Iterable[str]) -> bool:
+        ids = list(page_ids)
+        return self._edit("Şablonu kaldır", lambda j: j.remove_template(ids))
+
+    def restore_empty(self, page_ids: Iterable[str]) -> bool:
+        ids = list(page_ids)
+        return self._edit("Boş sayfayı geri getir",
+                          lambda j: [j.restore_empty(pid) for pid in ids])
 
     def add_cut(self, pid: str) -> bool:
         return self._edit("Kesim ekle", lambda j: j.add_cut(pid))
@@ -104,15 +200,25 @@ class JobController(QObject):
 
         return self._edit("Boş sayfaları at", apply)
 
-    def set_value(self, document: Document, key: str, text: str) -> bool:
-        return self._edit("Değeri düzelt", lambda j: review.set_value(j, document, key, text))
+    def set_value(self, document: Document, key: str, text: str, required: bool = False) -> bool:
+        """True when the value was stored as typed; False when it did not land, or a required
+        value was emptied (it waits in Kontrol instead)."""
+        stored: list[bool] = []
+
+        def apply(job: Job) -> None:
+            stored.append(review.set_value(job, document, key, text, required))
+
+        return self._edit("Değeri düzelt", apply) and all(stored)
 
     def accept_suggestion(self, document: Document, key: str) -> bool:
         return self._edit("Öneriyi kabul et", lambda j: review.accept_suggestion(j, document, key))
 
-    def run(self, text: str, change: Callable[[Job], None]) -> bool:
-        """Any other core change (for example, recording read values) as one undoable edit."""
-        return self._edit(text, change)
+    def run(self, text: str, change: Callable[[Job], None], merge: int | None = None) -> bool:
+        """Any other core change (for example, recording read values) as one undoable edit.
+        `merge`: a group number; steps of one group pushed one right after the other become
+        one step (a read stored in batches is still one step). Another group, or any other
+        step in between, keeps them apart."""
+        return self._edit(text, change, merge)
 
     def undo(self) -> None:
         self.undo_stack.undo()
@@ -121,7 +227,28 @@ class JobController(QObject):
         self.undo_stack.redo()
 
     # Internals
-    def _edit(self, text: str, change: Callable[[Job], None]) -> bool:
+    def save_now(self) -> None:
+        """Hand the job as it is now to the saver, even if nothing changed (Ctrl+S, before an
+        export: the write also marks the job as in use). `saver.when_idle` tells when it is on
+        disk."""
+        if not self.frozen:
+            self.saver.submit(self.job.id, job_to_dict(self.job))
+
+    def freeze(self) -> None:
+        """Stop edits and saves (the job is being deleted in a worker)."""
+        self.frozen = True
+        self.saver.frozen = True
+        self.undo_stack.indexChanged.emit(self.undo_stack.index())  # menus re-read canUndo
+
+    def unfreeze(self) -> None:
+        self.frozen = False
+        self.saver.frozen = False
+        self.undo_stack.indexChanged.emit(self.undo_stack.index())
+
+    def _edit(self, text: str, change: Callable[[Job], None], merge: int | None = None) -> bool:
+        if self.frozen:
+            self.status.emit(FROZEN_REASON)
+            return False
         before = job_to_dict(self.job)
         try:
             change(self.job)
@@ -132,18 +259,40 @@ class JobController(QObject):
         after = job_to_dict(self.job)
         if after == before:
             return True
-        self.undo_stack.push(_Snapshot(self, text, before, after))
-        self._changed()
+        self.undo_stack.push(_Snapshot(self, text, before, after, merge))
+        self._changed(after)
         return True
+
+    def fill_page_sizes(self, sizes: dict[str, tuple[float, float]]) -> int:
+        """Housekeeping: the sizes read from the batch files of an older job. Not an edit, so
+        no undo step; the job is saved and the views refresh. Returns how many pages got one."""
+        if self.frozen:
+            return 0
+        filled = apply_page_sizes(self.job, sizes)
+        if filled:
+            self._changed()
+        return filled
 
     def _restore(self, data: dict, notify: bool = True) -> None:
         restored = job_from_dict(data)
+        if carry_page_sizes(self.job, restored):  # the step is older than the sizes read later
+            data = job_to_dict(restored)
         self.job.__dict__.update(restored.__dict__)  # views keep the same Job object
         if notify:
-            self._changed()
+            self._changed(data)
 
-    def _changed(self) -> None:
+    def _changed(self, snapshot: dict | None = None) -> None:
+        """The job changed: views refresh and a snapshot goes to the saver (never written here).
+        `snapshot` is the job as a dict that nobody changes afterwards (the undo stack's own
+        copy); without one it is made now."""
         self._documents = None
         self._kinds = None
-        self.store.save(self.job)
+        if not self.frozen:
+            self.saver.submit(self.job.id, snapshot if snapshot is not None
+                              else job_to_dict(self.job))
         self.job_changed.emit()
+
+    def _write_failed(self, message: str) -> None:
+        """The saver could not write (reported after the views refreshed, so it stays shown)."""
+        self.status.emit(f"Kaydedilemedi: {message}")
+        self.save_failed.emit(message)

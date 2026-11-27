@@ -23,8 +23,8 @@ from dataclasses import dataclass
 from functools import partial
 from typing import NamedTuple
 
-from PySide6.QtCore import QObject, Qt
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QAbstractButton,
     QAbstractSpinBox,
@@ -174,10 +174,10 @@ SPECS: tuple[ActionSpec, ...] = (
        kw="excel dizin liste"),
     _a("disa_aktar.gezginde_goster", "Dosya &Gezgini'nde göster", "folder-open",
        "Ctrl+Shift+O", ctx="disa_aktar", menu="dosya", kw="klasör explorer"),
-    _a("rehber.yazdir", "Ayıraç sayfasını ya&zdır…", "printer", "Ctrl+P", ctx="rehber",
+    _a("rehber.yazdir", "Ayraç sayfasını ya&zdır…", "printer", "Ctrl+P", ctx="rehber",
        menu="dosya", kw="baskı ayraç"),
     _a("rehber.pdf_ac", "PDF ola&rak aç", "file-text", ctx="rehber", menu="dosya",
-       kw="ayraç ayıraç sayfası baskı pdf"),
+       kw="ayraç ayraç sayfası baskı pdf"),
     _a("disa_aktar.yazdir", "Dizini ya&zdır…", "printer", "Ctrl+P", ctx="disa_aktar",
        menu="dosya", kw="baskı liste"),
     _a("app.isi_kapat", "İşi ka&pat", "x", "Ctrl+W", menu="dosya"),
@@ -203,7 +203,8 @@ SPECS: tuple[ActionSpec, ...] = (
     _a("app.tam_ekran", "&Tam ekran", "maximize-2", "F11", menu="gorunum", checkable=True),
     _a("app.yan_panel", "Yan &paneli gizle", "panel-right", "F9", menu="gorunum",
        tip="Ayrıntı panelini gizle", kw="ayrıntı kaynak panel denetçi"),
-    _a("app.yenile", "Yenile", "refresh-cw", "F5", tip="Listeyi ve önizlemeyi yenile"),
+    _a("app.yenile", "Y&enile", "refresh-cw", "F5", menu="gorunum",
+       tip="Listeyi ve önizlemeyi yenile"),
     # Araçlar ve Yardım
     _a("app.ayarlar", "&Ayarlar…", "settings", "Ctrl+,", menu="araclar",
        kw="tercih tema yazı boyutu yoğunluk saklama"),
@@ -221,8 +222,10 @@ SPECS: tuple[ActionSpec, ...] = (
        menu="duzen", kw="sırala"),
     _a("yukle.cikar", "Partiyi çı&kar", "trash-2", "Del", ctx="yukle", menu="duzen",
        tip="Partiyi çıkar (geri alınabilir)", kw="sil kaldır"),
-    _a("yukle.yeniden_adlandir", "Yeniden a&dlandır", "pencil", "F2", ctx="yukle",
+    _a("yukle.yeniden_adlandir", "İşi yeniden a&dlandır", "pencil", "F2", ctx="yukle",
        menu="duzen", kw="ad isim"),
+    _a("yukle.kontrolde_ac", "Partiyi Kontro&l'de aç", "arrow-right-to-line", ctx="yukle",
+       menu="duzen", tip="Partiyi Kontrol'de aç (Enter ya da çift tık)", kw="incele git"),
     _a("yukle.iptal", "İ&ptal et", "square", "Ctrl+.", ctx="yukle", menu="araclar",
        tip="Okumayı iptal et", kw="durdur"),
 
@@ -231,6 +234,10 @@ SPECS: tuple[ActionSpec, ...] = (
        menu="duzen"),
     _a("kontrol.secimi_kaldir", "Seçimi &kaldır", "x", "Esc", ctx="kontrol", menu="duzen",
        tip="Seçimi kaldır ya da önizlemeyi kapat"),
+    _a("kontrol.belgeyi_sec", "Bu belgeyi seç", "list-checks", "B", ctx="kontrol",
+       menu="duzen", kw="belge tümü"),
+    _a("kontrol.sayfa_sec", "Sayfayı seçime ekle / çıka&r", None, "Ctrl+Space", ctx="kontrol",
+       local=True, menu="duzen", palette=False, kw="seçim ekle çıkar tek tek"),
     _a("kontrol.kes", "Burada k&es", "scissors", "K", ctx="kontrol", menu="duzen",
        tip="Burada kes / kesimi kaldır", kw="ayır böl kesim"),
     _a("kontrol.birlestir", "Önceki belgeyle &birleştir", "merge", "M", ctx="kontrol",
@@ -244,23 +251,45 @@ SPECS: tuple[ActionSpec, ...] = (
     _a("kontrol.onayla", "Belgeyi on&ayla", "circle-check", ("Return", "Enter"),
        ctx="kontrol", menu="duzen", tip="Belgeyi onayla ve sonrakine geç",
        kw="incelendi işaretle"),
+    _a("kontrol.sec", "Ölçüte göre &seç…", "list-checks", "S", ctx="kontrol", menu="araclar",
+       kw="tek çift belge ölçüt"),
     _a("kontrol.filtre", "&Filtre uygula…", "funnel", "F", ctx="kontrol", menu="araclar"),
+    _a("kontrol.kayitli_filtreler", "Kayıtlı filt&reler", "funnel", "Ctrl+Shift+F",
+       ctx="kontrol", menu="araclar", kw="filtre süzgeç seçim çip"),
     _a("kontrol.sablon", "Şablonu &uygula", "layout-template", "T", ctx="kontrol",
        menu="araclar"),
-    _a("kontrol.degerlerde_ac", "&Değerlerde aç", "table-2", ctx="kontrol", menu="araclar",
-       tip="Bu belgeyi Değerler sekmesinde aç"),
+    _a("kontrol.filtre_kaldir", "Filtreyi ka&ldır", "funnel", "Shift+F", ctx="kontrol",
+       menu="araclar", kw="süzgeç her n sayfa"),
+    _a("kontrol.sablon_kaldir", "Şablonu &kaldır", "layout-template", "Shift+T", ctx="kontrol",
+       menu="araclar", kw="şablonsuz"),
+    _a("kontrol.bos_at", "&Boş sayfaları at", "square-dashed", (), ctx="kontrol",
+       menu="araclar", checkable=True, kw="boş sayfa atma otomatik"),
+    _a("kontrol.bos_geri_getir", "Boş sayfayı geri &getir", "undo-2", (), ctx="kontrol",
+       menu="araclar", kw="boş sayfa atılan silinen"),
+    _a("kontrol.degerlerde_ac", "&Değerlerde aç", "table-2", "D", ctx="kontrol",
+       menu="araclar", tip="Bu belgeyi Değerler sekmesinde aç"),
     _a("kontrol.onizle", "Ö&nizle", "eye", "Space", ctx="kontrol", menu="gorunum",
-       tip="Sayfayı büyük göster", kw="büyüteç önizleme"),
+       tip="Önizle", kw="büyüteç önizleme sayfayı büyük göster"),
+    _a("kontrol.farkli_isaretle", "Farklı &görünenleri işaretle", "ruler", (), ctx="kontrol",
+       menu="gorunum", checkable=True, kw="boyut yön yatay dikey işaret"),
     _a("kontrol.sonraki_kontrol", "Sonraki kon&trol", "triangle-alert", "N", ctx="kontrol",
-       menu="git", kw="şüpheli uyarı"),
+       menu="git", kw="uyarı"),
     _a("kontrol.onceki_kontrol", "Önceki k&ontrol", "triangle-alert", "Shift+N",
-       ctx="kontrol", menu="git", kw="şüpheli uyarı"),
+       ctx="kontrol", menu="git", kw="uyarı"),
     _a("kontrol.sonraki_incelenmemis", "Sonraki incelen&memiş", "circle-dashed", "U",
        ctx="kontrol", menu="git", kw="incelenmedi"),
+    _a("kontrol.sonraki_farkli", "Sonraki &farklı sayfa", "ruler", (), ctx="kontrol",
+       menu="git", kw="boyut yön yatay dikey"),
+    _a("kontrol.onceki_farkli", "Ön&ceki farklı sayfa", "ruler", (), ctx="kontrol",
+       menu="git", kw="boyut yön yatay dikey"),
     _a("kontrol.sonraki_belge", "Sonraki &belge", "chevron-right", "Ctrl+Right",
        ctx="kontrol", menu="git"),
     _a("kontrol.onceki_belge", "Önceki be&lge", "chevron-left", "Ctrl+Left", ctx="kontrol",
        menu="git"),
+    _a("kontrol.git_secimsiz", "Seçimi bo&zmadan git", None, "Alt+Right",
+       ctx="kontrol", local=True, menu="git", palette=False, kw="odak seçim"),
+    _a("kontrol.git_secimsiz_sol", "Seçimi bozmadan git", None, "Alt+Left",
+       ctx="kontrol", local=True, menu="git", palette=False, kw="odak seçim"),
     _a("kontrol.sayfa", "Önceki / sonraki sayfa", None, ("Left", "Right"), ctx="kontrol",
        local=True, palette=False),
     _a("kontrol.ilk_son", "İlk / son sayfa", None, ("Home", "End"), ctx="kontrol",
@@ -277,6 +306,12 @@ SPECS: tuple[ActionSpec, ...] = (
        menu="araclar", checkable=True, kw="hizala mıknatıs grid"),
     _a("sablonlar.dene", "&Bütün örneklerde dene", "play", "Ctrl+T", ctx="sablonlar",
        menu="araclar", kw="oku test"),
+    _a("sablonlar.sonraki_zayif", "Sonraki &zayıf örnek", "triangle-alert", "N",
+       ctx="sablonlar", menu="git", kw="kontrol uyarı"),
+    _a("sablonlar.onceki_zayif", "Önceki zayı&f örnek", "triangle-alert", "Shift+N",
+       ctx="sablonlar", menu="git", kw="kontrol uyarı"),
+    _a("sablonlar.zayif_ornekler", "Zayıf örnek&ler", "list-checks", "Ctrl+L", ctx="sablonlar",
+       menu="git", kw="kontrol liste en düşük"),
     _a("sablonlar.kutu_sil", "Kutuyu &sil", "trash-2", "Del", ctx="sablonlar",
        menu="duzen", tip="Kutuyu sil (geri alınabilir)"),
     _a("sablonlar.kutu_cogalt", "Kutuyu çoğa&lt", None, "Ctrl+D", ctx="sablonlar",
@@ -287,6 +322,16 @@ SPECS: tuple[ActionSpec, ...] = (
        menu="duzen", kw="sırala"),
     _a("sablonlar.asagi", "Değişkeni &aşağı taşı", "arrow-down", "Alt+Down",
        ctx="sablonlar", menu="duzen", kw="sırala"),
+    _a("sablonlar.sablon_adlandir", "Şablonu yeniden a&dlandır…", "pencil", ctx="sablonlar",
+       menu="duzen", kw="ad isim şablon"),
+    _a("sablonlar.sablon_cogalt", "Şablonu çoğal&t", "copy", ctx="sablonlar", menu="duzen",
+       kw="kopyala şablon"),
+    _a("sablonlar.sablon_sil", "Şa&blonu sil", "trash-2", ctx="sablonlar", menu="duzen",
+       kw="kaldır şablon"),
+    _a("sablonlar.sablon_disa", "Şablonu dışa &aktar…", "download", ctx="sablonlar",
+       menu="dosya", kw="kaydet dosya yedek şablon"),
+    _a("sablonlar.sablon_ice", "Şa&blonu içe aktar…", "upload", ctx="sablonlar", menu="dosya",
+       kw="aç dosya şablon"),
     _a("sablonlar.okumalari_goster", "&Okumaları sayfada göster", "eye", ctx="sablonlar",
        menu="gorunum", checkable=True),
     _a("sablonlar.kaydir", "Kutuyu 0,25 mm kaydır", None, ("Left", "Up", "Right", "Down"),
@@ -298,14 +343,19 @@ SPECS: tuple[ActionSpec, ...] = (
        local=True, palette=False),
 
     # Değerler
-    _a("degerler.onayla", "Onayl&a ve sonrakine geç", "check", ("Return", "Enter"),
-       ctx="degerler", menu="duzen", tip="Öneriyi kabul et, incelendi işaretle ve geç",
-       kw="kabul öneri"),
+    _a("degerler.onayla", "Onayl&a", "check", ("Return", "Enter"),
+       ctx="degerler", menu="duzen",
+       tip="Onayla\nÖneriyi kabul et, incelendi işaretle ve sonrakine geç",
+       kw="kabul öneri sonraki geç"),
+    _a("degerler.okunanla_onayla", "Okunan&la onayla", "check",
+       ("Shift+Return", "Shift+Enter"), ctx="degerler", menu="duzen", kw="kabul okunan"),
     _a("degerler.secilenleri_onayla", "&Seçilenleri onayla", "check-check",
        ("Ctrl+Return", "Ctrl+Enter"), ctx="degerler", menu="duzen", kw="kabul toplu"),
     _a("degerler.elle_yaz", "&Elle yaz", "pencil", "F2", ctx="degerler", menu="duzen",
        kw="düzenle değiştir"),
-    _a("degerler.varyant", "Yeni &varyant çiz", "scan", "V", ctx="degerler", menu="duzen",
+    _a("degerler.okunana_don", "Okunana &dön", "undo-2", "R", ctx="degerler", menu="duzen",
+       kw="geri al düzeltme okunan"),
+    _a("degerler.varyant", "Yeni &bölüm çiz", "scan", "V", ctx="degerler", menu="duzen",
        kw="kutu"),
     _a("degerler.vazgec", "Va&zgeç", None, "Esc", ctx="degerler", menu="duzen",
        tip="Değişikliği bırak"),
@@ -314,25 +364,38 @@ SPECS: tuple[ActionSpec, ...] = (
     _a("degerler.tum_sayfa", "Tüm sayfayı &göster", "file-text", "Space", ctx="degerler",
        menu="gorunum", kw="önizleme"),
     _a("degerler.sonraki_kontrol", "Sonraki kon&trol", "triangle-alert", "N",
-       ctx="degerler", menu="git", kw="şüpheli uyarı"),
+       ctx="degerler", menu="git", kw="uyarı"),
     _a("degerler.onceki_kontrol", "Önceki k&ontrol", "triangle-alert", "Shift+N",
-       ctx="degerler", menu="git", kw="şüpheli uyarı"),
+       ctx="degerler", menu="git", kw="uyarı"),
     _a("degerler.tumunu_incele", "&Tümünü incele", "list-checks", ctx="degerler",
-       menu="araclar", checkable=True, tip="Emin olanlar dahil her değeri sırayla göster"),
+       menu="araclar", checkable=True,
+       tip="Tümünü incele\nEmin olanlar dahil her değeri sırayla göster"),
     _a("degerler.ornek_kontrol", "Örnek kont&rol", "shuffle", ctx="degerler", menu="araclar",
-       checkable=True, tip="Dışa aktarmadan önce rastgele 20 emin değere bak"),
+       checkable=True,
+       tip="Örnek kontrol\nDışa aktarmadan önce rastgele emin değerlere bak"),
     _a("degerler.oku", "Değerleri &oku", "scan-text", ctx="degerler", menu="araclar",
-       tip="Şablonu olan bütün belgeleri yeniden oku", kw="ocr okuma"),
+       tip="Değerleri oku\nŞablonu olan bütün belgeleri yeniden oku", kw="ocr okuma"),
+    _a("degerler.kontrolde_ac", "&Kontrol'de aç", "list-checks", "K", ctx="degerler",
+       menu="araclar"),
     _a("degerler.eksikleri_oku", "Yalnızca &eksikleri oku", "list-filter", ctx="degerler",
        menu="araclar", tip="Yalnızca eksikleri oku", kw="ocr okuma eksik"),
     _a("degerler.durdur", "Okumayı &durdur", "square", "Ctrl+.", ctx="degerler",
        menu="araclar", kw="iptal"),
+    _a("degerler.sutunlari_sifirla", "Sütun genişliklerini sıfı&rla", "rotate-ccw",
+       ctx="degerler", menu="gorunum", kw="sütun genişlik varsayılan"),
     _a("degerler.sonraki_deger", "Sonraki / önceki değer", None, ("Tab", "Shift+Tab"),
        ctx="degerler", local=True, palette=False),
+    _a("degerler.okuma_sec", "Okuma seç", None, ("Alt+1", "Alt+2", "Alt+3", "Alt+4"),
+       ctx="degerler", local=True, palette=False, tip="Açık düzenleyicide 1-4. okumayı al",
+       kw="okuma alternatif"),
 
     # Dışa Aktar
     _a("disa_aktar.durdur", "Dışa aktarmayı &durdur", "square", "Ctrl+.", ctx="disa_aktar",
        menu="araclar", kw="iptal"),
+    _a("disa_aktar.adlari_karsilastir", "&Adları karşılaştır", "table-2",
+       ctx="disa_aktar", menu="gorunum", checkable=True, kw="kaynak tarama eski ad"),
+    _a("disa_aktar.liste_kopyala", "Ad listesini ko&pyala", "copy", "Ctrl+Shift+C",
+       ctx="disa_aktar", menu="duzen", kw="pano excel liste"),
 
     # Rehber
     _a("rehber.aramayi_temizle", "Aramayı temizle", "x", "Esc", ctx="rehber", local=True,
@@ -341,32 +404,45 @@ SPECS: tuple[ActionSpec, ...] = (
 
 MENU_LAYOUT: dict[str, tuple[str | None, ...]] = {
     "dosya": ("app.yeni_is", "app.dosya_ekle", SEPARATOR, "app.kaydet", "app.disa_aktar",
-              "yukle.klasor_ekle", "disa_aktar.index_ac", "yukle.gezginde_goster",
+              "sablonlar.sablon_disa", "sablonlar.sablon_ice", "yukle.klasor_ekle",
+              "disa_aktar.index_ac", "yukle.gezginde_goster",
               "disa_aktar.gezginde_goster", SEPARATOR,
               "rehber.yazdir", "rehber.pdf_ac", "disa_aktar.yazdir", SEPARATOR, "app.isi_kapat",
               "app.cikis"),
     "duzen": ("app.geri_al", "app.yinele", SEPARATOR, "kontrol.tumunu_sec",
-              "kontrol.secimi_kaldir", "degerler.tumunu_sec", SEPARATOR,
+              "kontrol.secimi_kaldir", "kontrol.belgeyi_sec", "kontrol.sayfa_sec",
+              "degerler.tumunu_sec", SEPARATOR,
               "kontrol.onayla", "kontrol.kes", "kontrol.birlestir", "kontrol.saga_dondur",
               "kontrol.sola_dondur", "kontrol.sil",
-              "degerler.onayla", "degerler.secilenleri_onayla", "degerler.elle_yaz",
-              "degerler.varyant", "degerler.vazgec",
+              "degerler.onayla", "degerler.okunanla_onayla", "degerler.secilenleri_onayla",
+              "degerler.elle_yaz", "degerler.okunana_don", "degerler.varyant", "degerler.vazgec",
               "sablonlar.degisken_ekle", "sablonlar.yukari", "sablonlar.asagi",
-              "sablonlar.kutu_cogalt", "sablonlar.kutu_sil",
+              "sablonlar.kutu_cogalt", "sablonlar.kutu_sil", "sablonlar.sablon_adlandir",
+              "sablonlar.sablon_cogalt", "sablonlar.sablon_sil",
               "yukle.yeniden_adlandir", "yukle.yukari", "yukle.asagi", "yukle.cikar",
-              SEPARATOR, "app.bul", "app.sonraki_sonuc", "app.onceki_sonuc"),
+              "yukle.kontrolde_ac", "disa_aktar.liste_kopyala", SEPARATOR, "app.bul",
+              "app.sonraki_sonuc", "app.onceki_sonuc"),
     "gorunum": ("app.yakinlastir", "app.uzaklastir", "app.sigdir", SEPARATOR,
-                "kontrol.onizle", "degerler.tum_sayfa", "sablonlar.okumalari_goster",
-                SEPARATOR, "app.yan_panel", "app.yazi_buyut", "app.yazi_kucult",
-                "app.tam_ekran"),
+                "kontrol.onizle", "kontrol.farkli_isaretle", "degerler.tum_sayfa",
+                "degerler.sutunlari_sifirla",
+                "sablonlar.okumalari_goster", "disa_aktar.adlari_karsilastir", SEPARATOR,
+                "app.yan_panel", "app.yazi_buyut", "app.yazi_kucult", "app.tam_ekran",
+                "app.yenile"),
     "git": (*(f"app.sekme.{tab}" for tab in TABS), "app.sonraki_sekme", "app.onceki_sekme",
             SEPARATOR, "app.git", SEPARATOR,
             "kontrol.sonraki_kontrol", "kontrol.onceki_kontrol",
-            "kontrol.sonraki_incelenmemis", "kontrol.sonraki_belge", "kontrol.onceki_belge",
-            "degerler.sonraki_kontrol", "degerler.onceki_kontrol"),
-    "araclar": ("kontrol.filtre", "kontrol.sablon", "kontrol.degerlerde_ac",
+            "kontrol.sonraki_incelenmemis", "kontrol.sonraki_farkli", "kontrol.onceki_farkli",
+            "kontrol.sonraki_belge", "kontrol.onceki_belge",
+            "kontrol.git_secimsiz", "kontrol.git_secimsiz_sol",
+            "degerler.sonraki_kontrol", "degerler.onceki_kontrol",
+            "sablonlar.sonraki_zayif", "sablonlar.onceki_zayif", "sablonlar.zayif_ornekler"),
+    "araclar": ("kontrol.sec", "kontrol.filtre", "kontrol.kayitli_filtreler",
+                "kontrol.filtre_kaldir", "kontrol.sablon",
+                "kontrol.sablon_kaldir", "kontrol.bos_at", "kontrol.bos_geri_getir",
+                "kontrol.degerlerde_ac",
                 "sablonlar.kutu_ciz", "sablonlar.izgara", "sablonlar.dene",
-                "degerler.oku", "degerler.eksikleri_oku", "degerler.tumunu_incele",
+                "degerler.oku", "degerler.kontrolde_ac", "degerler.eksikleri_oku",
+                "degerler.tumunu_incele",
                 "degerler.ornek_kontrol", "degerler.durdur",
                 "yukle.iptal", "disa_aktar.durdur", SEPARATOR, "app.ayarlar"),
     "yardim": ("app.yardim", "app.kisayollar", "app.komut_ara", SEPARATOR, "app.hakkinda"),
@@ -525,10 +601,11 @@ def _validate_menus(specs: tuple[ActionSpec, ...]) -> list[str]:
             letters = []
             for item in filter(None, items):
                 letter = access_key(by_id[item].text) if item in by_id else None
-                if letter is None or not ("A" <= letter <= "Z") or letter == "I":
+                if letter is not None and (not ("A" <= letter <= "Z") or letter == "I"):
                     errors.append(f"{tab} {plain_text(title)}: {item} needs an ASCII access "
                                   "key other than I")
-                letters.append(letter)
+                if letter is not None:  # an item with no free letter has none
+                    letters.append(letter)
             for letter in {x for x in letters if letters.count(x) > 1}:
                 errors.append(f"{tab} {plain_text(title)}: access key {letter} repeats")
     for title in MENUS.values():
@@ -545,7 +622,15 @@ class Registry(QObject):
     An action is enabled when a handler is connected, the screen has not disabled it, and it
     belongs to "app" or the current tab. Tab actions of other tabs are also hidden, so their
     keys are free for the current tab.
+
+    A key that cannot act never stays silent (Q-09): `set_reason_source(fn)` gives the registry
+    `fn(action_id, tab) -> text or None`. While an action of the current tab is disabled and
+    `fn` has a reason for it, the menu item and the button stay greyed with that reason as their
+    tooltip, `disabled_reason()` returns it (the palette shows it), and pressing the action's key
+    (or choosing it in the palette) emits `refused(action_id, reason)` instead of doing nothing.
     """
+
+    refused = Signal(str, str)
 
     def __init__(self, window: QWidget, specs: tuple[ActionSpec, ...] = SPECS) -> None:
         super().__init__(window)
@@ -553,14 +638,22 @@ class Registry(QObject):
         self._actions: dict[str, QAction] = {}
         self._connected: set[str] = set()
         self._disabled: set[str] = set()
+        self._hidden: set[str] = set()
         self._routes: dict[str, dict[str, Callable[..., object]]] = {}
         self._tab_disabled: set[tuple[str, str]] = set()
         self._context = next(iter(TABS))
         self._typing = False
         self._on_button = False
         self._character_keys = True
+        self._reason_source: Callable[[str, str], str | None] | None = None
+        self._speakers: dict[str, list[QShortcut]] = {}
+        self._tip_before: dict[str, str] = {}   # tooltip an action had before a reason replaced it
+        self._tip_reason: dict[str, str] = {}   # the reason text now in the tooltip
         for s in specs:
-            action = QAction(plain_text(s.text) if not s.menu else s.text, window)
+            text = plain_text(s.text) if not s.menu else s.text
+            if s.local and s.menu and s.shortcuts:  # the menu names its unbound key
+                text += "\t" + key_text(s.shortcuts[0])
+            action = QAction(text, window)
             action.setObjectName(s.id)
             action.setToolTip(tooltip_for(s))
             action.setCheckable(s.checkable)
@@ -568,6 +661,8 @@ class Registry(QObject):
             action.setProperty("lucide", s.icon or "")
             window.addAction(action)
             self._actions[s.id] = action
+            action.changed.connect(partial(self._tip_changed, s.id))
+        self._window = window
         self._refresh()
 
     # Lookup
@@ -593,6 +688,12 @@ class Registry(QObject):
         (self._disabled.discard if enabled else self._disabled.add)(action_id)
         self._refresh(action_id)
 
+    def set_hidden(self, action_id: str, hidden: bool) -> None:
+        """Take an action out of its menu while it does not apply (e.g. only with a job option
+        on); its key, if any, is unbound with it."""
+        (self._hidden.add if hidden else self._hidden.discard)(action_id)
+        self._refresh(action_id)
+
     def connect_tab(self, action_id: str, tab: str, slot: Callable[..., object]) -> None:
         """Route an app-wide action (Ctrl+F, F3, Ctrl+G...) to `slot` only while `tab` is
         current. Each tab has at most one route; a tab without one leaves the action disabled,
@@ -612,6 +713,30 @@ class Registry(QObject):
         (self._tab_disabled.discard if enabled else self._tab_disabled.add)(key)
         if tab == self._context:
             self._refresh(action_id)
+
+    def set_reason_source(self, source: Callable[[str, str], str | None]) -> None:
+        """`source(action_id, tab)` is the reason a disabled action cannot act now, or None."""
+        self._reason_source = source
+        self._refresh()
+
+    def disabled_reason(self, action_id: str) -> str:
+        """Why the action cannot act now (empty when it can, or when it has no reason)."""
+        s = self._specs[action_id]
+        if (self._reason_source is None or not _active(s, self._context)
+                or self._actions[action_id].isEnabled()):
+            return ""
+        return self._reason_source(action_id, self._context) or ""
+
+    def refresh_reasons(self) -> None:
+        """Recompute the reason tooltips (state a reason reads may have changed)."""
+        self._refresh()
+
+    def refuse(self, action_id: str) -> bool:
+        """Say why a disabled action cannot act: emits `refused`. False when it has no reason."""
+        reason = self.disabled_reason(action_id)
+        if reason:
+            self.refused.emit(action_id, reason)
+        return bool(reason)
 
     def routes(self, action_id: str) -> tuple[str, ...]:
         """The tabs that answer a routed action."""
@@ -680,7 +805,7 @@ class Registry(QObject):
             s = self._specs[action_id]
             action = self._actions[action_id]
             active = _active(s, self._context)
-            action.setVisible(active)
+            action.setVisible(active and action_id not in self._hidden)
             action.setEnabled(active and self._usable(action_id, self._context))
             keys = [] if s.local else [key_sequence(k) for k in s.shortcuts]
             if self._typing and s.single_key:
@@ -690,14 +815,61 @@ class Registry(QObject):
             if not self._character_keys and s.single_key:
                 keys = [k for k in keys if not is_character_key(k)]
             action.setShortcuts(keys)
+            self._sync_reason(s, action, keys)
+
+    def _tip_changed(self, action_id: str) -> None:
+        """A screen set the tooltip of a greyed action (e.g. "Geri al: <adım>"): the reason
+        stays on top while the action cannot act, the new tooltip returns with it."""
+        reason = self._tip_reason.get(action_id)
+        action = self._actions[action_id]
+        if reason and action.toolTip() != reason and not action.isEnabled():
+            self._tip_before[action_id] = action.toolTip()
+            action.setToolTip(reason)
+
+    def _sync_reason(self, s: ActionSpec, action: QAction, keys: list[QKeySequence]) -> None:
+        """A disabled action with a reason: its tooltip is the reason and its keys go to a
+        speaker shortcut that says it; otherwise the tooltip is put back and the speaker off."""
+        reason = self.disabled_reason(s.id) if not action.isEnabled() else ""
+        current = action.toolTip()
+        if reason:
+            if current != reason:
+                if s.id not in self._tip_reason:
+                    self._tip_before[s.id] = current
+                self._tip_reason[s.id] = reason
+                action.setToolTip(reason)
+        elif s.id in self._tip_reason:
+            shown = self._tip_reason.pop(s.id)
+            if current == shown:
+                action.setToolTip(self._tip_before.get(s.id, tooltip_for(s)))
+            self._tip_before.pop(s.id, None)
+        speakers = self._speakers.get(s.id)
+        if speakers is None and reason:
+            speakers = self._speakers[s.id] = []
+            for key in s.shortcuts:
+                if s.local:
+                    continue
+                speaker = QShortcut(key_sequence(key), self._window, partial(self.refuse, s.id))
+                speaker.setContext(Qt.ShortcutContext.WindowShortcut)
+                speaker.setEnabled(False)
+                speakers.append(speaker)
+        for speaker in speakers or ():
+            speaker.setEnabled(bool(reason) and speaker.key() in keys)
 
     # Derived views with live state
     def palette_entries(self, tab: str | None = None) -> list[PaletteEntry]:
         """Every palette action of "app" and `tab` (default: the current tab)."""
         tab = tab or self._context
-        return [PaletteEntry(s.id, plain_text(s.text), [key_text(k) for k in s.shortcuts],
-                             self._usable(s.id, tab), search_text(s))
-                for s in self._specs.values() if s.palette and _active(s, tab)]
+        entries = []
+        for s in self._specs.values():
+            if not (s.palette and _active(s, tab)):
+                continue
+            live = plain_text(self._actions[s.id].text() or s.text)  # e.g. "Değişkeni sil"
+            keywords = search_text(s)
+            if live != plain_text(s.text):
+                keywords = f"{keywords} {fold(live)}"
+            entries.append(PaletteEntry(s.id, live, [key_text(k) for k in s.shortcuts],
+                                        self._usable(s.id, tab), keywords))
+        return entries
 
     def install_text_guard(self, app: QApplication | None = None) -> TextFocusGuard:
         """Follow keyboard focus so typing keys never fire while a text field has focus."""

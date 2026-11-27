@@ -7,9 +7,34 @@ A mixin of `SablonScreen`; every `_sync_*` reads the screen's state and changes 
 
 from __future__ import annotations
 
+import re
+
+from evrakci.pipeline.templates.read import flagged_count
+from evrakci.ui import actions
 from evrakci.ui import sablon_read as reading
 from evrakci.ui.sablon_canvas import fmt_mm
 from evrakci.ui.sablon_inspector import InspectorState
+
+_AT = {0: "da", 1: "de", 2: "de", 3: "te", 4: "te", 5: "te", 6: "da", 7: "de", 8: "de", 9: "da"}
+_AT_TENS = {1: "da", 2: "de", 3: "da", 4: "ta", 5: "de", 6: "ta", 7: "te", 8: "de", 9: "da"}
+
+
+def locative(number: int) -> str:
+    """The suffix after a number read aloud: 3'te, 6'da, 40'ta, 100'de."""
+    ones, tens = number % 10, number // 10 % 10
+    if ones:
+        return _AT[ones]
+    return _AT_TENS[tens] if tens else "de"
+
+
+def drawn_on(example: str | None) -> str:
+    """", Örnek 3'te çizildi" from the example a section was drawn on (F-sablonlar-41);
+    nothing when the stored name has no document number."""
+    found = re.search(r"Belge (\d+)", example or "")
+    if not found:
+        return ""
+    number = int(found.group(1))
+    return f", Örnek {number}'{locative(number)} çizildi"
 
 
 class Syncing:
@@ -85,8 +110,9 @@ class Syncing:
             shown = reading.shown_for(self.values.get(variable.key), index, self._minimum())
             state = InspectorState(
                 "box", f"Kutu {index + 1} / {len(variable.sections)}", variable.name,
-                f"Bölüm {index + 1}, {page}", variable.name, variable.required, section.page,
-                section.box_mm, sheet, read_title, shown if self.values else None, self._busy)
+                f"Bölüm {index + 1}, {page}{drawn_on(section.example)}", variable.name,
+                variable.required, section.page, section.box_mm, sheet, read_title,
+                shown if self.values else None, self._busy)
         self.side.show_state(state)
         extent = state.box if state.mode == "box" else None
         self.well.set_extent(extent)
@@ -99,7 +125,8 @@ class Syncing:
         page = has and self.canvas.has_page()
         has_variable = self.current_variable() is not None
         has_box = has_variable and self.section_index is not None
-        busy = self._all_task is not None
+        loading = getattr(self.window(), "loading", lambda: False)()  # a job loads
+        waiting = self._all_task is not None or loading
         variable_count = len(self.template.variables) if has else 0
         up = down = False
         variable = self.current_variable()
@@ -111,16 +138,43 @@ class Syncing:
                 up, down = place > 0, place < variable_count - 1
         states = {
             "sablonlar.kutu_ciz": page, "sablonlar.izgara": page,
-            "sablonlar.dene": page and not busy,
+            "sablonlar.dene": page and not waiting,
             "sablonlar.kutu_sil": has_variable, "sablonlar.kutu_cogalt": has_box and page,
             "sablonlar.degisken_ekle": has, "sablonlar.yukari": up, "sablonlar.asagi": down,
             "sablonlar.okumalari_goster": page,
+            "sablonlar.sablon_adlandir": has, "sablonlar.sablon_cogalt": has,
+            "sablonlar.sablon_sil": has, "sablonlar.sablon_disa": has,
+            "sablonlar.sablon_ice": True,
         }
         for action_id, enabled in states.items():
             registry.set_enabled(action_id, enabled)
+        self._sync_weak_actions(registry, page and not waiting)
+        # Del removes what is chosen: the item says "Değişkeni sil" while only a variable is.
+        delete = registry.action("sablonlar.kutu_sil")
+        spec = registry.spec("sablonlar.kutu_sil")
+        if has_variable and not has_box:
+            delete.setText("Değişkeni &sil")
+            delete.setToolTip(f"Değişkeni sil (geri alınabilir) ({actions.key_text('Del')})")
+        else:
+            delete.setText(spec.text)
+            delete.setToolTip(actions.tooltip_for(spec))
+        # Alt+Up/Down move the chosen section in the try order when a variable has several
+        # boxes, else the variable in the list: the items say which (M-38).
+        section = (has_box and variable is not None and len(variable.sections) > 1)
+        for action_id, word, label in (("sablonlar.yukari", "yukarı", "Bölümü yuka&rı taşı"),
+                                       ("sablonlar.asagi", "aşağı", "Bölümü &aşağı taşı")):
+            move = registry.action(action_id)
+            spec = registry.spec(action_id)
+            if section:
+                move.setText(label)
+                move.setToolTip(f"Bölümü {word} taşı ({actions.key_text(spec.shortcuts[0])})")
+            else:
+                move.setText(spec.text)
+                move.setToolTip(actions.tooltip_for(spec))
         # Only this tab's route: MainWindow and the other tabs own Ctrl+S elsewhere.
         registry.set_enabled_for("app.kaydet", "sablonlar", has)
         self.side.save.setEnabled(has)
+        registry.refresh_reasons()  # a try-all started or ended: the reasons read it
 
     def _sync_status(self) -> None:
         if not self._status:
@@ -129,6 +183,8 @@ class Syncing:
         total = len(self._documents())
         has = self.template is not None
         page = has and self.canvas.has_page()
+        s["draw"].setVisible(self._drawing and page)  # the mode must not be missed (Ş-2)
+        s["draw"].set("", "Kutu çiz açık", ": sayfada sürükleyin, Esc ile çıkın.")
         s["example"].setVisible(page)
         s["example"].set("Örnek ", str(self.example), f" / {total}")
         focused = self.canvas.hasFocus() and self.canvas.selected_item() is not None
@@ -152,7 +208,7 @@ class Syncing:
             saved.set("Şablon kaydedilemedi")
         elif self._dirty:
             saved.set_icon("circle-dashed", "icon")
-            saved.set("Şablon kaydedilmedi")
+            saved.set("Şablon henüz kaydedilmedi")
         else:
             saved.set_icon("circle-check", "ok")
             stamp = f" {self._saved_at:%H:%M}" if self._saved_at else ""
@@ -160,8 +216,8 @@ class Syncing:
         check = s["check"]
         if self._all_task is not None:
             return
-        flagged = sum(reading.flagged_count(v) for v in self.example_values.values()) \
-            if len(self.example_values) > 1 else reading.flagged_count(self.values)
+        flagged = sum(flagged_count(v) for v in self.example_values.values()) \
+            if len(self.example_values) > 1 else flagged_count(self.values)
         check.set_icon("triangle-alert", "rider-edge")
         check.setVisible(bool(flagged) and page)
         check.set(str(flagged), " okuma kontrol bekliyor")

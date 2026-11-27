@@ -97,3 +97,17 @@ def test_bom_accepted(tmp_path):
     store.export(t.id, path)
     path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
     assert store.import_file(path).name == "Örnek (2)"
+
+
+def test_saved_filters_survive_save_load_export_and_import(tmp_path):
+    store = TemplateStore(tmp_path / "s")
+    t = store.create("Filtreli")
+    t.add_saved_filter("Boş sayfalar", "bos", {"ink": 0.005})
+    t.add_saved_filter("Tanınmayan", "gelecek", {"a": [1, 2]})
+    store.save(t)
+    assert store.load(t.id).saved_filters == t.saved_filters
+    path = tmp_path / "filtreli.json"
+    store.export(t.id, path)
+    assert "Boş sayfalar" in path.read_bytes().decode("utf-8")
+    imported = TemplateStore(tmp_path / "baska").import_file(path)
+    assert imported.saved_filters == t.saved_filters

@@ -6,9 +6,9 @@ import threading
 
 import pytest
 from fakes import make_pdf, qr_page, text_page
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QShortcut
-from PySide6.QtWidgets import QAbstractButton, QCheckBox, QLineEdit
+from PySide6.QtWidgets import QAbstractButton, QApplication, QCheckBox, QLabel, QLineEdit
 
 from evrakci.pipeline.cuts import record_values
 from evrakci.pipeline.store import JobStore
@@ -71,7 +71,8 @@ def _window(qtbot, tmp_path):
                         prefs=Prefs(tmp_path / "p.ini"))
     qtbot.addWidget(window)
     window.show()
-    window.yukle.open_job(store.load(ctl.job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(ctl.job.id))
     window.show_tab("disa_aktar")
     return window, window.disa_aktar
 
@@ -137,7 +138,7 @@ def test_main_state_grades_the_findings_and_lists_flagged_files_first(qtbot, tmp
     assert levels[0] == "tamam" and "kontrol" in levels and "eksik" in levels
     model = screen.results.model()
     first = model.row_at(0)
-    assert first.state == "kontrol" and first.name.startswith("belge_002")
+    assert first.state == "kontrol" and first.name == "Kontrol gerekenler/belge_002.pdf"
     assert model.data(model.index(0, 0)).startswith("Kontrol")
     assert screen.export_button.isEnabled()
     assert screen.filter_button.trail() == "1"
@@ -213,7 +214,8 @@ def test_the_pattern_edit_is_one_undoable_change_and_drives_the_names(qtbot, tmp
     assert ctl.undo_stack.undoText() == "Dosya adı kalıbı"
     names = [screen.results.model().row_at(i).name for i in range(3)]
     # the second document keeps its numbered name: its required Sicil no needs a check
-    assert sorted(names) == ["Ege Kalıp (2).pdf", "Ege Kalıp.pdf", "belge_002.pdf"]
+    assert sorted(names) == ["Ege Kalıp (2).pdf", "Ege Kalıp.pdf",
+                             "Kontrol gerekenler/belge_002.pdf"]
     ctl.undo()
     assert screen.pattern.text() == "{Sicil no}_{Firma}"
     assert screen.pattern_text() == "{Sicil no}_{Firma}"
@@ -230,8 +232,8 @@ def test_the_changed_pattern_is_what_is_written(qtbot, tmp_path):
     screen.side.pattern_committed.emit("{Firma}")
     with qtbot.waitSignal(screen.finished, timeout=30000):
         screen.export_button.click()
-    assert {p.name for p in out.glob("*.pdf")} == {"Ege Kalıp.pdf", "belge_002.pdf",
-                                                    "Ege Kalıp (2).pdf"}
+    assert {p.relative_to(out).as_posix() for p in out.rglob("*.pdf")} == {
+        "Ege Kalıp.pdf", "Kontrol gerekenler/belge_002.pdf", "Ege Kalıp (2).pdf"}
 
 
 def test_a_name_clash_is_a_bilgi_with_the_suffix_marked(qtbot, tmp_path):
@@ -393,6 +395,8 @@ def test_copy_names_and_the_printable_index(qtbot, tmp_path):
     assert QGuiApplication.clipboard().text() == screen.results.model().row_at(0).name
     html = screen.index_html()
     assert "Kasım 2026" in html and "belge_002.pdf" in html and "Kontrol" in html
+    assert "<th align='left'>No</th>" in html
+    assert "<td align='right'>2</td><td>Kontrol gerekenler/belge_002.pdf</td>" in html
     printer = QPrinter()
     printer.setOutputFileName(str(tmp_path / "dizin.pdf"))
     screen.print_index(printer)
@@ -462,12 +466,13 @@ def test_command_bar_status_and_panel_button(qtbot, tmp_path):
     window, screen = _window(qtbot, tmp_path)
     screen.folder.setText(str(tmp_path / "out"))
     bar = window.command_bar("disa_aktar")
-    tips = [b.toolTip() for b in bar.buttons()]
-    assert "index.xlsx'i aç" in tips  # A's sheet button sits before "Dosya Gezgini'nde göster"
-    assert tips.index("index.xlsx'i aç") < next(i for i, t in enumerate(tips)
-                                                if t.startswith("Dosya Gezgini'nde göster"))
-    sheet = next(b for b in bar.buttons() if b.toolTip() == "index.xlsx'i aç")
+    sheet = bar.button_for("disa_aktar.index_ac")  # A's sheet button sits before "Dosya Gezgini"
+    show = bar.button_for("disa_aktar.gezginde_goster")
+    assert bar.buttons().index(sheet) < bar.buttons().index(show)
     assert not sheet.isEnabled()
+    # greyed (nothing written, no folder yet): the buttons' tooltips are the reasons (Q-09)
+    assert sheet.toolTip() == "Henüz yazılmış bir dizin dosyası yok."
+    assert show.toolTip() == "Gösterilecek bir klasör yok."
     status = screen.status_items["state"]
     assert "yazılabilir" in status.label.text()
     assert window.inspector("disa_aktar") is screen.side
@@ -533,7 +538,8 @@ def test_the_default_export_folder_of_ayarlar_is_offered(qtbot, tmp_path):
     window = MainWindow(store, templates, settings_path=tmp_path / "ayar.json", prefs=prefs)
     qtbot.addWidget(window)
     window.show()
-    window.yukle.open_job(store.load(ctl.job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(ctl.job.id))
     window.show_tab("disa_aktar")
     assert window.disa_aktar.folder.text() == str(tmp_path / "varsayilan")
     window.disa_aktar.folder.setText(str(tmp_path / "ben"))
@@ -588,3 +594,712 @@ def test_no_part_of_the_screen_flashes_up_as_its_own_window(qtbot, tmp_path):
     shown = [w for w in QApplication.topLevelWidgets()
              if isinstance(w, QWidget) and w.isVisible() and w is not window]
     assert shown == []
+
+
+def test_the_export_time_reaches_the_job_file_and_matches_the_index(qtbot, tmp_path):
+    from datetime import datetime
+
+    import openpyxl
+    from saving import wait_saved
+
+    screen, ctl, _t = _screen(qtbot, tmp_path)
+    store = ctl.store
+    out = tmp_path / "out"
+    screen.folder.setText(str(out))
+    screen.layer.setChecked(False)
+    depth = ctl.undo_stack.count()
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    wait_saved(ctl)
+    saved = store.load(ctl.job.id).last_export
+    assert saved is not None and saved == ctl.job.last_export
+    assert ctl.undo_stack.count() == depth  # not an edit the user undoes
+    summary = {r[0].value: r[1].value
+               for r in openpyxl.load_workbook(out / "index.xlsx")["Özet"].iter_rows()}
+    assert summary["Dışa aktarma zamanı"] == datetime.fromisoformat(saved.at).strftime(
+        "%d.%m.%Y %H:%M")
+
+
+def test_a_job_deleted_after_export_is_not_written_back(qtbot, tmp_path, monkeypatch):
+
+    from test_p4_disa_rehber import _full_export_window
+
+    window, screen, job = _full_export_window(qtbot, tmp_path, monkeypatch)
+    folder = window.store._job_dir(job.id)
+    screen.layer.setChecked(False)
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    assert window.controller() is None and not folder.exists()
+
+
+def test_list_kontrol_count_equals_the_check_sheet_rows(qtbot, tmp_path, monkeypatch):
+    import openpyxl
+
+    monkeypatch.setattr(module, "open_path", lambda path: None)
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    out = tmp_path / "out"
+    screen.folder.setText(str(out))
+    screen.layer.setChecked(False)
+    model = screen.results.model()
+    in_list = [model.row_at(i).name for i in range(model.rowCount())
+               if model.row_at(i).state == "kontrol"]
+    assert in_list
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    sheet = openpyxl.load_workbook(out / "index.xlsx")["Kontrol gerekenler"]
+    rows = [r[1].value for r in sheet.iter_rows(min_row=2)]
+    assert len(rows) == len(in_list)
+    assert [n.removesuffix(".pdf") for n in rows] == [n.removesuffix(".pdf") for n in in_list]
+
+
+# -- I-39: the name list with its Kaynak column, the filter, the copy --------------------
+def _clash_screen(qtbot, tmp_path):
+    from saving import wait_saved
+
+    """The three documents with the pattern {Firma}: two share a name ("Ege Kalıp (2)")."""
+    store, templates, ctl, template = _job(tmp_path)
+    template.set_pattern("{Firma}")
+    templates.save(template)
+    wait_saved(ctl)  # the write-behind saver must not write an older snapshot over this save
+    store.save(ctl.job)
+    screen = DisaAktarScreen(lambda: ctl, lambda: {t.id: t for t in templates.list()},
+                             settings_path=tmp_path / "ayar.json")
+    qtbot.addWidget(screen)
+    screen.resize(1100, 700)
+    return screen, ctl
+
+
+def test_the_kaynak_column_is_off_until_adlari_karsilastir(qtbot, tmp_path):
+    window, screen = _window(qtbot, tmp_path)
+    action = window.registry.action("disa_aktar.adlari_karsilastir")
+    assert screen.model.headerData(1, Qt.Orientation.Horizontal) == "Kaynak"
+    assert screen.results.isColumnHidden(1) and not action.isChecked()
+    action.trigger()
+    assert not screen.results.isColumnHidden(1) and action.isChecked()
+    assert screen.model.row_at(0).source == "t.pdf"
+    action.trigger()
+    assert screen.results.isColumnHidden(1)
+
+
+def test_adi_degisenler_shows_exactly_the_rows_with_a_note(qtbot, tmp_path):
+    screen, _ctl = _clash_screen(qtbot, tmp_path)
+    assert screen.changed_button.text() == "Adı değişenler"
+    assert screen.changed_button.trail() == "1"
+    screen.changed_button.setChecked(True)
+    model = screen.results.model()
+    assert [model.row_at(i).note for i in range(model.rowCount())] == [
+        "Ad çakışması, (2) eklendi"]
+    screen.changed_button.setChecked(False)
+    assert model.rowCount() == 3
+
+
+def test_ctrl_shift_c_copies_the_whole_list_with_a_header(qtbot, tmp_path):
+    from PySide6.QtGui import QGuiApplication
+
+    window, screen = _window(qtbot, tmp_path)
+    QGuiApplication.clipboard().setText("")
+    window.registry.action("disa_aktar.liste_kopyala").trigger()
+    lines = QGuiApplication.clipboard().text().split("\n")
+    assert lines[0] == "Kaynak\tYazılacak dosya adı\tNot" and len(lines) == 4
+    assert all(line.split("\t")[0] == "t.pdf" for line in lines[1:])
+    assert window.toaster.current_text() == "Ad listesi panoya kopyalandı"
+    assert window.registry.spec("disa_aktar.liste_kopyala").shortcuts == ("Ctrl+Shift+C",)
+
+
+def test_the_list_equals_onizle_and_the_files_written(qtbot, tmp_path, capsys, monkeypatch):
+    from evrakci.cli import main
+
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(tmp_path / "ayar.json"))
+
+    screen, ctl = _clash_screen(qtbot, tmp_path)
+    out = tmp_path / "out"
+    screen.folder.setText(str(out))
+    screen.layer.setChecked(False)
+    code = main(["--kok", str(tmp_path / "jobs"), "--sablon-kok", str(tmp_path / "tpl"),
+                 "is", "disa-aktar", ctl.job.id, "--cikti", str(out), "--onizle"])
+    assert code == 0 and not out.exists()  # nothing is written
+    shown = capsys.readouterr().out.rstrip("\n").split("\n")
+    assert shown == screen.list_text().split("\n")
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    written = {line.split("\t")[1] for line in shown[1:]}
+    assert written == {p.relative_to(out).as_posix() for p in out.rglob("*.pdf")}
+
+
+def test_typing_a_folder_plans_once_after_a_pause(qtbot, tmp_path, monkeypatch):
+    screen, ctl, _ = _screen(qtbot, tmp_path)
+    screen.show()
+    calls = []
+    original = screen._plan
+    monkeypatch.setattr(screen, "_plan", lambda c: (calls.append(1), original(c))[1])
+    qtbot.keyClicks(screen.folder, str(tmp_path / "out"))
+    assert calls == []  # keystrokes alone do not plan on the window thread
+    qtbot.waitUntil(lambda: bool(calls), timeout=3000)
+    qtbot.wait(450)
+    assert len(calls) == 1
+    screen.folder.setText(str(tmp_path / "other"))  # a programmatic change plans at once
+    assert len(calls) == 2
+
+
+def test_kaynak_gives_way_first_and_sayfalar_stays_in_view_at_150(qtbot, tmp_path):
+    from evrakci.ui import theme
+    from evrakci.ui.disa_aktar_table import FilesModel
+
+    manager = theme.manager()
+    old = manager.text_scale()
+    manager.set_text_scale(150)
+    try:
+        screen, ctl, _ = _screen(qtbot, tmp_path)
+        screen.resize(1366, 768)
+        screen.show()
+        screen.set_compare_names(True)
+        qtbot.wait(50)
+        table = screen.results
+        header = table.horizontalHeader()
+        pages = FilesModel.PAGES
+        total = sum(header.sectionSize(c) for c in range(FilesModel.COLUMNS)
+                    if not header.isSectionHidden(c))
+        assert not header.isSectionHidden(pages)
+        assert total <= table.viewport().width() + 1  # no sideways scroll: Sayfalar is whole
+        assert header.sectionSize(1) <= header.sectionSize(0)  # Kaynak narrows before Durum
+    finally:
+        manager.set_text_scale(old)
+
+
+# -- I-38: print preview, repeated header row, footer -------------------------------------
+def _pdf_pages(path):
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(str(path))
+    try:
+        return [pdf[i].get_textpage().get_text_range() for i in range(len(pdf))]
+    finally:
+        pdf.close()
+
+
+def _rows60():
+    return [("Kontrol" if n % 7 == 0 else "Bekliyor", n, f"belge_{n:03d}.pdf", "2", "Rapor", "")
+            for n in range(1, 61)]
+
+
+def test_printed_list_repeats_header_and_footer_on_every_page(qtbot, tmp_path):
+    from PySide6.QtPrintSupport import QPrinter
+
+    from evrakci.ui import disa_aktar_print as view
+
+    html = view.index_html("Örnek iş", _rows60(), 60, 120, view.PLAN_SUBTITLE)
+    assert "<thead>" in html and view.PLAN_SUBTITLE in html
+    out = tmp_path / "altmis.pdf"
+    printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+    printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+    printer.setOutputFileName(str(out))
+    count = view.paint_document(printer, view.make_document(html), "Örnek iş", "20.11.2026 14:32")
+    assert count >= 2
+    pages = _pdf_pages(out)
+    assert len(pages) == count
+    for n, text in enumerate(pages, start=1):
+        for word in ("Durum", "No", "Dosya adı", "Sayfalar", "Şablon", "Not"):
+            assert word in text, (n, word)
+        assert f"Sayfa {n} / {count}" in text
+        assert "Örnek iş" in text and "20.11.2026 14" in text  # the test font maps ":" oddly
+    assert "belge_060.pdf" in pages[-1]
+
+
+def test_subtitle_says_plan_or_record():
+    from evrakci.pipeline.job import LastExport
+    from evrakci.ui import disa_aktar_print as view
+
+    assert view.subtitle(None) == "Dışa aktarma planı, henüz yazılmadı"
+    last = LastExport("2026-11-20T14:32", "/x", 3, 0)
+    assert view.subtitle(last) == "Dışa aktarıldı: 20.11.2026 14:32"
+
+
+def test_subtitle_says_plan_when_the_job_changed_after_the_export():
+    from evrakci.pipeline.job import LastExport
+    from evrakci.ui import disa_aktar_print as view
+
+    last = LastExport("2026-11-20T14:32", "/x", 3, 0, "aaaa")
+    assert view.subtitle(last, "aaaa") == "Dışa aktarıldı: 20.11.2026 14:32"
+    assert view.subtitle(last, "bbbb") == "Dışa aktarma planı, henüz yazılmadı"  # Q-27
+    old = LastExport("2026-11-20T14:32", "/x", 3, 0)  # a job file from before the state
+    assert view.subtitle(old, "bbbb") == "Dışa aktarıldı: 20.11.2026 14:32"
+
+
+def test_the_printed_subtitle_follows_edits_after_the_export(qtbot, tmp_path):
+    from evrakci.pipeline.job import LastExport, job_state
+
+    screen, ctl, _t = _screen(qtbot, tmp_path)
+    ctl.job.last_export = LastExport("2026-11-20T14:32", "/x", 3, 0, job_state(ctl.job))
+    assert screen._index_args()[-1] == "Dışa aktarıldı: 20.11.2026 14:32"
+    ctl.job.drop_empty = not ctl.job.drop_empty  # any edit after the export
+    assert screen._index_args()[-1] == "Dışa aktarma planı, henüz yazılmadı"
+
+
+def test_ctrl_p_opens_the_preview_enter_prints_escape_closes(qtbot, tmp_path, monkeypatch):
+    import PySide6.QtPrintSupport as qt_print
+    from PySide6.QtTest import QTest
+    from PySide6.QtWidgets import QDialog
+
+    window, screen = _window(qtbot, tmp_path)
+    out = tmp_path / "yazdir.pdf"
+
+    class Fake:
+        def __init__(self, printer, parent=None):
+            printer.setOutputFormat(qt_print.QPrinter.OutputFormat.PdfFormat)
+            printer.setOutputFileName(str(out))
+
+        def setWindowTitle(self, _title):  # noqa: N802
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(qt_print, "QPrintDialog", Fake)
+    screen.results.setFocus()
+    QTest.keyClick(window, Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier)
+    qtbot.waitUntil(lambda: screen._preview is not None, timeout=10000)
+    dialog = screen._preview
+    assert dialog.windowTitle() == "Baskı önizleme" and dialog.isVisible()
+    buttons = dialog.findChildren(QAbstractButton)
+    texts = {b.text() or b.accessibleName() for b in buttons}
+    assert {"Yazdır…", "Kapat", "Sığdır", "Önceki sayfa", "Sonraki sayfa"} <= texts
+    assert all(b.accessibleName() or b.text() for b in buttons)
+    assert dialog.page_label.text() == "Sayfa 1 / 1"
+    QTest.keyClick(dialog, Qt.Key.Key_Return)
+    assert out.is_file() and "Sayfa 1 / 1" in _pdf_pages(out)[0]
+    QTest.keyClick(dialog, Qt.Key.Key_Escape)
+    qtbot.waitUntil(lambda: screen._preview is None)
+    assert window.focusWidget() is screen.results
+
+
+def test_preview_pages_and_zoom_keys_have_buttons(qtbot):
+    from PySide6.QtTest import QTest
+
+    from evrakci.ui import disa_aktar_print as view
+
+    dialog = view.PrintPreviewDialog(
+        view.index_html("İş", _rows60(), 60, 120, view.PLAN_SUBTITLE), "İş")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.activateWindow()
+    qtbot.waitUntil(lambda: dialog.isActiveWindow() and dialog.page_count() >= 2)
+    assert dialog.page_label.text() == f"Sayfa 1 / {dialog.page_count()}"
+    assert not dialog.previous.isEnabled() and dialog.next.isEnabled()
+    QTest.keyClick(dialog, Qt.Key.Key_PageDown)
+    assert dialog.current_page() == 2 and dialog.previous.isEnabled()
+    dialog.previous.click()
+    assert dialog.current_page() == 1
+    dialog.next.click()
+    QTest.keyClick(dialog, Qt.Key.Key_PageUp)
+    assert dialog.current_page() == 1
+    dialog.fit_page()
+    before = dialog.preview.zoomFactor()
+    QTest.keyClick(dialog, Qt.Key.Key_Plus, Qt.KeyboardModifier.ControlModifier)
+    assert dialog.preview.zoomFactor() > before
+    QTest.keyClick(dialog, Qt.Key.Key_Minus, Qt.KeyboardModifier.ControlModifier)
+    assert dialog.preview.zoomFactor() == pytest.approx(before)
+    dialog.zoom_bigger()
+    QTest.keyClick(dialog, Qt.Key.Key_0, Qt.KeyboardModifier.ControlModifier)
+    assert dialog.preview.zoomFactor() == pytest.approx(before)
+    dialog.close_button.click()
+    assert not dialog.isVisible()
+
+
+def _open_preview(qtbot, window, screen):
+    from PySide6.QtTest import QTest
+
+    window.activateWindow()
+    qtbot.waitUntil(window.isActiveWindow)
+    screen.results.setFocus()
+    QTest.keyClick(window, Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier)
+    qtbot.waitUntil(lambda: screen._preview is not None, timeout=10000)
+    return screen._preview
+
+
+def test_preview_dialog_is_freed_when_closed(qtbot, tmp_path):
+    import gc
+    import weakref
+
+    from PySide6.QtWidgets import QDialog
+
+    window, screen = _window(qtbot, tmp_path)
+    before = len(screen.findChildren(QDialog))
+    for _ in range(3):
+        dialog = _open_preview(qtbot, window, screen)
+        ref = weakref.ref(dialog._document)
+        dialog.close_button.click()
+        qtbot.waitUntil(lambda: screen._preview is None)
+        del dialog
+        QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete.value)
+        gc.collect()
+        assert ref() is None
+    assert len(screen.findChildren(QDialog)) == before
+
+
+def test_loading_card_is_painted_before_the_preview_is_built(qtbot, tmp_path, monkeypatch):
+    from evrakci.ui import disa_aktar_print as view
+
+    window, screen = _window(qtbot, tmp_path)
+    card = window.loading_card
+    seen = {"paints": 0}
+
+    class Count(QObject):
+        def eventFilter(self, _obj, event):  # noqa: N802
+            if event.type() == QEvent.Type.Paint:
+                seen["paints"] += 1
+            return False
+
+    counter = Count(card)
+    card.installEventFilter(counter)
+    real = view.PrintPreviewDialog.__init__
+    state = {}
+
+    def spy(self, *args, **kwargs):
+        state.update(visible=card.isVisible(), title=card.title.text(), paints=seen["paints"])
+        real(self, *args, **kwargs)
+
+    monkeypatch.setattr(view.PrintPreviewDialog, "__init__", spy)
+    dialog = _open_preview(qtbot, window, screen)
+    assert state["visible"] and state["title"] == "Önizleme hazırlanıyor…"
+    assert state["paints"] > 0
+    qtbot.waitUntil(lambda: not card.isVisible())
+    dialog.close_button.click()
+
+
+def test_a_failed_preview_build_is_said(qtbot, tmp_path, monkeypatch):
+    from PySide6.QtTest import QTest
+
+    from evrakci.ui import disa_aktar_print as view
+
+    window, screen = _window(qtbot, tmp_path)
+    said = []
+    monkeypatch.setattr(window.toaster, "show", lambda text, *a, **k: said.append(text))
+
+    def boom(*_args):
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(view, "index_html", boom)
+    screen.results.setFocus()
+    QTest.keyClick(window, Qt.Key.Key_P, Qt.KeyboardModifier.ControlModifier)
+    qtbot.waitUntil(lambda: bool(said), timeout=10000)
+    assert said == ["Baskı önizleme hazırlanamadı."] and screen._preview is None  # Q-26
+
+
+def test_enter_presses_the_focused_button_else_prints(qtbot, tmp_path, monkeypatch):
+    from PySide6.QtTest import QTest
+
+    window, screen = _window(qtbot, tmp_path)
+    dialog = _open_preview(qtbot, window, screen)
+    printed = []
+    monkeypatch.setattr(dialog, "print_now", lambda: printed.append(1) or True)
+    dialog.print_button.clicked.disconnect()
+    dialog.print_button.clicked.connect(dialog.print_now)
+    dialog.close_button.setFocus()
+    QTest.keyClick(dialog, Qt.Key.Key_Return)
+    qtbot.waitUntil(lambda: screen._preview is None)
+    assert not printed
+    dialog = _open_preview(qtbot, window, screen)
+    monkeypatch.setattr(dialog, "print_now", lambda: printed.append(1) or True)
+    dialog.print_button.clicked.disconnect()
+    dialog.print_button.clicked.connect(dialog.print_now)
+    dialog.preview.setFocus()
+    QTest.keyClick(dialog, Qt.Key.Key_Return)
+    assert printed == [1]
+    dialog.close_button.click()
+
+
+def test_preview_page_and_zoom_tooltips_carry_their_keys(qtbot):
+    from evrakci.ui import disa_aktar_print as view
+
+    dialog = view.PrintPreviewDialog(view.index_html("İş", [], 0, 0, view.PLAN_SUBTITLE), "İş")
+    qtbot.addWidget(dialog)
+    for button in (dialog.previous, dialog.next, dialog.zoom_in, dialog.zoom_out):
+        assert button.toolTip().startswith(button.accessibleName() + " (")
+        assert button.toolTip().endswith(")")
+
+
+def test_a_failed_text_layer_still_records_the_export_time(qtbot, tmp_path, monkeypatch):
+    from evrakci.pipeline.job import LastExport
+
+    def broken(job, *_a, **_k):
+        job.last_export = LastExport("2026-01-02T03:04", str(tmp_path / "out"), 2, 0)
+        raise module.ExportError("Tüm belgeler yazıldı; metin katmanı eklenenler: yok.")
+
+    monkeypatch.setattr(module, "export_job", broken)
+    screen, ctl, _t = _screen(qtbot, tmp_path)
+    screen.folder.setText(str(tmp_path / "out"))
+    screen.layer.setChecked(False)
+    with qtbot.waitSignal(screen.finished, timeout=30000):
+        screen.export_button.click()
+    assert ctl.job.last_export is not None and ctl.job.last_export.at == "2026-01-02T03:04"
+
+
+def test_a_folder_change_that_is_not_typed_syncs_once(qtbot, tmp_path, monkeypatch):
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    screen.show()
+    assert screen._typing is False
+    calls = []
+    original = screen._sync
+    monkeypatch.setattr(screen, "_sync", lambda *a, **k: (calls.append(1), original(*a, **k))[1])
+    screen.folder.setText(str(tmp_path / "out2"))
+    assert len(calls) == 1
+
+
+def test_the_copied_list_is_in_document_order(qtbot, tmp_path):
+    screen, _ctl = _clash_screen(qtbot, tmp_path)
+    rows = screen.model.all_rows()
+    rows[0], rows[-1] = rows[-1], rows[0]  # a list order other than the document order
+    monkey_rows = list(rows)
+    screen.model.all_rows = lambda: monkey_rows
+    names = [line.split("\t")[1] for line in screen.list_text().split("\n")[1:]]
+    assert names == [r.name for r in sorted(monkey_rows, key=lambda r: r.number)]
+
+
+# -- "Kontrol gerekenler" subfolder and the delete warning (Q4) ---------------------------
+def _core_export(tmp_path, out, **kw):
+    from evrakci.pipeline.exporting import export_job
+
+    store, templates, ctl, _template = _job(tmp_path)
+    tpl = {t.id: t for t in templates.list()}
+    return ctl, export_job(ctl.job, store.batch_files(ctl.job), tpl, out, with_layer=False, **kw)
+
+
+def test_core_writes_the_documents_to_check_into_the_subfolder_by_default(tmp_path):
+    import openpyxl
+
+    out = tmp_path / "out"
+    _ctl, result = _core_export(tmp_path, out)
+    assert [i.relative for i in result.items] == [
+        "48190_Ege Kalıp.pdf", "Kontrol gerekenler/belge_002.pdf", "48192_Ege Kalıp.pdf"]
+    assert sorted(p.relative_to(out).as_posix() for p in out.rglob("*.pdf")) == sorted(
+        i.relative for i in result.items)
+    book = openpyxl.load_workbook(out / "index.xlsx")
+    assert [r[1].value for r in book["Belgeler"].iter_rows(min_row=2)] == [
+        i.relative for i in result.items]
+    assert book["Kontrol gerekenler"]["B2"].value == "Kontrol gerekenler/belge_002.pdf"
+
+
+def test_core_can_leave_everything_in_one_folder(tmp_path):
+    out = tmp_path / "out"
+    _ctl, result = _core_export(tmp_path, out, check_subfolder=False)
+    assert all(i.folder == "" for i in result.items)
+    assert sorted(p.name for p in out.glob("*.pdf")) == [
+        "48190_Ege Kalıp.pdf", "48192_Ege Kalıp.pdf", "belge_002.pdf"]
+    assert not (out / "Kontrol gerekenler").exists()
+
+
+def test_clashes_are_checked_per_folder_and_the_path_limit_counts_the_subfolder(tmp_path):
+    from evrakci.pipeline.exporting import plan_names
+    from evrakci.pipeline.naming import PATH_LIMIT
+
+    store, templates, ctl, template = _job(tmp_path)
+    template.set_pattern("{Firma}")
+    templates.save(template)
+    tpl = {t.id: t for t in templates.list()}
+    items = plan_names(ctl.job, tpl, tmp_path / "o")
+    # the flagged document is in the subfolder, so it has no clash with the other two
+    assert [(i.folder, i.name) for i in items] == [
+        ("", "Ege Kalıp"), ("Kontrol gerekenler", "belge_002"), ("", "Ege Kalıp (2)")]
+    deep = tmp_path / ("x" * (PATH_LIMIT - len(str(tmp_path)) - 60))
+    for item in plan_names(ctl.job, tpl, deep):
+        folder = deep / item.folder if item.folder else deep
+        assert len(str(folder / f"{item.name}.pdf")) <= PATH_LIMIT
+
+
+def test_a_name_cut_by_the_path_limit_moves_into_the_subfolder(tmp_path):
+    from evrakci.pipeline.exporting import plan_names
+
+    store, templates, ctl, template = _job(tmp_path)
+    template.set_pattern("{Firma} " + "uzun" * 12)
+    templates.save(template)
+    tpl = {t.id: t for t in templates.list()}
+    deep = tmp_path / ("y" * (192 - len(str(tmp_path)) - 1))
+    items = plan_names(ctl.job, tpl, deep)
+    cut = [i for i in items if any("kısaltıldı" in c for c in i.checks)]
+    assert cut and all(i.folder == "Kontrol gerekenler" for i in cut)
+    for item in items:  # every name fits the folder it is really written to
+        folder = deep / item.folder if item.folder else deep
+        assert len(str(folder / f"{item.name}.pdf")) <= 250
+
+
+def test_an_older_settings_file_loads_with_the_subfolder_on(tmp_path):
+    from evrakci.pipeline.settings import Settings, load_settings, save_settings
+
+    path = tmp_path / "ayar.json"
+    path.write_text('{"saklama": "30"}', encoding="utf-8")
+    assert load_settings(path) == Settings("30", True)
+    save_settings(Settings("sakla", False), path)
+    assert load_settings(path) == Settings("sakla", False)
+
+
+def test_the_window_and_the_cli_give_the_same_names_and_folders(qtbot, tmp_path, capsys,
+                                                                monkeypatch):
+    from evrakci.cli import main
+
+    monkeypatch.setenv("EVRAKCI_AYARLAR", str(tmp_path / "ayar.json"))
+
+    screen, ctl = _clash_screen(qtbot, tmp_path)
+    out = tmp_path / "out"
+    screen.folder.setText(str(out))
+    assert screen.separate.isChecked()
+    base = ["--kok", str(tmp_path / "jobs"), "--sablon-kok", str(tmp_path / "tpl"),
+            "is", "disa-aktar", ctl.job.id, "--cikti", str(out), "--onizle"]
+    assert main(base) == 0
+    shown = capsys.readouterr().out.rstrip("\n").split("\n")
+    assert shown == screen.list_text().split("\n")
+    assert any(line.split("\t")[1].startswith("Kontrol gerekenler/") for line in shown[1:])
+    screen.separate.setChecked(False)
+    assert main(base + ["--kontrol-ayri-yok"]) == 0
+    flat = capsys.readouterr().out.rstrip("\n").split("\n")
+    assert flat == screen.list_text().split("\n")
+    assert not any("Kontrol gerekenler/" in line for line in flat)
+    # the box saved "off" to the settings file the CLI is told to read: no flag needed
+    assert main(base) == 0
+    assert capsys.readouterr().out.rstrip("\n").split("\n") == flat
+
+
+def test_the_checkbox_is_saved_and_shared_with_ayarlar(qtbot, tmp_path):
+    from evrakci.pipeline.settings import load_settings
+    from evrakci.ui.settings_dialog import SettingsDialog
+
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    assert screen.separate.text() == "" and screen.separate.accessibleName() == \
+        "Kontrol gerekenleri ayrı klasöre koy"
+    screen.separate.setChecked(False)
+    assert load_settings(tmp_path / "ayar.json").check_subfolder is False
+    dialog = SettingsDialog(Prefs(tmp_path / "p2.ini"), MainWindow.__dict__.get("x") or
+                            _registry(qtbot, tmp_path), retention_settings_path=tmp_path /
+                            "ayar.json")
+    qtbot.addWidget(dialog)
+    assert dialog.check_subfolder.text() == "Kontrol gerekenleri ayrı klasöre koy"
+    assert not dialog.check_subfolder.isChecked()
+    dialog.check_subfolder.setChecked(True)
+    assert load_settings(tmp_path / "ayar.json").check_subfolder is True
+    dialog.retention.setCurrentIndex(1)  # saving the retention keeps the other choice
+    assert load_settings(tmp_path / "ayar.json").check_subfolder is True
+    screen.refresh()
+    assert screen.separate.isChecked()
+
+
+def _registry(qtbot, tmp_path):
+    window, _screen_ = _window(qtbot, tmp_path)
+    return window.registry
+
+
+def test_the_delete_warning_shows_only_when_the_job_will_be_deleted(qtbot, tmp_path):
+    from evrakci.pipeline.settings import DELETE_AFTER_EXPORT, Settings, save_settings
+    from evrakci.ui.disa_aktar_model import DELETE_WARNING
+
+    screen, ctl, _t = _screen(qtbot, tmp_path, names=("Ege Kalıp", "Akdeniz", "Ege Kalıp"))
+    screen.folder.setText(str(tmp_path / "out"))
+    assert not [f for f in screen._findings if f.title == DELETE_WARNING]
+    save_settings(Settings(DELETE_AFTER_EXPORT), tmp_path / "ayar.json")
+    screen._sync_after_pattern()
+    # a document needs a check: the job is kept, so nothing is announced
+    assert not [f for f in screen._findings if f.title == DELETE_WARNING]
+    clean = findings(Summary(3, 6, 0, True, 0, (), "", 0, 0), folder_state(""), deletes_job=True)
+    assert [f.level for f in clean if f.title == DELETE_WARNING] == ["bilgi"]
+    off = findings(Summary(3, 6, 0, True, 0, (), "", 0, 0), folder_state(""))
+    assert not [f for f in off if f.title == DELETE_WARNING]
+    screen.layer.setChecked(False)  # without the text layer the job is kept as well
+    assert not screen._deletes_job()
+    screen.layer.setChecked(True)
+    assert screen._deletes_job()
+
+
+def test_planning_800_documents_with_the_subfolder_stays_fast(tmp_path):
+    import time
+
+    from fakes import job_from_kinds
+
+    from evrakci.pipeline.exporting import plan_names
+
+    job = job_from_kinds({"b": "qp" * 800})  # a separator and a page, 800 documents
+    started = time.perf_counter()
+    items = plan_names(job, {}, tmp_path / "o")
+    elapsed = time.perf_counter() - started
+    assert len(items) == 800 and elapsed < 3, elapsed
+    assert len({(i.folder, i.name) for i in items}) == 800
+
+
+def test_the_clash_screen_job_file_holds_the_values_the_cli_reads(qtbot, tmp_path):
+    from evrakci.pipeline.job import job_to_dict
+
+    _screen_, ctl = _clash_screen(qtbot, tmp_path)
+    assert ctl.saver.idle  # no late snapshot is still to be written over the saved file
+    assert job_to_dict(ctl.store.load(ctl.job.id)) == job_to_dict(ctl.job)
+
+
+def test_an_old_pdf_in_an_existing_subfolder_blocks_an_export_without_the_subfolder(tmp_path):
+    import pytest as _pytest
+
+    from evrakci.pipeline.exporting import ExportError, export_job
+
+    out = tmp_path / "out"
+    (out / "Kontrol gerekenler").mkdir(parents=True)
+    (out / "Kontrol gerekenler" / "eski.pdf").write_bytes(b"%PDF-1.4")
+    assert folder_state(str(out)).kind == "full"
+    store, templates, ctl, _t = _job(tmp_path)
+    with _pytest.raises(ExportError):
+        export_job(ctl.job, store.batch_files(ctl.job), {t.id: t for t in templates.list()},
+                   out, with_layer=False, check_subfolder=False)
+    assert not (out / "index.xlsx").exists()
+
+
+def test_the_delete_warning_is_a_bilgi_row_not_orange(tmp_path):
+    from evrakci.ui.disa_aktar_model import DELETE_WARNING
+
+    rows = findings(Summary(3, 6, 0, True, 0, (), "", 0, 0), folder_state(""), deletes_job=True)
+    assert [f.level for f in rows if f.title == DELETE_WARNING] == ["bilgi"]
+
+
+def test_a_click_on_the_label_focuses_the_box_and_toggles_only_inside(qtbot, tmp_path):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtTest import QTest
+
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    screen.show()
+    box = screen.separate
+    label = box.parentWidget().findChildren(QLabel)[0]
+    assert box.isChecked()
+    QTest.mouseClick(label, Qt.MouseButton.LeftButton, pos=label.rect().center())
+    assert not box.isChecked() and screen.focusWidget() is box
+    QTest.mousePress(label, Qt.MouseButton.LeftButton, pos=label.rect().center())
+    QTest.mouseRelease(label, Qt.MouseButton.LeftButton, pos=QPoint(-20, -20))
+    assert not box.isChecked()  # released outside the label: no change
+
+
+def test_a_failed_save_of_the_checkbox_is_said_and_the_box_goes_back(qtbot, tmp_path,
+                                                                     monkeypatch):
+    """R-O-3: the box shows what is saved, so a tab change does not flip it silently."""
+    screen, _ctl, _t = _screen(qtbot, tmp_path)
+    said = []
+    monkeypatch.setattr(screen, "_say_status", said.append)
+
+    def refuse(*_args):
+        raise OSError("disk dolu")
+
+    monkeypatch.setattr("evrakci.ui.disa_aktar.save_settings", refuse)
+    screen.separate.setChecked(False)
+    assert screen.separate.isChecked()
+    assert said == ["Ayar kaydedilemedi: disk dolu"]
+
+
+def test_a_failed_save_in_ayarlar_is_said_on_the_export_page(qtbot, tmp_path, monkeypatch):
+    """R-O-4: not on the Saklama note."""
+    from evrakci.ui.settings_dialog import SettingsDialog
+
+    dialog = SettingsDialog(Prefs(tmp_path / "p2.ini"), _registry(qtbot, tmp_path),
+                            retention_settings_path=tmp_path / "ayar.json")
+    qtbot.addWidget(dialog)
+    note = dialog.retention_note.text()
+
+    def refuse(*_args):
+        raise OSError("disk dolu")
+
+    monkeypatch.setattr("evrakci.ui.settings_dialog.save_settings", refuse)
+    dialog.check_subfolder.setChecked(False)
+    assert dialog.check_subfolder.isChecked()
+    assert dialog.export_note.text() == "Ayar kaydedilemedi: disk dolu"
+    assert not dialog.export_note.isHidden()
+    assert dialog.retention_note.text() == note

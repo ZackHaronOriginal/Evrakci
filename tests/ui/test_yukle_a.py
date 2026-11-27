@@ -67,9 +67,10 @@ def _window(qtbot, tmp_path, show=True) -> MainWindow:
     return window
 
 
-def _open(window, pdfs, name="Kasım"):
+def _open(qtbot, window, pdfs, name="Kasım"):
     job = window.store.create_job(name, pdfs)
-    window.yukle.open_job(window.store.load(job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(window.store.load(job.id))
     return window.yukle
 
 
@@ -94,10 +95,10 @@ class _Drag:
 
 # -- pure counts ------------------------------------------------------------------------
 def test_reason_names_the_batches_without_separators():
-    assert reason([27, 26, 24, 0]).startswith("3 parti QR ayıraçlı; 4. partide ayıraç yok")
-    assert reason([3, 2]) == "2 partinin hepsi QR ayıraçlı."
-    assert "Partide QR ayıraç yok" in reason([0])
-    assert reason([0, 4, 0]).startswith("1 parti QR ayıraçlı; 1. ve 3. partilerde")
+    assert reason([27, 26, 24, 0]).startswith("3 parti QR ayraçlı; 4. partide ayraç yok")
+    assert reason([3, 2]) == "2 partinin hepsi QR ayraçlı."
+    assert "Partide QR ayraç yok" in reason([0])
+    assert reason([0, 4, 0]).startswith("1 parti QR ayraçlı; 1. ve 3. partilerde")
     assert reason([]).startswith("Henüz parti yok")
 
 
@@ -148,7 +149,8 @@ def test_collect_pdfs_reads_folders_in_natural_order_and_skips_other_files(tmp_p
 def test_table_rows_total_and_status_words(qtbot, tmp_path, pdfs):
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
-    screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
     items = screen.model.items
     assert [i.kind for i in items] == ["batch", "batch", "batch", "total"]
     total = items[-1]
@@ -160,7 +162,7 @@ def test_table_rows_total_and_status_words(qtbot, tmp_path, pdfs):
     # status is an icon and a word, never colour alone
     assert all(icon and word for icon, _role, _strong, word in STATUSES.values())
     index = screen.model.index(1, FILE)
-    assert "Parti 2: tarama-2.pdf, 2 sayfa, 0 QR ayıraç, Kontrol" == index.data(
+    assert "Parti 2: tarama-2.pdf, 2 sayfa, 0 QR ayraç, Kontrol" == index.data(
         Qt.ItemDataRole.AccessibleTextRole)
     assert screen.table.selected_batch() == screen.controller.job.batches[0].id
 
@@ -168,7 +170,8 @@ def test_table_rows_total_and_status_words(qtbot, tmp_path, pdfs):
 def test_the_total_row_and_the_reading_rows_cannot_be_selected_or_dragged(qtbot, tmp_path, pdfs):
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
-    screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
     screen.model.set_pending([("yeni.pdf", 12, "okunuyor"), ("sonra.pdf", 4, "sirada")])
     kinds = [i.kind for i in screen.model.items]
     assert kinds == ["batch"] * 3 + ["pending", "pending", "total"]
@@ -185,7 +188,8 @@ def test_the_total_row_and_the_reading_rows_cannot_be_selected_or_dragged(qtbot,
 def test_dropping_a_row_reorders_by_the_gap_it_lands_in(qtbot, tmp_path, pdfs):
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
-    screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
     model, wanted = screen.model, []
     model.move_requested.disconnect(screen.move_batch_to)  # only listen: do not move
     model.move_requested.connect(lambda batch, target: wanted.append((batch, target)))
@@ -210,7 +214,8 @@ def test_dropping_a_row_reorders_by_the_gap_it_lands_in(qtbot, tmp_path, pdfs):
 def test_moving_by_key_and_dragging_are_one_undoable_edit(qtbot, tmp_path, pdfs):
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
-    screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
     ids = [b.id for b in screen.controller.job.batches]
     screen.table.select_batch(ids[0])
     screen.move_batch(1)
@@ -229,7 +234,8 @@ def test_moving_by_key_and_dragging_are_one_undoable_edit(qtbot, tmp_path, pdfs)
 def test_removing_a_batch_is_undoable_without_a_question(qtbot, tmp_path, pdfs):
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
-    screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
     ids = [b.id for b in screen.controller.job.batches]
     screen.table.select_batch(ids[1])
     screen.remove_batch()
@@ -250,7 +256,7 @@ def test_yukle_actions_are_connected_and_follow_the_selection(qtbot, tmp_path, p
     for action_id in ("yukle.yukari", "yukle.asagi", "yukle.cikar", "yukle.yeniden_adlandir",
                       "yukle.gezginde_goster", "yukle.iptal"):
         assert not registry.is_enabled(action_id), action_id  # no job: nothing to do
-    screen = _open(window, pdfs)
+    screen = _open(qtbot, window, pdfs)
     first = screen.controller.job.batches[0].id
     assert registry.is_enabled("yukle.asagi") and not registry.is_enabled("yukle.yukari")
     assert registry.is_enabled("yukle.cikar") and registry.is_enabled("yukle.yeniden_adlandir")
@@ -267,13 +273,40 @@ def test_yukle_actions_are_connected_and_follow_the_selection(qtbot, tmp_path, p
     assert first in [b.id for b in screen.controller.job.batches]
 
 
+def test_show_in_explorer_selects_the_batch_file_on_windows(qtbot, tmp_path, pdfs, monkeypatch):
+    """The Windows branch, run here: with a batch selected its file is selected in Explorer;
+    without one (or off Windows) the job's folder is opened."""
+    from PySide6.QtGui import QDesktopServices
+
+    from evrakci.ui import yukle as yukle_module
+
+    window = _window(qtbot, tmp_path)
+    window.show_tab("yukle")
+    screen = _open(qtbot, window, pdfs)
+    job = screen.controller.job
+    selected: list[Path] = []
+    opened: list[Path] = []
+    monkeypatch.setattr(yukle_module, "select_in_explorer", selected.append)
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(
+        lambda url: opened.append(Path(url.toLocalFile())) or True))
+    second = job.batches[1]
+    monkeypatch.setattr(yukle_module, "_on_windows", lambda: True)
+    screen.table.select_batch(second.id)
+    screen.show_in_explorer()
+    assert selected == [screen.store.batch_file(job, second)] and not opened
+    selected.clear()
+    monkeypatch.setattr(yukle_module, "_on_windows", lambda: False)
+    screen.show_in_explorer()
+    assert not selected and opened == [screen.store.batch_file(job, second).parent]
+
+
 def test_alt_arrows_and_del_work_from_the_table(qtbot, tmp_path, pdfs):
     from PySide6.QtTest import QTest
 
     window = _window(qtbot, tmp_path)
     window.activateWindow()
     assert QTest.qWaitForWindowActive(window)  # window shortcuts need the active window
-    screen = _open(window, pdfs)
+    screen = _open(qtbot, window, pdfs)
     screen.table.setFocus()
     screen.table.select_batch(screen.controller.job.batches[0].id)
     QTest.keyClick(screen.table, Qt.Key.Key_Down, Qt.KeyboardModifier.AltModifier)
@@ -284,7 +317,7 @@ def test_alt_arrows_and_del_work_from_the_table(qtbot, tmp_path, pdfs):
 
 def test_f2_renames_the_job_and_the_title_band_follows(qtbot, tmp_path, pdfs, monkeypatch):
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs)
+    screen = _open(qtbot, window, pdfs)
     monkeypatch.setattr(QInputDialog, "getText", staticmethod(lambda *a, **k: ("Yeni ad", True)))
     window.registry.action("yukle.yeniden_adlandir").trigger()
     assert screen.controller.job.name == "Yeni ad"
@@ -307,7 +340,7 @@ def test_command_bar_follows_the_mockup_and_cancel_shows_only_while_reading(qtbo
     assert cancel.isHidden() or not cancel.isVisibleTo(bar)
     go = bar.button_for("app.sekme.kontrol")
     assert not go.isEnabled()  # no job
-    _open(window, pdfs)
+    _open(qtbot, window, pdfs)
     assert go.isEnabled()
     screen._reading = _Reading(pdfs[:1], [3])
     screen._sync_actions()
@@ -328,7 +361,7 @@ def test_status_bar_line_is_parti_sayfa_belge_in_that_order(qtbot, tmp_path, pdf
     window.show_tab("yukle")
     parts = window.yukle.status_parts
     assert parts["text"].isVisibleTo(window) and "Ctrl+N" in parts["text"].accessibleName()
-    screen = _open(window, pdfs)
+    screen = _open(qtbot, window, pdfs)
     qtbot.waitUntil(lambda: not window.counts.isVisible(), timeout=2000)  # this tab's line wins
     assert parts["parti"].accessibleName() == "3 parti"
     assert parts["sayfa"].accessibleName() == "7 sayfa"
@@ -350,10 +383,11 @@ def test_status_bar_line_is_parti_sayfa_belge_in_that_order(qtbot, tmp_path, pdf
 def test_inspector_shows_the_preflight_counts_and_the_profile(qtbot, tmp_path, pdfs):
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
-    screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs).id))
     side = screen.side
     assert side.title.text() == "7 sayfa" and side.sub.text() == "3 parti, 2 belge bulundu"
-    assert side.reason.text().startswith("1 parti QR ayıraçlı; 2. ve 3. partilerde ayıraç yok")
+    assert side.reason.text().startswith("1 parti QR ayraçlı; 2. ve 3. partilerde ayraç yok")
     assert side.qr_row.value.text() == "1" and side.docs_row.value.text() == "2"
     assert side.state_row.value.text() == "Hazır"
     assert side.profile.title.text() == "100 dpi, gri tonlamalı"
@@ -366,7 +400,8 @@ def test_inspector_while_reading_disables_the_primary_and_says_when_it_opens(qtb
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
     screen.show()
-    screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs[:2]).id))
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(screen.store.load(screen.store.create_job("İş", pdfs[:2]).id))
     screen._reading = _Reading(pdfs[2:], [2])
     screen._show_batches()
     side = screen.side
@@ -386,15 +421,16 @@ def test_inspector_marks_documents_that_need_a_check_with_the_word_kontrol(qtbot
     screen = YukleScreen(JobStore(tmp_path / "s"))
     qtbot.addWidget(screen)
     job = screen.store.create_job("İş", pdfs[:1])
-    screen.open_job(job)
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(job)
     info = screen._summary()
     from evrakci.ui.yukle_info import JobSummary
 
     flagged = JobSummary(info.name, info.pages, info.qr, info.documents, 7, info.batches,
                          info.reason)
     screen.side.show_job(flagged, None)
-    assert screen.side.state_row.value.text() == "7 belge"
-    assert screen.side.state_row.accessibleName() == "Durum: 7 belge"
+    assert screen.side.state_row.value.text() == "7 belge kontrol bekliyor"  # R3 Y-6
+    assert screen.side.state_row.accessibleName() == "Durum: 7 belge kontrol bekliyor"
     assert screen.side.profile.title.text() == "Tarama bilgisi yok"  # never invented
 
 
@@ -410,8 +446,14 @@ def test_progress_card_reports_percent_time_left_and_speed(qtbot, tmp_path):
         "%62", "Yaklaşık 40 sn kaldı", "3,2 sayfa/sn")
     assert card.note.text() == "İptal ederseniz hiçbir şey değişmez."
     assert (card.bar.value(), card.bar.maximum()) == (77, 124)
-    card.show_waiting("Dosyalar inceleniyor: 2", "a.pdf")
-    assert card.bar.maximum() == 0  # indeterminate before the first page
+    from evrakci.ui import motion
+
+    motion.set_reduced_motion_override(False)  # a Windows CI runner may have animations off
+    try:
+        card.show_waiting("Dosyalar inceleniyor: 2", "a.pdf")
+        assert card.bar.maximum() == 0  # indeterminate before the first page
+    finally:
+        motion.set_reduced_motion_override(None)
     assert card.accessibleName() == "Okuma ilerlemesi"
 
 
@@ -420,7 +462,7 @@ def test_reading_tracks_the_current_file_and_the_time_left():
     assert reading.total == 35 and reading.current() == 0
     reading.done = 12
     assert reading.current() == 1
-    assert reading.rows() == [("a", 10, "okunuyor"), ("b", 20, "okunuyor"), ("c", 5, "sirada")]
+    assert reading.rows() == [("a", 10, "okundu"), ("b", 20, "okunuyor"), ("c", 5, "sirada")]
     reading.started = time.monotonic() - 10
     assert reading.rate() == pytest.approx(1.2, rel=0.1)
     assert reading.eta() == pytest.approx(23 / 1.2, rel=0.1)
@@ -430,14 +472,14 @@ def test_reading_tracks_the_current_file_and_the_time_left():
 
 def test_reading_a_batch_shows_progress_then_attaches_it_as_one_edit(qtbot, tmp_path, pdfs):
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs[:1])
+    screen = _open(qtbot, window, pdfs[:1])
     shown = []
     screen.progress.setVisible = lambda v, f=screen.progress.setVisible: (shown.append(v), f(v))[1]
     with qtbot.waitSignal(screen.task_finished, timeout=20000):
         screen.add_batches(pdfs[1:])
     assert True in shown and not screen.progress.isVisible()
     assert _names(screen) == ["tarama-1.pdf", "tarama-2.pdf", "tarama-10.pdf"]
-    assert window.toaster.current_text() == "2 parti eklendi."
+    assert window.toaster.current_text() == "2 parti eklendi; 1 belge bulundu."  # R3 Y-10
     assert screen.controller.undo_stack.undoText() == "2 parti ekle"
     screen.controller.undo()
     assert _names(screen) == ["tarama-1.pdf"]  # one Geri al takes both away
@@ -447,7 +489,7 @@ def test_reading_a_batch_shows_progress_then_attaches_it_as_one_edit(qtbot, tmp_
 def test_cancelling_a_batch_read_changes_nothing_and_keeps_no_copies(qtbot, tmp_path, pdfs,
                                                                     monkeypatch):
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs[:1])
+    screen = _open(qtbot, window, pdfs[:1])
     gate = threading.Event()
     real = window.store.prepare_batch
 
@@ -474,7 +516,7 @@ def test_cancelling_a_batch_read_changes_nothing_and_keeps_no_copies(qtbot, tmp_
 
 def test_a_failed_read_leaves_an_info_bar_with_the_way_forward(qtbot, tmp_path, pdfs):
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs[:1])
+    screen = _open(qtbot, window, pdfs[:1])
     broken = tmp_path / "bozuk.pdf"
     broken.write_bytes(b"bu bir pdf degil")
     screen.add_batches([broken])  # pages are counted in the worker, never on the GUI thread
@@ -488,7 +530,7 @@ def test_a_failed_read_leaves_an_info_bar_with_the_way_forward(qtbot, tmp_path, 
 
 def test_files_dropped_while_reading_wait_their_turn(qtbot, tmp_path, pdfs, monkeypatch):
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs[:1])
+    screen = _open(qtbot, window, pdfs[:1])
     gate = threading.Event()
     real = window.store.prepare_batch
 
@@ -509,7 +551,7 @@ def test_files_dropped_while_reading_wait_their_turn(qtbot, tmp_path, pdfs, monk
 # -- the window-wide drop ----------------------------------------------------------------
 def test_dragging_pdfs_over_the_window_shows_what_a_drop_does(qtbot, tmp_path, pdfs):
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs[:1], "Kasım 2026 kapasite raporları")
+    screen = _open(qtbot, window, pdfs[:1], "Kasım 2026 kapasite raporları")
     overlay = screen.overlay
     assert overlay.parentWidget() is window.layer and not overlay.isVisible()
     drag = _Drag(pdfs[1:])
@@ -577,6 +619,8 @@ def test_empty_state_lists_recent_jobs_newest_first_and_opens_one(qtbot, tmp_pat
     screen = YukleScreen(store)
     qtbot.addWidget(screen)
     screen.show()
+    qtbot.waitUntil(lambda: [e.name for e in screen.empty.entries] == ["Yeni iş", "Eski iş"],
+                    timeout=5000)
     assert [e.name for e in screen.empty.entries] == ["Yeni iş", "Eski iş"]
     assert screen.empty.entries[0].detail == "2 sayfa, az önce"
     rows = screen.empty._rows()
@@ -609,7 +653,7 @@ def test_job_list_over_an_open_job_and_back_with_escape(qtbot, tmp_path, pdfs):
     from PySide6.QtTest import QTest
 
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs)
+    screen = _open(qtbot, window, pdfs)
     screen.show_job_list()
     assert screen.stack.currentWidget() is screen.empty and screen.empty.title.text() == "Tüm işler"
     QTest.keyClick(screen, Qt.Key.Key_Escape)
@@ -618,10 +662,11 @@ def test_job_list_over_an_open_job_and_back_with_escape(qtbot, tmp_path, pdfs):
 
 def test_closing_the_job_returns_to_the_empty_page(qtbot, tmp_path, pdfs):
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs)
+    screen = _open(qtbot, window, pdfs)
     window.close_job()
     assert screen.controller is None and screen.stack.currentWidget() is screen.empty
     assert screen.model.rowCount() == 0
+    qtbot.waitUntil(lambda: [e.name for e in screen.empty.entries] == ["Kasım"], timeout=5000)
     assert [e.name for e in screen.empty.entries] == ["Kasım"]
     assert not window.registry.is_enabled("yukle.cikar")
     assert not window.command_bar("yukle").button_for("app.sekme.kontrol").isEnabled()
@@ -631,7 +676,7 @@ def test_closing_the_job_returns_to_the_empty_page(qtbot, tmp_path, pdfs):
 def test_columns_and_the_inspector_split_are_remembered(qtbot, tmp_path, pdfs):
     window = _window(qtbot, tmp_path)
     window.resize(1366, 768)
-    screen = _open(window, pdfs)  # the splitter shows with the first job
+    screen = _open(qtbot, window, pdfs)  # the splitter shows with the first job
     qtbot.wait(100)
     assert screen.splitter.objectName() == "yukle"
     assert screen.splitter.sizes()[1] == theme.manager().size("inspector-w")
@@ -657,7 +702,7 @@ def test_file_dialogs_start_where_the_last_pdfs_came_from(qtbot, tmp_path, pdfs,
     from PySide6.QtWidgets import QFileDialog
 
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs[:1])
+    screen = _open(qtbot, window, pdfs[:1])
     seen = []
 
     def chosen(parent, title, start, filt):
@@ -676,7 +721,7 @@ def test_file_dialogs_start_where_the_last_pdfs_came_from(qtbot, tmp_path, pdfs,
 # -- accessible names and keys -------------------------------------------------------------
 def test_every_control_has_an_accessible_name(qtbot, tmp_path, pdfs):
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs)
+    screen = _open(qtbot, window, pdfs)
     named = [screen.table, screen.card, screen.side, screen.side.more, screen.side.go_button,
              screen.side.close_button, screen.side.profile.link, screen.progress, screen.overlay,
              screen.dropline, screen.empty, screen.empty.search, screen.empty.new_button,
@@ -693,7 +738,7 @@ def test_every_control_has_an_accessible_name(qtbot, tmp_path, pdfs):
 
 def test_tab_order_reaches_the_table_then_the_inspector(qtbot, tmp_path, pdfs):
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs)
+    screen = _open(qtbot, window, pdfs)
     for widget in (screen.table, screen.side.more, screen.side.profile.link,
                    screen.side.go_button, screen.side.close_button):
         assert widget.focusPolicy() & Qt.FocusPolicy.TabFocus, type(widget).__name__
@@ -726,13 +771,13 @@ def test_screen_is_usable_at_large_text_without_clipping_the_file_column(qtbot, 
     look.set_text_scale(150)
     window = _window(qtbot, tmp_path)
     window.resize(1366, 768)
-    screen = _open(window, pdfs)
+    screen = _open(qtbot, window, pdfs)
     QApplication.processEvents()
     header = screen.table.horizontalHeader()
     assert header.sectionSize(FILE) > 200  # A's colgroup stays in px, Dosya takes the rest
     assert header.sectionSize(GRIP) == 44
     assert screen.side.qr_row.key.width() >= screen.side.qr_row.key.fontMetrics().horizontalAdvance(
-        "QR ayıraç")
+        "QR ayraç")
 
 
 def test_thousand_pages_open_quickly(qtbot, tmp_path):
@@ -750,7 +795,8 @@ def test_thousand_pages_open_quickly(qtbot, tmp_path):
     screen = YukleScreen(store)
     qtbot.addWidget(screen)
     started = time.monotonic()
-    screen.open_job(job)
+    with qtbot.waitSignal(screen.job_opened, timeout=10000):
+        screen.open_job(job)
     assert time.monotonic() - started < 2.0
     assert screen.model.rowCount() == 6 and screen.side.title.text() == "1000 sayfa"
     assert len(screen.table.findChildren(type(screen.side.go_button))) == 0
@@ -788,7 +834,7 @@ def test_real_drag_events_on_the_window_reach_the_overlay_and_make_a_job(qtbot, 
 def test_files_queued_behind_a_cancelled_read_are_reported_not_dropped(qtbot, tmp_path, pdfs,
                                                                       monkeypatch):
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs[:1])
+    screen = _open(qtbot, window, pdfs[:1])
     gate = threading.Event()
     real = window.store.prepare_batch
 
@@ -814,7 +860,7 @@ def test_a_folder_over_the_limit_says_how_many_were_left_out(qtbot, tmp_path, pd
     from evrakci.ui import yukle
 
     window = _window(qtbot, tmp_path)
-    screen = _open(window, pdfs[:1])
+    screen = _open(qtbot, window, pdfs[:1])
     from evrakci.ui.yukle_parts import find_pdfs
 
     told = []

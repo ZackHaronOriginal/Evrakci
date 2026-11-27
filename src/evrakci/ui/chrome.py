@@ -12,7 +12,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QPointF, QRect, QRectF, QSize, Qt, QUrl, Signal
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSize, Qt, QUrl, Signal
 from PySide6.QtGui import (
     QAction,
     QDesktopServices,
@@ -176,6 +176,12 @@ class TitleSaveState(SaveState):
     def text_room(self) -> int:
         """The width its hidden words would take (0 while they show or it is not shown)."""
         if self.isHidden() or not self._compact:
+            return 0
+        return self._label.sizeHint().width() + self.layout().spacing()
+
+    def words_width(self) -> int:
+        """The width its words take when shown (0 while it is not shown)."""
+        if self.isHidden():
             return 0
         return self._label.sizeHint().width() + self.layout().spacing()
 
@@ -401,6 +407,16 @@ def card(margins: int | None = None) -> QFrame:
     return frame
 
 
+def press_on_enter(button: QAbstractButton, event) -> bool:
+    """Enter presses a focused button like Space does (the window unbinds Enter while a button
+    has focus, so the button takes it: F-yukle-15). True when the key was used."""
+    if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not event.isAutoRepeat():
+        button.click()
+        event.accept()
+        return True
+    return False
+
+
 class RecentJobRow(QPushButton):
     """A .recent .act .r (Yükle and Kontrol empty pages): folder icon, the job's name
     (elided with its full name in the tooltip) and "640 sayfa, dün" at the right."""
@@ -437,6 +453,10 @@ class RecentJobRow(QPushButton):
         hint = self.layout().sizeHint()
         return QSize(hint.width(), max(hint.height(), theme.manager().size("row-h")))
 
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if not press_on_enter(self, event):
+            super().keyPressEvent(event)
+
 
 class ActionButton(QToolButton):
     """A command-bar button that mirrors a QAction (enabled, visible, checked, tooltip)."""
@@ -447,6 +467,8 @@ class ActionButton(QToolButton):
         super().__init__(parent)
         self.action_ = action
         self.hide_disabled = hide_disabled  # shown only while the command can run (İptal et)
+        self.optional_text: str | None = None  # a label shown only while the bar has room (K-8)
+        self.tip_on_focus = False  # keyboard focus shows the tooltip, like hover does (K-8)
         self.icon_name = icon or action.property("lucide") or "square"
         self._gate = None  # a screen's own extra condition (see set_gate)
         self.setAutoRaise(True)
@@ -465,6 +487,39 @@ class ActionButton(QToolButton):
     def labelled(self) -> bool:
         return self.toolButtonStyle() != Qt.ToolButtonStyle.ToolButtonIconOnly
 
+    def set_label_shown(self, shown: bool) -> None:
+        """Show or hide the optional label (text beside the icon); a no-op without one."""
+        if self.optional_text is None or shown == self.labelled():
+            return
+        self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon if shown
+                                else Qt.ToolButtonStyle.ToolButtonIconOnly)
+        self.setText(self.optional_text if shown else "")
+        self.setProperty("kind", "command" if shown else None)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.refresh()
+
+    def focusInEvent(self, event) -> None:  # noqa: N802
+        super().focusInEvent(event)
+        if self.tip_on_focus and event.reason() in (
+                Qt.FocusReason.TabFocusReason, Qt.FocusReason.BacktabFocusReason,
+                Qt.FocusReason.ShortcutFocusReason) and self.toolTip():
+            QToolTip.showText(self.mapToGlobal(QPoint(0, self.height())), self.toolTip(), self)
+
+    def focusOutEvent(self, event) -> None:  # noqa: N802
+        super().focusOutEvent(event)
+        if self.tip_on_focus:
+            QToolTip.hideText()
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if not press_on_enter(self, event):
+            super().keyPressEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
+        # the second click of a double click would act on what the screen shows next: "Partiyi
+        # çıkar" would take out the neighbour the user has not looked at (F-yukle-14)
+        event.accept()
+
     def label_font(self) -> QFont:
         """A's .cmd label: body size at weight 500 (measured and painted with this font)."""
         return theme.manager().font("body-medium")
@@ -475,12 +530,18 @@ class ActionButton(QToolButton):
         left = 2 * m.size("s2") + self.iconSize().width()
         return QRect(left, 0, max(0, self.width() - left - m.size("s3")), self.height())
 
+    def accented(self) -> bool:
+        """A labelled mode button that is on (Kutu çiz) is an accent fill, so the mode cannot
+        be missed (F-sablonlar-38); icon buttons keep the quiet `selected` fill."""
+        return self.labelled() and self.isCheckable() and self.isChecked()
+
     def refresh(self) -> None:
         """Icon for the theme and A's box: 36 px square, or s2 + icon + s2 + label + s3."""
         m = theme.manager()
         size = m.size("icon-md")
         self.setIconSize(QSize(size, size))
-        self.setIcon(make_icon(self.icon_name, "icon", size, 1.6))
+        self.setIcon(make_icon(self.icon_name, "text-on-accent" if self.accented() else "icon",
+                               size, 1.6))
         side = m.size("icon-btn")
         if not self.labelled():
             self.setFixedSize(side, side)
@@ -505,7 +566,8 @@ class ActionButton(QToolButton):
         self.icon().paint(painter, QRect(m.size("s2"), (self.height() - size) // 2, size, size),
                           Qt.AlignmentFlag.AlignCenter, mode)
         painter.setFont(self.label_font())
-        painter.setPen(m.color("text" if self.isEnabled() else "text-disabled"))
+        painter.setPen(m.color("text-on-accent" if self.accented() else
+                               "text" if self.isEnabled() else "text-disabled"))
         painter.drawText(self.text_rect(), Qt.AlignmentFlag.AlignVCenter
                          | Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextSingleLine, self.text())
 
@@ -524,12 +586,19 @@ class ActionButton(QToolButton):
         self.setCheckable(action.isCheckable())
         if action.isCheckable():
             self.setChecked(action.isChecked())
+        on = self.accented()
+        if bool(self.property("accentOn")) != on:
+            self.setProperty("accentOn", on)
+            self.style().unpolish(self)
+            self.style().polish(self)
+            self.refresh()  # the icon colour follows
         self.setToolTip(action.toolTip())
         self.setAccessibleName(action.toolTip())
 
 
 class CommandBar(QWidget):
-    """A's icon-first command bar (44 px, 36 px buttons, at most three labels)."""
+    """A's icon-first command bar (44 px, 36 px buttons, a few labels). Buttons with an optional
+    label show it only while the bar is wide enough for all the commands (K-8)."""
 
     def __init__(self, name: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -541,15 +610,62 @@ class CommandBar(QWidget):
         self._row.setContentsMargins(m.size("s2"), 0, m.size("s2"), 0)
         self._row.setSpacing(2)
         self._buttons: list[QToolButton] = []
+        self._optional: list[ActionButton] = []  # in the order the labels give way, last first
+        self._bare_width = 0
+        self._fitting = False
 
     def add_action(self, action: QAction, label: bool = False, icon: str | None = None,
-                   text: str | None = None, hide_disabled: bool = False) -> ActionButton:
+                   text: str | None = None, hide_disabled: bool = False,
+                   optional_label: str | None = None, tip_on_focus: bool = False
+                   ) -> ActionButton:
         """An icon button (or icon + label) that triggers `action`; `icon` overrides its Lucide
-        name and `text` its label; `hide_disabled` shows it only while the action is enabled."""
+        name and `text` its label; `hide_disabled` shows it only while the action is enabled;
+        `optional_label` is a label that appears only while the bar has room for it;
+        `tip_on_focus` shows the tooltip when Tab reaches the button."""
         button = ActionButton(action, label, icon, text, self, hide_disabled)
+        button.tip_on_focus = tip_on_focus
+        if optional_label is not None and not label:
+            button.optional_text = optional_label
+            self._optional.append(button)
         self._row.addWidget(button)
         self._buttons.append(button)
         return button
+
+    def _needed(self) -> int:
+        self._row.invalidate()
+        return self._row.minimumSize().width()
+
+    def fit_labels(self) -> None:
+        """Optional labels on while every command still fits the bar's width, off from the
+        last one back until it does."""
+        if not self._optional or self._fitting:
+            return
+        self._fitting = True
+        try:
+            for button in self._optional:
+                button.set_label_shown(False)
+            self._bare_width = self._needed()
+            room = self.width()
+            for button in self._optional:
+                button.set_label_shown(True)
+            for button in reversed(self._optional):
+                if self._needed() <= room:
+                    break
+                button.set_label_shown(False)
+        finally:
+            self._fitting = False
+        self.updateGeometry()
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        """The bar never asks for more than its icons need: labels give way, not the window."""
+        hint = super().minimumSizeHint()
+        if self._optional and self._bare_width:
+            return QSize(self._bare_width, hint.height())
+        return hint
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self.fit_labels()
 
     def add_separator(self) -> QFrame:
         line = QFrame(self)
@@ -603,6 +719,7 @@ class CommandBar(QWidget):
                 button.refresh()
             else:
                 self._refresh_more(button)
+        self.fit_labels()
 
 
 # -- the floating menu row (Alt) ------------------------------------------------------------

@@ -1,14 +1,15 @@
+import logging
 import os
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QLibraryInfo, QLocale, QTimer, QTranslator
 from PySide6.QtWidgets import QApplication
 
 from evrakci.pipeline.settings import SettingsError, load_settings
 from evrakci.pipeline.store import JobStore, default_root
 from evrakci.pipeline.templates.store import TemplateStore, default_template_root
-from evrakci.ui import fonts, icons, theme
+from evrakci.ui import fonts, gc_guard, icons, theme
 from evrakci.ui.main_window import MainWindow
 from evrakci.ui.prefs import Prefs
 
@@ -40,6 +41,36 @@ def build_window(
     return window
 
 
+# The one context Qt uses for the standard dialog button texts (OK, Cancel, Yes, No, Save, ...).
+# qtbase_tr also translates key names (QShortcut: "Ctrl" -> "Kontrol"), which must stay as is.
+_BUTTON_CONTEXTS = frozenset({"QPlatformTheme"})
+
+
+class _ButtonsOnlyTranslator(QTranslator):
+    """qtbase_tr restricted to the standard dialog button texts; everything else is left alone."""
+
+    def translate(self, context, sourceText, disambiguation=None, n=-1):
+        if context not in _BUTTON_CONTEXTS:
+            return None
+        return super().translate(context, sourceText, disambiguation, n)
+
+
+def install_qt_translation(app: QApplication, directory: str | None = None) -> bool:
+    """Qt's own Turkish texts (standard dialog buttons: Evet, Hayır, Tamam, İptal), so the
+    dialogs we do not draw ourselves are not English. Returns False when the file is missing."""
+    directory = directory or QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
+    translator = _ButtonsOnlyTranslator(app)
+    if not translator.load(QLocale("tr_TR"), "qtbase", "_", directory):
+        logging.getLogger(__name__).warning(
+            "Qt Turkish translation (qtbase_tr.qm) not found in %s; dialog buttons stay English",
+            directory)
+        return False
+    if not app.installTranslator(translator):
+        return False
+    app._evrakci_qt_translator = translator  # keep it alive with the application
+    return True
+
+
 def configure_application(app: QApplication, prefs: Prefs | None = None) -> None:
     """Name, fonts, icon and the look: EvrakciStyle (Fusion + D11 focus ring), palette, font and
     stylesheet from the ThemeManager, which follows `prefs` (theme, density, text size, motion)
@@ -47,12 +78,14 @@ def configure_application(app: QApplication, prefs: Prefs | None = None) -> None
     app.setApplicationName("Evrakçı")
     # Matches the Linux menu entry (evrakci-arayuz.desktop), so the dock shows its icon.
     app.setDesktopFileName("evrakci-arayuz")
+    install_qt_translation(app)
     fonts.register_fonts()
     manager = theme.manager()
     if prefs is not None:
         manager.bind_prefs(prefs)
     manager.apply(app)
     app.setWindowIcon(icons.app_icon())
+    gc_guard.install()  # cyclic garbage is collected on the window thread only
 
 
 def hide_console_for_children(windows=None, frozen=None, kernel32=None, user32=None) -> bool:

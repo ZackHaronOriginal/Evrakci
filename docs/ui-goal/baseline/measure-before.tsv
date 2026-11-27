@@ -1,0 +1,236 @@
+# commit abe8da4; command: QT_QPA_PLATFORM=offscreen python tools/ui_measure.py; rows=27627 pass=26982 fail=234 skip=411; run 2 identical (cmp): yes; supersedes the first baseline from 94cd57d (1803 fails, ~90 % false layout fails per the Phase 1 review)
+tab	theme	size	text	widget	class	rule	value	limit	result	severity
+degerler	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+degerler	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+degerler	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/ValuesTable[col 5]	ValuesTable	DEC-CON-01	6.15	>=7.0	fail	S3
+degerler	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/SidePanel/_Scroll	_Scroll	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+degerler	dark	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	dark	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+degerler	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+degerler	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/ValuesTable[col 5]	ValuesTable	DEC-CON-01	6.15	>=7.0	fail	S3
+degerler	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/SidePanel/_Scroll	_Scroll	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+degerler	dark	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	dark	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+degerler	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+degerler	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/ValuesTable[col 5]	ValuesTable	DEC-CON-01	6.15	>=7.0	fail	S3
+degerler	dark	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	dark	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+degerler	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+degerler	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/ValuesTable[col 5]	ValuesTable	DEC-CON-01	6.15	>=7.0	fail	S3
+degerler	dark	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	dark	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	hc	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+degerler	hc	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+degerler	hc	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	hc	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/SidePanel/_Scroll	_Scroll	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+degerler	hc	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	hc	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	hc	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+degerler	hc	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+degerler	hc	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	hc	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/SidePanel/_Scroll	_Scroll	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+degerler	hc	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	hc	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	hc	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+degerler	hc	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+degerler	hc	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	hc	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	hc	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	hc	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+degerler	hc	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+degerler	hc	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	hc	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	hc	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+degerler	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+degerler	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/SidePanel/_Scroll	_Scroll	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+degerler	light	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	light	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+degerler	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+degerler	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/SidePanel/_Scroll	_Scroll	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+degerler	light	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	light	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+degerler	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+degerler	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	light	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	light	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+degerler	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+degerler	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/degerler/QFrame/HeaderBar/QLineEdit/QToolButton	QToolButton	HIG-CTL-06	none	tooltip set	fail	S3
+degerler	light	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+degerler	light	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+disa-aktar	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/SidePanel/QScrollArea/qt_scrollarea_viewport/QWidget/QWidget[0]/QFrame/QLineEdit	QLineEdit	DEC-CON-02	4.08	>=4.5	fail	S3
+disa-aktar	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/SidePanel/QScrollArea/qt_scrollarea_viewport/QWidget/QWidget[0]/QFrame/QLineEdit	QLineEdit	DEC-CON-02	4.08	>=4.5	fail	S3
+disa-aktar	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/SidePanel/QScrollArea/qt_scrollarea_viewport/QWidget/QWidget[0]/QFrame/QLineEdit	QLineEdit	DEC-CON-02	4.08	>=4.5	fail	S3
+disa-aktar	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/SidePanel/QScrollArea/qt_scrollarea_viewport/QWidget/QWidget[0]/QFrame/QLineEdit	QLineEdit	DEC-CON-02	4.08	>=4.5	fail	S3
+disa-aktar	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame/QWidget/FilesTable[col 0]	FilesTable	DEC-CON-01	6.61	>=7.0	fail	S3
+disa-aktar	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/SidePanel/QScrollArea/qt_scrollarea_viewport/QWidget/QWidget[0]/QFrame/QLineEdit	QLineEdit	DEC-CON-02	3.29	>=4.5	fail	S3
+disa-aktar	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame/QWidget/FilesTable[col 0]	FilesTable	DEC-CON-01	6.61	>=7.0	fail	S3
+disa-aktar	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/SidePanel/QScrollArea/qt_scrollarea_viewport/QWidget/QWidget[0]/QFrame/QLineEdit	QLineEdit	DEC-CON-02	3.29	>=4.5	fail	S3
+disa-aktar	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame/QWidget/FilesTable[col 0]	FilesTable	DEC-CON-01	6.61	>=7.0	fail	S3
+disa-aktar	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/SidePanel/QScrollArea/qt_scrollarea_viewport/QWidget/QWidget[0]/QFrame/QLineEdit	QLineEdit	DEC-CON-02	3.29	>=4.5	fail	S3
+disa-aktar	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame/QWidget/FilesTable[col 0]	FilesTable	DEC-CON-01	6.61	>=7.0	fail	S3
+disa-aktar	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/disa_aktar/SidePanel/QScrollArea/qt_scrollarea_viewport/QWidget/QWidget[0]/QFrame/QLineEdit	QLineEdit	DEC-CON-02	3.29	>=4.5	fail	S3
+kontrol	dark	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	dark	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	dark	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	dark	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	dark	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	dark	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	dark	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	dark	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	hc	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	hc	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	hc	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	hc	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	hc	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	hc	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	hc	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	hc	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	light	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	light	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	light	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	light	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	light	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	light	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	light	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+kontrol	light	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	dark	1366x768	100	(window)	MainWindow	AUD-WIN-02	Reader	no window scroll	fail	S2
+rehber	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+rehber	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+rehber	dark	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	dark	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+rehber	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+rehber	dark	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	dark	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	dark	1920x1080	100	(window)	MainWindow	AUD-WIN-02	Reader	no window scroll	fail	S2
+rehber	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+rehber	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+rehber	dark	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	dark	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	dark	1920x1080	150	(window)	MainWindow	AUD-WIN-02	Reader	no window scroll	fail	S2
+rehber	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+rehber	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+rehber	dark	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	dark	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	hc	1366x768	100	(window)	MainWindow	AUD-WIN-02	Reader	no window scroll	fail	S2
+rehber	hc	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+rehber	hc	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+rehber	hc	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	hc	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	hc	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+rehber	hc	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+rehber	hc	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	hc	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	hc	1920x1080	100	(window)	MainWindow	AUD-WIN-02	Reader	no window scroll	fail	S2
+rehber	hc	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+rehber	hc	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+rehber	hc	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	hc	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	hc	1920x1080	150	(window)	MainWindow	AUD-WIN-02	Reader	no window scroll	fail	S2
+rehber	hc	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+rehber	hc	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+rehber	hc	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	hc	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	light	1366x768	100	(window)	MainWindow	AUD-WIN-02	Reader	no window scroll	fail	S2
+rehber	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+rehber	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+rehber	light	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	light	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+rehber	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+rehber	light	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	light	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	light	1920x1080	100	(window)	MainWindow	AUD-WIN-02	Reader	no window scroll	fail	S2
+rehber	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	22x18	>=24	fail	S3
+rehber	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	18	>=32	fail	S3
+rehber	light	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	light	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	light	1920x1080	150	(window)	MainWindow	AUD-WIN-02	Reader	no window scroll	fail	S2
+rehber	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-01	26x22	>=24	fail	S3
+rehber	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/rehber/QWidget/QScrollArea/qt_scrollarea_viewport/QWidget/SearchField/QToolButton[0]	QToolButton	AUD-HIT-02	22	>=32	fail	S3
+rehber	light	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+rehber	light	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/sablonInspector/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame[2]/QLineEdit	QLineEdit	DEC-CON-02	4.08	>=4.5	fail	S3
+sablonlar	dark	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	dark	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	dark	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	dark	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	dark	1920x1080	100	(window)	MainWindow	AUD-WIN-02	PageCanvas	no window scroll	fail	S2
+sablonlar	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/sablonInspector/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame[2]/QLineEdit	QLineEdit	DEC-CON-02	4.08	>=4.5	fail	S3
+sablonlar	dark	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	dark	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/sablonInspector/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame[2]/QLineEdit	QLineEdit	DEC-CON-02	4.08	>=4.5	fail	S3
+sablonlar	dark	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	dark	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	hc	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	hc	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	hc	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	hc	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	hc	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	hc	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	hc	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	hc	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	hc	1920x1080	100	(window)	MainWindow	AUD-WIN-02	PageCanvas	no window scroll	fail	S2
+sablonlar	hc	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	hc	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	hc	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	hc	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	hc	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	hc	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	hc	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	hc	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/sablonInspector/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame[2]/QLineEdit	QLineEdit	DEC-CON-02	3.29	>=4.5	fail	S3
+sablonlar	light	1366x768	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	light	1366x768	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	light	1366x768	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	light	1366x768	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	light	1920x1080	100	(window)	MainWindow	AUD-WIN-02	PageCanvas	no window scroll	fail	S2
+sablonlar	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/sablonInspector/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame[2]/QLineEdit	QLineEdit	DEC-CON-02	3.29	>=4.5	fail	S3
+sablonlar	light	1920x1080	100	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	light	1920x1080	100	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	AUD-A11Y-01	none	accessibleName|text|tooltip	fail	S2
+sablonlar	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/QWidget/QStackedWidget/CanvasWell/PageCanvas/QWidget	QWidget	DEC-FOC-01	no ring	>=3 px	fail	S2
+sablonlar	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/sablonlar/sablonInspector/QScrollArea/qt_scrollarea_viewport/QWidget/QFrame[2]/QLineEdit	QLineEdit	DEC-CON-02	3.29	>=4.5	fail	S3
+sablonlar	light	1920x1080	150	statusBar/ZoomSlider/QToolButton[0]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+sablonlar	light	1920x1080	150	statusBar/ZoomSlider/QToolButton[1]	QToolButton	AUD-HIT-02	24	>=32	fail	S3
+yukle	dark	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/QStackedWidget/yukle/QWidget/QFrame/BatchTable[col 5]	BatchTable	DEC-CON-01	6.15	>=7.0	fail	S3
+yukle	dark	1366x768	100	titleBand/titleTabs	TitleTabs	DEC-FOC-01	no ring	>=3 px	fail	S2
+yukle	dark	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/QStackedWidget/yukle/QWidget/QFrame/BatchTable[col 5]	BatchTable	DEC-CON-01	6.15	>=7.0	fail	S3
+yukle	dark	1366x768	150	titleBand/titleTabs	TitleTabs	DEC-FOC-01	no ring	>=3 px	fail	S2
+yukle	dark	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/QStackedWidget/yukle/QWidget/QFrame/BatchTable[col 5]	BatchTable	DEC-CON-01	6.15	>=7.0	fail	S3
+yukle	dark	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/QStackedWidget/yukle/QWidget/QFrame/BatchTable[col 5]	BatchTable	DEC-CON-01	6.15	>=7.0	fail	S3
+yukle	hc	1366x768	100	titleBand/titleTabs	TitleTabs	DEC-FOC-01	no ring	>=3 px	fail	S2
+yukle	hc	1366x768	150	titleBand/titleTabs	TitleTabs	DEC-FOC-01	no ring	>=3 px	fail	S2
+yukle	light	1366x768	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/QStackedWidget/yukle/QWidget/QFrame/BatchTable[col 5]	BatchTable	DEC-CON-01	6.12	>=7.0	fail	S3
+yukle	light	1366x768	100	titleBand/titleTabs	TitleTabs	DEC-FOC-01	no ring	>=3 px	fail	S2
+yukle	light	1366x768	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/QStackedWidget/yukle/QWidget/QFrame/BatchTable[col 5]	BatchTable	DEC-CON-01	6.12	>=7.0	fail	S3
+yukle	light	1366x768	150	titleBand/titleTabs	TitleTabs	DEC-FOC-01	no ring	>=3 px	fail	S2
+yukle	light	1920x1080	100	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/QStackedWidget/yukle/QWidget/QFrame/BatchTable[col 5]	BatchTable	DEC-CON-01	6.12	>=7.0	fail	S3
+yukle	light	1920x1080	150	QWidget/layer/QTabWidget/qt_tabwidget_stackedwidget/page[6]/QStackedWidget/yukle/QWidget/QFrame/BatchTable[col 5]	BatchTable	DEC-CON-01	6.12	>=7.0	fail	S3

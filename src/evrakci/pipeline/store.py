@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import tempfile
 import time
 import uuid
 from collections.abc import Callable, Sequence
@@ -14,8 +15,16 @@ from pathlib import Path
 
 import platformdirs
 
-from evrakci.pipeline.analyze import PageInfo, analyze_pdf, count_pages
-from evrakci.pipeline.job import Batch, Job, job_from_dict, job_to_dict, page_id
+from evrakci.pipeline.analyze import BatchError, PageInfo, analyze_pdf, count_pages, read_page_sizes
+from evrakci.pipeline.job import (
+    Batch,
+    Job,
+    edited_after_export,
+    job_from_dict,
+    job_to_dict,
+    page_id,
+    parse_page_id,
+)
 
 Progress = Callable[[int, int], None]
 
@@ -34,10 +43,24 @@ _JOB_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
 @dataclass(frozen=True)
+class SizeRequest:
+    """One batch file whose pages have unknown sizes (see `JobStore.size_requests`)."""
+
+    batch_id: str
+    path: Path
+    page_count: int
+    page_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class PreparedBatch:
     batch: Batch
     pages: list[PageInfo]
 
+
+# A file another program holds (Windows: antivirus, indexer, a second reader) is tried again
+# this many times, pausing 0.05 s, 0.1 s, ... in between (about 1.4 s in all).
+BUSY_TRIES = 8
 
 class JobStore:
     def __init__(self, root: Path) -> None:
@@ -126,21 +149,91 @@ class JobStore:
             job.pages[page_id(batch.id, index)] = info
         return batch
 
+    def size_requests(self, job: Job) -> list[SizeRequest]:
+        """The batches that have a page of unknown size and a file to read it from: (batch id,
+        file, page count, the ids of the pages to fill). Plain data, so a worker can read the
+        files from it."""
+        found = []
+        for batch in job.batches:
+            if not self.batch_file(job, batch).is_file():
+                continue  # nothing to read: the pages stay "Boyutu bilinmiyor"
+            wanted = tuple(pid for pid in (page_id(batch.id, i) for i in range(batch.page_count))
+                           if pid in job.pages and not job.pages[pid].has_size)
+            if wanted:
+                found.append(SizeRequest(batch.id, self.batch_file(job, batch),
+                                         batch.page_count, wanted))
+        return found
+
+    @staticmethod
+    def read_sizes(requests: Sequence[SizeRequest],
+                   progress: Progress | None = None) -> dict[str, tuple[float, float]]:
+        """The sizes (millimetres) of the pages of `requests`, read from the batch files
+        without rendering. A file that is gone or unreadable is skipped: its pages stay unknown.
+        Touches no job, so a worker thread may run it."""
+        sizes: dict[str, tuple[float, float]] = {}
+        total = sum(r.page_count for r in requests)
+        done = 0
+        for request in requests:
+            try:
+                read = read_page_sizes(request.path)
+            except BatchError:
+                read = []
+            if len(read) == request.page_count:  # a file that is not the scanned one is not trusted
+                for pid in request.page_ids:
+                    sizes[pid] = read[parse_page_id(pid)[1]]
+            done += request.page_count
+            if progress:
+                progress(done, total)
+        return sizes
+
     def save(self, job: Job) -> None:
-        target = self._job_file(job.id)
+        self.save_dict(job.id, job_to_dict(job))
+
+    def save_dict(self, job_id: str, data: dict) -> None:
+        """Write a snapshot made by `job_to_dict` (atomic: a temporary file, then os.replace).
+
+        The snapshot is plain data, so a thread other than the one that edits the job can
+        write it (the window's saver). The file format is the same as `save`.
+        """
+        target = self._job_file(job_id)
         target.parent.mkdir(parents=True, exist_ok=True)
-        temporary = target.with_suffix(".json.tmp")
-        temporary.write_text(
-            json.dumps(job_to_dict(job), ensure_ascii=False, indent=1), encoding="utf-8"
-        )
-        os.replace(temporary, target)
+        # A temporary file of its own per write: two writers of one job (two windows, a window
+        # and the CLI) never replace each other's half-written file.
+        handle, name = tempfile.mkstemp(dir=target.parent, prefix=".job-", suffix=".json.tmp")
+        temporary = Path(name)
+        try:
+            with os.fdopen(handle, "w", encoding="utf-8") as stream:
+                stream.write(json.dumps(data, ensure_ascii=False, indent=1))
+            for attempt in range(1, BUSY_TRIES + 1):  # on Windows a reader (antivirus, indexer)
+                try:                                  # can hold the file for a moment
+                    os.replace(temporary, target)
+                    return
+                except PermissionError:
+                    if attempt == BUSY_TRIES:
+                        raise
+                    time.sleep(0.05 * attempt)
+        finally:
+            temporary.unlink(missing_ok=True)  # gone after a replace; removed after a failure
+
+    @staticmethod
+    def _read_text(path: Path) -> str:
+        """Read a job file; on Windows a read that meets the saver's os.replace gets
+        PermissionError for a moment, so it is tried again (as `save_dict` does)."""
+        for attempt in range(1, BUSY_TRIES + 1):
+            try:
+                return path.read_text(encoding="utf-8")
+            except PermissionError:
+                if attempt == BUSY_TRIES:
+                    raise
+                time.sleep(0.05 * attempt)
+        raise AssertionError("unreachable")
 
     def load(self, job_id: str) -> Job:
         path = self._job_file(job_id)
         if not path.is_file():
             raise KeyError(job_id)
         try:
-            job = job_from_dict(json.loads(path.read_text(encoding="utf-8")))
+            job = job_from_dict(json.loads(self._read_text(path)))
         except (ValueError, KeyError, TypeError, OSError) as error:
             raise JobFileError(f"İş dosyası okunamadı: {job_id}") from error
         # The folder is the job: a copied folder must never save into, or delete, the original.
@@ -175,10 +268,12 @@ class JobStore:
         now: float | None = None,
         on_error: Callable[[str], None] | None = None,
     ) -> list[str]:
-        """Delete Evrakçı jobs whose job.json was last changed more than `days` days ago.
+        """Delete exported Evrakçı jobs whose job.json was last changed more than `days` days ago.
 
-        Only real job folders are touched: not links, and only when job.json is a readable
-        Evrakçı job whose id matches its folder. Anything else is left alone.
+        A job that was never exported (last_export is None) or was edited after its last export
+        (Q-33) is never deleted here. Only real
+        job folders are touched: not links, and only when job.json is a readable Evrakçı job
+        whose id matches its folder. Anything else is left alone.
         """
         if not self.root.is_dir():
             return []
@@ -191,7 +286,9 @@ class JobStore:
                     continue
                 if path.stat().st_mtime >= limit:
                     continue
-                if self.load(folder.name).id != folder.name:
+                job = self.load(folder.name)
+                if (job.id != folder.name or job.last_export is None
+                        or edited_after_export(job)):
                     continue
             except (JobFileError, KeyError, OSError):
                 continue

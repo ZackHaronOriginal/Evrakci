@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -28,7 +29,7 @@ def _separator(args: argparse.Namespace, store: JobStore) -> int:
     if args.adet < 1:
         raise UserError("Adet en az 1 olmalı.")
     path = make_separator_pdf(args.cikti, sheets=args.adet)
-    print(f"Ayıraç dosyası yazıldı: {path} ({args.adet} yaprak)")
+    print(f"Ayraç dosyası yazıldı: {path} ({args.adet} yaprak)")
     return 0
 
 
@@ -41,14 +42,18 @@ def _show_settings(args: argparse.Namespace, store: JobStore) -> int:
 
 def _set_retention(args: argparse.Namespace, store: JobStore) -> int:
     try:
-        settings = Settings(args.deger)
+        try:
+            current = load_settings()
+        except SettingsError:
+            current = Settings()  # a broken file falls back to the defaults, as the dialog does
+        settings = dataclasses.replace(current, retention=args.deger)
     except SettingsError as error:
         raise UserError(str(error)) from None
     save_settings(settings)
     meaning = {
         "sakla": "işler hiçbir zaman kendiliğinden silinmez",
         "disa-aktarinca-sil": "iş, tüm dosyalar dışa aktarılınca silinir",
-    }.get(settings.retention, f"{settings.retention} günden eski işler silinir")
+    }.get(settings.retention, f"{settings.retention} gün sonra dışa aktarılmış işler silinir")
     print(f"Saklama: {settings.retention} ({meaning})")
     return 0
 
@@ -73,9 +78,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="komut", required=True, metavar="KOMUT")
 
-    separator = commands.add_parser("ayirac", help="QR ayıraç sayfası PDF'i yazar")
+    separator = commands.add_parser("ayirac", help="QR ayraç sayfası PDF'i yazar")
     separator.add_argument("cikti", type=Path, metavar="CIKTI.pdf", help="yazılacak PDF")
-    separator.add_argument("--adet", type=int, default=10, help="yaprak sayısı (varsayılan 10)")
+    separator.add_argument("--adet", type=int, default=10, help="yaprak sayısı (varsayılan 20)")
     separator.set_defaults(handler=_separator)
 
     settings = commands.add_parser("ayar", help="uygulama ayarları")
@@ -102,6 +107,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
+        if getattr(args, "check", None):
+            args.check(args)  # usage errors that need the whole line (argparse's own error)
     except SystemExit as exit_:
         return int(exit_.code or 0)
     store = JobStore(args.kok if args.kok else default_root())

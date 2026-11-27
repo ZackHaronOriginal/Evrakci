@@ -15,11 +15,10 @@ from evrakci.pipeline.job import parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.render import render_page
 from evrakci.pipeline.templates.model import Template
-from evrakci.pipeline.templates.read import read_document
-from evrakci.pipeline.templates.values import VariableValue
+from evrakci.pipeline.templates.read import read_document, tried
+from evrakci.pipeline.templates.values import VariableValue, value_level
 
 READ_DPI = 300
-EMIN_AT = 0.90  # at or above (and above the template's threshold): Emin; else Orta
 
 # level -> (Lucide icon, QLabel `state` property, word)
 LEVELS = {
@@ -27,18 +26,15 @@ LEVELS = {
     "orta": ("signal-medium", "orta", "Orta"),
     "kontrol": ("triangle-alert", "kontrol", "Kontrol"),
     "okunamadi": ("circle-x", "bad", "Okunamadı"),
-    "okunmadi": ("clock", "orta", "Okunmadı"),
+    "okunmadi": ("clock", "orta", "Henüz okunmadı"),
 }
 NEEDS_CHECK = ("kontrol", "okunamadi")
 
 
 def level_of(text: str, confidence: float, minimum: float) -> str:
     """Okunamadı without text; Kontrol below the template's threshold; Emin from 90 %."""
-    if not text:
-        return "okunamadi"
-    if confidence < minimum:
-        return "kontrol"
-    return "emin" if confidence >= max(EMIN_AT, minimum) else "orta"
+    flagged = not text or confidence < minimum
+    return value_level(VariableValue(text, confidence, None, flagged))
 
 
 @dataclass(frozen=True)
@@ -53,12 +49,6 @@ class Shown:
 
 NOT_READ = Shown("", "okunmadi", None)
 NO_BOX = Shown("", "okunmadi", None, "Kutu çizilince okunur.")
-
-
-def tried(value: VariableValue) -> bool:
-    """False for a variable nothing was read for (it has no box yet): no section was tried,
-    so "Kontrol" would be a false alarm (D1: orange only for a real check)."""
-    return bool(value.readings) or bool(value.value) or bool(value.suggestion)
 
 
 def shown_for(value: VariableValue | None, section: int | None, minimum: float) -> Shown:
@@ -95,15 +85,10 @@ def lines(template: Template, values: dict[str, VariableValue]) -> list[str]:
             if value.suggestion:
                 text += f" (öneri {value.suggestion})"
         else:
-            section = "Bölüm 1" if not value.section else f"Varyant {value.section + 1}"
+            section = "Bölüm 1" if not value.section else f"Bölüm {value.section + 1}"
             text = f"{variable.name} · {section}: {value.value}   %{round(value.confidence * 100)}"
         out.append(text)
     return out
-
-
-def flagged_count(values: dict[str, VariableValue]) -> int:
-    """Reads that need a check (a variable with no box was not read and is not counted)."""
-    return sum(1 for v in values.values() if v.flagged and tried(v))
 
 
 @dataclass(frozen=True)

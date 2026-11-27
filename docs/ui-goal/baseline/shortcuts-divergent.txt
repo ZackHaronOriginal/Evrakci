@@ -1,0 +1,22 @@
+# commit: 0a28b16 | date: 2026-11-19 | command: python .claude/skills/shortcut-audit/audit_shortcuts.py --divergent
+# run: once (spec); run 2 not made
+
+Keys with a different label on different tabs (must be documented as page-specific in docs/ui-goal/shortcuts.md, or fixed):
+  Alt+Down: Partiyi aşağı taşı [yukle] | Değişkeni aşağı taşı [sablonlar]
+  Alt+Up: Partiyi yukarı taşı [yukle] | Değişkeni yukarı taşı [sablonlar]
+  Ctrl+.: İptal et [yukle] | Okumayı durdur [degerler] | Dışa aktarmayı durdur [disa_aktar]
+  Ctrl+P: Dizini yazdır… [disa_aktar] | Ayıraç sayfasını yazdır… [rehber]
+  Del: Partiyi çıkar [yukle] | Sayfayı sil [kontrol] | Kutuyu sil [sablonlar]
+  Enter: Belgeyi onayla [kontrol] | Onayla ve sonrakine geç [degerler]
+  Esc: Seçimi kaldır [kontrol] | Vazgeç [degerler] | Aramayı temizle [rehber]
+  F2: Yeniden adlandır [yukle] | Elle yaz [degerler]
+  Left: Önceki / sonraki sayfa [kontrol] | Kutuyu 0,25 mm kaydır [sablonlar]
+  Return: Belgeyi onayla [kontrol] | Onayla ve sonrakine geç [degerler]
+  Right: Önceki / sonraki sayfa [kontrol] | Kutuyu 0,25 mm kaydır [sablonlar]
+  Shift+Left: Seçimi genişlet [kontrol] | Kutuyu 1 mm kaydır [sablonlar]
+  Shift+Right: Seçimi genişlet [kontrol] | Kutuyu 1 mm kaydır [sablonlar]
+  Space: Önizle [kontrol] | Sayfayı sürükle (basılı tut) [sablonlar] | Tüm sayfayı göster [degerler]
+
+validate(): 0 problem(s)
+exit=0
+run 2 (2026-11-19, commit ecb3d73): identical (14 keys with different labels), exit=0

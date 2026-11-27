@@ -96,3 +96,69 @@ def test_read_error_follows_its_document():
     job.manual_cuts.add("a/1")
     first, _ = plan_export(job, {"t1": make_template()})
     assert "Tesseract hata verdi" not in first.checks
+
+
+def test_sources_are_the_scan_files_of_each_document_once_in_order():
+    job = job_from_kinds({"a": "pqp", "b": "pp"})
+    items = plan_export(job, {})
+    assert [i.sources for i in items] == [["a.pdf"], ["a.pdf", "b.pdf"]]
+    assert plan_export(job_from_kinds({"a": "pp", "b": "pp"}), {})[0].sources == [
+        "a.pdf", "b.pdf"]
+
+
+def test_name_notes_say_why_a_name_differs_from_the_pattern():
+    t = make_template()
+    k_no, k_unvan, _k_not = (v.key for v in t.variables)
+    job = job_from_kinds({"a": "pppppp"})
+    job.apply_template(["a/0", "a/1", "a/2"], "t1")
+    job.apply_filter(job.ordered_page_ids(), 1)
+    docs = compute_documents(job)
+    record_values(job, docs[0], "t1", {k_no: ok("101"), k_unvan: ok("Örnek")})
+    record_values(job, docs[1], "t1", {k_no: ok("101"), k_unvan: ok("örnek")})  # clash
+    record_values(job, docs[2], "t1", {k_no: ok("102"), k_unvan: ok("A/B")})  # removed char
+    items = plan_export(job, {"t1": t})
+    assert [i.name_note for i in items[:3]] == [
+        "", "Ad çakışması, (2) eklendi", "Geçersiz karakter silindi"]
+    assert items[3].name_note == ""
+
+
+# A folder long enough that names must be cut, with room left for the "Kontrol gerekenler"
+# subfolder a cut name moves into; on Windows the path gains a drive letter ("D:").
+LONG = 190
+
+
+def test_the_belge_fallback_name_does_not_keep_an_earlier_name_note():
+    from pathlib import Path
+
+    from evrakci.pipeline.exporting import plan_names
+
+    t = make_template()
+    k_no, k_unvan, _k_not = (v.key for v in t.variables)
+    job = job_from_kinds({"a": "pp"})
+    job.apply_template(["a/0"], "t1")
+    job.apply_filter(job.ordered_page_ids(), 1)
+    record_values(job, compute_documents(job)[0], "t1",
+                  {k_no: ok("1" * 40 + "/"), k_unvan: ok("x")})  # removed char: a note
+    assert plan_names(job, {"t1": t}, Path("/k"))[0].name_note == "Geçersiz karakter silindi"
+    item = plan_names(job, {"t1": t}, Path("/" + "k" * LONG))[0]
+    assert item.name == "belge_001" and item.name_note == ""
+
+
+def test_plan_names_marks_a_name_cut_by_a_long_folder_path():
+    from pathlib import Path
+
+    from evrakci.pipeline.exporting import plan_names
+
+    t = make_template()
+    k_no, k_unvan, _k_not = (v.key for v in t.variables)
+    job = job_from_kinds({"a": "pp"})
+    job.apply_template(["a/0"], "t1")
+    job.apply_filter(job.ordered_page_ids(), 1)
+    record_values(job, compute_documents(job)[0], "t1",
+                  {k_no: ok("1"), k_unvan: ok("Ü" * 60)})
+    items = plan_names(job, {"t1": t}, Path("/" + "k" * LONG))
+    assert items[0].name_note == "Dosya adı kısaltıldı (klasör yolu uzun)"
+    assert "dosya adı kısaltıldı (klasör yolu uzun)" in items[0].checks
+    assert len(items[0].name) <= 31
+    short = plan_names(job, {"t1": t}, Path("/k"))
+    assert short[0].name_note == "" and short[0].name == "1_" + "Ü" * 60

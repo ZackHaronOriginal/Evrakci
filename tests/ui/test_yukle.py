@@ -30,6 +30,7 @@ def test_creating_a_job_through_the_screen_matches_the_cli(qtbot, tmp_path, pdfs
     expected = cli_store.create_job("Kasım", pdfs)
     assert _comparable(opened.args[0]) == _comparable(expected)
     # the job list is the empty page's "Son işler" (a QListWidget before the A rebuild)
+    qtbot.waitUntil(lambda: [e.name for e in screen.empty.entries] == ["Kasım"], timeout=5000)
     assert [e.name for e in screen.empty.entries] == ["Kasım"]
 
 

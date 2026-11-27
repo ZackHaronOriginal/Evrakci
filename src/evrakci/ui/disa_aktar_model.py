@@ -10,13 +10,14 @@ from __future__ import annotations
 import os
 import re
 import unicodedata
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from evrakci.pipeline.disk_errors import disk_message
+from evrakci.pipeline.export import CHECK_SUBFOLDER, sources_text
 from evrakci.pipeline.templates.model import TemplateError, pattern_names
 
-FORBIDDEN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')  # what Windows does not allow in a name
 NUMBER_SUFFIX = re.compile(r" \((\d+)\)$")  # what `unique_names` adds on a clash
 LEVELS = ("engel", "kontrol", "eksik", "bilgi", "tamam")
 # Checks that are about a value (their sentence in the pre-flight is A's "emin olunmayan değer")
@@ -59,8 +60,11 @@ def folder_state(text: str) -> FolderState:
                                True)
         entries = list(path.iterdir())
         old = [p for p in entries if p.suffix.lower() == ".pdf" or p.name.lower() == "index.xlsx"]
+        sub = path / CHECK_SUBFOLDER  # old PDFs there are an earlier export's too
+        if sub.is_dir():
+            old += [p for p in sub.iterdir() if p.suffix.lower() == ".pdf"]
         if old:
-            return FolderState("full", "Klasör boş değil. Boş bir klasör seçin.", "err", True)
+            return FolderState("full", _full_text(old), "err", True)
         if not os.access(path, os.W_OK):
             return FolderState("readonly", "Klasöre yazılamıyor. Başka bir klasör seçin.", "err",
                                True)
@@ -69,8 +73,19 @@ def folder_state(text: str) -> FolderState:
                                "ok")
         return FolderState("ok", "Klasör boş, yazılabilir.", "ok")
     except OSError as error:
-        return FolderState("error", f"Klasöre bakılamadı: {error.strerror or error}. "
+        return FolderState("error", f"Klasöre bakılamadı: {disk_message(error, path)} "
                            "Başka bir klasör seçin.", "err", True)
+
+
+def _full_text(old: list[Path]) -> str:
+    """Say what is in the folder, so "Belgelerim" is not refused for no visible reason (E-10)."""
+    pdfs = sorted((p.name for p in old if p.suffix.lower() == ".pdf"), key=str.casefold)
+    rule = "Dosyaların üzerine yazılmaz; yeni bir alt klasör oluşturun."
+    if pdfs:
+        index = " ve index.xlsx" if any(p.name.lower() == "index.xlsx" for p in old) else ""
+        return (f"Klasörde {len(pdfs)} PDF{index} var "
+                f"({pdfs[0]}{', …' if len(pdfs) > 1 else ''}). {rule}")
+    return f"Klasörde index.xlsx var. {rule}"
 
 
 @dataclass(frozen=True)
@@ -85,10 +100,16 @@ class FileRow:
     post: str  # ".pdf"
     pages: str
     template: str | None
+    sources: tuple[str, ...] = ()  # the scan files the document came from (Kaynak)
+    note: str = ""  # why the name differs from the pattern ("" when it does not)
 
     @property
     def name(self) -> str:
         return self.pre + self.tail + self.post
+
+    @property
+    def source(self) -> str:
+        return sources_text(self.sources)
 
 
 def pages_text(job, document) -> str:
@@ -107,51 +128,34 @@ def reason(check: str) -> str:
     return check[:1].upper() + check[1:] if check else check
 
 
-def _name_change(item, pattern: str, names: set[str]) -> tuple[str, str]:
-    """(why, tail) when the written name differs from what the pattern asked for."""
-    found = NUMBER_SUFFIX.search(item.name)
-    if found and item.name[:found.start()].casefold() in names:
-        return f"Ad çakışması, {found.group(0).strip()} eklendi", found.group(0)
-    if item.template_name and pattern:
-        try:
-            used = set(pattern_names(pattern))
-        except TemplateError:
-            used = set()
-        for variable in used:
-            if FORBIDDEN.search(item.values.get(variable, "")):
-                return "Geçersiz karakter silindi", ""
-    return "", ""
-
-
-def file_rows(job, items, patterns: Mapping[int, str] | None = None,
-              names: Iterable[str] | None = None) -> list[FileRow]:
+def file_rows(job, items, names: Iterable[str] | None = None) -> list[FileRow]:
     """The rows of the list, flagged documents first (document order inside each group).
     `names` are the names actually written (a finished export), else the planned ones."""
-    patterns = patterns or {}
     written = list(names) if names is not None else None
-    base_names = {i.name.casefold() for i in items}
     rows = []
     for index, item in enumerate(items):
-        pdfa = [c for c in item.checks if c.startswith("PDF/A değil")]
-        checks = [c for c in item.checks if c not in pdfa]
-        why, tail = _name_change(item, patterns.get(item.number, ""), base_names)
+        checks = item.checks
+        why = item.name_note  # from the core: clash, removed character, shortened
+        found = NUMBER_SUFFIX.search(item.name) if why.startswith("Ad çakışması") else None
+        tail = found.group(0) if found else ""
         state = "tamam"
         if checks:
             state, why, tail = "kontrol", reason(checks[0]), ""
-        elif pdfa:
+        elif item.pdfa_note:
             state, why = "bilgi", "PDF/A değil"
         elif why:
             state = "bilgi"
         elif item.template_name is None:
             state, why = "bilgi", "Şablon yok, numaralı ad"
-        shown = written[index] if written is not None else f"{item.name}.pdf"
+        shown = written[index] if written is not None else item.relative
         stem = shown[:-4] if shown.lower().endswith(".pdf") else shown
         if tail and stem.endswith(tail):
             pre, mid = stem[:-len(tail)], tail
         else:
             pre, mid = stem, ""
         rows.append(FileRow(item.number, state, why, pre, mid, shown[len(stem):] or ".pdf",
-                            pages_text(job, item.document), item.template_name))
+                            pages_text(job, item.document), item.template_name,
+                            tuple(item.sources), item.name_note))
     rows.sort(key=lambda row: row.state != "kontrol")
     return rows
 
@@ -207,19 +211,23 @@ _ENGEL = {  # folder kind: (title, detail, link, action)
 }
 
 
+DELETE_WARNING = "Yazıldıktan sonra bu iş silinir; yalnızca dışa aktarılan dosyalar kalır."
+
+
 def findings(summary: Summary, folder: FolderState,
-             problem: tuple[str, list[str]] = ("", [])) -> list[Finding]:
+             problem: tuple[str, list[str]] = ("", []),
+             deletes_job: bool = False) -> list[Finding]:
     """The rows of "Ön kontrol", engel first. Only an engel stops the export; a kontrol never
     does (the file is written and flagged in index.xlsx)."""
     rows: list[Finding] = []
     if folder.kind in _ENGEL:
         title, detail, link, action = _ENGEL[folder.kind]
-        if folder.kind == "error":
+        if folder.kind in ("error", "full"):
             detail = folder.text
         rows.append(Finding("engel", title, detail, 1, link, action))
     kind, unknown = problem
     if kind == "unknown":
-        first = f"“{unknown[0]}”" + (f" ve {len(unknown) - 1} tane daha"
+        first = f"“{unknown[0]}”" + (f" ve {len(unknown) - 1} değişken daha"
                                      if len(unknown) > 1 else "")
         rows.append(Finding("engel", f"Kalıpta bilinmeyen değişken: {first}.",
                             "Menüden bir değişken seçin.", len(unknown), "Kalıbı düzelt",
@@ -245,6 +253,8 @@ def findings(summary: Summary, folder: FolderState,
              else f"{summary.kontrol} belgede kontrol gereken bir durum var."),
             "Yine de yazılır; index.xlsx'te işaretlenir.", summary.kontrol, "Sonraki kontrol",
             "next_check"))
+    if deletes_job and not summary.kontrol:  # a Kontrol document keeps the job
+        rows.append(Finding("bilgi", DELETE_WARNING))
     if summary.eksik:
         more = len(summary.eksik_vars) - 1
         which = summary.eksik_vars[0] if summary.eksik_vars else ""

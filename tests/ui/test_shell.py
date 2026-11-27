@@ -48,7 +48,10 @@ def test_every_action_has_text_and_a_tooltip_with_its_shortcut(qtbot, tmp_path):
         action = window.registry.action(spec.id)
         assert action.text(), spec.id
         assert action.toolTip(), spec.id
-        if spec.shortcuts:
+        reason = window.registry.disabled_reason(spec.id)
+        if reason:  # greyed with a reason (Q-09): the tooltip is the reason
+            assert action.toolTip() == reason, spec.id
+        elif spec.shortcuts:
             assert actions.key_text(spec.shortcuts[0]) in action.toolTip(), spec.id
 
 
@@ -170,6 +173,8 @@ def test_recent_jobs_fill_the_job_switcher(qtbot, tmp_path):
     job = store.create_job("Mart yazışmaları", [make_pdf(tmp_path / "a.pdf", [text_page()])])
     window = _window(qtbot, tmp_path)
     window.prefs.add_recent_job(job.id)
+    with qtbot.waitSignal(window.recent_changed, timeout=5000):  # read in a worker
+        window.refresh_recent_jobs()
     assert [j.id for j, _when in window.recent_jobs()] == [job.id]
     window.open_job_switcher()
     texts = [a.text() for a in window.job_menu.actions()]
@@ -385,9 +390,9 @@ def test_f9_hides_and_shows_the_side_panel(qtbot, tmp_path):
     assert action.toolTip() == "Kaynak panelini göster (F9)"
     _key(window, Qt.Key.Key_F9)
     assert not window.degerler.side.isHidden()
-    window.show_tab("kontrol")  # no job open: nothing to hide
+    window.show_tab("kontrol")  # no job open: nothing to hide, and the tooltip says why (Q-09)
     assert not action.isEnabled()
-    assert action.toolTip() == "Ayrıntı panelini gizle (F9)"
+    assert action.toolTip() == "Önce Yükle sekmesinden bir iş açın (Ctrl+1)."
 
 
 def test_theme_switch_restyles_the_screens_token_sheets(qtbot, tmp_path, look):
@@ -413,9 +418,11 @@ def test_each_job_is_wired_once_and_the_old_one_let_go(qtbot, tmp_path):
     store = window.store
     pdf = make_pdf(tmp_path / "t.pdf", [text_page(), text_page()])
     first, second = store.create_job("Bir", [pdf]), store.create_job("İki", [pdf])
-    window.yukle.open_job(store.load(first.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(first.id))
     old = window.controller()
-    window.yukle.open_job(store.load(second.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(second.id))
     new = window.controller()
     assert new is not old
     window.message.setText("")
@@ -438,6 +445,7 @@ def test_an_old_save_shows_its_date(qtbot, tmp_path):
     stamp = time.time() - 3 * 86400
     os.utime(store._job_file(job.id), (stamp, stamp))
     window = _window(qtbot, tmp_path)
-    window.yukle.open_job(store.load(job.id))
+    with qtbot.waitSignal(window.yukle.job_opened, timeout=10000):
+        window.yukle.open_job(store.load(job.id))
     words = window.job_switch.save_state.text().split()
     assert words[0] == "Kaydedildi" and len(words) >= 4  # "Kaydedildi 10 Kas 14:32"

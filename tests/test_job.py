@@ -75,3 +75,54 @@ def test_add_cut_refuses_where_a_cut_already_is():
     job.add_cut("a/2")
     with pytest.raises(ValueError):
         job.add_cut("a/2")  # manual cut already there
+
+
+def test_required_empty_state_needs_no_new_field_and_old_files_load():
+    from evrakci.pipeline.templates.values import VariableValue
+
+    job = job_from_kinds({"a": "pp"})
+    job.values["a/0"] = {
+        "k": VariableValue("", 0.0, None, True, "48213"),  # what an emptied required value is
+        "old": VariableValue("", 1.0, None, False, "", (), True),  # an old emptied edit
+    }
+    data = job_to_dict(job)
+    assert set(data["values"]["a/0"]["k"]) == {
+        "value", "confidence", "section", "flagged", "suggestion", "edited", "readings"}
+    assert job_from_dict(json.loads(json.dumps(data))) == job
+    for value in data["values"]["a/0"].values():  # a file from before: only the old keys
+        value.pop("suggestion"), value.pop("readings"), value.pop("edited")
+    loaded = job_from_dict(data)
+    assert loaded.values["a/0"]["old"].value == "" and loaded.values["a/0"]["old"].flagged is False
+
+
+def test_remove_filter_on_part_of_a_range_splits_the_application():
+    job = job_from_kinds({"a": "pppppppp"})
+    ids = job.ordered_page_ids()
+    job.apply_filter(ids, 2)
+    job.remove_filter(ids[3:5])
+    assert [(sorted(f.page_ids), f.every_n) for f in job.filters] == [
+        (sorted(ids[:3] + ids[5:]), 2)]
+    with pytest.raises(KeyError):
+        job.remove_filter(["z/0"])
+
+
+def test_remove_filter_on_every_page_drops_the_application_and_keeps_older_ones():
+    job = job_from_kinds({"a": "pppp"})
+    ids = job.ordered_page_ids()
+    job.apply_filter(ids, 2)
+    job.apply_filter(ids[:2], 1)
+    job.remove_filter(ids[:2])  # both applications lose these pages; the second is gone
+    assert [(sorted(f.page_ids), f.every_n) for f in job.filters] == [(ids[2:], 2)]
+    job.remove_filter(ids)
+    assert job.filters == []
+    job.remove_filter(ids)  # nothing left to remove: no error
+    assert job.filters == []
+
+
+def test_remove_filter_writes_no_new_field():
+    job = job_from_kinds({"a": "pppp"})
+    before = set(job_to_dict(job))
+    job.apply_filter(job.ordered_page_ids(), 2)
+    job.remove_filter(job.ordered_page_ids())
+    assert set(job_to_dict(job)) == before
+    assert job_from_dict(json.loads(json.dumps(job_to_dict(job)))) == job

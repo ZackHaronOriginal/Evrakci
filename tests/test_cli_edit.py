@@ -65,7 +65,8 @@ def test_export_twice_to_same_folder(tmp_path, capsys):
     out = str(tmp_path / "out")
     assert run("is", "disa-aktar", job_id, "--cikti", out, "--metin-katmani-yok") == 0
     assert run("is", "disa-aktar", job_id, "--cikti", out, "--metin-katmani-yok") == 2
-    assert "boş bir klasör" in capsys.readouterr().err
+    error = capsys.readouterr().err
+    assert "Hedef klasörde aynı adlı dosya var: " in error and "Boş bir klasör seçin" in error
 
 
 def test_batch_move_and_remove_commands(tmp_path, capsys):
@@ -179,6 +180,9 @@ def test_export_failure_keeps_every_document(tmp_path, capsys, monkeypatch):
     assert "belge_002.pdf: disk dolu" in err and "belge_001.pdf" in err
     names = sorted(p.name for p in (tmp_path / "out").iterdir())
     assert names == ["belge_001.pdf", "belge_002.pdf", "index.xlsx"]  # index marks the gap
+    from evrakci.pipeline.store import JobStore
+
+    assert JobStore(tmp_path / "kok").load(job_id).last_export is not None  # files on disk
 
 
 @needs_tesseract
@@ -230,5 +234,53 @@ def test_cli_export_with_template_names(tmp_path, capsys):
     import openpyxl
 
     sheet = openpyxl.load_workbook(tmp_path / "out" / "index.xlsx")["Belgeler"]
-    assert sheet.cell(row=2, column=1).value == "Örnek Şirketi.pdf"
-    assert sheet.cell(row=2, column=8).value == "Örnek Şirketi"
+    assert sheet.cell(row=2, column=2).value == "Örnek Şirketi.pdf"
+    assert sheet.cell(row=2, column=9).value == "Örnek Şirketi"
+
+
+def test_remove_filter_range_and_errors(tmp_path, capsys):
+    run, job_id = setup_job(tmp_path, capsys, [text_page()] * 4)
+    assert run("is", "filtre", job_id, "1-4", "2") == 0
+    assert run("is", "filtre-kaldir", job_id, "1-2") == 0
+    assert "Filtre kaldırıldı, 2 sayfa." in capsys.readouterr().out
+    run("is", "goster", job_id)
+    out = capsys.readouterr().out
+    assert "1. belge: sayfa 1, 2, 3, 4" not in out and "belge: sayfa 3, 4" in out
+    assert run("is", "filtre-kaldir", job_id, "3-4") == 0
+    run("is", "goster", job_id)
+    assert "1. belge: sayfa 1, 2, 3, 4" in capsys.readouterr().out
+    assert run("is", "filtre-kaldir", job_id, "9-9") == 2
+    assert run("is", "filtre-kaldir", job_id, "abc") == 2
+
+
+def test_export_stores_the_export_time_in_the_job_file(tmp_path, capsys):
+    from evrakci.pipeline.store import JobStore
+
+    run, job_id = setup_job(tmp_path, capsys, [text_page()] * 2)
+    assert JobStore(tmp_path / "kok").load(job_id).last_export is None
+    assert run("is", "disa-aktar", job_id, "--cikti", str(tmp_path / "out"),
+               "--metin-katmani-yok") == 0
+    last = JobStore(tmp_path / "kok").load(job_id).last_export
+    assert last is not None and last.documents >= 1 and last.folder == str(tmp_path / "out")
+
+
+def test_remove_filter_on_pages_without_a_filter_says_so_and_saves_nothing(
+        tmp_path, capsys, monkeypatch):
+    """R-A-3: no "Filtre kaldırıldı", no save, the refusal exits as the others do; with a
+    mix, only the filtered pages are counted."""
+    from evrakci.pipeline.store import JobStore
+
+    run, job_id = setup_job(tmp_path, capsys, [text_page()] * 4)
+    saves = []
+    original = JobStore.save
+    monkeypatch.setattr(JobStore, "save", lambda self, job: (saves.append(1), original(self, job)))
+    capsys.readouterr()
+    assert run("is", "filtre-kaldir", job_id, "1-4") == 2
+    captured = capsys.readouterr()
+    assert "Bu sayfalarda filtre yok." in captured.err
+    assert "Filtre kaldırıldı" not in captured.out + captured.err
+    assert not saves
+    assert run("is", "filtre", job_id, "1-2", "2") == 0
+    capsys.readouterr()
+    assert run("is", "filtre-kaldir", job_id, "1-4") == 0
+    assert "Filtre kaldırıldı, 2 sayfa." in capsys.readouterr().out

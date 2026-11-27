@@ -30,36 +30,53 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from evrakci.pipeline.cuts import _template_of, document_template, record_read_error
+from evrakci.pipeline.cuts import (
+    _template_of,
+    current_values,
+    document_template,
+    record_read_error,
+)
 from evrakci.pipeline.job import Job, parse_page_id
 from evrakci.pipeline.ocr.engine import EngineUnavailable
 from evrakci.pipeline.render import render_page
-from evrakci.pipeline.review import needs_reading, store_reading
+from evrakci.pipeline.review import (
+    REQUIRED_EMPTY,
+    can_revert,
+    needs_reading,
+    revert_value,
+    store_reading,
+)
 from evrakci.pipeline.templates.model import Template, template_revision
 from evrakci.pipeline.templates.read import read_document
-from evrakci.ui import icons, theme
+from evrakci.ui import icons, refusals, theme
+from evrakci.ui.actions import tooltip_for
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.controller import JobController
 from evrakci.ui.degerler_model import (
     LEVELS,
-    SAMPLE_SIZE,
     VIEW_NAMES,
     Cell,
     Row,
     SampleItem,
     confirm,
+    confirm_read,
     count,
+    dative,
     display_name,
     draw_sample,
+    emin_count,
     flag_variable,
+    grouped,
     in_view,
     joined,
     make_cell,
     matches,
+    section_name,
     tr_lower,
+    uncertain_positions,
 )
 from evrakci.ui.degerler_parts import EmptyState, HeaderBar, StatusItem, ViewSelector
-from evrakci.ui.degerler_side import Crop, PageImages, SidePanel
+from evrakci.ui.degerler_side import MAX_READINGS, Crop, PageImages, ReadingItem, SidePanel
 from evrakci.ui.degerler_table import (
     SAMPLE_COLUMNS,
     VALUE_KINDS,
@@ -68,15 +85,18 @@ from evrakci.ui.degerler_table import (
     ValuesTable,
     main_columns,
 )
+from evrakci.ui.feedback import undo_last
 from evrakci.ui.thumbnails import to_qimage
-from evrakci.ui.widgets import add_clear_button
-from evrakci.ui.workers import Task, start
+from evrakci.ui.widgets import add_clear_button, centre_action_buttons
+from evrakci.ui.workers import BUSY_REASON, Task, start
 
 ZOOM_KEY = "degerler"
 VIEW_KEY = "degerler.gorunum"  # the chosen view (prefs.view_state)
 TEMPLATE_KEY = "degerler.sablon"  # the chosen template
+READ_BATCH = 20  # a read stores its results every this many documents (one undo step)
 ZOOM_DEFAULT = 200  # A's status bar: "%200"
-UNDO_TEXT = "Değeri onayla"
+UNDO_TEXT = "Onayla"  # one name for it: button, menu, undo step (D-10)
+TOAST_KEY = "degerler.kaydedildi"  # a newer confirmation replaces an older one
 
 
 class SlackComboBox(QComboBox):
@@ -125,6 +145,7 @@ class DegerlerScreen(QWidget):
     status = Signal(str)
     finished = Signal()
     go_tab = Signal(str)
+    open_kontrol = Signal(int)  # document number
 
     def __init__(
         self,
@@ -147,10 +168,21 @@ class DegerlerScreen(QWidget):
         self._review_all = False
         self._template_id: str | None = None
         self._samples: dict[str, list[SampleItem]] = {}
+        self._sample_pool: dict[str, int] = {}  # Emin values each sample was drawn from
         self._watched: JobController | None = None
+        self._stack_index = 0  # the watched job's undo position (D-5)
+        self._reselect: tuple[int, str] | None = None  # the value an undo gives back
         self._dirty = False
         self._started = 0.0
         self._results: list = []
+        self._failed_in_store = 0
+        self._read_controller: JobController | None = None
+        self._edit_line = ""  # what the editor's Enter stored, said when it moves on
+        self._read_group = 0  # one number per read: its batches become one undo step
+        self._stored_upto = 0  # results[:n] of the running read are stored
+        self._read_stored = 0  # documents the running read has stored so far
+        self._failed_total = 0  # ... and how many of them failed
+        self._engine_reason = ""
         self._header_key = ""
         self._filling = False
         self._files: dict = {}
@@ -183,6 +215,7 @@ class DegerlerScreen(QWidget):
         self.progress_hint = QLabel("")
         self.progress_hint.setProperty("textRole", "secondary")
         self.cancel_button = QPushButton("Okumayı durdur")
+        self.cancel_button.setProperty("action_id", "degerler.durdur")
         self.cancel_button.setToolTip("Okumayı durdur (Ctrl+.)")
         self.cancel_button.setAccessibleName("Okumayı durdur (Ctrl+.)")
         self.cancel_button.clicked.connect(self.cancel)
@@ -201,8 +234,10 @@ class DegerlerScreen(QWidget):
         # The two read commands live in the command bar; these buttons carry their slots and
         # enabled state (the window mirrors them into degerler.oku / degerler.eksikleri_oku).
         self.read_button = QPushButton("Değerleri oku", self)
+        self.read_button.setProperty("action_id", "degerler.oku")
         self.read_button.clicked.connect(lambda: self.read_values(only_missing=False))
         self.missing_button = QPushButton("Yalnızca eksikleri oku", self)
+        self.missing_button.setProperty("action_id", "degerler.eksikleri_oku")
         self.missing_button.clicked.connect(lambda: self.read_values(only_missing=True))
         for button in (self.read_button, self.missing_button):
             button.hide()
@@ -225,6 +260,8 @@ class DegerlerScreen(QWidget):
         add_clear_button(self.search)  # a 24 px target (WCAG 2.5.8)
         self._search_icon = self.search.addAction(make_icon("search"),
                                                   QLineEdit.ActionPosition.LeadingPosition)
+        centre_action_buttons(self.search)
+        self._search_icon.setToolTip("Ara")  # the icon button has a name (HIG-CTL-06)
         self.search.textChanged.connect(self._search_changed)
         self.search.installEventFilter(self)
         self.template_combo = SlackComboBox()
@@ -237,6 +274,7 @@ class DegerlerScreen(QWidget):
         card.addWidget(self.header_bar)
         self.model = ValuesModel(self)
         self.model.edited.connect(self._apply_edit)
+        self._readings: list[ReadingItem] = []
         self.table = ValuesTable()
         self.table.setModel(self.model)
         self.table.hint_keys = self._hint_keys
@@ -244,6 +282,8 @@ class DegerlerScreen(QWidget):
         self.table.selectionModel().selectionChanged.connect(lambda *_: self._sync_actions())
         self.table.submitted.connect(self._editor_closed)
         self.table.return_pressed.connect(self.accept_current)
+        self.table.read_pressed.connect(self.accept_read)
+        self.table.reading_key.connect(self.pick_reading)
         header = self.table.horizontalHeader()
         header.sectionResized.connect(self._header_moved)
         header.sortIndicatorChanged.connect(self._header_moved)
@@ -258,7 +298,9 @@ class DegerlerScreen(QWidget):
         self.splitter.addWidget(self.card)
         self.side = SidePanel(self.images)
         self.side.accept_button.clicked.connect(self.accept_current)
+        self.side.read_button.clicked.connect(self.accept_read)
         self.side.type_button.clicked.connect(self.type_current)
+        self.side.value.reading_picked.connect(self.pick_reading)
         self.side.variant_button.clicked.connect(self._draw_variant)
         self.side.source.whole.clicked.connect(self.toggle_whole_page)
         self.side.source.view.box_clicked.connect(self._box_clicked)
@@ -280,7 +322,7 @@ class DegerlerScreen(QWidget):
         self.selector.set_view(self._view)
         theme.follow(self, self._restyle, "degerler-screen")
         self.refresh()
-        QTimer.singleShot(0, self._try_attach)
+        QTimer.singleShot(0, self, self._try_attach)
 
     # -- the window: command bar actions, status bar, zoom, toasts ------------------------
     def _try_attach(self) -> None:
@@ -303,6 +345,7 @@ class DegerlerScreen(QWidget):
             "degerler.onceki_kontrol": lambda: self.next_check(-1),
             "degerler.tumunu_incele": self.set_review_all,
             "degerler.ornek_kontrol": self.set_sample,
+            "degerler.sutunlari_sifirla": self.reset_columns,
         }
         for action_id, slot in own.items():
             r.connect(action_id, slot)
@@ -318,6 +361,9 @@ class DegerlerScreen(QWidget):
             self._template_id = prefs.view_state(TEMPLATE_KEY, "") or self._template_id
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._context_menu)
+        header = self.table.horizontalHeader()  # D-10: the header's own menu
+        header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        header.customContextMenuRequested.connect(self._header_menu)
         slot = window.status_slot("degerler")
         layout = slot.layout()
         for name, icon, role in (("doc", None, "icon"), ("kontrol", "triangle-alert",
@@ -333,9 +379,10 @@ class DegerlerScreen(QWidget):
         self._header_key = ""
         self.refresh()
 
-    CONTEXT = ("degerler.onayla", "degerler.elle_yaz", "degerler.varyant", None,
+    CONTEXT = ("degerler.onayla", "degerler.okunanla_onayla", "degerler.elle_yaz",
+               "degerler.okunana_don", "degerler.varyant", None,
                "degerler.secilenleri_onayla", "degerler.tumunu_sec", None,
-               "degerler.tum_sayfa", "degerler.sonraki_kontrol")
+               "degerler.tum_sayfa", "degerler.kontrolde_ac", "degerler.sonraki_kontrol")
 
     def context_menu(self, pos):
         """The right-click menu of a row: its commands with their keys (from the registry)."""
@@ -354,6 +401,40 @@ class DegerlerScreen(QWidget):
             else:
                 menu.addAction(self.window_.registry.action(action_id))
         return menu
+
+    def header_menu(self):
+        """Right-click on a column title: "Sütun genişliklerini sıfırla" (the same command as
+        Görünüm > Sütun genişliklerini sıfırla)."""
+        from PySide6.QtWidgets import QMenu
+
+        if self.window_ is None:
+            return None
+        menu = QMenu(self)
+        menu.setAccessibleName("Sütun komutları")
+        menu.addAction(self.window_.registry.action("degerler.sutunlari_sifirla"))
+        return menu
+
+    def _header_menu(self, pos) -> None:
+        menu = self.header_menu()
+        if menu is not None:
+            menu.exec(self.table.horizontalHeader().mapToGlobal(pos))
+            menu.deleteLater()
+
+    def reset_columns(self, *_args) -> None:
+        """Every column back to its default width (the saved widths are replaced, the sort
+        stays)."""
+        if not self.empty.isHidden() or not self.model.columns:
+            return
+        header = self.table.horizontalHeader()
+        header.blockSignals(True)
+        self._default_widths()
+        header.blockSignals(False)
+        self._fit_columns()
+        self.table.fit_rows()
+        self._save_header()
+        controller = self.controller()
+        if controller is not None:
+            controller.status.emit("Sütun genişlikleri sıfırlandı.")
 
     def _context_menu(self, pos) -> None:
         menu = self.context_menu(pos)
@@ -405,11 +486,47 @@ class DegerlerScreen(QWidget):
         if self._watched is not None:
             try:
                 self._watched.job_changed.disconnect(self._job_changed)
+                self._watched.undo_stack.indexChanged.disconnect(self._stack_moved)
             except (RuntimeError, TypeError):
                 pass
         self._watched = controller
         if controller is not None:
             controller.job_changed.connect(self._job_changed)
+            self._stack_index = controller.undo_stack.index()
+            controller.undo_stack.indexChanged.connect(self._stack_moved)
+
+    def _stack_moved(self, index: int) -> None:
+        """D-5: after Geri al of a step that accepted or typed one value, select that value
+        and say which one it was (Ctrl+Z, the menu and the toast's Geri al all arrive here)."""
+        old, self._stack_index = self._stack_index, index
+        controller = self._watched
+        if controller is None or index != old - 1:
+            return
+        try:
+            target = getattr(controller.undo_stack.command(index), "degerler_value", None)
+        except RuntimeError:  # the job is being torn down
+            return
+        if target is None:
+            return
+        number, key, title = target
+        self._reselect = (number, key)
+        if self.isVisible():
+            self.refresh()
+        else:
+            self._dirty = True  # the selection comes back with the next refresh
+        controller.status.emit(f"Geri alındı: Belge {number}, {title}.")
+
+    @staticmethod
+    def _tag_step(controller: JobController, before: int, row: Row, cell: Cell) -> bool:
+        """Remember which value the step just pushed (at `before`) touched. False when no
+        step landed."""
+        stack = controller.undo_stack
+        if stack.index() != before + 1:
+            return False
+        command = stack.command(before)
+        if command is not None:
+            command.degerler_value = (row.number, cell.key, cell.title)
+        return True
 
     def _job_changed(self) -> None:
         if self.isVisible():
@@ -447,7 +564,7 @@ class DegerlerScreen(QWidget):
         self._dirty = False
         reopen = self._commit_open_editor()
         self._refresh_timer.stop()  # the commit above already counts
-        keep = self.current_value()
+        keep, self._reselect = self._reselect or self.current_value(), None
         self._filling = True
         try:
             self._fill()
@@ -495,9 +612,16 @@ class DegerlerScreen(QWidget):
         template = templates.get(template_id) if template_id else None
         counts = count(self.template_rows)
         sample = self._samples.get(job.id, [])
-        self.selector.set_counts({"kontrol": counts.kontrol, "incelenmemis": counts.unreviewed,
-                                  "tumu": counts.values, "ornek": len(sample)})
         query = self.search.text().strip()
+        # D-8 / D-9: the tabs count the picked template (say so when there are several), and a
+        # search that hides Kontrol values says how many of them it shows
+        shown_kontrol = (count(r for r in self.template_rows if matches(r, query)).kontrol
+                         if query else counts.kontrol)
+        self.selector.set_counts(
+            {"kontrol": counts.kontrol, "incelenmemis": counts.unreviewed,
+             "tumu": counts.values, "ornek": len(sample)},
+            scope="bu şablonda" if self._several_templates() else "",
+            shown={"kontrol": shown_kontrol} if shown_kontrol != counts.kontrol else {})
         if self._view == "ornek":
             items = self._sample_items(sample)
             items = [(r, c) for r, c in items if matches(r, query)]
@@ -506,7 +630,8 @@ class DegerlerScreen(QWidget):
             nothing_read = not any(r.read for r in self.rows)
             items = [] if nothing_read else [(r, None) for r in self.template_rows
                                              if in_view(r, self._view) and matches(r, query)]
-            variables = [(v.key, v.name) for v in template.variables] if template else []
+            variables = ([(v.key, v.name, v.required) for v in template.variables]
+                         if template else [])
             columns = main_columns(self.template_rows, variables)
         self.model.set_content(columns, items, self._view == "ornek")
         self._restore_header(template_id)
@@ -538,12 +663,70 @@ class DegerlerScreen(QWidget):
         elif not items:
             title = {"kontrol": "Kontrol bekleyen değer yok",
                      "incelenmemis": "İncelenmemiş değer yok"}.get(self._view, "Değer yok")
-            self._show_empty("circle-check", title,
-                             "Bu şablonun bütün değerleri emin okundu ya da incelendi.",
-                             ("Tümünü göster", "table", lambda: self.set_view("tumu")))
+            text, next_step = "Bu şablonun bütün değerleri emin okundu ya da incelendi.", None
+            if self._view in ("kontrol", "incelenmemis"):
+                text, next_step = self._end_of_review()
+            self._show_empty("circle-check", title, text,
+                             ("Tümünü göster", "table", lambda: self.set_view("tumu")),
+                             next_step)
         else:
             self._show_table()
         self.search.setEnabled(any(r.read for r in self.rows))
+
+    def _several_templates(self) -> bool:
+        return len({r.template_id for r in self.rows}) > 1
+
+    def _other_kontrol(self) -> tuple[int, str | None]:
+        """Kontrol values of the job's other templates (D-8) and the template holding most."""
+        found: dict[str, int] = {}
+        for row in self.rows:
+            if row.template_id != self.template_combo.currentData():
+                found[row.template_id] = found.get(row.template_id, 0) + sum(
+                    1 for c in row.cells if c.needs_check)
+        best = max(found, key=found.__getitem__, default=None)
+        return sum(found.values()), best if best is not None and found[best] else None
+
+    def _search_hides(self) -> int:
+        """Kontrol values of the picked template that the search field hides (D-9)."""
+        query = self.search.text().strip()
+        if not query:
+            return 0
+        total = count(self.template_rows).kontrol
+        return total - count(r for r in self.template_rows if matches(r, query)).kontrol
+
+    def _end_message(self) -> str:
+        """N with nothing left to check: one sentence for what is true here, then one for
+        each thing that lies outside the shown values (a search, another template)."""
+        sentences = []
+        if hidden := self._search_hides():
+            sentences.append(f"{hidden} Kontrol değeri aramayla süzülü.")
+        other = self._other_kontrol()[0]
+        if other:
+            sentences.append(f"Başka şablonda {other} kontrol var.")
+        first = "Bu şablonda kontrol bekleyen değer yok." if other \
+            else "Kontrol bekleyen değer yok."
+        return " ".join([first, *sentences])
+
+    def _show_template(self, template_id: str) -> None:
+        self.template_combo.setCurrentIndex(self.template_combo.findData(template_id))
+
+    def _end_of_review(self) -> tuple[str, tuple[str, str, Callable[[], None]] | None]:
+        """The empty Kontrol / İncelenmemiş state: its sentence and one next step (D-8, D-9):
+        another template that still has Kontrol values, else the unreviewed Orta values, else
+        Dışa Aktar when no Kontrol value is left anywhere."""
+        other, where = self._other_kontrol()
+        orta = sum(1 for r in self.template_rows for c in r.cells
+                   if c.level == "orta" and not c.reviewed)
+        if other and where is not None:
+            return ("Bu şablonun bütün değerleri emin okundu ya da incelendi.",
+                    (f"Başka şablonda {other} kontrol var", "triangle-alert",
+                     lambda: self._show_template(where)))
+        if orta and self._view == "kontrol":
+            return (f"{orta} değer Orta okundu, incelenmedi.",
+                    ("İncelenmemişleri göster", "list-checks",
+                     lambda: self.set_view("incelenmemis")))
+        return ("Bu şablonun bütün değerleri emin okundu ya da incelendi.",
+                ("Dışa Aktar'a git", "download", lambda: self.go_tab.emit("disa_aktar")))
 
     def _sample_items(self, sample: list[SampleItem]) -> list[tuple[Row, Cell | None]]:
         by_first = {r.document.page_ids[0]: r for r in self.rows}
@@ -572,20 +755,10 @@ class DegerlerScreen(QWidget):
         self.template_combo.blockSignals(False)
         self._template_id = self.template_combo.currentData()
 
-    def _update_search_hint(self, template: Template | None) -> None:
-        """A's "Firma, sicil no ara": the template's first two variables, words first."""
-        if template is None:
-            self._search_hints = ["Ara"]
-            self._fit_search_hint()
-            return
-        kinds = {c.key: c.style for c in self.model.columns if c.kind == "var"}
-        names = sorted(template.variables, key=lambda v: kinds.get(v.key, "code") != "text")
-        shown = [display_name(v.name) for v in names[:2]]
-        words = [shown[0]] + [tr_lower(n) for n in shown[1:]] if shown else []
-        # Longest first; the first one that fits the field is shown, never an elided hint.
-        self._search_hints = [f"{', '.join(words)} ara"] if len(words) > 1 else []
-        self._search_hints += [f"{words[0]} ara"] if words else []
-        self._search_hints += ["Değerlerde ara", "Ara"]
+    def _update_search_hint(self, _template: Template | None = None) -> None:
+        """"Değerlerde ara" (S-6): the search covers every value, so it names no column; "Ara"
+        when the field is too narrow for it."""
+        self._search_hints = ["Değerlerde ara", "Ara"]
         self._fit_search_hint()
 
     def _fit_search_hint(self) -> None:
@@ -623,12 +796,29 @@ class DegerlerScreen(QWidget):
         header.blockSignals(True)
         for c, column in enumerate(self.model.columns):
             width = 44 if column.kind == "review" else (
-                metrics.horizontalAdvance(column.title) + 2 * m.size("s3") + m.size("s4"))
+                metrics.horizontalAdvance(column.label) + 2 * m.size("s3") + m.size("s4"))
             header.resizeSection(c, width)
         header.blockSignals(False)
         self._fit_columns(empty=True)
 
+    def _keep_focus(self) -> None:
+        """Focus on a button that is about to be hidden or disabled goes to the table, not to
+        the title tabs at the top of the window (F-degerler-09)."""
+        focus = QApplication.focusWidget()
+        if focus is None or focus is self.table:
+            return
+        bar = ()
+        if self.window_ is not None:
+            bar = tuple(self.window_.registry.action(i) for i in
+                        ("degerler.oku", "degerler.eksikleri_oku", "degerler.durdur"))
+        from evrakci.ui.chrome import ActionButton
+
+        if (self.empty.isAncestorOf(focus) or self.progress_band.isAncestorOf(focus)
+                or (isinstance(focus, ActionButton) and focus.action_ in bar)):
+            self.table.setFocus(Qt.FocusReason.OtherFocusReason)
+
     def _show_table(self) -> None:
+        self._keep_focus()
         self.empty.hide()
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.table.horizontalHeader().setSortIndicatorShown(True)
@@ -655,6 +845,10 @@ class DegerlerScreen(QWidget):
             restored = header.restoreState(state) and header.count() == len(self.model.columns)
         header.blockSignals(False)
         if restored:
+            header.blockSignals(True)
+            for c in range(header.count()):  # widths saved before the floor existed
+                self._keep_floor(c, header.sectionSize(c))
+            header.blockSignals(False)
             self.model.sort(header.sortIndicatorSection(), header.sortIndicatorOrder())
         else:
             column, order = self.model.sort_state()
@@ -673,8 +867,29 @@ class DegerlerScreen(QWidget):
             kind = column.style if column.kind == "var" else column.kind
             width = round(WIDTHS.get(kind, 150) * scale)
             if column.kind in ("var", "pages", "doc"):
-                width = max(width, self._content_width(c))
+                width = max(width, self._content_width(c) + self._note_width(c))
             self.table.setColumnWidth(c, width)
+
+    def _note_width(self, column: int, own_line: bool = False) -> int:
+        """Room for the "← okunan …" part of the widest value in a code or number column, so
+        the cell shows what was read beside the suggestion (Q-12); text columns wrap instead."""
+        from PySide6.QtGui import QFontMetrics
+
+        spec = self.model.columns[column]
+        if spec.kind != "var" or spec.style == "text":
+            return 0
+        m = theme.manager()
+        metrics = QFontMetrics(m.font("caption"))
+        notes = [cell.read_note for r in range(min(self.model.rowCount(), 400))
+                 if (cell := self.model.cell_at(self.model.index(r, column))) is not None
+                 and cell.dual]
+        if not notes:
+            return 0
+        if own_line:  # the narrowest the column may get: the read still shows on a second line
+            return max(metrics.horizontalAdvance(f"okunan {n}") for n in notes) \
+                + 2 * m.size("s3") + m.inline_icon(16) + 6
+        widest = max(metrics.horizontalAdvance(f"← okunan {n}") for n in notes)
+        return widest + m.size("s3") + m.inline_icon(16) + 6
 
     def _content_width(self, column: int) -> int:
         from PySide6.QtGui import QFontMetrics
@@ -716,10 +931,10 @@ class DegerlerScreen(QWidget):
             need = max(round(160 * self._scale()), room)
             over = others + need - self.table.viewport().width()
             if over > 0:  # still too wide: the other value columns give way down to a floor
-                floor = round(110 * self._scale())
                 for c, column in enumerate(self.model.columns):
                     if over <= 0 or c == flex or column.kind not in VALUE_KINDS:
                         continue
+                    floor = max(round(110 * self._scale()), self._note_width(c, True))
                     give = min(over, header.sectionSize(c) - floor)
                     if give > 0:
                         header.blockSignals(True)
@@ -730,9 +945,27 @@ class DegerlerScreen(QWidget):
         header.resizeSection(flex, max(need, room))
         header.blockSignals(False)
 
-    def _header_moved(self, *_args) -> None:
-        if not self._filling:
-            self._header_timer.start()
+    COLUMN_FLOOR = 80  # at 100 % text: a dragged column stops here (D-10); 40 px showed "S..."
+
+    def _header_moved(self, *args) -> None:
+        if self._filling:
+            return
+        if len(args) == 3 and isinstance(args[0], int):  # sectionResized(index, old, new)
+            self._keep_floor(args[0], args[2])
+        self._header_timer.start()
+
+    def _keep_floor(self, column: int, width: int) -> None:
+        """A column the user made narrower than the floor is put back to the floor, so its
+        title and values stay readable."""
+        columns = self.model.columns
+        if not 0 <= column < len(columns) or columns[column].kind in ("review", "doc", "pages"):
+            return
+        floor = round(self.COLUMN_FLOOR * self._scale())
+        if width < floor:
+            header = self.table.horizontalHeader()
+            header.blockSignals(True)
+            header.resizeSection(column, floor)
+            header.blockSignals(False)
 
     def _save_header(self) -> None:
         prefs = getattr(self.window_, "prefs", None)
@@ -744,7 +977,7 @@ class DegerlerScreen(QWidget):
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         table = getattr(self, "table", None)
         if table is not None and obj is table.viewport() and event.type() == QEvent.Type.Resize:
-            QTimer.singleShot(0, self._fit_columns)
+            QTimer.singleShot(0, self, self._fit_columns)
         elif obj is self.search and event.type() == QEvent.Type.Resize:
             self._fit_search_hint()
         elif obj is self.search and event.type() == QEvent.Type.KeyPress and \
@@ -756,7 +989,11 @@ class DegerlerScreen(QWidget):
     # -- Ctrl+F and Ctrl+G ------------------------------------------------------------------
     def focus_search(self) -> None:
         """Ctrl+F: the table's search field, its text selected."""
-        if self.search.isEnabled():
+        if self.controller() is None:  # no job: say what to do first (M-06)
+            say = getattr(self.window(), "say_no_job", None)
+            if say is not None:
+                say()
+        elif self.search.isEnabled():
             self.search.setFocus(Qt.FocusReason.ShortcutFocusReason)
             self.search.selectAll()
 
@@ -764,7 +1001,13 @@ class DegerlerScreen(QWidget):
         """Ctrl+G: a document (Belge N) or a page; its row is selected in the table."""
         from evrakci.ui.kontrol_dialogs import GoToDialog
 
+        if self.controller() is None:  # no job: say what to do first (F1)
+            say = getattr(self.window(), "say_no_job", None)
+            if say is not None:
+                say()
+            return
         if not self.rows:
+            self._say(refusals.NO_DOCUMENT)
             return
         current = self.model.row_at(self.table.currentIndex().row()) \
             if self.table.currentIndex().isValid() else None
@@ -781,7 +1024,7 @@ class DegerlerScreen(QWidget):
                 return
             number = row.number
         if not self.select_value(number, ""):
-            self._say(f"Belge {number} bu görünümde yok.")
+            self._say(refusals.DOCUMENT_NOT_SHOWN.format(number=number))
         self.table.setFocus()
 
     def _say(self, text: str) -> None:
@@ -827,15 +1070,18 @@ class DegerlerScreen(QWidget):
         self._select_first()
 
     def set_sample(self, on: bool = True) -> None:
-        """Örnek kontrol: 20 random Emin values, each confirmed or corrected by hand."""
+        """Örnek kontrol: random Emin values (20, or 2 % of them), each confirmed or corrected
+        by hand."""
         if on:
             if not self._samples.get(self._job_id):
-                sample = draw_sample(self.rows, self._job_id or "evrakci", SAMPLE_SIZE)
+                pool = emin_count(self.rows)
+                sample = draw_sample(self.rows, self._job_id or "evrakci")
                 if not sample:
                     self._check_action("degerler.ornek_kontrol", False)
                     self._say("Örnek için emin okunmuş değer yok.")
                     return
                 self._samples[self._job_id] = sample
+                self._sample_pool[self._job_id] = pool
                 self._sample_done = False
             if self._review_all:
                 self._review_all = False
@@ -922,6 +1168,43 @@ class DegerlerScreen(QWidget):
         self.table.scrollTo(index)
         return True
 
+    def has_document(self, number: int) -> bool:
+        """Whether document `number` is a row here; if not, the status line says why."""
+        controller = self.controller()
+        documents = controller.documents() if controller is not None else []
+        if 0 < number <= len(documents):
+            first = documents[number - 1].page_ids[0]
+            if first in _template_of(controller.job):
+                return True
+        if controller is not None:
+            controller.status.emit("Bu belgenin şablonu yok; Değerler'de görünmez.")
+        return False
+
+    def select_document(self, number: int) -> bool:
+        """Select document `number` (its first value to check), whatever template, view or
+        search is shown; a view that hides it becomes Tümü. Says which document it is."""
+        row = next((r for r in self.rows if r.number == number), None)
+        if row is None:
+            return False
+        if row.template_id != self.template_combo.currentData():
+            self.template_combo.setCurrentIndex(self.template_combo.findData(row.template_id))
+        if self.model.row_of(number) < 0 and any(r.read for r in self.rows):
+            self.set_view("tumu")
+            if self.model.row_of(number) < 0 and self.search.text():
+                self.search.clear()
+        key = next((c.key for c in row.cells if c.needs_check),
+                   row.cells[0].key if row.cells else "")
+        if not self.select_value(number, key):
+            return False
+        self.controller().status.emit(f"Belge {number} seçildi.")  # the status line
+        return True
+
+    def open_in_kontrol(self, *_args) -> None:
+        # The row, not the cell: a row whose template is gone has no cells but is a document.
+        row = self.model.row_at(self.table.currentIndex().row())
+        if row is not None:
+            self.open_kontrol.emit(row.number)
+
     def _select_first(self) -> None:
         """Start on the first value to check (or to review), else the first row."""
         target = self._find(-1, -1, 1, self._target_test())
@@ -960,19 +1243,47 @@ class DegerlerScreen(QWidget):
         if step < 0 and not index.isValid():
             here = (self.model.rowCount(), 0)
         target = self._find(*here, step, self._target_test(kontrol_only=True))
+        if target.isValid() and (target.row(), target.column()) == here:
+            self._say("Başka kontrol bekleyen değer yok.")  # the only one is the one we are on
+            return
         if target.isValid():
+            self._say_wrap(target, here, step)
             self.table.setCurrentIndex(target)
             self.table.scrollTo(target)
             self.table.setFocus(Qt.FocusReason.ShortcutFocusReason)
         else:
-            self._say("Kontrol bekleyen değer yok.")
+            self._say(self._end_message())
 
-    def _advance(self, number: int, row: int, column: int) -> None:
+    def _wrapped(self, target: QModelIndex, here: tuple[int, int], step: int) -> bool:
+        where = (target.row(), target.column())
+        return (where <= here) if step > 0 else (where >= here)
+
+    def _say_wrap(self, target: QModelIndex, here: tuple[int, int], step: int,
+                  prefix: str = "") -> None:
+        """D-9: a search that went round the end says so, quietly (status line, no toast).
+        After an accept it is one line with "… kabul edildi." (D-5)."""
+        if self._wrapped(target, here, step):
+            controller = self.controller()
+            if controller is not None:
+                controller.status.emit(f"{prefix} {'Başa döndü.' if step > 0 else 'Sona döndü.'}"
+                                       .strip())
+
+    def _accepted_line(self, controller: JobController, row: Row, cell: Cell) -> str:
+        kept = current_values(controller.job, row.document).get(cell.key)
+        if kept is None:
+            return ""
+        return f"Belge {row.number}, {cell.title}: {kept.value or 'boş'} kabul edildi."
+
+    def _advance(self, number: int, row: int, column: int, prefix: str = "") -> None:
         """After an accept: the next value to look at, from where the accepted one was."""
         if self.model.row_at(row) is None or self.model.row_at(row).number != number:
             column = -1  # the row left this view: its successor took its place
         target = self._find(row, column, 1, self._target_test())
         if target.isValid():
+            if self._wrapped(target, (row, column), 1):
+                self._say_wrap(target, (row, column), 1, prefix)
+            elif prefix:
+                self._quiet(prefix)
             self.table.setCurrentIndex(target)
             self.table.scrollTo(target)
             return
@@ -986,10 +1297,24 @@ class DegerlerScreen(QWidget):
         if target.isValid():
             self.table.setCurrentIndex(target)
             self.table.scrollTo(target)
-            self._say(f"Kontrol gereken değer kalmadı; {left} değer incelenmedi. Enter "
-                      "sıradakini onaylar.")
+            self._hint(prefix, f"Kontrol gereken değer kalmadı; {left} değer incelenmedi. "
+                       "Enter sıradakini onaylar.")
         else:
-            self._say("Bu görünümdeki bütün değerler incelendi.")
+            hidden = self._search_hides()
+            self._hint(prefix, f"Bu görünümdeki bütün değerler incelendi; {hidden} Kontrol "
+                       "değeri aramayla süzülü." if hidden
+                       else "Bu görünümdeki bütün değerler incelendi.")
+
+    def _quiet(self, text: str) -> None:
+        controller = self.controller()
+        if controller is not None and text:
+            controller.status.emit(text)
+
+    def _hint(self, prefix: str, text: str) -> None:
+        """An end-of-list hint: a toast, and the status line says it together with the
+        "kabul edildi." that came before it (one line, D-5)."""
+        self._say(text)
+        self._quiet(f"{prefix} {text}".strip() if prefix else "")
 
     def _current_changed(self, *_args) -> None:
         self.table.viewport().update()
@@ -1008,7 +1333,8 @@ class DegerlerScreen(QWidget):
             side.source.show_blank("Değer seçilmedi",
                                    "Okunan değerler burada kaynağıyla görünür.")
             side.set_blank(True)
-            side.set_actions(False, False, False)
+            side.set_actions(False, False, False, False)
+            self._readings = []
             return
         side.set_blank(False)
         page = row.page_of(cell)
@@ -1021,11 +1347,12 @@ class DegerlerScreen(QWidget):
                            if s.first_page == row.document.page_ids[0] and s.key == cell.key), 0)
             meta += f", örnek {number} / {len(sample)}"
         crop = self._crop(row, cell, pid)
-        side.source.show_crop(cell.title, meta, crop,
-                              f"Kaynak kesiti: {cell.title}, {meta.lower()}")
+        shown = meta + " · zorunlu" if cell.required else meta
+        side.source.show_crop(cell.title, shown, crop,
+                              f"Kaynak kesiti: {cell.title}, {shown.lower()}")
         card = side.value
         if cell.value is None:
-            card.show_value("okunmadı", "text-2")
+            card.show_value("henüz okunmadı", "text-2")
             card.level.set("okunmadi", None)
         elif cell.needs_check:
             card.show_flagged(cell.text, cell.uncertain, cell.suggestion, cell.suggestion_marks)
@@ -1043,9 +1370,42 @@ class DegerlerScreen(QWidget):
         else:
             card.why.setText(cell.why() if not row.error else f"{cell.why()} {row.error}".strip())
         card.why.setVisible(bool(card.why.text()))
+        self._readings = self._reading_items(cell)
+        card.set_readings(self._readings)
         side.relayout()
         # Onayla works on every read value: it accepts, confirms, or (already reviewed) moves on
-        side.set_actions(cell.value is not None, row.read, row.template is not None)
+        side.set_actions(cell.value is not None, row.read, row.template is not None,
+                         cell.dual, unreadable=cell.level == "okunamadi")
+
+    @staticmethod
+    def _reading_items(cell: Cell) -> list[ReadingItem]:
+        """"Tüm okumalar": one item per stored reading (I-19)."""
+        value = cell.value
+        if value is None or len(value.readings) < 2:
+            return []
+        texts = [r.text for r in value.readings] + [value.suggestion]
+        return [ReadingItem(section_name(r.section), r.text,
+                            uncertain_positions(r.text, texts, value.flagged),
+                            round(r.confidence * 100),
+                            bool(value.suggestion) and r.text == value.suggestion,
+                            r.problem or "")
+                for r in value.readings]
+
+    def pick_reading(self, number: int) -> None:
+        """Click on a reading row or Alt+1..Alt+4: the editor takes that reading's text (it
+        opens first when closed); Enter then stores it as one undo step."""
+        items = self._readings[:MAX_READINGS]
+        if not 0 <= number < len(items) or not items[number].text:
+            return  # no such reading, or an empty one ("boş")
+        if not self.table.is_editing():
+            self.type_current()
+        editor = self.table.open_editor_widget()
+        if editor is None:
+            return
+        editor.setText(items[number].text)
+        editor.setModified(True)
+        editor.end(False)
+        editor.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _crop(self, row: Row, cell: Cell, pid: str) -> Crop:
         template = row.template
@@ -1109,13 +1469,23 @@ class DegerlerScreen(QWidget):
 
     # -- fixing values --------------------------------------------------------------------
     def accept_current(self, *_args) -> None:
-        """Enter: accept the suggestion (or confirm what was read), mark it İncelendi and go
-        to the next value to check. An unreadable value opens the editor instead."""
+        """Enter / Öneriyle onayla: accept the suggestion (or confirm what was read), mark it
+        İncelendi and go to the next value to check. An unreadable value opens the editor."""
+        self._accept(False)
+
+    def accept_read(self, *_args) -> None:
+        """Shift+Enter / Okunanla onayla: store what was read instead of the suggestion
+        (Q-12); only for a value whose read text differs from its suggestion."""
+        self._accept(True)
+
+    def _accept(self, read: bool) -> None:
         controller = self.controller()
         index = self.table.currentIndex()
         row = self.model.row_at(index.row()) if index.isValid() else None
         cell = self._cell_for(index)
         if controller is None or row is None or cell is None or self.table.is_editing():
+            return
+        if read and not cell.dual:
             return
         if cell.level == "okunamadi" or (cell.value is None and row.read):
             self.type_current()
@@ -1123,12 +1493,28 @@ class DegerlerScreen(QWidget):
         if cell.value is None:
             return
         anchor = (row.number, index.row(), self.model.value_index(row.number, cell.key).column())
+        line = ""
         if not cell.reviewed or cell.value.flagged:
-            text = "Öneriyi kabul et" if cell.value.flagged else UNDO_TEXT
-            controller.run(text, lambda job: confirm(job, row.document, cell.key))
+            flagged = cell.value.flagged
+            if read:
+                text, stored = UNDO_TEXT, cell.read_note
+                action = confirm_read
+            else:
+                text = UNDO_TEXT
+                stored = cell.suggestion
+                action = confirm
+            before = controller.undo_stack.index()
+            controller.run(text, lambda job: action(job, row.document, cell.key))
+            landed = self._tag_step(controller, before, row, cell)
             self.refresh()
             self._sample_progress()
-        self._advance(*anchor)
+            line = self._accepted_line(controller, row, cell) if landed else ""
+            if flagged and stored:  # the confirmation names the value (Q-12); one per Enter
+                kept = current_values(controller.job, row.document).get(cell.key)
+                if kept is not None and kept.value:  # what was stored, after cleaning
+                    self._toast(f"{kept.value} kaydedildi ({'okunan' if read else 'öneri'}).",
+                                controller, before + 1, "success", key=TOAST_KEY)
+        self._advance(*anchor, prefix=line)
 
     def accept_selected(self, *_args) -> None:
         """Ctrl+Enter: confirm every value in the selected rows, as one undoable step."""
@@ -1157,20 +1543,32 @@ class DegerlerScreen(QWidget):
         controller.run(f"{len(doable)} değeri onayla", apply)
         self.refresh()
         message = f"{len(doable)} değer onaylandı"
+        in_kontrol = sum(1 for _, c in doable if c.value.flagged)
+        if in_kontrol:  # D-3: guesses accepted in bulk are named, not hidden in the count
+            message += f"; {in_kontrol} tanesi Kontrol'dü"
         if skipped:
             message += f"; okunamayan {skipped} değer atlandı"
+        elif in_kontrol:
+            message += "."
         self._toast(message, controller, before + 1, "success")
         self._sample_progress()
 
-    def _toast(self, text: str, controller: JobController, index: int, kind: str) -> None:
-        """A completed event with Geri al (only while that step is still the last one)."""
-        def undo() -> None:
-            if controller.undo_stack.index() == index:
-                controller.undo_stack.undo()
+    def _toast(self, text: str, controller: JobController, index: int, kind: str,
+               key: str | None = None) -> None:
+        """A completed event with Geri al (only while that step is still the last one: same
+        index and same command, so Ctrl+Z and a new edit cannot reuse it, B-023)."""
+        stack = controller.undo_stack
+        undo, available = undo_last(stack)
+        if stack.index() != index:  # the step did not land: no Geri al
+            undo, available = None, (lambda: False)
 
         toaster = self._toaster()
         if toaster is not None:
-            toaster.show(text, "Geri al", undo, kind=kind, timeout_ms=10000)
+            if undo is None:
+                toaster.show(text, kind=kind, timeout_ms=10000)
+            else:
+                toaster.show(text, "Geri al", undo, kind=kind, timeout_ms=10000,
+                             available=available, key=key)
         else:
             self._say(text)
 
@@ -1188,8 +1586,36 @@ class DegerlerScreen(QWidget):
         self.table.setFocus(Qt.FocusReason.ShortcutFocusReason)
         self.table.open_editor(index)
 
+    def revert_current(self, *_args) -> None:
+        """R: put the current value back to what the machine read (Kontrol, with the old
+        reading as the suggestion). One undo step, "Okunana dön"."""
+        controller = self.controller()
+        index = self.table.currentIndex()
+        row = self.model.row_at(index.row()) if index.isValid() else None
+        cell = self._cell_for(index)
+        if (controller is None or row is None or cell is None or cell.value is None
+                or self._view == "ornek" or self.table.is_editing()
+                or not can_revert(cell.value)):
+            return
+        if controller.run("Okunana dön", lambda job: revert_value(job, row.document, cell.key)):
+            self.refresh()
+            self._say(f"Okunana dönüldü: {cell.title}. Kontrol'e alındı.")
+
+    def _sync_revert(self, row, cell) -> None:
+        """Okunana dön: enabled for a corrected value that has a reading; the tooltip says why
+        not when the value was typed by hand."""
+        value = cell.value if cell is not None else None
+        enabled = (row is not None and value is not None and self._view != "ornek"
+                   and can_revert(value))
+        r = self.window_.registry
+        r.set_enabled("degerler.okunana_don", enabled)
+        action = r.action("degerler.okunana_don")
+        action.setToolTip(tooltip_for(r.spec("degerler.okunana_don")))  # the registry's reason
+        r.refresh_reasons()  # replaces it while the key cannot act (refusals.py)
+
     def _apply_edit(self, row: Row, key: str, text: str) -> None:
         """A value typed in the table (Enter, Tab, or leaving the editor)."""
+        self._edit_line = ""
         controller = self.controller()
         if controller is None:
             return
@@ -1204,10 +1630,21 @@ class DegerlerScreen(QWidget):
         if cell is not None and cell.value is not None and text == cell.edit_text() and (
                 not cell.value.flagged or cell.suggestion):
             # Enter on what the editor showed: confirm it, like Onayla (keeps the Güven %)
-            controller.run("Öneriyi kabul et" if cell.value.flagged else UNDO_TEXT,
-                           lambda job: confirm(job, row.document, key))
+            before = controller.undo_stack.index()
+            controller.run(UNDO_TEXT, lambda job: confirm(job, row.document, key))
+            if self._tag_step(controller, before, row, cell):
+                self._edit_line = self._accepted_line(controller, row, cell)
             return
-        controller.set_value(row.document, key, text)
+        required = cell is not None and cell.required
+        before = controller.undo_stack.index()
+        stored = controller.set_value(row.document, key, text, required)
+        if cell is not None and self._tag_step(controller, before, row, cell) and stored:
+            self._edit_line = self._accepted_line(controller, row, cell)
+        if not stored:
+            if required and not controller.frozen and not " ".join(text.split()):
+                # emptied: stored as Kontrol, say so. Geri al only when this edit pushed a step
+                # (re-emptying an empty value adds none, and it must never undo an older one)
+                self._toast(REQUIRED_EMPTY, controller, before + 1, "kontrol")
 
     def _sample_error(self, controller: JobController, row: Row, key: str, text: str) -> None:
         """An error found in the sample: correct it and send the variable's other values that
@@ -1238,9 +1675,10 @@ class DegerlerScreen(QWidget):
         if row is None:
             return
         anchor = (row.number, index.row(), index.column())
+        line, self._edit_line = self._edit_line, ""  # D-5: the editor's Enter says it too
         self.refresh()
         self._sample_progress()
-        self._advance(*anchor)
+        self._advance(*anchor, prefix=line)
 
     def _draw_variant(self) -> None:
         index = self.table.currentIndex()
@@ -1261,6 +1699,11 @@ class DegerlerScreen(QWidget):
             self.table.setCurrentIndex(current)
 
     def select_all(self, *_args) -> None:
+        if self.controller() is None:  # no job: say what to do first (L6)
+            say = getattr(self.window(), "say_no_job", None)
+            if say is not None:
+                say()
+            return
         self.table.selectAll()
 
     def _sample_progress(self) -> None:
@@ -1272,7 +1715,12 @@ class DegerlerScreen(QWidget):
                                                                        False):
             self._sample_done = True
             errors = self._sample_errors()
-            self._say(f"Örnek kontrol bitti: {len(items)} değer, {errors} hata.")
+            pool = max(self._sample_pool.get(self._job_id, 0), len(items))
+            if len(items) >= pool:  # every Emin value was looked at: no caveat is needed
+                self._say(f"Bütün {grouped(pool)} emin değere bakıldı; {errors} hata.")
+            else:  # D-4: say what the check covers, it is not clearance
+                self._say(f"{grouped(pool)} emin değerden {dative(len(items))} bakıldı; "
+                          f"{errors} hata. Bu her değerin doğru olduğunu göstermez.")
 
     def _sample_errors(self) -> int:
         sample = self._samples.get(self._job_id, [])
@@ -1297,8 +1745,10 @@ class DegerlerScreen(QWidget):
         has_job = self.controller() is not None
         read_any = any(r.read for r in self.rows)
         busy = self.task is not None
-        self.read_button.setEnabled(has_job and bool(self.rows) and not busy)
-        self.missing_button.setEnabled(has_job and read_any and not busy)
+        stoppable = getattr(self.window_, "loading_cancellable", lambda: False)()
+        waiting = busy or getattr(self.window_, "loading", lambda: False)()  # a job loads
+        self.read_button.setEnabled(has_job and bool(self.rows) and not waiting)
+        self.missing_button.setEnabled(has_job and read_any and not waiting)
         if self.window_ is None:
             return
         r = self.window_.registry
@@ -1307,23 +1757,39 @@ class DegerlerScreen(QWidget):
         row = self.model.row_at(index.row()) if index.isValid() else None
         has_rows = self.model.rowCount() > 0
         counts = count(self.rows)
+        dual = cell is not None and cell.dual
+        self._label_accept(dual)
         state = {
             "degerler.onayla": self.side.accept_button.isEnabled(),
+            "degerler.okunanla_onayla": self.side.accept_button.isEnabled() and dual,
             "degerler.secilenleri_onayla": has_rows and bool(
                 self.table.selectionModel().selectedRows()),
             "degerler.elle_yaz": row is not None and row.read and cell is not None,
             "degerler.varyant": row is not None and row.template is not None,
             "degerler.vazgec": has_rows,
-            "degerler.tumunu_sec": has_rows,
+            "degerler.tumunu_sec": has_rows or not has_job,  # no job: it says so (L6)
             "degerler.tum_sayfa": row is not None,
+            "degerler.kontrolde_ac": row is not None,
             "degerler.sonraki_kontrol": counts.kontrol > 0,
             "degerler.onceki_kontrol": counts.kontrol > 0,
             "degerler.tumunu_incele": read_any,
             "degerler.ornek_kontrol": read_any,
-            "degerler.durdur": busy,
+            "degerler.durdur": busy or stoppable,
+            "degerler.sutunlari_sifirla": has_rows and self.empty.isHidden(),
         }
         for action_id, enabled in state.items():
             r.set_enabled(action_id, enabled)
+        self._sync_revert(row, cell)
+        r.refresh_reasons()  # a task started or ended: the reasons (tooltips) read it
+
+    def _label_accept(self, dual: bool) -> None:
+        """Enter's action says "Öneriyle onayla" while the value has a differing reading to
+        choose instead (menu, right-click menu and palette follow the side panel button)."""
+        action = self.window_.registry.action("degerler.onayla")
+        if action.property("dual") == dual:
+            return
+        action.setProperty("dual", dual)
+        action.setText("Öneriyle onayl&a" if dual else "Onayl&a")
 
     def _update_status(self) -> None:
         items = self._status_items
@@ -1338,7 +1804,8 @@ class DegerlerScreen(QWidget):
         current = self.table.currentIndex()
         row = self.model.row_at(current.row()) if current.isValid() else None
         if self.rows and not any(r.read for r in self.rows):
-            items["unread"].set("", str(len(self.rows)), " belgede şablon var, değer okunmadı")
+            items["unread"].set("", str(len(self.rows)),
+                                " belgede şablon var, değer henüz okunmadı")
             items["unread"].show()
             return
         if not self.rows:
@@ -1355,32 +1822,43 @@ class DegerlerScreen(QWidget):
             items["errors"].show()
             return
         counts = count(self.rows)
+        several = self._several_templates()  # D-8: the bar counts the whole job; say so
+        scope = ", işin tamamında" if several else ""
         if counts.kontrol:
-            items["kontrol"].set("", str(counts.kontrol), " değer kontrol bekliyor")
+            hidden = self._search_hides()
+            if hidden and several:  # the numbers are the job's; the search is the template's
+                items["kontrol"].set("", str(counts.kontrol), " değer kontrol bekliyor, "
+                                     "işin tamamında; bu şablonda arama bazılarını gizliyor")
+            elif hidden:  # D-9: "2 / 7, aramayla süzülü"
+                items["kontrol"].set("", f"{counts.kontrol - hidden} / {counts.kontrol}",
+                                     " değer kontrol bekliyor, aramayla süzülü")
+            else:
+                items["kontrol"].set("", str(counts.kontrol),
+                                     f" değer kontrol bekliyor{scope}")
             items["kontrol"].show()
         if counts.okunamadi:
-            items["bad"].set("", str(counts.okunamadi), " okunamadı")
+            items["bad"].set("", str(counts.okunamadi), f" okunamadı{scope}")
             items["bad"].show()
-        items["seen"].set("", str(counts.reviewed), f" / {counts.values} incelendi")
+        items["seen"].set("", str(counts.reviewed), f" / {counts.values} incelendi{scope}")
         items["seen"].show()
 
     # -- reading values in the background -------------------------------------------------
     def _engine(self):
         if self.engine is not None:
             return self.engine()
-        from evrakci.pipeline.ocr.tesseract import default_engine
+        from evrakci.ui.ocr_engine import LazyEngine
 
-        return default_engine()
+        return LazyEngine()  # the real one is made in the worker, at its first use
 
     def read_values(self, only_missing: bool) -> None:
         controller = self.controller()
         if controller is None or self.task is not None:
             return
-        engine = self._engine()
-        reason = engine.available()
-        if reason:  # refuse like the command line does; nothing is touched
-            self._show_message(f"Okunamadı: {reason}", "triangle-alert", "check-text")
+        window = self.window()
+        if getattr(window, "loading", lambda: False)():  # a job is loading: no read now
+            window.message.setText(BUSY_REASON)
             return
+        engine = self._engine()
         job = controller.job
         templates = self.templates()
         files = controller.store.batch_files(job)
@@ -1397,13 +1875,19 @@ class DegerlerScreen(QWidget):
             work.append((document, template_id, templates.get(template_id)))
         results: list = []  # filled by the worker; kept even when the read is cancelled
         self._results = results
+        self._read_group += 1
+        self._stored_upto = self._read_stored = self._failed_total = 0
 
         def run(progress):
+            reason = engine.available()  # the probe can be slow: here, not on the window thread
+            if reason:  # refuse like the command line does; nothing is touched
+                self._engine_reason = str(EngineUnavailable(reason))  # said as it is
+                raise EngineUnavailable(reason)
             for done, (document, template_id, template) in enumerate(work, start=1):
                 progress(done - 1, len(work))
                 if template is None:
-                    results.append((document, template_id, None,
-                                    f"Şablon bulunamadı: {template_id}", ""))
+                    results.append((document, template_id, None,  # F-degerler-40: no id
+                                    "Şablon bulunamadı. Şablonlar'dan yeniden seçin.", ""))
                     continue
 
                 def page_image(index, document=document):
@@ -1426,6 +1910,8 @@ class DegerlerScreen(QWidget):
         self.task.signals.failed.connect(self._read_failed)
         self.task.signals.cancelled.connect(self._read_cancelled)
         self._started = time.monotonic()
+        controller.reading = True  # no undo or redo, by any route, until the read ends
+        self._read_controller = controller
         self._set_busy(True)
         self._progress(0, len(work))
         start(self.task)
@@ -1446,14 +1932,35 @@ class DegerlerScreen(QWidget):
         taskbar = getattr(self.window_, "taskbar", None)
         if taskbar is not None:
             taskbar.set(done, max(1, total))
+        self._store_batch(done)
+
+    def _store_batch(self, done: int) -> None:
+        """D-10: results appear while the read runs. Each time READ_BATCH more documents are
+        finished they are stored (on this thread); all of a read's batches are one undo step."""
+        if self.task is None:
+            return
+        upto = min(done, len(self._results))
+        if upto - self._stored_upto >= READ_BATCH:
+            self._store(self._results[self._stored_upto:upto])
+            self._stored_upto = upto
+
+    def _store_rest(self, results) -> None:
+        """What the batches have not stored yet (the end of a read, or what was finished when
+        it stopped)."""
+        self._store(list(results)[self._stored_upto:])
+        self._stored_upto = len(results)
 
     def _store(self, results) -> int:
-        """Store readings on the window thread, as one undoable edit. Returns how many."""
+        """Store readings on the window thread; one undoable edit per call, merged with the
+        read's other calls. Returns how many documents it stored."""
         controller = self.controller()
+        if controller is None:  # the job was closed meanwhile: nothing to store into
+            return 0
         job = controller.job
         current = {tuple(d.page_ids): document_template(job, d)[0]
                    for d in controller.documents()}
         stored = []
+        self._failed_in_store = 0
 
         def store(job) -> None:
             for document, template_id, values, error, revision in list(results):
@@ -1463,25 +1970,50 @@ class DegerlerScreen(QWidget):
                     store_reading(job, document, template_id, values, revision)
                 else:  # keeps earlier values and the user's corrections
                     record_read_error(job, document, template_id, error)
+                    self._failed_in_store += 1
                 stored.append(document)
 
-        controller.run("Değerleri oku", store)
+        controller.run("Değerleri oku", store, merge=self._read_group)
+        self._read_stored += len(stored)
+        self._failed_total += self._failed_in_store
         return len(stored)
 
     def _read_done(self, results) -> None:
-        count_ = self._store(results)
-        self._finish(f"{count_} belge okundu.", "circle-check", "ok", toast=True)
+        self._store_rest(results)
+        count_, failed = self._read_stored, self._failed_total  # D-1: failures are counted
+        if failed:
+            self._finish(f"{count_ - failed} belge okundu; {failed} belge okunamadı.",
+                         "triangle-alert", "check-text", toast=True)
+        else:
+            self._finish(f"{count_} belge okundu.", "circle-check", "ok", toast=True)
 
     def _read_failed(self, message: str) -> None:
-        self._finish(f"Okunamadı: {message}", "triangle-alert", "check-text")
+        if self._results:
+            self._store_rest(self._results)  # keep what was finished, as cancel does
+        if message == self._engine_reason:  # a known refusal already says what to do
+            self._finish(f"Okunamadı: {message}", "triangle-alert", "check-text")
+            return
+        self._finish("Okuma durdu. Kalan belgeleri 'Yalnızca eksikleri oku' ile deneyebilirsiniz.",
+                     "triangle-alert", "check-text")
+        self.progress_label.setToolTip(message)  # the raw text stays in the details (D-1)
 
     def _read_cancelled(self) -> None:
-        count_ = self._store(self._results)
-        self._finish(f"Okuma durduruldu: {count_} belge okundu ve kaydedildi, kalanlar okunmadı.",
+        self._store_rest(self._results)
+        count_ = self._read_stored
+        self._finish(f"Okuma durduruldu: {count_} belge okundu ve kaydedildi, "
+                     f"kalanlar henüz okunmadı.",
                      "info", "icon", toast=True)
 
     def _finish(self, message: str, icon: str, colour: str, toast: bool = False) -> None:
         self.task = None
+        held, self._read_controller = self._read_controller, None
+        if held is not None:
+            held.reading = False
+            try:
+                held.undo_stack.indexChanged.emit(held.undo_stack.index())  # menus re-read
+            except RuntimeError:
+                pass
+        self._stored_upto = self._read_stored = self._failed_total = 0
         taskbar = getattr(self.window_, "taskbar", None)
         if taskbar is not None:
             taskbar.clear()
@@ -1508,6 +2040,7 @@ class DegerlerScreen(QWidget):
 
     def _dismiss(self) -> None:
         self.progress_label.setText("")
+        self.progress_label.setToolTip("")
         self.progress_band.setVisible(False)
 
     def cancel(self, *_args) -> None:
@@ -1518,6 +2051,7 @@ class DegerlerScreen(QWidget):
         return self.task is not None
 
     def _set_busy(self, busy: bool) -> None:
+        self._keep_focus()
         self.progress.setVisible(busy)
         self.progress_hint.setVisible(True)
         self.cancel_button.setVisible(busy)
@@ -1525,6 +2059,9 @@ class DegerlerScreen(QWidget):
         self.progress_icon.setVisible(not busy)
         self.progress_band.setVisible(busy or bool(self.progress_label.text()))
         self._sync_actions()
+        sync_undo = getattr(self.window_, "_sync_undo", None)
+        if sync_undo is not None:
+            sync_undo()  # Geri al / Yinele are off while a read runs (F-degerler-08)
 
 
 __all__ = ["DegerlerScreen", "LEVELS", "build_rows_fast"]

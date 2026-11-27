@@ -34,7 +34,8 @@ def window(qtbot, tmp_path):
     a = make_pdf(tmp_path / "a.pdf", [text_page("A"), qr_page(), text_page("B"), text_page()])
     b = make_pdf(tmp_path / "b.pdf", [text_page("C"), text_page()])
     job = win.store.create_job("Kasım", [a, b])
-    win.yukle.open_job(win.store.load(job.id))
+    with qtbot.waitSignal(win.yukle.job_opened, timeout=10000):
+        win.yukle.open_job(win.store.load(job.id))
     QApplication.processEvents()
     return win
 
@@ -62,7 +63,8 @@ def test_one_undo_history_names_the_step_on_every_tab(window):
     window.show_tab("degerler")
     assert _undo_tip(window) == "Geri al: Kesim ekle (Ctrl+Z)"  # the same job history
     window.show_tab("sablonlar")  # the template editor's own history, named the same way
-    assert not r.is_enabled("app.geri_al") and _undo_tip(window) == "Geri al (Ctrl+Z)"
+    assert not r.is_enabled("app.geri_al")  # nothing to undo there, and the tooltip says so
+    assert _undo_tip(window) == "Geri alınacak bir şey yok."
     window.show_tab("kontrol")
     window.kontrol.timeline.setFocus()
     _key(window, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)

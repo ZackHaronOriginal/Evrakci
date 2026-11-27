@@ -27,10 +27,20 @@ from PySide6.QtCore import QEvent, QItemSelectionModel, QPoint, QSize, Qt, QTime
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QMenu, QSplitter, QVBoxLayout, QWidget
 
+from evrakci.pipeline.cuts import template_by_page
 from evrakci.pipeline.export import plan_export
+from evrakci.pipeline.select import (
+    Criterion,
+    combine,
+    evaluate,
+    guven_findings,
+    guven_restrict,
+    guven_text,
+)
 from evrakci.pipeline.templates.model import Template
 from evrakci.ui import theme
 from evrakci.ui.controller import JobController
+from evrakci.ui.feedback import undo_last
 from evrakci.ui.kontrol_actions import (
     KontrolBinder,
     KontrolStatus,
@@ -38,11 +48,12 @@ from evrakci.ui.kontrol_actions import (
     fallback_action,
     label_delete,
 )
-from evrakci.ui.kontrol_dialogs import FilterDialog, GoToDialog
+from evrakci.ui.kontrol_dialogs import FilterDialog, GoToDialog, SelectDialog
 from evrakci.ui.kontrol_inspector import Change, DocumentInfo, Inspector, SelectionInfo
 from evrakci.ui.kontrol_overview import OverviewStrip
 from evrakci.ui.kontrol_paint import CUT_ICONS, CUT_WORDS
-from evrakci.ui.kontrol_review import ReviewStore
+from evrakci.ui.kontrol_review import SAVE_ERROR, ReviewStore
+from evrakci.ui.kontrol_saved import SavedFiltersMixin
 from evrakci.ui.loupe import Loupe
 from evrakci.ui.thumbnails import ThumbnailService, job_renderer, to_qimage
 from evrakci.ui.timeline import ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, Roles, TimelineModel, TimelineView
@@ -52,8 +63,11 @@ KIND_TEXT = CUT_WORDS  # kept for callers of the old name
 SPLITTER = "kontrol.govde"
 ZOOM_KEY = "kontrol"
 ZOOM_TARGET = "Küçük resim boyutu"
-REASONS = {"qr": "QR ayıraç sayfası ayırdı.", "filter": "QR ayıraç yok, filtre kesti.",
+ODD_MARKS_KEY = "kontrol_farkli_isaretle"  # the view switch "Farklı görünenleri işaretle" (on)
+REASONS = {"qr": "QR ayraç sayfası ayırdı.", "filter": "QR ayraç yok, filtre kesti.",
            "manual": "Elle kesildi.", "start": "İşin ilk belgesi."}
+SAVE_KEY = "kontrol.onay-kaydi"  # the red toast of a failed approval save
+DELETE_KEY = "kontrol.sil"  # delete / restore toasts: the newest replaces the earlier one
 THUMB_DELAY_MS = 150  # re-render thumbnails once zooming pauses
 
 
@@ -62,7 +76,7 @@ def _sentence(checks: list[str]) -> str:
     return (text[:1].upper() + text[1:] + ".") if text else ""
 
 
-class KontrolScreen(QWidget):
+class KontrolScreen(SavedFiltersMixin, QWidget):
     open_values = Signal(int)  # document number
 
     def __init__(
@@ -102,6 +116,8 @@ class KontrolScreen(QWidget):
         column = QVBoxLayout(work)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(0)
+        self._init_saved_filters()
+        column.addWidget(self.chips)  # saved filters: under the command bar, over the strip
         self.strip = OverviewStrip()
         self.strip.jump.connect(self.go_to_document)
         column.addWidget(self.strip)
@@ -113,6 +129,8 @@ class KontrolScreen(QWidget):
         self.timeline.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.timeline.customContextMenuRequested.connect(self._context_menu)
         self.timeline.doubleClicked.connect(lambda index: self.open_loupe(index.row()))
+        self.timeline.toggle_requested.connect(self.toggle_current)
+        self.timeline.focus_requested.connect(self.move_focus)
         area.addWidget(self.timeline)
         column.addWidget(self.work_area, 1)
         self.side = Inspector(self._fill_more)
@@ -143,6 +161,9 @@ class KontrolScreen(QWidget):
         controller.job_changed.connect(self._job_changed)
         controller.undo_stack.indexChanged.connect(self._undo_moved)
         self.reviews.changed.connect(self._reviews_changed)
+        self.reviews.save_failed.connect(self._save_failed)
+        self.reviews.save_recovered.connect(self._save_recovered)
+        QWidget.setTabOrder(self.chips, self.timeline)
         if self.model.rowCount():  # focus the first page without selecting it
             selection.setCurrentIndex(self.model.index(0),
                                       QItemSelectionModel.SelectionFlag.NoUpdate)
@@ -169,9 +190,14 @@ class KontrolScreen(QWidget):
         self.registry = registry
         self.binder = KontrolBinder.for_registry(registry)
         self.binder.attach(self)
-        QTimer.singleShot(0, self._sync_binder)  # once the window names this screen
+        QTimer.singleShot(0, self, self._sync_binder)  # once the window names this screen
+        stack = getattr(window, "template_undo_stack", None)
+        if callable(stack):
+            stack().indexChanged.connect(self._template_edited)
         prefs = getattr(window, "prefs", None)
         if prefs is not None:
+            self.model.set_marks(prefs.flag(ODD_MARKS_KEY, True))
+            self._show_odd_marks(self.model.marks_on)
             self.zoom = self._make_zoom(prefs)
             self.timeline.set_zoom(self.zoom.zoom())
             self._rerender()
@@ -193,11 +219,13 @@ class KontrolScreen(QWidget):
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
         self._sync_binder()
+        self._chips_invalidate()  # the templates may have been edited on Şablonlar
+        self._chips_sync()
 
     def hideEvent(self, event) -> None:  # noqa: N802
         super().hideEvent(event)
         # closing the job hides the screen; once the window has let it go, its commands go off
-        QTimer.singleShot(0, self._sync_binder)
+        QTimer.singleShot(0, self, self._sync_binder)
 
     def _make_zoom(self, prefs) -> ZoomController:
         old = getattr(self, "zoom", None)
@@ -216,18 +244,58 @@ class KontrolScreen(QWidget):
         self._thumb_timer.start()
         self._scrolled()
 
+    def detach_thumbnails(self) -> None:
+        """Let go of a retired thumbnail service: no timer or scroll reaches it any more."""
+        self._thumb_timer.stop()
+        self.thumbnails = None
+        self.timeline.detach_thumbnails()
+
     def _rerender(self) -> None:
         if self.thumbnails is not None:
             self.thumbnails.set_height(self.timeline.thumbnail_height())
+            self.timeline.load_thumbnails()
         self.timeline.viewport().update()
 
-    def _toast(self, text: str, undo: bool = True) -> None:
+    def _toast(self, text: str, undo: bool = True, key: str | None = None) -> None:
         toaster = getattr(self._window, "toaster", None)
         if toaster is not None:
-            toaster.show(text, "Geri al" if undo else None,
-                         self.controller.undo if undo else None)
+            callback, available = undo_last(self.controller.undo_stack)
+            toaster.show(text, "Geri al" if undo else None, callback if undo else None,
+                         available=available if undo else None, key=key)
         else:
             self.controller.status.emit(text)
+
+    def _save_failed(self, text: str) -> None:
+        """K-10: the approvals could not be written: a red toast that offers Yeniden dene (the
+        approvals stay in memory; the retry writes them as they are, no undo step). The title
+        band keeps showing the failure after the toast is gone, until a write succeeds."""
+        window = self._window
+        shown = getattr(window, "review_save_failed", None)
+        if callable(shown):
+            shown(self.reviews)
+        toaster = getattr(window, "toaster", None)
+        if toaster is None:
+            self.controller.status.emit(text)
+            return
+
+        def retry() -> None:
+            # after the toast has closed itself, so a second failure shows a fresh toast
+            QTimer.singleShot(0, self, self._retry_save)
+
+        toaster.show(text, "Yeniden dene", retry, kind="error", timeout_ms=10000, key=SAVE_KEY)
+
+    def _retry_save(self) -> None:
+        if self.reviews.retry_save():
+            self._toast("Onay kaydedildi.", undo=False)
+
+    def _save_recovered(self) -> None:
+        """A later write succeeded: the red toast and the title band's failure go away."""
+        toaster = getattr(self._window, "toaster", None)
+        if toaster is not None:
+            toaster.dismiss_key(SAVE_KEY)
+        done = getattr(self._window, "review_save_recovered", None)
+        if callable(done):
+            done()
 
     # -- reading the state --------------------------------------------------------------------
     def selected_rows(self) -> list[int]:
@@ -238,6 +306,15 @@ class KontrolScreen(QWidget):
 
     def selected_ids(self) -> list[str]:
         return [self.model.page_id(r) for r in self.selected_rows()]
+
+    def _acting_ids(self) -> list[str]:
+        """R / Shift+R / Del: the page shown in the loupe while it is open, else the selection
+        (B-033)."""
+        if self._loupe is not None and self._loupe.is_open():
+            row = self.current_row()
+            if 0 <= row < self.model.rowCount():
+                return [self.model.page_id(row)]
+        return self.selected_ids()
 
     def current_row(self) -> int:
         index = self.timeline.currentIndex()
@@ -312,23 +389,146 @@ class KontrolScreen(QWidget):
             self._remember("stamp", f"{templates[template_id].name} uygulandı, "
                                     f"{len(ids)} sayfa")
 
+    # -- remove filter / template, bring a blank page back ------------------------------------
+    def _filtered(self, ids: list[str]) -> list[str]:
+        filtered = {pid for f in self.controller.job.filters for pid in f.page_ids}
+        return [pid for pid in ids if pid in filtered]
+
+    def _templated(self, ids: list[str]) -> list[str]:
+        templated = template_by_page(self.controller.job)
+        return [pid for pid in ids if pid in templated]
+
+    def _dropped_blank(self, ids: list[str]) -> list[str]:
+        job = self.controller.job
+        if not job.drop_empty:
+            return []
+        return [pid for pid in ids if job.pages[pid].is_empty and pid not in job.restored
+                and pid not in job.deleted]
+
+    def can_remove_filter(self) -> bool:
+        return bool(self._filtered(self._pages(self.selected_ids())))
+
+    def can_remove_template(self) -> bool:
+        return bool(self._templated(self._pages(self.selected_ids())))
+
+    def can_show_restore_empty(self) -> bool:
+        return self.controller.job.drop_empty
+
+    def can_restore_empty(self) -> bool:
+        return bool(self._dropped_blank(self.selected_ids()))
+
+    def sync_availability(self) -> None:
+        """"Boş sayfayı geri getir" is listed in the menu only while the job drops blank pages.
+        It stays enabled while listed: with no dropped page in the selection it says so."""
+        registry = getattr(self, "registry", None)
+        if registry is None:
+            return
+        try:
+            registry.set_hidden("kontrol.bos_geri_getir", not self.can_show_restore_empty())
+            self._show_drop_empty(self.controller.job.drop_empty)
+            self._show_odd_marks(self.model.marks_on)
+        except RuntimeError:  # the window is being torn down
+            pass
+
+    def _show_drop_empty(self, on: bool) -> None:
+        """The check mark of "Boş sayfaları at" follows the job (also after Geri al)."""
+        action = self.registry.action("kontrol.bos_at")
+        if action.isChecked() != on:
+            action.blockSignals(True)
+            action.setChecked(on)
+            action.blockSignals(False)
+            action.changed.emit()
+
+    def _show_odd_marks(self, on: bool) -> None:
+        """The check mark of "Farklı görünenleri işaretle" follows the switch."""
+        action = self.registry.action("kontrol.farkli_isaretle")
+        if action.isChecked() != on:
+            action.blockSignals(True)
+            action.setChecked(on)
+            action.blockSignals(False)
+            action.changed.emit()
+
+    def set_odd_marks(self, *_args) -> None:
+        """Görünüm, Farklı görünenleri işaretle: the marks under pages whose size or orientation
+        differs. A view choice kept in the user's settings, not a job edit (no undo step)."""
+        on = self.registry.action("kontrol.farkli_isaretle").isChecked()
+        self.model.set_marks(on)
+        prefs = getattr(self._window, "prefs", None)
+        if prefs is not None:
+            prefs.set_flag(ODD_MARKS_KEY, on)
+
+    def toggle_drop_empty(self, *_args) -> None:
+        """Araçlar, Boş sayfaları at: the job's switch, one undo step ("Boş sayfaları at").
+        Dropped pages stay drawn in the timeline."""
+        on = self.registry.action("kontrol.bos_at").isChecked()
+        if not self.controller.set_drop_empty(on):
+            self._show_drop_empty(self.controller.job.drop_empty)
+
+    def remove_filter(self) -> None:
+        """Shift+F, Filtreyi kaldır: the selected pages leave their filters (one undo step)."""
+        ids = self._pages(self.selected_ids())
+        if not ids:
+            self.controller.status.emit("Önce sayfaları seçin.")
+            return
+        targets = self._filtered(ids)
+        if not targets:
+            self.controller.status.emit("Bu sayfalarda filtre yok.")
+            return
+        if self.controller.remove_filter(targets):
+            self._remember("funnel", f"Filtre kaldırıldı, {len(targets)} sayfa.")
+            self._toast(f"Filtre kaldırıldı, {len(targets)} sayfa.")
+
+    def remove_template(self) -> None:
+        """Shift+T, Şablonu kaldır: the selected pages lose their template (one undo step)."""
+        ids = self._pages(self.selected_ids())
+        if not ids:
+            self.controller.status.emit("Önce sayfaları seçin.")
+            return
+        targets = self._templated(ids)
+        if not targets:
+            self.controller.status.emit("Bu sayfalarda şablon yok.")
+            return
+        if self.controller.remove_template(targets):
+            self._remember("stamp", f"Şablon kaldırıldı, {len(targets)} sayfa.")
+            self._toast(f"Şablon kaldırıldı, {len(targets)} sayfa.")
+
+    def restore_empty(self) -> None:
+        """Boş sayfayı geri getir (menus only): dropped blank pages in the selection come back."""
+        ids = self.selected_ids()
+        if not ids:
+            self.controller.status.emit("Önce sayfaları seçin.")
+            return
+        targets = self._dropped_blank(ids)
+        if not targets:
+            self.controller.status.emit("Silinen boş sayfa yok.")
+            return
+        if self.controller.restore_empty(targets):
+            self._remember("undo-2", "Boş sayfa geri getirildi.")
+            self._toast("Boş sayfa geri getirildi.")
+
     def toggle_cut(self) -> None:
         """K: cut before the current page, or remove the cut that is there."""
         index = self.timeline.currentIndex()
         if not index.isValid():
+            self.controller.status.emit("Önce bir sayfa seçin.")
             return
         pid = index.data(Roles.PID)
         position = index.row() + 1
         if pid in self.controller.job.manual_cuts:
             if self.controller.remove_cut(pid):
                 self._remember("scissors", f"Kesim kaldırıldı, sayfa {position}")
+        elif pid == next((p for p in self.controller.job.ordered_page_ids()
+                          if p not in self.controller.job.deleted), None):
+            self.controller.status.emit("İlk belgenin öncesi yok.")
         elif self.controller.add_cut(pid):
             self._remember("scissors", f"Kesim eklendi, sayfa {position}")
 
     def rotate_selected(self, degrees: int = 90) -> None:
         """R / Shift+R: rotate the selected pages; one undo step for the whole selection."""
-        ids = self._pages(self.selected_ids())
+        ids = self._pages(self._acting_ids())
         if not ids:
+            if not self._acting_ids():
+                self.controller.status.emit("Önce sayfaları seçin.")
             return
         if self.controller.run("Döndür", lambda job: [job.rotate(pid, degrees) for pid in ids]):
             side = "sağa" if degrees > 0 else "sola"
@@ -342,11 +542,13 @@ class KontrolScreen(QWidget):
 
         Undoable instead of confirmed; a toast offers "Geri al" and says so when a document
         loses all its pages, so nothing disappears silently."""
-        ids = self._pages(self.selected_ids())
+        ids = self._pages(self._acting_ids())
         if not ids:
-            if self.selected_ids():
+            if self._acting_ids():
                 self.controller.status.emit("Ayraç sayfaları zaten dışa aktarılmaz. "
                                             "Kesimi kaldırmak için M.")
+            else:
+                self.controller.status.emit("Önce sayfaları seçin.")
             return
         job = self.controller.job
         restore = all(pid in job.deleted for pid in ids)
@@ -356,31 +558,68 @@ class KontrolScreen(QWidget):
                 text = (f"Sayfa {job.position_of(ids[0])} geri getirildi" if len(ids) == 1
                         else f"{len(ids)} sayfa geri getirildi")
                 self._remember("undo-2", text)
+                self._toast(f"{text}.", key=DELETE_KEY)
             return
         targets = [pid for pid in ids if pid not in job.deleted]
-        emptied = [n for n, d in enumerate(self.controller.documents(), start=1)
+        documents = self.controller.documents()
+        emptied = [(n, self._span(d.page_ids)) for n, d in enumerate(documents, start=1)
                    if set(d.page_ids) <= set(targets)]
+        drawn = bool(self._chosen_ids())
+        in_loupe = self._loupe is not None and self._loupe.is_open()
         label = "Sayfayı sil" if len(targets) == 1 else f"{len(targets)} sayfayı sil"
         if not self.controller.run(label, lambda j: [j.delete_page(p) for p in targets]):
             return
         text = (f"Sayfa {job.position_of(targets[0])} silinecek" if len(targets) == 1
                 else f"{len(targets)} sayfa silinecek")
         self._remember("trash-2", text)
+        if drawn and not in_loupe and not self._select_after_delete(targets):
+            # nothing is left to move to: no page stays selected, so nothing contradicts the
+            # inspector; the deleted count is said in the status line too
+            self.timeline.selectionModel().clearSelection()
+            self.controller.status.emit(f"{text}.")
         if emptied:
-            names = ", ".join(f"Belge {n}" for n in emptied)
-            self._toast(f"{names}: bütün sayfaları silinecek, belge dışa aktarılmayacak.")
+            names = ", ".join(f"Belge {n} ({span})" for n, span in emptied)
+            self._toast(f"{names}: bütün sayfaları silinecek, belge dışa aktarılmayacak.",
+                        key=DELETE_KEY)
         else:
-            self._toast(f"{text}.")
+            self._toast(f"{text}.", key=DELETE_KEY)
+
+    def _select_after_delete(self, targets: list[str]) -> bool:
+        """K-3: the pages just deleted stop being the selection; the next page that stays (else
+        the one before) is selected and current, so the inspector and "Belgeyi onayla" agree
+        with what is drawn. Only the selection moves: the deleted set and the undo step are
+        untouched, and Geri al brings the pages back. False when no page is left to move to."""
+        gone = set(targets)
+        rows = sorted(self.model.row_of(pid) for pid in targets)
+
+        def stays(row: int) -> bool:
+            return (self.model.state(row) == "page"
+                    and self.model.page_id(row) not in gone)
+
+        count = self.model.rowCount()
+        row = next((r for r in range(rows[-1] + 1, count) if stays(r)), None)
+        if row is None:
+            row = next((r for r in range(rows[0] - 1, -1, -1) if stays(r)), None)
+        if row is None:
+            return False
+        index = self.model.index(row)
+        self.timeline.selectionModel().setCurrentIndex(
+            index, QItemSelectionModel.SelectionFlag.ClearAndSelect)
+        self.timeline.scrollTo(index, TimelineView.ScrollHint.EnsureVisible)
+        return True
 
     def merge_current(self) -> None:
         """M: join the current document to the one before (removes the cut between them)."""
         number = self.current_document()
         if not number:
+            self.controller.status.emit("Önce bir sayfa seçin.")
             return
         document = self.controller.documents()[number - 1]
         first = document.page_ids[0]
+        span = self._span(document.page_ids)  # numbers shift after a merge; pages do not (K-5)
         kind = self.controller.cut_kinds().get(first)
         done = False
+        count = len(self.controller.documents())
         if kind == "manual":
             done = self.controller.remove_cut(first)
         elif kind == "qr":
@@ -388,28 +627,46 @@ class KontrolScreen(QWidget):
             before = ordered[: ordered.index(first)]
             separator = next(pid for pid in reversed(before)
                              if self.controller.job.pages[pid].is_separator)
-            done = self.controller.remove_cut(separator)
+            if first in self.controller.job.manual_cuts:  # a manual cut hides under the QR cut
+                done = self.controller.run("Kesimi kaldır", lambda j: (j.remove_cut(first),
+                                                                      j.remove_cut(separator)))
+            else:
+                done = self.controller.remove_cut(separator)
         elif kind == "filter":
             self.controller.status.emit("Bu kesimi filtre yaptı; filtreyi değiştirin (F).")
         else:
             self.controller.status.emit("İlk belgenin öncesi yok.")
-        if done:
+        if done and len(self.controller.documents()) < count:
             self._remember("merge", f"Belge {number}, Belge {number - 1} ile birleşti")
-            self._toast(f"Belge {number}, Belge {number - 1} ile birleştirildi.")
+            self._toast(f"Belge {number}, Belge {number - 1} ile birleştirildi ({span}).")
 
     def approve_document(self) -> None:
-        """Enter, Belgeyi onayla: the document is İncelendi; go on to the next one."""
+        """Enter, Belgeyi onayla: the document is İncelendi; go on to the next one. The status
+        line says which document was approved and which comes next, and says so when the
+        document still carried a Kontrol flag (K-4): Enter never passes one silently."""
         number = self.current_document()
         if not number:
             self.controller.status.emit("Önce bir sayfa seçin.")
             return
         documents = self.controller.documents()
-        if self.reviews.set_reviewed([documents[number - 1]]):
+        flagged = bool(self.model.checks.get(number))
+        done = self.reviews.set_reviewed([documents[number - 1]])
+        failed = done and self.reviews.unsaved  # taken in memory, but not on disk
+        if done and not failed:
             self._remember("circle-check", f"Belge {number} onaylandı")
-        if number < len(documents):
+        last = number >= len(documents)
+        if not last:
             self.go_to_document(number + 1)
-        else:
+        if failed:  # never worded as if it had worked: the failure text, and the red toast
+            self.controller.status.emit(SAVE_ERROR)
+        elif flagged and done:
+            self.controller.status.emit(
+                f"Belge {number} kontrol işaretiyle onaylandı"
+                + ("; bu son belge." if last else "."))
+        elif last:
             self.controller.status.emit(f"Belge {number} onaylandı; bu son belge.")
+        elif done:
+            self.controller.status.emit(f"Belge {number} onaylandı, Belge {number + 1}.")
 
     def open_in_values(self) -> None:
         number = self.current_document()
@@ -462,6 +719,20 @@ class KontrolScreen(QWidget):
             self._toast("Kontrol gereken tek belge bu.", undo=False)
         self.go_to_document(target)
 
+    def jump_to_different(self, direction: int) -> None:
+        """Git, Sonraki / Önceki farklı sayfa: the next / previous page whose size or orientation
+        differs (wraps round). Works with the marks hidden."""
+        rows = self.model.odd_rows()
+        if not rows:
+            self._toast("Farklı sayfa yok.", undo=False)
+            return
+        here = self.current_row()
+        if direction > 0:
+            target = next((r for r in rows if r > here), rows[0])
+        else:
+            target = next((r for r in reversed(rows) if r < here), rows[-1])
+        self.go_to_row(target)
+
     def next_unreviewed(self) -> None:
         """U: the next document nobody has approved yet (wraps around)."""
         count = len(self.controller.documents())
@@ -489,6 +760,103 @@ class KontrolScreen(QWidget):
     def select_all(self) -> None:
         self.timeline.selectAll()
 
+    # -- selecting ----------------------------------------------------------------------------
+    def _chosen_ids(self) -> list[str]:
+        """The pages drawn selected (not the current page that commands act on when none is)."""
+        rows = sorted(i.row() for i in self.timeline.selectionModel().selectedIndexes())
+        return [self.model.page_id(r) for r in rows]
+
+    def _select_ids(self, ids) -> None:
+        rows = [self.model.row_of(pid) for pid in ids]
+        self.timeline.select_row_set(rows)
+        self.timeline.setFocus()
+
+    def _page_order(self) -> list[str]:
+        return [self.model.page_id(r) for r in range(self.model.rowCount())]
+
+    def select_by(self, kind: str = "belge") -> None:
+        """S, Ölçüte göre seç…: the dialog; Seç only changes the selection (no undo step)."""
+        chosen = self._chosen_ids()
+        dialog = SelectDialog(self.controller.job, self.current_document(), chosen, kind, self,
+                              self.templates())
+        if not dialog.exec():
+            self.timeline.setFocus()
+            return
+        criterion, mode = dialog.criterion(), dialog.mode()
+        saveable = mode == "replace" and criterion.kind != "belge"
+        if self.select_matching(criterion, mode) and saveable:
+            # Only a plain replace of a kind that does not name this job's document can come
+            # back later as a chip that selects the same thing.
+            self._remember_result(criterion, self._chosen_ids())
+
+    def select_matching(self, criterion: Criterion, mode: str = "replace") -> int:
+        """Select the pages that meet `criterion`, joined with the selection by `mode`
+        (replace, add, within). Returns how many pages are selected now."""
+        chosen = self._chosen_ids()
+        match = evaluate(self.controller.job, criterion, templates=self.templates(),
+                         selection=chosen)
+        ids = combine(chosen, match, mode, order=self._page_order())
+        if not match.page_ids or not ids:
+            self.controller.status.emit("Eşleşen sayfa yok.")
+            self.timeline.setFocus()
+            return 0
+        self._select_ids(ids)
+        if criterion.kind == "guven":
+            if mode != "replace":  # the line counts what ended up selected, not the whole match
+                match = guven_restrict(self.controller.job,
+                                       guven_findings(self.controller.job, self.templates()),
+                                       criterion, ids)
+            self.controller.status.emit(guven_text(match))
+        elif criterion.kind == "bos":
+            blank = set(match.page_ids)
+            count = sum(1 for pid in ids if pid in blank)
+            if count == len(ids):
+                self._toast(f"{count} boş sayfa seçildi. Silmek için Del.", undo=False)
+            else:  # add mode: the earlier selection is not all blank, so no "Del" hint
+                self._toast(f"{count} boş sayfa seçildi.", undo=False)
+        else:
+            self._toast(f"{len(ids)} sayfa seçildi.", undo=False)
+        return len(ids)
+
+    def select_document(self) -> None:
+        """B, Bu belgeyi seç: every page of the current document."""
+        if self.current_row() < 0:
+            self.controller.status.emit("Önce bir sayfa seçin.")
+            return
+        number = self.current_document()
+        match = evaluate(self.controller.job, Criterion("belge", {"number": number})) \
+            if number else None
+        if match is None or not match.page_ids:
+            self.controller.status.emit("Bu belgede seçilecek sayfa yok.")
+            return
+        self._select_ids(match.page_ids)
+        self._toast(f"{match.count()} sayfa seçildi.", undo=False)
+
+    def toggle_current(self) -> None:
+        """Ctrl+Space: add the current page to the selection, or take it out; the others stay."""
+        index = self.timeline.currentIndex()
+        if not index.isValid():
+            self.controller.status.emit("Önce bir sayfa seçin.")
+            return
+        self.timeline.selectionModel().select(
+            index, QItemSelectionModel.SelectionFlag.Toggle)
+
+    def move_focus(self, step: int) -> None:
+        """Alt+Left / Alt+Right: the focus ring moves one page, the selection stays."""
+        index = self.timeline.currentIndex()
+        if not index.isValid():
+            self.controller.status.emit("Önce bir sayfa seçin.")
+            return
+        row = max(0, min(self.model.rowCount() - 1, index.row() + step))
+        if row == index.row():
+            return
+        target = self.model.index(row)
+        self.timeline.selectionModel().setCurrentIndex(
+            target, QItemSelectionModel.SelectionFlag.NoUpdate)
+        self.timeline.scrollTo(target, TimelineView.ScrollHint.EnsureVisible)
+        if self._loupe is not None and self._loupe.is_open():
+            self._loupe.set_index(row)
+
     def escape(self) -> None:
         """Esc: close the loupe if it is open, else clear the selection."""
         if self._loupe is not None and self._loupe.is_open():
@@ -514,12 +882,13 @@ class KontrolScreen(QWidget):
     def open_loupe(self, row: int | None = None) -> None:
         row = self.current_row() if row is None else row
         if row < 0 or not self.model.rowCount():
+            self.controller.status.emit("Önce bir sayfa seçin.")
             return
         loupe = self.loupe()
         loupe.open(self.model.rowCount(), self._render_page, row, self._loupe_title,
                    kontrol=self._loupe_kontrol, doc_start=self._loupe_doc_start)
         if self._window is not None and hasattr(self._window, "register_zoom"):
-            self._window.register_zoom("kontrol", loupe.zoom, "Önizleme")
+            self._window.register_zoom("kontrol", loupe.zoom, "Önizle")
 
     def close_loupe(self) -> None:
         if self._loupe is not None:
@@ -540,7 +909,7 @@ class KontrolScreen(QWidget):
     def _loupe_title(self, row: int) -> str:
         """The page's place for the loupe's head: "Belge 16, Ekspertiz Raporu, 2. sayfa"."""
         if self.model.state(row) == "separator":
-            return "QR ayıraç"
+            return "QR ayraç"
         number = self.model.doc_of_row(row)
         if not number:
             return ""
@@ -627,8 +996,8 @@ class KontrolScreen(QWidget):
         menu.popup(button.mapToGlobal(QPoint(button.width() - menu.sizeHint().width(),
                                              button.height())))
 
-    def _template_for_selection(self) -> str | None:
-        templates = self.templates()
+    def _template_for_selection(self, templates: Mapping | None = None) -> str | None:
+        templates = self.templates() if templates is None else templates
         if self._template_choice in templates:
             return self._template_choice
         for pid in self.selected_ids():
@@ -671,6 +1040,7 @@ class KontrolScreen(QWidget):
                 self.thumbnails.invalidate(pid)
 
     def _job_changed(self) -> None:
+        self._chips_invalidate()
         self._refresh_thumbnails()
         items = plan_export(self.controller.job, self.templates())
         checks = {item.number: item.checks for item in items if item.checks}
@@ -695,25 +1065,38 @@ class KontrolScreen(QWidget):
             self.strip.set_visible(0, 0)
 
     def _selection_changed(self, *_args) -> None:
+        templates = self.templates()
         rows = self.selected_rows()
         ids = [self.model.page_id(r) for r in rows]
-        # The "Seçim" card counts only pages that are drawn selected (ring and check badge);
+        # The "Seçim" card counts only pages that are drawn selected (ring and corner dot);
         # the current page alone is where the commands act, not a selection.
         chosen = sorted(i.row() for i in self.timeline.selectionModel().selectedIndexes())
         if chosen:
             self.side.show_selection(SelectionInfo(
                 len(chosen), chosen[0] + 1, chosen[-1] + 1,
-                self._template_name(self._template_for_selection()), self._every_n))
+                self._template_name(self._template_for_selection(templates), templates),
+                self._applied_every_n(ids)))
         else:
             self.side.show_selection(None)
         job = self.controller.job
         pages = self._pages(ids)
         restore = bool(pages) and all(pid in job.deleted for pid in pages)
         label_delete(self.registry, len(pages), restore)
+        self.sync_availability()
         self._update_status()
+        if not self._chips_busy:
+            self._chips_sync(templates)
 
-    def _template_name(self, template_id: str | None) -> str:
-        template = self.templates().get(template_id) if template_id else None
+    def _applied_every_n(self, ids: list[str]) -> int:
+        """N of the filter on the selected pages (the last application wins); 0 when none."""
+        for application in reversed(self.controller.job.filters):
+            if any(pid in application.page_ids for pid in ids):
+                return application.every_n
+        return 0
+
+    def _template_name(self, template_id: str | None, templates: Mapping | None = None) -> str:
+        templates = self.templates() if templates is None else templates
+        template = templates.get(template_id) if template_id else None
         return template.name if template is not None else ""
 
     def _current_changed(self, index, *_args) -> None:

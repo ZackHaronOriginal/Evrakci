@@ -301,12 +301,12 @@ STATES = {
     # state: (icon, token, word)
     "ok": ("ok", "ok", "Tamam"),
     "check": ("warn", "check_ink", "Kontrol"),
-    "none": ("no", "ink_2", "Okunmadı"),
+    "none": ("no", "ink_2", "Henüz okunmadı"),
 }
 
 
 class StateLabel(QWidget):
-    """Icon + word state text: Tamam (ok), Kontrol (check), Okunmadı (none)."""
+    """Icon + word state text: Tamam (ok), Kontrol (check), Henüz okunmadı (none)."""
 
     def __init__(self, state: str = "none", text: str | None = None, parent=None) -> None:
         super().__init__(parent)
@@ -468,7 +468,7 @@ class ClearButton(QObject):
         self.button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.button.setToolTip("Temizle")
         self.button.setAccessibleName("Aramayı temizle")
-        self.button.setFixedSize(24, 24)
+        self.button.setFixedSize(self._size())
         self.button.clicked.connect(field.clear)
         field.textChanged.connect(self._sync)
         field.installEventFilter(self)
@@ -477,8 +477,17 @@ class ClearButton(QObject):
         theme.follow(self.button, self._restyle, "clear")
         self._sync()
 
+    @staticmethod
+    def _size() -> QSize:
+        """24 px wide, as high as the field (the density's control height): the click area of
+        Q-16; the 16 px cross is unchanged."""
+        m = theme.manager()
+        return QSize(m.size("s6"), m.size("control-h"))
+
     def _restyle(self) -> None:
         m = theme.manager()
+        self.button.setFixedSize(self._size())
+        self._place()
         self.button.setIcon(QIcon(icons.pixmap("x", m.hex("icon"), 16)))
         self.button.setIconSize(QSize(16, 16))
 
@@ -488,12 +497,51 @@ class ClearButton(QObject):
 
     def _place(self) -> None:
         field = self.field
-        self.button.move(field.width() - 24 - 2, (field.height() - 24) // 2)
+        size = self.button.size()
+        self.button.move(field.width() - size.width() - 2, (field.height() - size.height()) // 2)
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if obj is self.field and event.type() == self._resize:
             self._place()
         return False
+
+
+class _CentreSideButtons(QObject):
+    """Keeps the buttons Qt makes for a line edit's actions vertically centred: Qt places
+    them with the height of its own 18 px button, and the style sheet makes them as high as the
+    field (Q-16 click area), so the box would hang below the field."""
+
+    def __init__(self, field) -> None:
+        super().__init__(field)
+        from PySide6.QtWidgets import QToolButton
+
+        self.field = field
+        self._busy = False
+        for button in field.findChildren(QToolButton):
+            if button.objectName() != "clearButton":
+                button.installEventFilter(self)
+                self._centre(button)
+
+    def _centre(self, button) -> None:
+        y = (self.field.height() - button.height()) // 2
+        if button.y() != y and not self._busy:
+            self._busy = True
+            try:
+                button.move(button.x(), y)
+            finally:
+                self._busy = False
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        from PySide6.QtCore import QEvent
+
+        if event.type() in (QEvent.Type.Move, QEvent.Type.Resize, QEvent.Type.Show):
+            self._centre(obj)
+        return False
+
+
+def centre_action_buttons(field) -> None:
+    """Call after `field.addAction(...)`: see _CentreSideButtons."""
+    field._side_centre = _CentreSideButtons(field)
 
 
 def add_clear_button(field) -> ClearButton:

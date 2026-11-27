@@ -6,7 +6,9 @@ simply takes over. App-wide commands Kontrol answers (Ctrl+G) are routed to it o
 the current tab (`Registry.connect_tab`).
 
 `context_menu()` is A's page menu (final-a/kontrol.html): "3 sayfa seçili", Burada kes,
-Önceki belgeyle birleştir | Sağa / Sola döndür | Şablon uygula ›, Filtre uygula… | Önizle,
+Önceki belgeyle birleştir | Sağa / Sola döndür | Şablon uygula ›, Şablonu kaldır, Filtre uygula…,
+Filtreyi kaldır, Boş sayfayı geri getir (only with Boş sayfaları at on) | Bu belgeyi seç,
+Ölçüte göre seç… | Önizle,
 Değerlerde aç | "3 sayfayı sil". Every item is the registry action, so it shows its key.
 
 `KontrolStatus` fills the window's Kontrol status slot as A draws it: Belge 16 / 96,
@@ -20,11 +22,13 @@ from functools import partial
 
 import shiboken6
 from PySide6.QtCore import QObject
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QWidget, QWidgetAction
 
 from evrakci.ui import actions, icons, theme
 from evrakci.ui.chrome import make_icon, mark_danger
+
+NO_JOB_TEXT = "Önce Yükle sekmesinden bir iş açın (Ctrl+1)."
 
 # Every Kontrol command and the KontrolScreen method (+ arguments) that does it.
 SCREEN_SLOTS: dict[str, tuple] = {
@@ -32,9 +36,18 @@ SCREEN_SLOTS: dict[str, tuple] = {
     "kontrol.saga_dondur": ("rotate_selected", 90), "kontrol.sola_dondur": ("rotate_selected", -90),
     "kontrol.sil": ("toggle_delete",), "kontrol.filtre": ("apply_filter",),
     "kontrol.sablon": ("apply_template",),
+    "kontrol.bos_at": ("toggle_drop_empty",),
+    "kontrol.filtre_kaldir": ("remove_filter",), "kontrol.sablon_kaldir": ("remove_template",),
     "kontrol.sonraki_kontrol": ("jump_to_check", 1),
     "kontrol.onceki_kontrol": ("jump_to_check", -1),
+    "kontrol.sonraki_farkli": ("jump_to_different", 1),
+    "kontrol.onceki_farkli": ("jump_to_different", -1),
+    "kontrol.farkli_isaretle": ("set_odd_marks",),
     "kontrol.tumunu_sec": ("select_all",),
+    "kontrol.sec": ("select_by",), "kontrol.belgeyi_sec": ("select_document",),
+    "kontrol.kayitli_filtreler": ("focus_saved_filters",),
+    "kontrol.sayfa_sec": ("toggle_current",), "kontrol.git_secimsiz": ("move_focus", 1),
+    "kontrol.git_secimsiz_sol": ("move_focus", -1),
     "kontrol.secimi_kaldir": ("escape",),
     "kontrol.onayla": ("approve_document",),
     "kontrol.degerlerde_ac": ("open_in_values",),
@@ -44,6 +57,9 @@ SCREEN_SLOTS: dict[str, tuple] = {
     "kontrol.onceki_belge": ("jump_document", -1),
     "app.git": ("go_to",),
 }
+# Commands that exist only while an option is on (hidden from the menus otherwise): wired and
+# enabled like the rest, but not part of "every command works with a job open".
+OPTIONAL_SLOTS: dict[str, tuple] = {"kontrol.bos_geri_getir": ("restore_empty",)}
 APP_SHARED = {"app.git"}  # app-wide commands Kontrol answers only while it is the current tab
 
 
@@ -58,9 +74,9 @@ class KontrolBinder(QObject):
         self.registry = registry
         self._screen = None
         self._screen_id = 0
-        self.ids = list(SCREEN_SLOTS)
+        self.ids = [*SCREEN_SLOTS, *OPTIONAL_SLOTS]
         for action_id in self.ids:
-            method, *args = SCREEN_SLOTS[action_id]
+            method, *args = {**SCREEN_SLOTS, **OPTIONAL_SLOTS}[action_id]
             slot = partial(self._call, action_id, method, *args)
             if action_id in APP_SHARED:
                 registry.connect_tab(action_id, "kontrol", slot)
@@ -108,6 +124,12 @@ class KontrolBinder(QObject):
                     self.registry.set_enabled_for(action_id, "kontrol", alive)
                 else:
                     self.registry.set_enabled(action_id, alive)
+            screen = self.screen()
+            if screen is not None:
+                screen.sync_availability()
+            else:
+                for action_id in OPTIONAL_SLOTS:
+                    self.registry.set_hidden(action_id, True)
         except RuntimeError:  # the window is being torn down
             pass
 
@@ -117,7 +139,7 @@ class KontrolBinder(QObject):
             window = self.registry.parent()
             message = getattr(window, "message", None)
             if isinstance(message, QLabel):
-                message.setText("Önce Yükle sekmesinden bir iş açın (Ctrl+1).")
+                message.setText(NO_JOB_TEXT)
             return
         getattr(screen, method)(*args)
 
@@ -158,7 +180,15 @@ def context_menu(screen, action: Callable[[str], QAction], parent: QWidget) -> Q
     if not templates:
         sub.addAction("Önce Şablonlar sekmesinde bir şablon oluşturun").setEnabled(False)
     menu.addMenu(sub)
+    menu.addAction(_dimmed(screen, "kontrol.sablon_kaldir", menu, screen.can_remove_template()))
     menu.addAction(action("kontrol.filtre"))
+    menu.addAction(_dimmed(screen, "kontrol.filtre_kaldir", menu, screen.can_remove_filter()))
+    menu.addSeparator()
+    menu.addAction(action("kontrol.belgeyi_sec"))
+    menu.addAction(_without_access_key(screen, action("kontrol.sec"), menu))  # S is Sayfayı sil
+    if screen.can_show_restore_empty():
+        menu.addAction(_dimmed(screen, "kontrol.bos_geri_getir", menu,
+                               screen.can_restore_empty()))
     menu.addSeparator()
     menu.addAction(action("kontrol.onizle"))
     menu.addAction(action("kontrol.degerlerde_ac"))
@@ -169,6 +199,46 @@ def context_menu(screen, action: Callable[[str], QAction], parent: QWidget) -> Q
     return menu
 
 
+def _without_access_key(screen, source: QAction, parent: QWidget) -> QAction:
+    """A copy of the registry command whose label has no & (its letter belongs to another
+    item of the same menu)."""
+    item = QAction(source.text().replace("&", ""), parent)
+    item.setIcon(source.icon())
+    item.setToolTip(source.toolTip())
+    item.triggered.connect(lambda *_: screen.select_by())
+    return item
+
+
+def _dimmed(screen, action_id: str, parent: QWidget, enabled: bool) -> QAction:
+    """The registry command as a menu entry that is dimmed (still listed) when it would do
+    nothing. A copy, so the real action stays enabled and its key still answers in words."""
+    item = fallback_action(screen, action_id, parent)
+    item.setEnabled(enabled)
+    return item
+
+
+DIMMABLE = {"kontrol.filtre_kaldir": "can_remove_filter",
+            "kontrol.sablon_kaldir": "can_remove_template",
+            "kontrol.bos_geri_getir": "can_restore_empty"}
+
+
+def menu_bar_entry(screen, source: QAction, parent: QWidget) -> QAction:
+    """The registry action for the menu bar. When it would do nothing here it is a dimmed copy
+    (the real action stays enabled, so its key still answers in words), as in the context
+    menu (spec I-08 section 4, HIG-CTL-09)."""
+    action_id = source.objectName()
+    check = DIMMABLE.get(action_id)
+    if screen is None or check is None or not source.isVisible() or getattr(screen, check)():
+        return source
+    keys = source.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
+    item = QAction(source.text().split("\t")[0] + (f"\t{keys}" if keys else ""), parent)
+    item.setObjectName(action_id)
+    item.setIcon(source.icon())
+    item.setToolTip(source.toolTip())
+    item.setEnabled(False)
+    return item
+
+
 def fallback_action(screen, action_id: str, parent: QObject) -> QAction:
     """A plain QAction for a screen used without a window (tests, previews)."""
     spec = actions.spec(action_id)
@@ -176,7 +246,7 @@ def fallback_action(screen, action_id: str, parent: QObject) -> QAction:
     text = actions.plain_text(spec.text) + (f"\t{keys}" if keys else "")
     item = QAction(text, parent)
     item.setObjectName(action_id)
-    method, *args = SCREEN_SLOTS[action_id]
+    method, *args = {**SCREEN_SLOTS, **OPTIONAL_SLOTS}[action_id]
     item.triggered.connect(lambda *_: getattr(screen, method)(*args))
     if spec.icon:
         item.setIcon(make_icon(spec.icon))
@@ -294,5 +364,5 @@ def label_delete(registry: actions.Registry | None, count: int, restore: bool) -
     return actions.plain_text(text)
 
 
-__all__ = ["SCREEN_SLOTS", "KontrolBinder", "KontrolStatus", "context_menu", "fallback_action",
-           "label_delete"]
+__all__ = ["NO_JOB_TEXT", "SCREEN_SLOTS", "KontrolBinder", "KontrolStatus", "context_menu",
+           "fallback_action", "label_delete"]

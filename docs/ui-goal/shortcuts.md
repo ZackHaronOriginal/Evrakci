@@ -4,8 +4,13 @@ Source of truth: `src/evrakci/ui/actions.py` (`SPECS`, `MENU_LAYOUT`). This page
 hand from it. If they disagree, the code wins and this page needs fixing. `tests/ui/test_actions.py`
 checks the rules below.
 
-Status: Phase 2 groundwork. The registry is built and tested but not yet wired into
-`main_window.py` or the screens. Until Phase 2b/3 does that, the old per-screen `QShortcut`s still run.
+Status: wired. `MainWindow` builds the `Registry`, menus, command bars, palette and sheet from it.
+`.claude/skills/shortcut-audit/audit_shortcuts.py --check` audits it (tests matched by
+`@pytest.mark.action("<id>")` or a `# action: <id>` comment).
+What each key does and what the user sees is in `docs/ui-goal/shortcut-contract.tsv`; the audit's
+`--contract` option checks that file against the registry, and `tests/ui/test_shortcut_contract.py`
+tests every row. CI runs both audit checks (`docs/ui-goal/ci-gates.md`). Checked 2026-11-19: all 97
+registry actions appear on this page, and `--check` and `--contract` report 0 problems.
 
 ## Rules (checked by `validate()`)
 
@@ -24,7 +29,14 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
   the sheet when `?` is unbound. These actions are `single_key=True`, and `validate()` checks that the
   flag matches the keys.
 - **Unconnected commands are disabled.** A command whose screen has not hooked a slot is greyed
-  out, so a key never silently does nothing.
+  out.
+- **A key that cannot act speaks (Q-09, 2026-11-26).** A greyed command has a reason
+  (`src/evrakci/ui/refusals.py`, one sentence per command and state). The reason is the tooltip of
+  the greyed menu item and button, it shows beside the entry in the palette, and pressing the key
+  (or choosing the entry in the palette) puts the same sentence in the status bar. The command
+  stays disabled, so the key does nothing else. Two quiet exceptions, decided: Esc with nothing to
+  dismiss (M-45) and the arrows with no box chosen (M-40). Enter and Space belong to a focused
+  button, so with a button focused they do not speak.
 - **Every key is visible.** A key shows in the tooltip as "Label (Key)", generated with
   `QKeySequence.toString(NativeText)`, and in the menu, the shortcut sheet and the command palette.
 - **Menu access keys** are ASCII A–Z without I, and unique within each menu for each tab.
@@ -33,6 +45,35 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 - **Local keys** (marked *yerel*) are handled inside one widget (timeline, canvas, table). They
   are shown in tooltips and the sheet but are not bound to the QAction. If such a widget needs a
   key that an action also uses, it accepts `QEvent.ShortcutOverride` for that key.
+
+## Page-specific keys
+
+`audit_shortcuts.py --check` fails when one key has different labels on different tabs and is not
+listed here. Format, one line per key: `` `Key`: page-specific: <why> `` or
+`` `Key`: MISMATCH: <why> `` (looks like a bug, fails the check until fixed). The script reads only
+the part between the two comments.
+
+<!-- page-specific:start -->
+- `B`: page-specific: select this document (Bu belgeyi seç on Kontrol), draw a box (Kutu çiz on Şablonlar)
+- `Alt+Up`: page-specific: move the selected item up (Partiyi on Yükle, Değişkeni or Bölümü on Şablonlar)
+- `Alt+Down`: page-specific: move the selected item down (Partiyi on Yükle, Değişkeni or Bölümü on Şablonlar)
+- `Ctrl+.`: page-specific: stop what is running; the label names the job (reading, export)
+- `Ctrl+P`: page-specific: print the tab's own object (index on Dışa Aktar, separator sheet on Rehber)
+- `Del`: page-specific: delete the selected thing, undoable (Parti, Sayfa, Kutu)
+- `Enter`: page-specific: confirm and move on (Belgeyi onayla on Kontrol, Onayla on Değerler)
+- `Return`: page-specific: same as Enter (main keyboard row)
+- `Esc`: page-specific: dismiss without losing work (Seçimi kaldır on Kontrol, Vazgeç on Değerler, Aramayı temizle on Rehber)
+- `F2`: page-specific: edit the selected item's name or value by hand (İşi yeniden adlandır on Yükle, Elle yaz on Değerler)
+- `R`: page-specific: Sağa döndür on Kontrol, Okunana dön on Değerler
+- `K`: page-specific: Burada kes on Kontrol, Kontrol'de aç on Değerler
+- `N`: page-specific: next one to check (Sonraki kontrol on Kontrol and Değerler, Sonraki zayıf örnek on Şablonlar)
+- `Shift+N`: page-specific: previous one to check (Önceki kontrol on Kontrol and Değerler, Önceki zayıf örnek on Şablonlar)
+- `Left`: page-specific: local key of the focused view (previous page on Kontrol, nudge box on Şablonlar)
+- `Right`: page-specific: local key of the focused view (next page on Kontrol, nudge box on Şablonlar)
+- `Shift+Left`: page-specific: local key of the focused view (extend selection, 1 mm nudge)
+- `Shift+Right`: page-specific: local key of the focused view (extend selection, 1 mm nudge)
+- `Space`: page-specific: tap shows the page larger (Önizle, Tüm sayfayı göster); held on Şablonlar it pans the sheet, a local canvas key
+<!-- page-specific:end -->
 
 ## Map
 
@@ -45,24 +86,24 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 | Ctrl+1 … Ctrl+6 | Yükle, Kontrol, Şablonlar, Değerler, Dışa Aktar, Rehber | Git | |
 | Ctrl+Tab / Ctrl+Shift+Tab | Sonraki sekme / Önceki sekme | Git | Ctrl+Shift+Backtab is also registered (Qt reports Shift+Tab as Backtab) |
 | F6 / Shift+F6 | Sonraki bölge / Önceki bölge | — (palette, sheet) | |
-| Ctrl+G | Belgeye veya sayfaya git… | Git | the same meaning on every tab |
+| Ctrl+G | Belgeye veya sayfaya git… | Git | on every tab (B-027): Kontrol and Değerler open the dialog on their list; Şablonlar makes the chosen document the Örnek; Dışa Aktar chooses its file row; Yükle and Rehber have no document list and say "Belgeye gitmek için Kontrol sekmesini açın (Ctrl+2)." |
 | Ctrl+N | Yeni iş oluştur… | Dosya | |
 | Ctrl+O | Dosya ekle… | Dosya | |
 | Ctrl+S | Kaydet | Dosya | saves the template on Şablonlar; confirms autosave elsewhere |
 | Ctrl+E | Dışa aktar… | Dosya | |
 | Ctrl+W | İşi kapat | Dosya | |
 | Ctrl+Q | Çıkış | Dosya | |
-| Ctrl+Z | Geri al | Düzen | one action, routed to the current tab's undo stack |
+| Ctrl+Z | Geri al | Düzen | one action, routed to the current tab's undo stack; off on Rehber (it shows nothing of the job, B-055) and says so |
 | Ctrl+Y / Ctrl+Shift+Z | Yinele | Düzen | |
-| Ctrl+F | Bul… | Düzen | every tab but Rehber's empty case: Değerler and Rehber their search field, Yükle the job list's search ("Tüm işler"), Kontrol "Belgeye veya sayfaya git", Şablonlar the variable list (type a name), Dışa Aktar the file list (type a file name). Phase 4 |
+| Ctrl+F | Bul… | Düzen | every tab but Rehber's empty case: Değerler and Rehber their search field, Yükle the job list's search ("Tüm işler"), Kontrol "Belgeye veya sayfaya git" (the item is labelled that on Kontrol, M-03), Şablonlar the variable list (type a name), Dışa Aktar the file list (type a file name). Phase 4 |
 | F3 / Shift+F3 | Sonraki sonuç / Önceki sonuç | Düzen | |
 | Ctrl+Num+ (also Ctrl++ and Ctrl+=) | Yakınlaştır | Görünüm | the tooltip shows Ctrl+Num+; Ctrl+wheel is handled by the view |
 | Ctrl+- / Ctrl+Num- | Uzaklaştır | Görünüm | |
-| Ctrl+0 | Sığdır | Görünüm | |
+| Ctrl+0 | Sığdır | Görünüm | reads "Varsayılan boyut" (tooltip "Varsayılan boyuta dön (Ctrl+0)") on Kontrol and Rehber, where it puts thumbnails and guide text back to 100 % (M-20) |
 | Ctrl+Shift+Num+ / Ctrl+Shift+Num- | Yazı boyutunu büyüt / küçült | Görünüm | also in Ayarlar |
 | F11 | Tam ekran | Görünüm | checkable |
 | F9 | Yan paneli gizle / göster | Görünüm | A's panel-right button at the end of every command bar; the tooltip names the tab's panel ("Ayrıntı panelini gizle (F9)", "Kaynak panelini …", "Ayarlar panelini …", "Yan paneli …"); disabled while a screen has no side panel (Phase 3) |
-| F5 | Yenile | — (palette, sheet) | |
+| F5 | Yenile | Görünüm | off on Kontrol and Rehber, with the reason "Bu sekmede yenilenecek bir şey yok." (B-028) |
 | Ctrl+, | Ayarlar… | Araçlar | |
 | F1 | Yardım konuları | Yardım | |
 | Shift+F1 (also Ctrl+/ and ?) | Klavye kısayolları | Yardım | `?` is yazarken kapalı |
@@ -75,9 +116,10 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 |---|---|---|---|
 | Alt+Up / Alt+Down | Partiyi yukarı taşı / aşağı taşı | Düzen | |
 | Del | Partiyi çıkar | Düzen | undoable; yazarken kapalı |
-| F2 | Yeniden adlandır | Düzen | |
+| F2 | İşi yeniden adlandır | Düzen | renames the job (M-27) |
 | Ctrl+Shift+O | Dosya Gezgini'nde göster | Dosya | |
-| Ctrl+. | İptal et | Araçlar | stops reading |
+| Enter / double click on a batch | Partiyi Kontrol'de aç | Düzen | the table's own key, not a registry key (an app key would take Enter from the buttons); Kontrol opens at the batch's first page; off while a read runs (R3, Y-11) |
+| Ctrl+. | İptal et | Araçlar | stops reading; the progress card has the same "İptal et" button (R3, Y-8) |
 
 ### Kontrol
 
@@ -86,17 +128,22 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 | K | Burada kes | Düzen | cuts here or removes the cut; yazarken kapalı |
 | M | Önceki belgeyle birleştir | Düzen | yazarken kapalı |
 | R / Shift+R | Sağa döndür / Sola döndür | Düzen | yazarken kapalı |
-| Del | Sayfayı sil | Düzen | toggles delete / restore; undoable, the label names the count; yazarken kapalı |
+| Del | Sayfayı sil | Düzen | deletes the chosen pages (then the selection moves to the next page that stays) or restores them when all chosen are deleted; undoable, the label names the count; yazarken kapalı |
 | Enter | Belgeyi onayla | Düzen | marks the document İncelendi and moves on; keypad Enter too; yazarken kapalı |
 | Ctrl+A | Tümünü seç | Düzen | |
+| B | Bu belgeyi seç | Düzen | every page of the current document, not separators or deleted pages; status 'N sayfa seçildi.'; yazarken kapalı |
+| Ctrl+Space | Sayfayı seçime ekle / çıkar | Düzen | adds the current page to the selection or takes it out, the others stay; yerel (timeline) |
 | Esc | Seçimi kaldır | Düzen | also closes the preview; yazarken kapalı |
+| S | Ölçüte göre seç… | Araçlar | the dialog 'Sayfaları seç': Bu belge, Tek sayfalar, Çift sayfalar (counted from each document's first page); only changes the selection; yazarken kapalı |
 | F | Filtre uygula… | Araçlar | yazarken kapalı |
+| Ctrl+Shift+F | Kayıtlı filtreler | Araçlar | focus goes to the chip row of the template's saved filters (nothing is selected or changed); inside the row (yerel): Left / Right between chips, Space or Enter turn a chip on or off, Del deletes it (undoable), Esc back to the timeline; status 'Kayıtlı filtre yok' when there is no row |
 | T | Şablonu uygula | Araçlar | yazarken kapalı |
-| — | Değerlerde aç | Araçlar | Ctrl+4 stays the tab key |
+| D | Değerlerde aç | Araçlar | opens Değerler on this document, status 'Belge N seçildi.'; yazarken kapalı |
 | Space | Önizle | Görünüm | the loupe; yazarken kapalı |
-| N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | yazarken kapalı |
+| N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | says 'Başa döndü.' / 'Sona döndü.' when it goes round the end, and what a search or another template still hides; yazarken kapalı |
 | U | Sonraki incelenmemiş | Git | yazarken kapalı |
 | Ctrl+Right / Ctrl+Left | Sonraki belge / Önceki belge | Git | |
+| Alt+Right / Alt+Left | Seçimi bozmadan git | Git | the focus ring moves one page, the selection stays; yerel (timeline); two menu items under Git, one per direction |
 | Left / Right | Önceki / sonraki sayfa | — | yerel (timeline) |
 | Home / End | İlk / son sayfa | — | yerel |
 | PgUp / PgDn | Bir ekran geri / ileri | — | yerel |
@@ -109,6 +156,8 @@ Status: Phase 2 groundwork. The registry is built and tested but not yet wired i
 | B | Kutu çiz | Araçlar | checkable; yazarken kapalı |
 | G | Izgaraya oturt | Araçlar | checkable snap toggle; yazarken kapalı |
 | Ctrl+T | Bütün örneklerde dene | Araçlar | |
+| N / Shift+N | Sonraki zayıf örnek / Önceki zayıf örnek | Git | after Ctrl+T; weakest first; yazarken kapalı |
+| Ctrl+L | Zayıf örnekler | Git | list of the weak examples under the example picker; after Ctrl+T |
 | Del | Kutuyu sil | Düzen | undoable; yazarken kapalı. Acts on the chosen box, or on the chosen variable when it has no box |
 | Ctrl+D | Kutuyu çoğalt | Düzen | |
 | Ctrl+Shift+N | Değişken ekle | Düzen | |
@@ -131,18 +180,23 @@ list and the inspector fields.
 
 | Key | Command | Menu | Note |
 |---|---|---|---|
-| Enter | Onayla ve sonrakine geç | Düzen | accepts the suggestion, marks it İncelendi, moves on; yazarken kapalı (the cell editor keeps its own Enter) |
+| Enter | Onayla (Öneriyle onayla for a value with a suggestion) | Düzen | accepts the suggestion, marks it İncelendi, moves on, and says 'Belge 2, Sicil No: 48213 kabul edildi.' in the status line; Geri al selects that value again ('Geri alındı: Belge 2, Sicil No.'); for an Okunamadı value it opens the editor; yazarken kapalı (the cell editor keeps its own Enter) |
+| Shift+Enter | Okunanla onayla | Düzen | stores what was read, marks it İncelendi, moves on; only for a value whose suggestion differs from the read; yazarken kapalı |
 | Ctrl+Enter | Seçilenleri onayla | Düzen | acts on the current selection only |
 | F2 | Elle yaz | Düzen | |
+| R | Okunana dön | Düzen | puts a corrected or confirmed value back to what the machine read (Kontrol, with the reading as the suggestion); dimmed for a hand-typed value and in Örnek; undoable; yazarken kapalı |
 | V | Yeni varyant çiz | Düzen | yazarken kapalı |
 | Esc | Vazgeç | Düzen | drops the change; "Geri al" is only Ctrl+Z; yazarken kapalı (the editor keeps its own Esc) |
 | Ctrl+A | Tümünü seç | Düzen | |
 | Space | Tüm sayfayı göster | Görünüm | the same key as the Kontrol loupe; yazarken kapalı |
-| N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | yazarken kapalı |
+| N / Shift+N | Sonraki kontrol / Önceki kontrol | Git | says 'Başa döndü.' / 'Sona döndü.' when it goes round the end, and what a search or another template still hides; yazarken kapalı |
 | — | Tümünü incele, Örnek kontrol | Araçlar | checkable |
+| K | Kontrol'de aç | Araçlar | opens Kontrol on this document, status 'Belge N seçildi.'; yazarken kapalı |
 | Ctrl+. | Okumayı durdur | Araçlar | |
 | — | Değerleri oku / Yalnızca eksikleri oku | Araçlar | A's labelled scan-text and list-filter command-bar buttons |
+| — | Sütun genişliklerini sıfırla | Görünüm | also on the right-click menu of a column title; a column cannot be dragged narrower than 80 px (at 100 % text) |
 | Tab / Shift+Tab | Sonraki / önceki değer | — | yerel (table); Tab on the last value leaves the table, F6 moves to the next region |
+| Alt+1 / Alt+2 / Alt+3 / Alt+4 | Okuma seç | — | yerel (open editor only); the editor takes reading 1-4 of "Tüm okumalar", Enter stores it as one undo step; the mouse path is a click on the reading row (Q-23) |
 
 ### Dışa Aktar
 
@@ -150,6 +204,8 @@ list and the inspector fields.
 |---|---|---|
 | Ctrl+Shift+O | Dosya Gezgini'nde göster | Dosya |
 | Ctrl+P | Dizini yazdır… | Dosya |
+| Ctrl+Shift+C | Ad listesini kopyala | Düzen |
+| — | Adları karşılaştır | Görünüm |
 | Ctrl+. | Dışa aktarmayı durdur | Araçlar |
 
 ### Rehber
@@ -166,7 +222,7 @@ list and the inspector fields.
   sonrakine geç, Tüm sayfayı göster) are unbound, exactly as typing keys are while a text field
   has focus (`Registry.set_on_button`).
 - **Ayarlar > Kısayollar > "Tek tuşlu kısayollar"** (default on, WCAG 2.1.4): off unbinds every
-  shortcut that is one character key (K, M, R, N, U, T, F, B, G, V, ?). Enter, Space, Del, the
+  shortcut that is one character key (K, M, R, N, U, T, F, D, B, G, V, ?). Enter, Space, Del, the
   arrows and every Ctrl/Alt/F-key shortcut keep working.
 - **Ctrl+1…6 and Ctrl+Tab** put focus in the tab's main view (timeline, table, canvas, guide), so
   arrows work at once. A click on a tab leaves focus where it is.
@@ -209,7 +265,7 @@ meaning on purpose:
 - **Esc** dismisses. It no longer cancels: cancel is Ctrl+. on Yükle, Değerler and Dışa Aktar.
 - **Ctrl+E, Ctrl+N and Ctrl+O** now work on every tab. Before, each worked only on its own screen.
 
-## Notes for wiring (Phase 2b / 3)
+## Notes for wiring (kept from Phase 2b; the window is wired now)
 
 - Create one `Registry(main_window)`, call `install_text_guard()`, and call `set_context(tab)` from
   `QTabWidget.currentChanged`. Build the menu bar from `menu_structure()`. Hidden actions vanish
@@ -220,7 +276,9 @@ meaning on purpose:
   property through `icons.icon()`.
 - Remove the per-screen `QShortcut`s when their screen is wired. Otherwise Qt sees two bindings for
   one key and fires neither.
-- **Do not load `qtbase_tr.qm` for key names.** Its Turkish NativeText reads "Kontrol+Üst
-  Karakter+Sekme", "Seçenek+Yukarı" and "Dönüş". "Kontrol" would clash with the tab name, and
-  Turkish Windows keyboards print Ctrl, Shift, Alt and Del on the keys anyway. If "Boşluk" is
-  wanted for Space, add a small override map in `actions.key_text`.
+- **Qt's Turkish translation (`qtbase_tr.qm`) must not reach key names.** Its Turkish NativeText
+  reads "Kontrol+Üst Karakter+Sekme", "Seçenek+Yukarı" and "Dönüş". "Kontrol" would clash with the
+  tab name, and Turkish Windows keyboards print Ctrl, Shift, Alt and Del on the keys anyway. Since
+  f7741f0 the app installs only the `QPlatformTheme` context (standard dialog buttons) and tests
+  check that every tooltip and key text is unchanged. If "Boşluk" is wanted for Space, add a small
+  override map in `actions.key_text`.

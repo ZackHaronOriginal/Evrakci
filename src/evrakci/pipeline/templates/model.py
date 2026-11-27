@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 TEMPLATE_FORMAT = "evrakci-sablon"
 TEMPLATE_FORMAT_VERSION = 1
 DEFAULT_MIN_CONFIDENCE = 0.70
+MAX_SAVED_FILTERS = 20
 
 _PLACEHOLDER = re.compile(r"\{([^{}]*)\}")
 
@@ -42,7 +43,7 @@ def validate_name(name: str) -> str:
     if "{" in cleaned or "}" in cleaned:
         raise TemplateError(f"Değişken adında {{ veya }} olamaz: {cleaned}")
     if _has_hidden_characters(cleaned):
-        raise TemplateError(f"Değişken adında görünmeyen veya özel karakter var: {cleaned!r}")
+        raise TemplateError("Değişken adında görünmeyen veya özel karakter var. Adı yeniden yazın.")
     return cleaned
 
 
@@ -84,6 +85,43 @@ class Section:
         object.__setattr__(self, "box_mm", (x0, y0, x1, y1) if min(box) < 0 else tuple(box))
 
 
+@dataclass(frozen=True)
+class SavedFilter:
+    """A named selection kept with the template: `kind` and `params` are a select.Criterion
+    (`Criterion.to_dict()`); the template never interprets either. The settings are fixed: to
+    change one, delete the filter and save it again."""
+
+    name: str
+    kind: str
+    params: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "name", validate_filter_name(self.name))
+        if not isinstance(self.kind, str) or not self.kind.strip():
+            raise TemplateError("Şablon dosyası bozuk: ölçüt türü metin olmalı.")
+        if not isinstance(self.params, dict):
+            raise TemplateError("Şablon dosyası bozuk: ölçüt ayarları bir nesne olmalı.")
+        try:
+            json.dumps(self.params, allow_nan=False)
+        except (TypeError, ValueError):
+            raise TemplateError("Şablon dosyası bozuk: ölçüt ayarları geçersiz.") from None
+
+    def to_dict(self) -> dict:
+        return {"name": self.name, "kind": self.kind, "params": dict(self.params)}
+
+
+def validate_filter_name(name: str) -> str:
+    """A saved filter's name: NFC, trimmed, not empty, no hidden characters."""
+    if not isinstance(name, str):
+        raise TemplateError("Filtre adı metin olmalı.")
+    cleaned = _nfc(name).strip()
+    if not cleaned:
+        raise TemplateError("Filtre adı boş olamaz.")
+    if _has_hidden_characters(cleaned):
+        raise TemplateError("Filtre adında görünmeyen veya özel karakter var. Adı yeniden yazın.")
+    return cleaned
+
+
 def new_key() -> str:
     return uuid.uuid4().hex[:8]
 
@@ -109,6 +147,7 @@ class Template:
     filename_pattern: str = ""
     min_confidence: float = DEFAULT_MIN_CONFIDENCE
     keywords: list[str] = field(default_factory=list)  # reserved for template guessing later
+    saved_filters: list[SavedFilter] = field(default_factory=list)  # chips of Kontrol (I-07)
 
     def variable(self, name: str) -> Variable:
         name = _nfc(name).strip()
@@ -183,6 +222,36 @@ class Template:
             raise TemplateError(f"Kalıpta bilinmeyen değişken: {', '.join(unknown)}")
         self.filename_pattern = _nfc(pattern)
 
+    def saved_filter(self, name: str) -> SavedFilter:
+        name = _nfc(name).strip()
+        for item in self.saved_filters:
+            if item.name == name:
+                return item
+        raise TemplateError(f"Filtre yok: {name}")
+
+    def add_saved_filter(self, name: str, kind: str, params: dict | None = None) -> SavedFilter:
+        item = SavedFilter(name, kind, dict(params) if isinstance(params, dict) else
+                           ({} if params is None else params))
+        if any(existing.name.casefold() == item.name.casefold()
+               for existing in self.saved_filters):
+            raise TemplateError(f"Bu adla bir filtre zaten var: {item.name}")
+        if len(self.saved_filters) >= MAX_SAVED_FILTERS:
+            raise TemplateError(f"En çok {MAX_SAVED_FILTERS} kayıtlı filtre olabilir.")
+        self.saved_filters.append(item)
+        return item
+
+    def remove_saved_filter(self, name: str) -> None:
+        self.saved_filters.remove(self.saved_filter(name))
+
+    def rename_saved_filter(self, old: str, new: str) -> None:
+        item = self.saved_filter(old)
+        new = validate_filter_name(new)
+        if new.casefold() != item.name.casefold() and any(
+                other.name.casefold() == new.casefold() for other in self.saved_filters):
+            raise TemplateError(f"Bu adla bir filtre zaten var: {new}")
+        index = self.saved_filters.index(item)
+        self.saved_filters[index] = SavedFilter(new, item.kind, dict(item.params))
+
     def set_min_confidence(self, value: float) -> None:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise TemplateError("Güven eşiği bir sayı olmalı (örn. 0.7).")
@@ -212,6 +281,7 @@ def template_to_dict(template: Template) -> dict:
         "filename_pattern": template.filename_pattern,
         "min_confidence": template.min_confidence,
         "keywords": list(template.keywords),
+        "saved_filters": [item.to_dict() for item in template.saved_filters],
         "variables": [
             {
                 "key": v.key,
@@ -273,6 +343,11 @@ def template_from_dict(data: dict) -> Template:
         if len({v.key for v in template.variables}) != len(template.variables):
             raise TemplateError("Şablonda aynı anahtarlı iki değişken var.")
         template.set_pattern(data.get("filename_pattern", ""))
+        for item in items(data.get("saved_filters", []), "kayıtlı filtreler"):
+            if not isinstance(item, dict):
+                raise TemplateError("Şablon dosyası bozuk: kayıtlı filtre bir nesne olmalı.")
+            template.add_saved_filter(text(item["name"], "kayıtlı filtre adı"),
+                                      text(item["kind"], "ölçüt türü"), item.get("params", {}))
     except (KeyError, TypeError) as error:
         raise TemplateError(f"Şablon dosyası eksik veya bozuk ({error}).") from error
     return template

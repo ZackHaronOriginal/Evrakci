@@ -29,8 +29,9 @@ from evrakci.ui import icons, motion, theme
 
 TOAST_MARGIN = 12
 SHADOW_ROOM = 16
-KIND_ICON = {"info": "info", "success": "circle-check", "kontrol": "triangle-alert"}
-KIND_COLOUR = {"info": "icon", "success": "ok", "kontrol": "check-text"}
+KIND_ICON = {"info": "info", "success": "circle-check", "kontrol": "triangle-alert",
+             "error": "circle-x"}
+KIND_COLOUR = {"info": "icon", "success": "ok", "kontrol": "check-text", "error": "danger"}
 
 
 def announce(widget: QWidget, text: str) -> None:
@@ -92,7 +93,7 @@ class _Toast(QWidget):
         name = KIND_ICON.get(kind, "info")
         row.addWidget(_icon_label(name, KIND_COLOUR.get(kind, "icon"), m.size("icon-md")))
         label = QLabel(text)
-        label.setWordWrap(False)
+        label.setWordWrap(True)  # a long sentence takes a second line, never cut (F-yukle-08)
         row.addWidget(label, 1)
         if action_text:
             def act() -> None:
@@ -100,10 +101,22 @@ class _Toast(QWidget):
                     on_action()
                 self.closed.emit()
 
-            row.addWidget(_link_button(action_text, act))
+            self.action_button = _link_button(action_text, act)
+            row.addWidget(self.action_button)
         row.addWidget(_close_button(self.closed.emit, "Kapat"))
         self.setMaximumWidth(560 + 2 * SHADOW_ROOM)
         announce(self, text)
+
+    action_button: QPushButton | None = None
+
+    def watch(self, available: Callable[[], bool], stack) -> None:
+        """Take the action off as soon as `available` turns False (the stack changed)."""
+        self._available = available
+        stack.indexChanged.connect(self._recheck)
+
+    def _recheck(self, *_args) -> None:
+        if self.action_button is not None and not self._available():
+            self.action_button.hide()
 
     def paintEvent(self, event: QEvent) -> None:  # noqa: N802
         """Soft shadow of the popover level under the frame."""
@@ -139,16 +152,43 @@ class _Pending:
     on_action: Callable[[], None] | None
     kind: str
     timeout_ms: int
+    available: Callable[[], bool] | None = None
+    spoken: str | None = None  # what a screen reader hears when it differs from the shown text
+    key: str | None = None
+
+
+def undo_last(stack) -> tuple[Callable[[], None], Callable[[], bool]]:
+    """Geri al for the step just made: (undo, available). Both act only while that step is
+    still the newest one, so a toast never undoes a different step (B-023)."""
+    index = stack.index()
+    command = stack.command(index - 1) if index else None
+
+    def available() -> bool:
+        # same position AND same command object: an index is reused after Ctrl+Z and a new
+        # edit, or after clear() (B-023)
+        try:
+            return stack.index() == index and (not index or stack.command(index - 1) is command)
+        except RuntimeError:  # the stack's owner (a job or template) is gone
+            return False
+
+    available.stack = stack  # lets the toast hide its action when the stack changes
+
+    def undo() -> None:
+        if available():
+            stack.undo()
+
+    return undo, available
 
 
 class Toaster(QObject):
-    """Shows one toast at a time at the window's bottom-right; later ones wait."""
+    """Shows one toast at a time at the window's bottom-left; later ones wait."""
 
     def __init__(self, window: QWidget) -> None:
         super().__init__(window)
         self._window = window
         self._queue: deque[_Pending] = deque()
         self._current: _Toast | None = None
+        self._current_key: str | None = None
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self.dismiss)
@@ -156,11 +196,33 @@ class Toaster(QObject):
 
     def show(self, text: str, action_text: str | None = None,
              on_action: Callable[[], None] | None = None, kind: str = "info",
-             timeout_ms: int = 6000) -> None:
-        """Queue a toast; it appears at once when none is visible."""
-        self._queue.append(_Pending(text, action_text, on_action, kind, timeout_ms))
+             timeout_ms: int = 6000, available: Callable[[], bool] | None = None,
+             spoken: str | None = None, key: str | None = None) -> None:
+        """Queue a toast; it appears at once when none is visible. With `available`, the
+        action is left off when it returns False at the moment the toast is shown. With
+        `key` (a confirmation that repeats, one per Enter) it takes the place of an earlier
+        toast with the same key, visible or waiting; every other toast keeps its place."""
+        if key is not None:
+            self._queue = deque(p for p in self._queue if p.key != key)
+            if self._current is not None and self._current_key == key:
+                self.dismiss()
+        pending = _Pending(text, action_text, on_action, kind, timeout_ms, available, spoken,
+                           key)
+        if kind == "error":  # a failure is never kept waiting behind other toasts
+            self._queue.appendleft(pending)
+            if self._current is not None:
+                self.dismiss()  # shows the first in the queue: this one
+                return
+        else:
+            self._queue.append(pending)
         if self._current is None:
             self._next()
+
+    def dismiss_key(self, key: str) -> None:
+        """Take away the toast with `key`, visible or waiting (its cause is gone)."""
+        self._queue = deque(p for p in self._queue if p.key != key)
+        if self._current is not None and self._current_key == key:
+            self.dismiss()
 
     def current_text(self) -> str:
         return self._current.accessibleName() if self._current is not None else ""
@@ -170,7 +232,7 @@ class Toaster(QObject):
 
     def dismiss(self) -> None:
         """Close the visible toast and show the next one."""
-        toast, self._current = self._current, None
+        toast, self._current, self._current_key = self._current, None, None
         self._timer.stop()
         if toast is not None:
             toast.hide()
@@ -180,13 +242,22 @@ class Toaster(QObject):
 
     def _next(self) -> None:
         item = self._queue.popleft()
-        toast = _Toast(self._window, item.text, item.action_text, item.on_action, item.kind)
+        action_text, on_action = item.action_text, item.on_action
+        if item.available is not None and not item.available():
+            action_text = on_action = None
+        toast = _Toast(self._window, item.text, action_text, on_action, item.kind)
+        stack = getattr(item.available, "stack", None)
+        if action_text and stack is not None:
+            toast.watch(item.available, stack)
+        if item.spoken:
+            toast.setAccessibleName(item.spoken)
         toast.closed.connect(self.dismiss)
         self._current = toast
+        self._current_key = item.key
         toast.adjustSize()
         self._place()
         toast.raise_()
-        motion.fade_in(toast, motion.Duration.SLOWER)
+        motion.fade_in(toast, motion.Duration.NONE, animate_=False)  # S-2: no fade (D7)
         if item.timeout_ms > 0:
             self._timer.start(item.timeout_ms)
 
@@ -199,9 +270,12 @@ class Toaster(QObject):
         if isinstance(win, QMainWindow) and win.statusBar() is not None:
             bottom -= win.statusBar().height()
         size = toast.sizeHint()
-        width = min(size.width(), win.width() - 2 * TOAST_MARGIN + 2 * SHADOW_ROOM)
-        toast.setGeometry(win.width() - TOAST_MARGIN + SHADOW_ROOM - width,
-                          bottom - size.height() + SHADOW_ROOM, width, size.height())
+        width = min(size.width(), toast.maximumWidth(),
+                    win.width() - 2 * TOAST_MARGIN + 2 * SHADOW_ROOM)
+        layout = toast.layout()
+        height = max(size.height(), layout.totalHeightForWidth(width) if layout else 0)
+        toast.setGeometry(TOAST_MARGIN - SHADOW_ROOM,
+                          bottom - height + SHADOW_ROOM, width, height)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802
         if obj is getattr(self, "_window", None) and event.type() == QEvent.Type.Resize:

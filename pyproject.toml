@@ -48,3 +48,6 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "action(id): the registry action id this test covers (read by .claude/skills/shortcut-audit/audit_shortcuts.py)",
+]

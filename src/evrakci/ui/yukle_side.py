@@ -1,7 +1,7 @@
 """Yükle's inspector (final-a/yukle.html .inspector): Settings-style cards about the open job.
 
 Head: "Açık iş" with a … menu, the page count as the one page-size title, "4 parti, 96 belge
-bulundu" and one sentence on how the batches will be split. Then "Ön kontrol" (QR ayıraç,
+bulundu" and one sentence on how the batches will be split. Then "Ön kontrol" (QR ayraç,
 Belge, Durum) and "Tarama profili". Pinned at the bottom: the primary "Kontrol'e geç" and the
 subtle "İşi kapat"; while a batch is read the primary is disabled and a note says when it opens.
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QRect, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QIcon, QPalette
 from PySide6.QtWidgets import (
     QFrame,
@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.ui import actions, icons, theme
 from evrakci.ui.card_scroll import CardScroll
-from evrakci.ui.chrome import card, group_label, make_icon
+from evrakci.ui.chrome import ElidedLabel, card, group_label, make_icon, press_on_enter
 from evrakci.ui.yukle_info import JobSummary, ScanProfile
 
 KEY_W = 76  # A .kv .r .k width
@@ -43,6 +43,10 @@ class GapButton(QPushButton):
     def sizeHint(self) -> QSize:  # noqa: N802
         hint = super().sizeHint()
         return QSize(hint.width() + theme.manager().size("s1"), hint.height())
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if not press_on_enter(self, event):
+            super().keyPressEvent(event)
 
     def paintEvent(self, _event) -> None:  # noqa: N802
         painter = QStylePainter(self)
@@ -62,6 +66,12 @@ class GapButton(QPushButton):
         painter.setPen(self.palette().color(group, QPalette.ColorRole.ButtonText))
         painter.drawText(QRect(x + size.width() + gap, 0, self.width(), self.height()),
                          Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
+
+
+class _LinkButton(QPushButton):
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if not press_on_enter(self, event):
+            super().keyPressEvent(event)
 
 
 class KvRow(QWidget):
@@ -97,7 +107,10 @@ class KvRow(QWidget):
     def set(self, text: str, icon: str | None = None, role: str = "icon",
             state: str | None = None, extra: str = "") -> None:
         self.value.setText(text)
-        self.value.setProperty("state", state)
+        # The "…" of a count still being read is drawn semibold (state "pending", QSS): in the
+        # regular weight its three dots antialias to 1.7:1 and, on a slow machine (CI), to
+        # 1.0:1 (Q-16, DEC-CON-01).
+        self.value.setProperty("state", "pending" if text == "…" else state)
         self.value.setFont(theme.manager().font("body-strong" if state == "kontrol"
                                                 else "num" if state == "num" else "body"))
         self.value.style().unpolish(self.value)
@@ -138,8 +151,8 @@ class ProfileRows(QFrame):
         self.icon.setFixedSize(16, 16)
         lines = QVBoxLayout()
         lines.setSpacing(0)
-        self.title = QLabel()
-        self.detail = QLabel()
+        self.title = ElidedLabel("")  # long profile text elides (tooltip = full text)
+        self.detail = ElidedLabel("")
         self.detail.setProperty("textRole", "secondary")
         self.detail.setProperty("kind", "inspector-key")
         lines.addStretch(1)
@@ -149,7 +162,7 @@ class ProfileRows(QFrame):
         row.addWidget(self.icon, 0, Qt.AlignmentFlag.AlignVCenter)
         row.addLayout(lines, 1)
         column.addWidget(self.tall)
-        self.link = QPushButton("Rehber'de tarama ayarları")
+        self.link = _LinkButton("Rehber'de tarama ayarları")
         self.link.setProperty("kind", "inspector-row")
         self.link.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.link.setMinimumHeight(m.size("row-h"))
@@ -213,6 +226,8 @@ class Inspector(QWidget):
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(m.size("s3"))
         self.scroll.setWidget(body)
+        self.scroll.viewport().installEventFilter(self)
+        body.installEventFilter(self)
 
         head = QWidget()
         head_col = QVBoxLayout(head)
@@ -239,9 +254,11 @@ class Inspector(QWidget):
         head_col.addLayout(top)
         self.title = QLabel("İş açılmadı")
         self.title.setProperty("textRole", "page")
+        self.title.setWordWrap(True)  # "12 belge kontrol bekliyor" is longer than the panel
         self.title.setContentsMargins(0, m.size("s1"), 0, 0)
         self.sub = QLabel("")
         self.sub.setProperty("textRole", "secondary")
+        self.sub.setWordWrap(True)  # the longer sub line must not widen the panel
         self.sub.setContentsMargins(0, 2, 0, 0)
         self.reason = QLabel("")
         self.reason.setWordWrap(True)
@@ -260,7 +277,7 @@ class Inspector(QWidget):
         counts_col.setContentsMargins(0, m.size("s1"), 0, m.size("s1"))
         counts_col.setSpacing(0)
         self.qr_row, self.docs_row, self.state_row = (
-            KvRow("QR ayıraç"), KvRow("Belge"), KvRow("Durum"))
+            KvRow("QR ayraç"), KvRow("Belge"), KvRow("Durum"))
         for row in (self.qr_row, self.docs_row, self.state_row):
             counts_col.addWidget(row)
         col.addWidget(counts)
@@ -286,12 +303,14 @@ class Inspector(QWidget):
         self.go_button.clicked.connect(self.go)
         key = actions.key_text("Ctrl+2")
         self.go_button.setAccessibleName(f"Kontrol'e geç ({key})")
+        self.go_button.setProperty("action_id", "app.sekme.kontrol")
         self.go_button.setToolTip(f"Kontrol sekmesine geç ({key})")
         self.close_button = GapButton("İşi kapat")
         self.close_button.setProperty("variant", "subtle")
         self.close_button.clicked.connect(self.close_job)
         key = actions.key_text("Ctrl+W")
         self.close_button.setAccessibleName(f"İşi kapat ({key})")
+        self.close_button.setProperty("action_id", "app.isi_kapat")
         self.close_button.setToolTip(f"İşi kapat ({key})")
         self.note = QLabel("Okuma bitince açılır.")
         self.note.setProperty("textRole", "secondary")
@@ -315,24 +334,65 @@ class Inspector(QWidget):
         theme.follow(self, self.refresh)
         self.refresh()
 
+    def least_width(self) -> int:
+        """Half the A width, or what the content needs if that is more: below it the cards
+        were cut at the right with no scroll bar (F-yukle-12)."""
+        body = self.scroll.widget()
+        frame = self.width() - self.scroll.viewport().width() if self.isVisible() else 0
+        return max(getattr(self, "_half", 0), body.minimumSizeHint().width() + max(frame, 0))
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._fit()
+
+    def _fit(self) -> None:
+        """Keep the minimum width at what the content needs. The content can grow without the
+        panel being resized (wider fonts, a vertical scroll bar appearing and taking room from
+        the viewport: Windows), so this also runs on those, and a measured shortage of the
+        viewport counts too."""
+        wanted = self.least_width()
+        if self.isVisible():
+            short = self.scroll.widget().minimumSizeHint().width() \
+                - self.scroll.viewport().width()
+            if short > 0:
+                wanted = max(wanted, self.width() + short)
+        if wanted != self.minimumWidth():
+            self.setMinimumWidth(wanted)
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        kind = event.type()
+        if (watched is self.scroll.viewport() and kind == QEvent.Type.Resize) \
+                or (watched is self.scroll.widget() and kind == QEvent.Type.LayoutRequest):
+            QTimer.singleShot(0, self, self._fit)
+        return super().eventFilter(watched, event)
+
     # -- content -------------------------------------------------------------------------
     def show_job(self, info: JobSummary, profile: ScanProfile | None) -> None:
         self.reading = False
-        self.title.setText(f"{info.pages} sayfa")
-        self.sub.setText(f"{info.parties} parti, {info.documents} belge bulundu")
+        if info.checks:  # the thing to act on leads; the page count moves to the sub line
+            self.title.setText(f"{info.checks} belge kontrol bekliyor")
+            self.sub.setText(f"{info.pages} sayfa, {info.parties} parti, "
+                             f"{info.documents} belge bulundu")
+        else:
+            self.title.setText(f"{info.pages} sayfa")
+            self.sub.setText(f"{info.parties} parti, {info.documents} belge bulundu")
         self.reason.setText(info.reason)
         self.reason.setVisible(bool(info.reason))
         self.qr_row.set(str(info.qr), state="num")
         self.docs_row.set(str(info.documents), state="num")
         if info.checks:
-            self.state_row.set(f"{info.checks} belge", "triangle-alert", "check-text", "kontrol")
+            self.state_row.set(f"{info.checks} belge kontrol bekliyor", "triangle-alert",
+                               "check-text", "kontrol")
+        elif not info.batches:
+            self.state_row.set("Henüz parti yok", "info", "text-2")
         else:
             self.state_row.set("Hazır", "circle-check", "ok", "ok")
         self.profile.set_profile(profile)
         self.set_reading(False)
         self.setAccessibleDescription(
             f"{info.name}: {info.pages} sayfa, {info.parties} parti, {info.documents} belge. "
-            + (f"{info.checks} belge kontrol bekliyor." if info.checks else "Hepsi hazır."))
+            + (f"{info.checks} belge kontrol bekliyor." if info.checks
+               else "Hepsi hazır." if info.batches else "Henüz parti yok."))
 
     def show_reading(self, pages: int, parties: int, qr_so_far: int, waiting: str,
                      profile: ScanProfile | None = None) -> None:
@@ -369,4 +429,5 @@ class Inspector(QWidget):
         for row in (self.qr_row, self.docs_row, self.state_row):
             row.refresh()
         self.profile.refresh()
-        self.setMinimumWidth(m.size("inspector-w") // 2)
+        self._half = m.size("inspector-w") // 2
+        self.setMinimumWidth(self.least_width())

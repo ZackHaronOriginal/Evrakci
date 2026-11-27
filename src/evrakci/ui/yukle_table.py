@@ -37,7 +37,7 @@ from evrakci.ui.yukle_info import BatchSummary
 
 MIME = "application/x-evrakci-batch"
 GRIP, NO, FILE, PAGES, QR, STATUS = range(6)
-TITLES = {GRIP: "", NO: "No", FILE: "Dosya", PAGES: "Sayfa", QR: "QR ayıraç", STATUS: "Durum"}
+TITLES = {GRIP: "", NO: "No", FILE: "Dosya", PAGES: "Sayfa", QR: "QR ayraç", STATUS: "Durum"}
 RIGHT = (NO, PAGES, QR)
 # A's colgroup (yukle.html) at 100 % text; Dosya takes the rest
 WIDTHS = {GRIP: 44, NO: 56, PAGES: 96, QR: 116, STATUS: 148}
@@ -47,6 +47,7 @@ STATUSES = {
     "hazir": ("circle-check", "ok", False, "Hazır"),
     "kontrol": ("triangle-alert", "check-text", True, "Kontrol"),
     "okunuyor": ("loader-circle", "text-2", False, "Okunuyor"),
+    "okundu": ("circle-check", "text-2", False, "Okundu"),
     "sirada": ("clock", "text-2", False, "Sırada"),
 }
 
@@ -152,13 +153,15 @@ class BatchModel(QAbstractTableModel):
             return item
         if role == Qt.ItemDataRole.AccessibleTextRole:
             return self._spoken(item, index.column())
+        if role == Qt.ItemDataRole.ToolTipRole and index.column() in (FILE, STATUS):
+            return self.text(item, index.column()) or None  # the whole name / word (F-yukle-04, 05)
         return None
 
     def _spoken(self, item: Item, column: int) -> str:
         if item.kind == "total":
-            qr = "okunuyor" if item.qr is None else f"{item.qr} QR ayıraç"
+            qr = "okunuyor" if item.qr is None else f"{item.qr} QR ayraç"
             return f"Toplam: {item.parties} parti, {item.pages} sayfa, {qr}"
-        qr = "QR ayıraçlar okunuyor" if item.qr is None else f"{item.qr} QR ayıraç"
+        qr = "QR ayraçlar okunuyor" if item.qr is None else f"{item.qr} QR ayraç"
         return (f"Parti {item.number}: {item.name}, {item.pages} sayfa, {qr}, "
                 f"{STATUSES[item.status][3]}")
 
@@ -225,6 +228,27 @@ class BatchHeader(QHeaderView):
         self.setStretchLastSection(False)
         self.setMinimumSectionSize(40)
         self.setSectionsMovable(False)
+        self.sectionResized.connect(self._keep_readable)
+
+    def readable_width(self, logical: int) -> int:
+        """The least a column may be dragged to: its title (and a five-digit number) fits."""
+        m = theme.manager()
+        metrics = QFontMetricsF(m.font("caption-strong"))
+        need = metrics.horizontalAdvance(TITLES.get(logical, ""))
+        if logical in RIGHT:
+            need = max(need, QFontMetricsF(m.font("num")).horizontalAdvance("00000"))
+        return max(40, int(need) + 2 * m.size("s3") + 2)
+
+    def _keep_readable(self, logical: int, _old: int, new: int) -> None:
+        # a column dragged to 40 px showed "S..." and "..." and was remembered (F-yukle-13)
+        least = self.readable_width(logical)
+        if new < least and logical != GRIP:
+            self.resizeSection(logical, least)
+
+    def keep_all_readable(self) -> None:
+        for logical in range(self.count()):
+            if logical != GRIP and self.sectionSize(logical) < self.readable_width(logical):
+                self.resizeSection(logical, self.readable_width(logical))
 
     def sizeHint(self) -> QSize:  # noqa: N802
         hint = super().sizeHint()
@@ -273,6 +297,10 @@ class BatchDelegate(QStyledItemDelegate):
                     and self.view.selectionModel().isRowSelected(index.row(), QModelIndex()))
         hc = m.theme() == "hc"  # a selected row is a Highlight fill with HighlightText
         ink = "text-on-accent" if hc and selected else None
+        hovered = (not selected and item.kind == "batch" and not hc
+                   and index.row() == self.view._hover_row)  # S-3 (HC: no tint, Highlight = pick)
+        if hovered:
+            painter.fillRect(rect, m.color("hover"))
         if selected:
             painter.fillRect(rect, m.color("accent" if hc else "selected"))
             if column == 0:
@@ -290,7 +318,7 @@ class BatchDelegate(QStyledItemDelegate):
                             QRectF(rect.center().x() - 8, rect.center().y() - 8, 16, 16),
                             m.hex(ink or "text-2"))
         elif column == STATUS and not total:
-            self._status(painter, inner, item, ink)
+            self._status(painter, inner, item, ink, selected or hovered)
         else:
             self._cell(painter, inner, item, column, ink)
         painter.restore()
@@ -302,7 +330,7 @@ class BatchDelegate(QStyledItemDelegate):
         strong = total and column in (PAGES, QR)
         font = m.font("body-strong") if strong else (
             m.font("num") if column in (NO, PAGES, QR) else m.font("body"))
-        quiet = (total and not strong) or (item.kind == "pending" and column == FILE)
+        quiet = item.kind == "pending" and column == FILE  # the Toplam row reads at the text tier
         colour = m.color(ink or ("text-2" if quiet else "text"))
         shown = QFontMetricsF(font).elidedText(text, Qt.TextElideMode.ElideRight, rect.width())
         painter.setFont(font)
@@ -310,7 +338,7 @@ class BatchDelegate(QStyledItemDelegate):
         align = Qt.AlignmentFlag.AlignRight if column in RIGHT else Qt.AlignmentFlag.AlignLeft
         painter.drawText(rect, Qt.AlignmentFlag.AlignVCenter | align, shown)
 
-    def _status(self, painter, rect: QRectF, item: Item, ink) -> None:
+    def _status(self, painter, rect: QRectF, item: Item, ink, selected: bool = False) -> None:
         m = theme.manager()
         name, role, strong, word = STATUSES[item.status]
         role = ink or role
@@ -319,10 +347,18 @@ class BatchDelegate(QStyledItemDelegate):
                     m.hex(role))
         font = m.font("body-strong" if strong else "body")
         painter.setFont(font)
-        painter.setPen(m.color(role))
+        # the word of a selected row is in `text` (Kontrol orange on the fill is 6.1:1, below 7:1)
+        painter.setPen(m.color(ink or ("text" if selected else theme.word_role(role))))
         x = rect.left() + size + 6  # A .st gap
-        painter.drawText(QRectF(x, rect.top(), rect.right() - x, rect.height()),
-                         Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, word)
+        room = max(0.0, rect.right() - x)
+        painter.drawText(QRectF(x, rect.top(), room, rect.height()),
+                         Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                         self.status_word(word, font, room))
+
+    @staticmethod
+    def status_word(word: str, font, room: float) -> str:
+        """The Durum word, elided when the column is too narrow for it (150 % text: F-yukle-05)."""
+        return QFontMetricsF(font).elidedText(word, Qt.TextElideMode.ElideRight, room)
 
 
 class BatchTable(QTableView):
@@ -331,8 +367,10 @@ class BatchTable(QTableView):
     files_dragged = Signal(object)  # QDragEnterEvent / QDragMoveEvent with URLs
     files_left = Signal()
     files_dropped = Signal(object)  # QDropEvent with URLs
+    batch_activated = Signal(str)  # Enter or double click on a batch row: its id
 
     def __init__(self, parent=None) -> None:
+        self._hover_row = -1
         super().__init__(parent)
         m = theme.manager()
         self.setHorizontalHeader(BatchHeader(self))
@@ -383,6 +421,52 @@ class BatchTable(QTableView):
         item = self.model().items[row]
         return item.batch_id if item.kind == "batch" else None
 
+    def _batch_rows(self) -> list[int]:
+        return [r for r, i in enumerate(self.model().items) if i.kind == "batch"]
+
+    def moveCursor(self, action, modifiers):  # noqa: N802
+        """Keys never land on the Toplam row or a row still being read (the selection and the
+        focus ring would vanish), and Home / End go to the first / last batch (F-yukle-02, 03)."""
+        rows = self._batch_rows()
+        if not rows:
+            return super().moveCursor(action, modifiers)
+        Move = QAbstractItemView.CursorAction
+        column = self.currentIndex().column() if self.currentIndex().isValid() else FILE
+        if action == Move.MoveHome:
+            return self.model().index(rows[0], column)
+        if action == Move.MoveEnd:
+            return self.model().index(rows[-1], column)
+        target = super().moveCursor(action, modifiers)
+        if target.isValid() and target.row() > rows[-1]:
+            return self.model().index(rows[-1], target.column())
+        return target
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        plain = not (event.modifiers() & ~Qt.KeyboardModifier.KeypadModifier)
+        if plain and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            batch_id = self.selected_batch()
+            if batch_id is not None:
+                self.batch_activated.emit(batch_id)
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802
+        index = self.indexAt(event.position().toPoint())
+        if (event.button() == Qt.MouseButton.LeftButton and index.isValid()
+                and self.model().items[index.row()].kind == "batch"):
+            self.batch_activated.emit(self.model().items[index.row()].batch_id)
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        index = self.indexAt(event.position().toPoint())
+        if index.isValid() and self.model().items[index.row()].kind != "batch":
+            event.accept()  # Toplam and the rows being read are not selectable
+            return
+        super().mousePressEvent(event)
+
     def select_batch(self, batch_id: str) -> None:
         row = self.model().row_of(batch_id)
         if row >= 0:
@@ -422,7 +506,22 @@ class BatchTable(QTableView):
                      and self.model().items[index.row()].kind == "batch")
         self.viewport().setCursor(Qt.CursorShape.SizeAllCursor if over_grip
                                   else Qt.CursorShape.ArrowCursor)
+        self._set_hover(index.row() if index.isValid() else -1)
         super().mouseMoveEvent(event)
+
+    def _set_hover(self, row: int) -> None:
+        """S-3: the row under the mouse gets the hover tint (whole row, batch rows only)."""
+        if row == self._hover_row:
+            return
+        old, self._hover_row = self._hover_row, row
+        for r in (old, row):
+            if r >= 0:
+                self.viewport().update(0, self.rowViewportPosition(r), self.viewport().width(),
+                                       self.rowHeight(r))
+
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        self._set_hover(-1)
+        super().leaveEvent(event)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         super().paintEvent(event)

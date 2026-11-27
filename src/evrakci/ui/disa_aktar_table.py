@@ -1,7 +1,8 @@
 """The file list of Dışa Aktar (A's table): a model over `FileRow`s and one delegate that paints
 every cell, so 1,000 documents scroll without a widget per row.
 
-Columns: Durum (icon + word + why), the file name, Sayfalar, Şablon. Before writing the word is
+Columns: Durum (icon + word + why), Kaynak (scan file; hidden until "Adları karşılaştır"), the
+file name, Sayfalar, Şablon. Before writing the word is
 Tamam / Bilgi / Kontrol; while writing Bekliyor / Yazılıyor / Yazıldı; afterwards Yazıldı (the why
 stays, so the flagged files are still found).
 """
@@ -30,8 +31,8 @@ from evrakci.ui.disa_aktar_model import FileRow
 
 ROW_ROLE = Qt.ItemDataRole.UserRole + 1
 STATUS_ROLE = Qt.ItemDataRole.UserRole + 2
-WIDTHS = (252, 0, 104, 148)  # A's colgroup at 100 % text; the name column takes the rest
-WIDTHS_150 = (330, 0, 156, 222)  # A's 150 % render (the Şablon column scrolls into view)
+WIDTHS = (252, 150, 0, 104, 148)  # A's colgroup at 100 % text; the name column takes the rest
+WIDTHS_150 = (330, 225, 0, 156, 222)  # A's 150 % render (the Şablon column scrolls into view)
 NAME_MIN = 200  # the narrowest the name column gets at 100 % text
 NO_TEMPLATE = "Şablon yok"
 # (icon, colour role, strong) per Durum word
@@ -43,6 +44,7 @@ LOOK = {
     "Yazılıyor": ("loader-circle", "text-2", False),
     "Bekliyor": ("circle-dashed", "text-2", False),
 }
+QUIET = ("Tamam", "Yazıldı")  # words drawn as a quiet check alone (the word stays as text)
 PREVIEW_WORDS = {"kontrol": "Kontrol", "bilgi": "Bilgi", "tamam": "Tamam"}
 
 
@@ -50,8 +52,10 @@ class FilesModel(QAbstractTableModel):
     """mode "preview" (what will be written), "run" (writing: `done` files of the last stage
     are written) or "written" (the files on disk)."""
 
-    HEADERS = ("Durum", "Yazılacak dosya adı", "Sayfalar", "Şablon")
-    WRITTEN_HEADERS = ("Durum", "Yazılan dosya", "Sayfalar", "Şablon")
+    HEADERS = ("Durum", "Kaynak", "Yazılacak dosya adı", "Sayfalar", "Şablon")
+    WRITTEN_HEADERS = ("Durum", "Kaynak", "Yazılan dosya", "Sayfalar", "Şablon")
+    COLUMNS = len(HEADERS)
+    NAME, PAGES, TEMPLATE = 2, 3, 4
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -61,6 +65,7 @@ class FilesModel(QAbstractTableModel):
         self.done = 0  # run: files finished by the last stage
         self.final = False  # run: the stage in progress is the last one
         self.only_kontrol = False
+        self.only_changed = False  # "Adı değişenler": rows whose name differs from the pattern
 
     # -- data -----------------------------------------------------------------------------
     def set_rows(self, rows: list[FileRow], mode: str = "preview") -> None:
@@ -72,8 +77,8 @@ class FilesModel(QAbstractTableModel):
         self.endResetModel()
 
     def _visible(self) -> list[FileRow]:
-        return [r for r in self._all if r.state == "kontrol"] if self.only_kontrol \
-            else list(self._all)
+        return [r for r in self._all if (not self.only_kontrol or r.state == "kontrol")
+                and (not self.only_changed or r.note)]
 
     def set_filter(self, only_kontrol: bool) -> None:
         if only_kontrol == self.only_kontrol:
@@ -82,6 +87,21 @@ class FilesModel(QAbstractTableModel):
         self.only_kontrol = only_kontrol
         self._rows = self._visible()
         self.endResetModel()
+
+    def set_changed_filter(self, only_changed: bool) -> None:
+        if only_changed == self.only_changed:
+            return
+        self.beginResetModel()
+        self.only_changed = only_changed
+        self._rows = self._visible()
+        self.endResetModel()
+
+    def changed_count(self) -> int:
+        return sum(1 for r in self._all if r.note)
+
+    def all_rows(self) -> list[FileRow]:
+        """Every row of the list, in the order shown, whatever the filters hide."""
+        return list(self._all)
 
     def set_progress(self, done: int, final: bool) -> None:
         self.done, self.final = done, final
@@ -113,12 +133,12 @@ class FilesModel(QAbstractTableModel):
         return 0 if parent is not None and parent.isValid() else len(self._rows)
 
     def columnCount(self, parent=None) -> int:  # noqa: N802
-        return 0 if parent is not None and parent.isValid() else 4
+        return 0 if parent is not None and parent.isValid() else self.COLUMNS
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):  # noqa: N802
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             return (self.HEADERS if self.mode == "preview" else self.WRITTEN_HEADERS)[section]
-        if role == Qt.ItemDataRole.TextAlignmentRole and section == 2:
+        if role == Qt.ItemDataRole.TextAlignmentRole and section == self.PAGES:
             return int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         return None
 
@@ -134,10 +154,12 @@ class FilesModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             if column == 0:
                 return f"{self.word(row)} {row.why}".strip()
-            return (row.name, row.pages, row.template or NO_TEMPLATE)[column - 1]
+            return (row.source, row.name, row.pages, row.template or NO_TEMPLATE)[column - 1]
         if role == Qt.ItemDataRole.ToolTipRole and column == 1:
+            return "\n".join(row.sources) or None
+        if role == Qt.ItemDataRole.ToolTipRole and column == self.NAME:
             return f"{row.name}\nŞablon: {row.template}" if row.template else row.name
-        if role == Qt.ItemDataRole.TextAlignmentRole and column == 2:
+        if role == Qt.ItemDataRole.TextAlignmentRole and column == self.PAGES:
             return int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         return None
 
@@ -189,8 +211,15 @@ class FilesDelegate(QStyledItemDelegate):
         if column == 0:
             self._status(painter, rect.adjusted(s4, 0, -s2, -1), model.word(row), row.why, ink)
         elif column == 1:
+            painter.setFont(self._font("caption"))
+            painter.setPen(m.color(ink or "text-2"))
+            area = rect.adjusted(s3, 0, -s3, -1)
+            painter.drawText(area, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                             QFontMetricsF(painter.font()).elidedText(
+                                 row.source, Qt.TextElideMode.ElideMiddle, area.width()))
+        elif column == FilesModel.NAME:
             self._name(painter, rect.adjusted(s3, 0, -s3, -1), row, ink)
-        elif column == 2:
+        elif column == FilesModel.PAGES:
             painter.setFont(self._font("num"))
             painter.setPen(m.color(ink or "text-2"))
             painter.drawText(rect.adjusted(s3, 0, -s3, -1),
@@ -209,15 +238,18 @@ class FilesDelegate(QStyledItemDelegate):
     def _status(self, painter, rect: QRectF, word: str, why: str, ink: str | None) -> None:
         m = theme.manager()
         name, role, strong = LOOK[word]
-        role = ink or role
+        quiet = word in QUIET and not why  # an ordinary row: one calm check, no word (E-8)
+        role = ink or ("text-2" if quiet else role)
         x = rect.left()
         size = m.inline_icon(16)  # grows with the text (16 -> 24 at 150 %)
         icons.paint(painter, name, QRectF(x, rect.center().y() - size / 2, size, size),
                     m.hex(role))
+        if quiet:
+            return
         x += size + 6  # A .st gap
         font = self._font("body-strong" if strong else "body")
         painter.setFont(font)
-        painter.setPen(m.color(role))
+        painter.setPen(m.color(ink or theme.word_role(role)))
         advance = QFontMetricsF(font).horizontalAdvance(word)
         painter.drawText(QRectF(x, rect.top(), rect.right() - x, rect.height()),
                          Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, word)
@@ -225,7 +257,7 @@ class FilesDelegate(QStyledItemDelegate):
             x += advance + m.size("s2")
             caption = self._font("caption")
             painter.setFont(caption)
-            painter.setPen(m.color(ink or "text-2"))
+            painter.setPen(m.color(ink or "text"))
             painter.drawText(QRectF(x, rect.top(), max(0.0, rect.right() - x), rect.height()),
                              Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
                              QFontMetricsF(caption).elidedText(
@@ -262,8 +294,8 @@ class FilesTable(QTableView):
         if model is None or not search:
             return
         current = self.currentIndex()
-        if current.isValid() and current.column() != 1:
-            self.setCurrentIndex(model.index(current.row(), 1))
+        if current.isValid() and current.column() != FilesModel.NAME:
+            self.setCurrentIndex(model.index(current.row(), FilesModel.NAME))
         super().keyboardSearch(search)
 
     copy_requested = Signal()

@@ -11,9 +11,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QLocale, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QLocale, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QValidator
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QDoubleSpinBox,
     QFrame,
@@ -197,6 +198,10 @@ class LevelWidget(QWidget):
 
 def _label(text: str, kind: str = "inspector-key") -> QLabel:
     label = QLabel(text)
+    if kind == "inspector-key":
+        # caption size in the text colour: text-2 on a card measured 6.9:1 (D10 asks 7:1, Q-16)
+        label.setProperty("textRole", "caption")
+        kind = "inspector-value"
     label.setProperty("kind", kind)
     return label
 
@@ -205,6 +210,44 @@ def _card() -> QFrame:
     card = QFrame()
     card.setProperty("kind", "card")
     return card
+
+
+class BreakableLabel(QLabel):
+    """A word-wrapped label whose shown text carries zero-width break marks; they are display
+    only: what is copied from it and what a screen reader gets never contains them."""
+
+    ZWSP = "\u200b"
+
+    def __init__(self) -> None:
+        super().__init__()
+        QApplication.clipboard().dataChanged.connect(self._clean_clipboard)
+
+    def _clean_clipboard(self) -> None:
+        board = QApplication.clipboard()
+        text = board.text()
+        if self.ZWSP in text and self.hasSelectedText():
+            board.setText(text.replace(self.ZWSP, ""))
+
+    def setText(self, text: str) -> None:  # noqa: N802
+        super().setText(text)
+        self.setAccessibleName(text.replace(self.ZWSP, ""))
+
+    def set_exact(self, text: str) -> None:
+        self.setText(_breakable(text))
+        self.setToolTip(text if text != "—" else "")
+
+
+def _breakable(text: str, run: int = 12) -> str:
+    """Text with a zero-width space after every character of an unbroken run longer than `run`,
+    so a word-wrapped label can break it anywhere. A fixed number of characters per piece would
+    make the label's minimum width the width of that many glyphs, which wider fonts (Windows)
+    push past a narrow inspector; one character is the least any font needs."""
+    out = []
+    for word in text.split(" "):
+        if len(word) > run:
+            word = "\u200b".join(word)
+        out.append(word)
+    return " ".join(out)
 
 
 class InspectorPanel(QWidget):
@@ -244,9 +287,9 @@ class InspectorPanel(QWidget):
         scroll.setWidget(body)
         outer.addWidget(scroll, 1)
         self.save = QPushButton(" Şablonu kaydet")
-        self.save.setProperty("variant", "primary")
         self.save.setProperty("sizeVariant", "lg")
         self.save.setAccessibleName("Şablonu kaydet")
+        self.save.setProperty("action_id", "app.kaydet")
         self.save.setToolTip("Şablonu kaydet (Ctrl+S)")
         self.save.clicked.connect(self.save_clicked)
         outer.addWidget(self.save)
@@ -266,6 +309,31 @@ class InspectorPanel(QWidget):
             previous = spin
         self.setTabOrder(previous, self.save)
         theme.follow(self, self._restyle, "sablon-inspector")
+        scroll.viewport().installEventFilter(self)
+        body.installEventFilter(self)
+
+    # -- fitting ----------------------------------------------------------------------------
+    def least_width(self) -> int:
+        """What the content needs plus the panel's own frame: the content grows with the font
+        (Windows fonts are wider) without the panel being resized, and then it was cut."""
+        frame = self.width() - self.scroll.viewport().width() if self.isVisible() else 0
+        return self.scroll.widget().minimumSizeHint().width() + max(frame, 0)
+
+    def _fit(self) -> None:
+        wanted = self.least_width()
+        if wanted != self.minimumWidth():
+            self.setMinimumWidth(wanted)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._fit()
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802
+        kind = event.type()
+        if (watched is self.scroll.viewport() and kind == QEvent.Type.Resize) \
+                or (watched is self.scroll.widget() and kind == QEvent.Type.LayoutRequest):
+            QTimer.singleShot(0, self, self._fit)
+        return super().eventFilter(watched, event)
 
     # -- building ---------------------------------------------------------------------------
     def _head(self) -> QVBoxLayout:
@@ -289,6 +357,7 @@ class InspectorPanel(QWidget):
         self.title = ElidedLabel("", 8)
         self.title.setProperty("textRole", "page")
         self.sub = QLabel()
+        self.sub.setWordWrap(True)  # a long sentence takes a second line (F-sablonlar-03)
         self.sub.setProperty("textRole", "secondary")
         col.addSpacing(m.size("s1"))
         col.addWidget(self.title)
@@ -322,6 +391,7 @@ class InspectorPanel(QWidget):
         self.required = QCheckBox("Zorunlu")
         self.required.setAccessibleName("Zorunlu")
         self.page_key = _label("Kutunun sayfası")
+        self.page_key.setWordWrap(True)  # the row gives way before the panel does
         self.page = PageSpin()
         self.page.setFixedWidth(FIELD_W)
         self.page_key.setBuddy(self.page)
@@ -335,6 +405,7 @@ class InspectorPanel(QWidget):
         geometry.setContentsMargins(0, 0, 0, 0)
         geometry.setSpacing(m.size("s1"))
         self.geometry_label = _label("X, Y, genişlik, yükseklik (mm)")
+        self.geometry_label.setWordWrap(True)  # wider fonts must not push the panel wider
         grid = QGridLayout()
         grid.setSpacing(m.size("s2"))
         self.spins = [MmSpin(label) for label in ("Kutu X (mm)", "Kutu Y (mm)",
@@ -362,7 +433,7 @@ class InspectorPanel(QWidget):
         card = QVBoxLayout(self.read_card)
         card.setContentsMargins(0, m.size("s1"), 0, m.size("s1"))
         card.setSpacing(0)
-        self.read_value = QLabel()
+        self.read_value = BreakableLabel()
         self.read_value.setProperty("kind", "inspector-value")
         self.read_value.setWordWrap(True)
         self.read_value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -456,6 +527,9 @@ class InspectorPanel(QWidget):
 
     # -- showing a state --------------------------------------------------------------------
     def show_state(self, state: InspectorState) -> None:
+        # A refresh (a read finishing, a canvas signal) that leaves the variable's name as it was
+        # must not overwrite what the user is typing in the focused field.
+        keep_typing = self.name.hasFocus() and state.name == self._state.name
         self._state = state
         box_mode, has = state.mode == "box", state.mode != "none"
         self.top.setText(state.top)
@@ -465,7 +539,8 @@ class InspectorPanel(QWidget):
         fields = (self.name, self.required, self.page, *self.spins)
         for widget in fields:
             widget.blockSignals(True)
-        self.name.setText(state.name)
+        if not keep_typing:
+            self.name.setText(state.name)
         self.required.setChecked(state.required)
         self.page.setValue(state.page)
         self._set_geometry(state)
@@ -493,7 +568,11 @@ class InspectorPanel(QWidget):
             self.level.set("okunmadi", None)
             self.note_row.setVisible(False)
             return
-        self.read_value.setText(shown.text or "—")
+        # a long unbroken run (bar code, garbage) may break anywhere (zero-width spaces) so it
+        # wraps in the column instead of widening the inspector; the tooltip holds the exact
+        # text (F-sablonlar-01)
+        text = shown.text or "—"
+        self.read_value.set_exact(text)
         self.level.set(shown.level, shown.percent)
         self.read_note.setText(shown.note)
         self.note_row.setVisible(bool(shown.note))

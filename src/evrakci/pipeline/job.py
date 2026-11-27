@@ -7,8 +7,10 @@ when batches are reordered.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from evrakci.pipeline.analyze import PageInfo
 from evrakci.pipeline.templates.values import SectionReading, VariableValue
@@ -56,6 +58,30 @@ class ValueSource:
     revision: str = ""  # template_revision() when read; "" for jobs saved before it existed
 
 
+@dataclass(frozen=True)
+class LastExport:
+    """The last export of the job (additive field: format stays 2, old files read as None)."""
+
+    at: str  # ISO text, local time
+    folder: str
+    documents: int
+    needing_check: int
+    state: str = ""  # job_state() when the export was written; "" in files from before it existed
+
+
+def repeated_files(existing: Iterable[str], new: Iterable[str]) -> list[str]:
+    """The names in `new` that are already in `existing` or came earlier in `new` (case does
+    not matter, as on Windows). Each repeated name is listed once, in the order met."""
+    seen = {name.casefold() for name in existing}
+    found: list[str] = []
+    for name in new:
+        key = name.casefold()
+        if key in seen and name not in found:
+            found.append(name)
+        seen.add(key)
+    return found
+
+
 @dataclass
 class Job:
     id: str
@@ -74,6 +100,7 @@ class Job:
     values: dict[str, dict[str, VariableValue]] = field(default_factory=dict)
     read_errors: dict[str, str] = field(default_factory=dict)
     value_sources: dict[str, ValueSource] = field(default_factory=dict)
+    last_export: LastExport | None = None
 
     def ordered_page_ids(self) -> list[str]:
         return [
@@ -99,6 +126,14 @@ class Job:
             raise ValueError("every_n must be at least 1")
         ids = frozenset(self._check(pid) for pid in page_ids)
         self.filters.append(FilterApplication(ids, every_n))
+
+    def remove_filter(self, page_ids: Iterable[str]) -> None:
+        """Take these pages out of every filter; applications left empty are dropped.
+
+        Only `filters` is rewritten (no new field), so an older program opens the result."""
+        ids = frozenset(self._check(pid) for pid in page_ids)
+        kept = [FilterApplication(f.page_ids - ids, f.every_n) for f in self.filters]
+        self.filters = [f for f in kept if f.page_ids]
 
     def apply_template(self, page_ids: Iterable[str], template_id: str) -> None:
         if not template_id:
@@ -191,7 +226,61 @@ class Job:
         self.restored.discard(self._check(pid))
 
 
+def apply_page_sizes(job: Job, sizes: dict[str, tuple[float, float]]) -> int:
+    """Set the sizes (millimetres) of the pages whose size is unknown; known sizes stay.
+    Returns how many pages got one. Housekeeping, not an edit: no undo step."""
+    filled = 0
+    for pid, (width, height) in sizes.items():
+        info = job.pages.get(pid)
+        if info is None or info.has_size or not (width > 0 and height > 0):
+            continue
+        job.pages[pid] = replace(info, width_mm=width, height_mm=height)
+        filled += 1
+    return filled
+
+
+def carry_page_sizes(source: Job, target: Job) -> int:
+    """Copy the sizes `source` knows into the pages of `target` that do not know theirs (an
+    undo step restores a job from before the sizes were read; it must not forget them)."""
+    return apply_page_sizes(target, {pid: (info.width_mm, info.height_mm)
+                                     for pid, info in source.pages.items() if info.has_size})
+
+
+# What the machine fills in, not the person: page sizes, ink and separator guesses, read errors
+# and where a value was read from. A window filling them later is not an edit.
+_NOT_EDITED = ("pages", "read_errors", "value_sources")
+
+
+def job_state(job: Job) -> str:
+    """A fingerprint of what the person edits: files, deleted and restored pages, rotations, cuts,
+    filters, templates, values and the name. Two jobs with the same text were edited the same, so
+    a changed text means the job was edited. Page sizes, read errors and value sources are left
+    out: a window filling them later is not an edit. Used to tell whether the last export still
+    describes the job (print subtitle) and whether retention may delete it (Q-33)."""
+    data = {key: value for key, value in _job_dict(job).items() if key not in _NOT_EDITED}
+    text = json.dumps(data, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def edited_after_export(job: Job) -> bool:
+    """True when the job changed after its last export. A job from before the state was kept
+    (empty state) counts as unchanged; a never exported job is not "edited after export"."""
+    last = job.last_export
+    return bool(last is not None and last.state and job_state(job) != last.state)
+
+
 def job_to_dict(job: Job) -> dict:
+    data = _job_dict(job)
+    if job.last_export is not None:  # absent when never exported: the file stays as before
+        last = job.last_export
+        data["last_export"] = {"at": last.at, "folder": last.folder,
+                               "documents": last.documents, "needing_check": last.needing_check}
+        if last.state:
+            data["last_export"]["state"] = last.state
+    return data
+
+
+def _job_dict(job: Job) -> dict:
     return {
         "version": JOB_FORMAT_VERSION,
         "id": job.id,
@@ -200,7 +289,8 @@ def job_to_dict(job: Job) -> dict:
             {"id": b.id, "file_name": b.file_name, "page_count": b.page_count} for b in job.batches
         ],
         "pages": {
-            pid: {"ink_ratio": info.ink_ratio, "is_separator": info.is_separator}
+            pid: {"ink_ratio": info.ink_ratio, "is_separator": info.is_separator,
+                  "width_mm": round(info.width_mm, 1), "height_mm": round(info.height_mm, 1)}
             for pid, info in job.pages.items()
         },
         "drop_empty": job.drop_empty,
@@ -264,7 +354,9 @@ def job_from_dict(data: dict) -> Job:
         name=data["name"],
         batches=[Batch(b["id"], b["file_name"], b["page_count"]) for b in data["batches"]],
         pages={
-            pid: PageInfo(p["ink_ratio"], p["is_separator"]) for pid, p in data["pages"].items()
+            pid: PageInfo(p["ink_ratio"], p["is_separator"], _size(p.get("width_mm")),
+                          _size(p.get("height_mm")))
+            for pid, p in data["pages"].items()
         },
         drop_empty=data["drop_empty"],
         deleted=set(data["deleted"]),
@@ -288,4 +380,24 @@ def job_from_dict(data: dict) -> Job:
             pid: ValueSource(tuple(s["page_ids"]), s["template_id"], s.get("revision", ""))
             for pid, s in data.get("value_sources", {}).items()
         },
+        last_export=_last_export_from_dict(data.get("last_export")),
     )
+
+
+def _size(value) -> float:
+    """A stored page size; a missing or damaged one reads as 0.0 (unknown), never an error."""
+    try:
+        size = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return size if 0 < size < float("inf") else 0.0
+
+
+def _last_export_from_dict(data) -> LastExport | None:
+    if not isinstance(data, dict):
+        return None
+    try:
+        return LastExport(str(data["at"]), str(data["folder"]), int(data["documents"]),
+                          int(data["needing_check"]), str(data.get("state", "")))
+    except (KeyError, TypeError, ValueError):
+        return None  # a damaged field never stops the job from opening

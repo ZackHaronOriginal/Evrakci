@@ -390,7 +390,7 @@ class Loupe(QWidget):
         self._applying = False
         self._base: dict[int, QPixmap] = {}
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setAccessibleName("Önizleme")
+        self.setAccessibleName("Önizle")
         self.hide()
         self._col = col = QVBoxLayout(self)
         col.setSpacing(m.size("s2"))
@@ -425,6 +425,7 @@ class Loupe(QWidget):
         self.close_button.setToolTip(f"Kapat ({actions.key_text('Esc')})")
         self.close_button.setAccessibleName("Önizlemeyi kapat")
         self.close_button.clicked.connect(self.close_loupe)
+        self.close_button.setProperty("action_id", "local.lupa_kapat")
         bar.addWidget(self.close_button)
         col.addWidget(self.head)
 
@@ -472,7 +473,7 @@ class Loupe(QWidget):
         self._mode = "fit"
         self._index = -1
         self.raise_()
-        motion.fade_in(self, motion.Duration.NORMAL)
+        motion.fade_in(self, motion.Duration.NONE, animate_=False)  # S-2: Space repeats (D7)
         self.setFocus(Qt.FocusReason.PopupFocusReason)
         self.set_index(index)
 
@@ -529,7 +530,7 @@ class Loupe(QWidget):
         if not self.isVisible():
             return
         index = self._index
-        motion.fade_out(self, motion.Duration.FAST)
+        motion.fade_out(self, motion.Duration.NONE, animate_=False)
         opener = self._opener
         if opener is not None and shiboken6.isValid(opener):
             opener.setFocus(Qt.FocusReason.OtherFocusReason)

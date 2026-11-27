@@ -14,6 +14,7 @@ from PySide6.QtCore import QEvent, QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QKeyEvent
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
+    QAbstractButton,
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -30,7 +31,7 @@ from PySide6.QtWidgets import (
 
 from evrakci.pipeline.ocr.models import data_dir
 from evrakci.pipeline.separator import make_separator_pdf
-from evrakci.ui import actions, theme
+from evrakci.ui import actions, refusals, settings_dialog, theme
 from evrakci.ui import rehber_print as printing
 from evrakci.ui.card_scroll import CardScroll
 from evrakci.ui.chrome import make_icon
@@ -134,7 +135,7 @@ class RehberScreen(QWidget):
         outer.addWidget(self.scroll)
         col.addLayout(self._build_find())
         col.addLayout(self._group("İçindekiler", self._build_toc()))
-        col.addLayout(self._group("Ayıraç sayfası", self._build_print()))
+        col.addLayout(self._group("Ayraç sayfası", self._build_print()))
         col.addStretch(1)
         self.splitter.addWidget(self.side)
         self.card_scroll = CardScroll(self.scroll)  # no pinned button: no hairline
@@ -155,7 +156,7 @@ class RehberScreen(QWidget):
         self.setTabOrder(self.toc, self.count)
         self.setTabOrder(self.count, self.print_button)
         theme.follow(self, self._restyle, "screen")
-        QTimer.singleShot(0, self._try_attach)
+        QTimer.singleShot(0, self, self._try_attach)
 
     # -- building ----------------------------------------------------------------------------
     def _group(self, title: str, card: QFrame) -> QVBoxLayout:
@@ -204,6 +205,8 @@ class RehberScreen(QWidget):
             "chevron-up", f"Önceki sonuç ({actions.key_text('Shift+F3')})")
         self.next_button = self._small_button(
             "chevron-down", f"Sonraki sonuç ({actions.key_text('F3')})")
+        self.previous_button.setProperty("action_id", "app.onceki_sonuc")
+        self.next_button.setProperty("action_id", "app.sonraki_sonuc")
         row.addWidget(self.previous_button)
         row.addWidget(self.next_button)
         box.addLayout(row)
@@ -238,30 +241,39 @@ class RehberScreen(QWidget):
             "QSpinBox::up-button, QSpinBox::down-button { width: 0; height: 0; border: 0;"
             " image: none; }"
             "QSpinBox::up-arrow, QSpinBox::down-arrow { image: none; width: 0; height: 0; }")
-        self.count.setAccessibleName("Kaç adet ayıraç sayfası")
-        self.count.setToolTip("Yazdırılacak ayıraç sayfası sayısı (1 ile 200 arası)")
+        self.count.setAccessibleName("Kaç adet ayraç yaprağı")
+        self.count.setToolTip("Yazdırılacak ayraç yaprağı sayısı (1 ile 200 arası)")
         self.count_label.setBuddy(self.count)
         line.addWidget(self.count_label)
         line.addWidget(self.count)
-        line.addWidget(QLabel("sayfa"))
+        line.addWidget(QLabel("yaprak"))
         line.addStretch(1)
         lay.addLayout(line)
         paper = QHBoxLayout()
         paper.setSpacing(m.size("s3"))
         paper_key = QLabel("Kâğıt")
         paper_key.setProperty("textRole", "caption")
-        self.paper = QLabel("A4, iki yüze aynı QR")
+        self.paper = QLabel()
+        self.paper.setToolTip("A4, uzun kenardan çift taraflı baskı istenir")
+        self.count.valueChanged.connect(self._paper_line)
+        self._paper_line()
         paper.addWidget(paper_key)
         paper.addWidget(self.paper, 1)
         lay.addLayout(paper)
         self.paper_key = paper_key
         key = actions.key_text(actions.spec("rehber.yazdir").shortcuts[0])
         self.print_button = PartsButton("Yazdır", "printer", key, primary=True, large=True,
-                                        accessible=f"Ayıraç sayfasını yazdır ({key})")
-        self.print_button.setToolTip(f"Ayıraç sayfasını yazdır ({key})")
+                                        accessible=f"Ayraç sayfasını yazdır ({key})")
+        self.print_button.setToolTip(f"Ayraç sayfasını yazdır ({key})")
+        self.print_button.setProperty("action_id", "rehber.yazdir")
         lay.addWidget(self.print_button)
         self._key_column = (self.count_label, paper_key)
         return card
+
+    def _paper_line(self, *_args) -> None:
+        """"20 yaprak = 40 sayfa": a sheet has the QR on both sides, so a page is half a sheet."""
+        n = self.count.value()
+        self.paper.setText(f"{n} yaprak = {2 * n} sayfa")
 
     def _wire(self) -> None:
         self.search.textChanged.connect(self._search_changed)
@@ -277,6 +289,9 @@ class RehberScreen(QWidget):
         self.text.anchorClicked.connect(self._link)
         self.text.verticalScrollBar().valueChanged.connect(self._scrolled)
         self.text.installEventFilter(self)
+        self._empty_buttons = self.empty.findChildren(QAbstractButton)
+        for button in self._empty_buttons:
+            button.installEventFilter(self)
         self.toc.installEventFilter(self)
         self._announce = QTimer(self)
         self._announce.setSingleShot(True)
@@ -363,11 +378,21 @@ class RehberScreen(QWidget):
         font.setPixelSize(look.body)
         widest = round(TEXT_WIDTH * k * m.size("fs-body") / 15)
         keep = self.text.current()
+        bar = self.text.verticalScrollBar()
+        place = bar.value() / bar.maximum() if bar.maximum() > 0 else 0.0
         self.text.show_guide(self.guide, look, (look.gap[4], round(m.size("s8") * k), widest),
                              font, self._show_note)
+        if place > 0:  # the reading place survives a theme, text size or tip change (F-rehber-09)
+            bar.setValue(round(place * bar.maximum()))
         if self._query:
             self._hits = self.text.search(self._query)
             self.text.set_hits(self._hits, keep if keep >= 0 else 0 if self._hits else -1)
+            if self._hits:
+                if self.stack.currentWidget() is self.empty:
+                    self.stack.setCurrentWidget(self.text)
+            else:  # F-rehber-19: nothing left to show
+                self.empty.set_query(self._query)
+                self.stack.setCurrentWidget(self.empty)
         self._counts()
         self._sync_status()
 
@@ -433,7 +458,7 @@ class RehberScreen(QWidget):
     def step(self, direction: int) -> None:
         """F3 / Shift+F3 / Enter: the next or previous hit, wrapping round."""
         if not self._hits:
-            self._announce_text("Sonuç yok")
+            self._announce_text(refusals.NO_HITS)
             return
         at = self.text.current()
         self._goto((at + direction) % len(self._hits) if at >= 0 else 0)
@@ -542,7 +567,7 @@ class RehberScreen(QWidget):
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
         if (event.type() == QEvent.Type.KeyPress and isinstance(event, QKeyEvent)
                 and event.key() == Qt.Key.Key_Escape and self._query
-                and obj in (self.text, self.toc)):
+                and (obj in (self.text, self.toc) or obj in self._empty_buttons)):
             self.clear_search()
             return True
         return False
@@ -554,15 +579,24 @@ class RehberScreen(QWidget):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
-        QTimer.singleShot(0, self._sync_status)
+        QTimer.singleShot(0, self, self._sync_status)
 
     def sizeHint(self) -> QSize:  # noqa: N802
         return QSize(900, 600)
 
     def _link(self, url: QUrl) -> None:
         if url.scheme() == "rehber":
-            if url.path() == "gizle":
+            target = url.path()
+            window = self.window_
+            if target == "gizle":
                 self.dismiss_note()
+            elif target == "saklama" and window is not None:
+                window.open_settings()
+                dialog = window.settings_dialog
+                if dialog is not None:
+                    dialog.nav.setCurrentRow(settings_dialog.SECTIONS.index("Saklama"))
+            elif target == "disa-aktar" and window is not None:
+                window.show_tab("disa_aktar")
             return
         QDesktopServices.openUrl(url)
 
@@ -597,7 +631,7 @@ class RehberScreen(QWidget):
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
             return path
         reason = getattr(error, "strerror", None) or str(error)
-        self._tell(f"Ayıraç sayfaları PDF olarak yazılamadı: {reason}. Açık bir PDF "
+        self._tell(f"Ayraç sayfaları PDF olarak yazılamadı: {reason}. Açık bir PDF "
                    "görüntüleyiciyi kapatıp yeniden deneyin.", "Yeniden dene",
                    self.open_separators, kind="error")
         return None
@@ -610,18 +644,18 @@ class RehberScreen(QWidget):
         if not isinstance(printer, QPrinter):
             printer = QPrinter(QPrinter.PrinterMode.HighResolution)
             dialog = self._print_dialog(printer, self)
-            dialog.setWindowTitle("Ayıraç sayfasını yazdır")
+            dialog.setWindowTitle("Ayraç sayfasını yazdır")
             if dialog.exec() != QDialog.DialogCode.Accepted:
                 return None
         sheets = self.count.value()
-        printer.setDocName("Ayıraç sayfaları")
+        printer.setDocName("Ayraç sayfaları")
         try:
             pages = printing.print_separators(printer, sheets)
         except (RuntimeError, ValueError, OSError) as error:
-            self._tell(f"Ayıraç sayfaları yazdırılamadı: {error}. PDF olarak açıp oradan "
+            self._tell(f"Ayraç sayfaları yazdırılamadı: {error}. PDF olarak açıp oradan "
                        "yazdırabilirsiniz.", "PDF olarak aç", self.open_separators)
             return None
-        self._tell(f"{sheets} ayıraç sayfası ({pages} sayfa) yazıcıya gönderildi.", kind="success")
+        self._tell(f"{sheets} yaprak ({pages} sayfa) yazıcıya gönderildi.", kind="success")
         return pages
 
     def _tell(self, text: str, action: str | None = None, slot=None, kind: str = "info") -> None:

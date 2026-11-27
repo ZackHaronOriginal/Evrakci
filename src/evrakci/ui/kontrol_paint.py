@@ -8,6 +8,8 @@ these helpers, so a guide tab or a rider looks the same wherever it appears.
 
 from __future__ import annotations
 
+from functools import cache
+
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
@@ -17,7 +19,7 @@ from evrakci.ui import icons, theme
 # Cut kind -> (Lucide icon, colour role). "start" (the job's first document) has no cut.
 CUT_ICONS = {"qr": ("qr-code", "cut-qr"), "filter": ("funnel", "cut-filter"),
              "manual": ("scissors", "cut-manual")}
-CUT_WORDS = {"qr": "QR ayıraç", "filter": "Filtre", "manual": "Elle kesim", "start": "İşin başı"}
+CUT_WORDS = {"qr": "QR ayraç", "filter": "Filtre", "manual": "Elle kesim", "start": "İşin başı"}
 TAB_SLANT = 8  # A .gtab clip-path: 8 px slants
 TAB_RADIUS = 3  # A .gtab::before border-radius 3px 3px 0 0
 TAB_PAD_L, TAB_PAD_R, TAB_GAP = 14, 16, 6  # A .gtab padding 0 16 0 14, gap 6
@@ -25,8 +27,13 @@ TAB_ICON = 14
 RIDER_ICON = 14
 RIDER_PAD_L = 6  # A .rider padding 0 s2 0 6px
 LIP_H = 6  # A .lip
+# "Looks different" marks under a page (I-04): kind -> (Lucide icon, the word). Text colour only:
+# orange is for Kontrol, and the icon plus the word says it, not the colour.
+ODD_MARKS = {"boyut": ("ruler", "Farklı boyut"),
+             "yatay": ("rectangle-horizontal", "Yatay"),
+             "dikey": ("rectangle-vertical", "Dikey")}
+ODD_ICON = 14  # at 100 % text; grows with the text size (theme.inline_icon)
 BIN = 40  # A .slot.del .bin
-BADGE = 22  # A .slot.sel .chk
 
 
 def hc() -> bool:
@@ -70,12 +77,12 @@ def paint_rider(painter: QPainter, rect: QRectF) -> None:
 
 
 class RiderLabel(QWidget):
-    """The rider as a widget (inspector head, loupe); accessible as "Kontrol gerekiyor"."""
+    """The rider as a widget (inspector head, loupe); accessible as "Kontrol bekliyor"."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.setAccessibleName("Kontrol gerekiyor")
+        self.setAccessibleName("Kontrol bekliyor")
         self.setToolTip("Bu belge kontrol bekliyor")
 
     def sizeHint(self) -> QSize:  # noqa: N802
@@ -249,7 +256,9 @@ def tint_scan(painter: QPainter, target: QRectF) -> None:
 
 
 def paint_separator(painter: QPainter, rect: QRectF, position: int) -> None:
-    """A .sepage: a narrow well tile with the QR pictogram and "Ayraç 76" written upwards."""
+    """A .sepage: a narrow well tile with the QR pictogram. Its name ("Ayraç 76") is a normal
+    caption under the tile like the other pages' numbers, not text turned on its side (K-8)."""
+    del position
     m = theme.manager()
     painter.save()
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -258,21 +267,9 @@ def paint_separator(painter: QPainter, rect: QRectF, position: int) -> None:
     painter.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), m.size("r-paper"),
                             m.size("r-paper"))
     size = m.size("icon-md")
-    font = m.font("caption-num")
-    text = f"Ayraç {position}"
-    text_w = QFontMetrics(font).horizontalAdvance(text)
-    gap = m.size("s3")
-    total = size + gap + text_w
-    top = rect.center().y() - total / 2
-    painter.drawPixmap(QRectF(rect.center().x() - size / 2, top, size, size),
+    painter.drawPixmap(QRectF(rect.center().x() - size / 2, rect.center().y() - size / 2,
+                              size, size),
                        _pix("qr-code", "text-2", size), QRectF(0, 0, 2 * size, 2 * size))
-    painter.setFont(font)
-    painter.setPen(m.color("text-2"))
-    painter.translate(rect.center().x(), top + size + gap + text_w)
-    painter.rotate(-90)
-    line = QFontMetrics(font).height()
-    painter.drawText(QRectF(0, -line / 2, text_w + 2, line),
-                     Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
     painter.restore()
 
 
@@ -318,17 +315,69 @@ def paint_hatch(painter: QPainter, rect: QRectF) -> None:
     painter.restore()
 
 
-def paint_check_badge(painter: QPainter, centre: QPointF) -> None:
-    """A .slot.sel .chk: a 22 px accent disc with a 2 px layer ring and a white check."""
+def paint_select_dot(painter: QPainter, centre: QPointF) -> None:
+    """The mark of a selected page (Fluent 2: accent outline plus a corner dot): a solid accent
+    disc of the s3 token with a 2 px layer ring. It is not a check: the check is İncelendi
+    only (K-2, F-kontrol-21)."""
     m = theme.manager()
+    radius = m.size("s3") / 2
     painter.save()
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setPen(Qt.PenStyle.NoPen)
     painter.setBrush(m.color("layer"))
-    painter.drawEllipse(centre, BADGE / 2 + 2, BADGE / 2 + 2)
+    painter.drawEllipse(centre, radius + 2, radius + 2)
     painter.setBrush(m.color("accent"))
-    painter.drawEllipse(centre, BADGE / 2, BADGE / 2)
-    size = 14
-    painter.drawPixmap(QRectF(centre.x() - size / 2, centre.y() - size / 2, size, size),
-                       _pix("check", "text-on-accent", size, 3.0), QRectF(0, 0, 2 * size, 2 * size))
+    painter.drawEllipse(centre, radius, radius)
+    painter.restore()
+
+
+# -- "looks different" mark under a page ------------------------------------------------------
+def _odd_role() -> str:
+    return "text" if hc() else "text-2"  # high contrast: WindowText
+
+
+@cache
+def _odd_pixmap(name: str, colour: str, size: int):
+    return icons.pixmap(name, colour, size, 2.0, 1.75)
+
+
+def odd_mark_width(kind: str) -> int:
+    """Icon, gap and word of the mark, in px at the current text size."""
+    m = theme.manager()
+    word = QFontMetrics(m.font("caption-strong")).horizontalAdvance(ODD_MARKS[kind][1])
+    return m.inline_icon(ODD_ICON) + m.size("s1") + word
+
+
+def odd_caption_lines(number: str, kind: str, width: float) -> int:
+    """1 when the page number and the mark fit side by side in `width`, else 2 (at 150 % text
+    the caption wraps to two short lines)."""
+    m = theme.manager()
+    num = QFontMetrics(m.font("caption-strong")).horizontalAdvance(number)
+    # s2 of slack: the caption of the next page is only 12 px away
+    return 1 if num + m.size("s3") + odd_mark_width(kind) + m.size("s2") <= width else 2
+
+
+def paint_odd_mark(painter: QPainter, rect: QRectF, kind: str, align_left: bool = False) -> None:
+    """The mark: a 14 px icon (ruler for a different size, rectangle for the orientation) and
+    the word in caption weight 600, text colour. Centred in `rect` (a line of the caption), or
+    from its left edge. The word is cut with an ellipsis only if `rect` is narrower than it."""
+    m = theme.manager()
+    name, word = ODD_MARKS[kind]
+    colour = m.hex(_odd_role())
+    size = m.inline_icon(ODD_ICON)
+    font = m.font("caption-strong")
+    metrics = QFontMetrics(font)
+    gap = m.size("s1")
+    room = max(0, int(rect.width()) - size - gap)
+    text = word if metrics.horizontalAdvance(word) <= room else metrics.elidedText(
+        word, Qt.TextElideMode.ElideRight, room)
+    width = size + gap + metrics.horizontalAdvance(text)
+    x = rect.x() if align_left else rect.x() + (rect.width() - width) / 2
+    painter.save()
+    painter.drawPixmap(QRectF(x, rect.center().y() - size / 2, size, size),
+                       _odd_pixmap(name, colour, size), QRectF(0, 0, 2 * size, 2 * size))
+    painter.setFont(font)
+    painter.setPen(QColor(colour))
+    painter.drawText(QRectF(x + size + gap, rect.y(), rect.right() - x - size - gap, rect.height()),
+                     Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, text)
     painter.restore()

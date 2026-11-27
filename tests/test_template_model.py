@@ -3,11 +3,13 @@ import json
 import pytest
 
 from evrakci.pipeline.templates.model import (
+    SavedFilter,
     Section,
     Template,
     TemplateError,
     pattern_names,
     template_from_dict,
+    template_revision,
     template_to_dict,
     validate_name,
 )
@@ -106,3 +108,91 @@ def test_old_files_without_keys_get_stable_keys():
     assert [v.key for v in template_from_dict(data).variables] == [
         v.key for v in template_from_dict(data).variables
     ]
+
+
+# I-07: saved filters
+def with_filters() -> Template:
+    t = sample()
+    t.add_saved_filter("Boş sayfalar", "bos", {"ink": 0.005})
+    t.add_saved_filter("Tek sayfalar", "tek")
+    return t
+
+
+def test_saved_filters_round_trip_with_and_without():
+    t = with_filters()
+    data = json.loads(json.dumps(template_to_dict(t), ensure_ascii=False))
+    assert data["saved_filters"][0] == {"name": "Boş sayfalar", "kind": "bos",
+                                        "params": {"ink": 0.005}}
+    assert template_from_dict(data) == t
+    assert template_from_dict(data).saved_filters == [
+        SavedFilter("Boş sayfalar", "bos", {"ink": 0.005}), SavedFilter("Tek sayfalar", "tek")]
+    plain = sample()
+    assert template_from_dict(json.loads(json.dumps(template_to_dict(plain)))) == plain
+
+
+def test_an_older_template_file_without_the_key_still_loads():
+    data = template_to_dict(sample())
+    del data["saved_filters"]
+    loaded = template_from_dict(data)
+    assert loaded.saved_filters == [] and loaded.name == "Örnek Şablon"
+    assert data["version"] == 1
+
+
+def test_bad_saved_filter_entries_are_refused():
+    base = template_to_dict(sample())
+    for bad in ("metin", [1], [{"kind": "tek"}], [{"name": "", "kind": "tek"}],
+                [{"name": "A", "kind": ""}], [{"name": "A", "kind": 3}],
+                [{"name": "A", "kind": "tek", "params": []}],
+                [{"name": "A", "kind": "tek", "params": {"x": float("nan")}}],
+                [{"name": "A\u0000", "kind": "tek"}],
+                [{"name": "A", "kind": "tek"}, {"name": "A", "kind": "cift"}]):
+        with pytest.raises(TemplateError):
+            template_from_dict({**base, "saved_filters": bad})
+
+
+def test_saved_filter_names_are_unique_nfc_and_at_most_twenty():
+    t = sample()
+    t.add_saved_filter("  Ça  ", "tek")
+    with pytest.raises(TemplateError):
+        t.add_saved_filter("Ça", "cift")
+    t.add_saved_filter("é", "tek")
+    assert t.saved_filters[-1].name == "é"
+    with pytest.raises(TemplateError):
+        t.add_saved_filter("é", "bos")
+    for number in range(18):
+        t.add_saved_filter(f"F{number}", "tek")
+    assert len(t.saved_filters) == 20
+    with pytest.raises(TemplateError):
+        t.add_saved_filter("Yirmi bir", "tek")
+
+
+def test_remove_and_rename_saved_filter():
+    t = with_filters()
+    t.rename_saved_filter("Tek sayfalar", "Tekler")
+    assert [f.name for f in t.saved_filters] == ["Boş sayfalar", "Tekler"]
+    with pytest.raises(TemplateError):
+        t.rename_saved_filter("Tekler", "Boş sayfalar")
+    t.rename_saved_filter("Tekler", "Tekler")  # the same name is no clash
+    t.remove_saved_filter("Boş sayfalar")
+    assert [f.name for f in t.saved_filters] == ["Tekler"]
+    with pytest.raises(TemplateError):
+        t.remove_saved_filter("Yok")
+
+
+def test_template_revision_ignores_saved_filters():
+    t = sample()
+    before = template_revision(t)
+    t.add_saved_filter("Boş sayfalar", "bos")
+    assert template_revision(t) == before
+
+
+def test_saved_filter_names_are_unique_by_casefold():
+    t = sample()
+    t.add_saved_filter("Tekler", "tek")
+    with pytest.raises(TemplateError, match="zaten var"):
+        t.add_saved_filter("tekler", "cift")
+    t.add_saved_filter("Çiftler", "cift")
+    with pytest.raises(TemplateError, match="zaten var"):
+        t.rename_saved_filter("Çiftler", "TEKLER")
+    t.rename_saved_filter("Tekler", "TEKLER")  # its own name in another case is no clash
+    assert [f.name for f in t.saved_filters] == ["TEKLER", "Çiftler"]

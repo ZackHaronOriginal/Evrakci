@@ -105,7 +105,7 @@ jobs:
           Copy-Item tur_best.traineddata "$env:RUNNER_TEMP\tessdata_best\tur.traineddata"
 
       - name: Tests (nothing skipped for want of tur_best)
-        timeout-minutes: 30
+        timeout-minutes: 75  # the suite grew to ~2400 tests in the 2026-11 quality run; ~40 min on windows-latest
         shell: bash
         env:
           PYTHONUTF8: "1"
@@ -116,7 +116,27 @@ jobs:
         run: |
           export PATH="$(cygpath "$RUNNER_TEMP")/tesseract-test:$PATH"
           ruff check .
-          pytest -q
+          pytest -q -rfE
+          python .claude/skills/shortcut-audit/audit_shortcuts.py --check
+          python .claude/skills/shortcut-audit/audit_shortcuts.py --contract docs/ui-goal/shortcut-contract.tsv
+
+      - name: Microsoft runtime for cx_Freeze, downloaded with retries (a cut download failed the freeze)
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:APPDATA "cxfreeze\vc_redist\17"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $file = Join-Path $dir "vc_redist.x64.exe"
+          foreach ($attempt in 1..5) {
+            try {
+              Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vc_redist.x64.exe" -OutFile $file
+              if ((Get-Item $file).Length -gt 20MB) { break }
+              throw "short download"
+            } catch {
+              Remove-Item $file -ErrorAction SilentlyContinue
+              if ($attempt -eq 5) { throw }
+              Start-Sleep -Seconds (15 * $attempt)
+            }
+          }
 
       - name: Freeze (folder build; Tesseract added after cx_Freeze, licences from lib\)
         timeout-minutes: 30

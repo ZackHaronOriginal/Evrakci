@@ -367,3 +367,19 @@ def test_installer_code_uses_no_pascal_reserved_words_as_names():
             if ":" in line:
                 names |= {n.strip().lower() for n in line.split(":")[0].split(",")}
     assert not names & reserved, names & reserved
+
+
+def test_qt_turkish_translation_is_shipped_where_qt_looks_or_the_build_fails(tmp_path):
+    import layout
+
+    pyside = tmp_path / "PySide6"
+    folder = pyside / "Qt" / "translations"
+    folder.mkdir(parents=True)
+    with pytest.raises(FileNotFoundError, match="qtbase_tr.qm"):  # never skipped silently
+        layout.qt_translation_entry(pyside, folder)
+    (folder / "qtbase_tr.qm").write_bytes(b"x")
+    source, target = layout.qt_translation_entry(pyside, folder)
+    assert source == str(folder / "qtbase_tr.qm")
+    assert target == "lib/PySide6/Qt/translations/qtbase_tr.qm"
+    text = (ROOT / "packaging" / "freeze_setup.py").read_text(encoding="utf-8")
+    assert "qt_translation_entry" in text and "TranslationsPath" in text

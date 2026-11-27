@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -14,6 +15,7 @@ from evrakci.pipeline.export import ExportItem
 from evrakci.pipeline.job import Job
 
 _FIXED = [
+    "Belge no",
     "Dosya",
     "Sayfa sayısı",
     "Kaynak sayfalar",
@@ -36,7 +38,13 @@ def _set_text(cell, text: str | None) -> None:
     cell.number_format = "@"
 
 
-def write_index(items: Sequence[ExportItem], job: Job, path: Path) -> None:
+def format_time(moment: datetime) -> str:
+    """Turkish date and time as written in the sheet: 20.11.2026 14:32."""
+    return moment.strftime("%d.%m.%Y %H:%M")
+
+
+def write_index(items: Sequence[ExportItem], job: Job, path: Path,
+                exported_at: datetime | None = None) -> None:
     variables: list[str] = []
     for item in items:
         for name in item.values:
@@ -59,7 +67,8 @@ def write_index(items: Sequence[ExportItem], job: Job, path: Path) -> None:
     for row, item in enumerate(items, start=2):
         positions = ", ".join(str(job.position_of(pid)) for pid in item.document.page_ids)
         fixed = [
-            f"{item.name}.pdf",
+            str(item.number),
+            item.relative,
             str(len(item.document.page_ids)),
             positions,
             item.template_name or "",
@@ -74,6 +83,9 @@ def write_index(items: Sequence[ExportItem], job: Job, path: Path) -> None:
             cell.alignment = Alignment(wrap_text=True, vertical="top")
             if item.checks:
                 cell.fill = _CHECK_FILL
+
+    _write_check_sheet(book, items, job)
+    _write_summary(book, items, job, exported_at or datetime.now())
 
     for column in range(1, len(_FIXED) + len(variables) + 1):
         letter = get_column_letter(column)
@@ -90,3 +102,46 @@ def write_index(items: Sequence[ExportItem], job: Job, path: Path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     book.save(path)
+
+
+def _write_check_sheet(book: Workbook, items: Sequence[ExportItem], job: Job) -> None:
+    """Problems only: the same flagged items, in order, as the "Kontrol gerekli" column."""
+    sheet = book.create_sheet("Kontrol gerekenler")
+    titles = ["Belge no", "Dosya", "Kaynak sayfalar", "Kontrol nedenleri"]
+    for column, title in enumerate(titles, start=1):
+        cell = sheet.cell(row=1, column=column)
+        _set_text(cell, title)
+        cell.font = Font(bold=True)
+    sheet.freeze_panes = "A2"
+    flagged = [item for item in items if item.checks]
+    if not flagged:
+        _set_text(sheet.cell(row=2, column=1), "Kontrol gerektiren belge yok.")
+    for row, item in enumerate(flagged, start=2):
+        positions = ", ".join(str(job.position_of(pid)) for pid in item.document.page_ids)
+        texts = [str(item.number), item.relative, positions, "\n".join(item.checks)]
+        for column, text in enumerate(texts, start=1):
+            cell = sheet.cell(row=row, column=column)
+            _set_text(cell, text)
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            cell.fill = _CHECK_FILL
+    widths = [10, 24, 18, 50]
+    for column, width in enumerate(widths, start=1):
+        sheet.column_dimensions[get_column_letter(column)].width = width
+
+
+def _write_summary(book: Workbook, items: Sequence[ExportItem], job: Job,
+                   exported_at: datetime) -> None:
+    sheet = book.create_sheet("Özet")
+    rows = [
+        ("İş adı", job.name),
+        ("Dışa aktarma zamanı", format_time(exported_at)),
+        ("Belge sayısı", str(len(items))),
+        ("Sayfa sayısı", str(sum(len(i.document.page_ids) for i in items))),
+        ("Kontrol gerekli", str(sum(1 for i in items if i.checks))),
+    ]
+    for row, (label, value) in enumerate(rows, start=1):
+        _set_text(sheet.cell(row=row, column=1), label)
+        sheet.cell(row=row, column=1).font = Font(bold=True)
+        _set_text(sheet.cell(row=row, column=2), value)
+    sheet.column_dimensions["A"].width = 24
+    sheet.column_dimensions["B"].width = min(_MAX_WIDTH, max(len(v) for _, v in rows) + 2)

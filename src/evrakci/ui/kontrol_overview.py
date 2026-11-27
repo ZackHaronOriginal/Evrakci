@@ -158,6 +158,8 @@ class OverviewStrip(QWidget):
             rect = self._segment(number, track)
             if thin and state == "k":
                 rect = QRectF(rect.center().x() - 1.5, rect.y(), 3, rect.height())
+            if state == "k":  # taller than the others: the shape says it, not the colour alone
+                rect = rect.adjusted(0, -m.size("s1"), 0, 0)  # the s1 token taller
             colour = {"k": "rider", "done": "accent"}.get(state, "track")
             painter.setPen(Qt.PenStyle.NoPen)
             if state == "k" and hc:  # high contrast: a filled mark, not one more outline
@@ -212,7 +214,7 @@ class OverviewStrip(QWidget):
                 event.position()):
             state = ("Kontrol bekliyor" if number in self.kontrol else "İncelendi"
                      if number in self.reviewed else "İncelenmedi")
-            QToolTip.showText(event.globalPosition().toPoint(), f"Belge {number}: {state}", self)
+            QToolTip.showText(event.globalPosition().toPoint(), f"Belge {number}, {state}", self)
         else:
             QToolTip.hideText()
 

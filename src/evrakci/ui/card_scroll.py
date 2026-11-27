@@ -266,8 +266,39 @@ class CardScroll(QObject):
             return next((s for s in reversed(stops) if s <= value), stops[0])
         return min(stops, key=lambda s: abs(s - value))
 
+    def _sync(self) -> None:
+        """Bring the stops up to the content as it is now. Wrapped labels change a card's height
+        (height for width, font metrics) when the layout runs, which can be after the last
+        scheduled measure; so before the panel moves, run the pending layout and measure again
+        instead of trusting the earlier positions."""
+        body = self.area.widget()
+        if body is None:
+            return
+        layout = body.layout()
+        if layout is not None:
+            # what the scroll area does when the layout request reaches it: size the content
+            # to what the layout needs now, then place the children
+            layout.activate()
+            width = body.width()
+            need = (layout.totalHeightForWidth(width) if layout.hasHeightForWidth()
+                    else layout.totalMinimumSize().height())
+            height = max(need, self.area.viewport().height())
+            if body.height() != height:
+                body.resize(width, height)
+            layout.setGeometry(body.rect())
+        self._measure()
+        bar = self.area.verticalScrollBar()
+        top = self.stops()[-1]
+        if bar.maximum() != top:
+            self._busy = True
+            try:
+                bar.setRange(0, top)
+            finally:
+                self._busy = False
+
     def step(self, cards: int) -> None:
         """Scroll `cards` stops down (negative: up)."""
+        self._sync()
         stops = self.stops()
         bar = self.area.verticalScrollBar()
         index = max(i for i, s in enumerate(stops) if s <= bar.value()) if stops else 0
@@ -285,7 +316,7 @@ class CardScroll(QObject):
         body = self.area.widget()
         if body is None or not body.isAncestorOf(widget) or not self.scrollable():
             return
-        self._measure()
+        self._sync()
         y = widget.mapTo(body, widget.rect().topLeft()).y()
         unit = next(((s, b) for s, b in self._units if y <= b), self._units[-1])
         bar = self.area.verticalScrollBar()
@@ -321,6 +352,10 @@ class CardScroll(QObject):
             self.reveal(widget)
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if "area" not in self.__dict__:
+            # the Python side is being torn down (the cycle collector clears attributes
+            # first) while Qt still delivers events to the filter: ignore them
+            return False
         kind = event.type()
         if kind == QEvent.Type.Wheel and obj is self.area.viewport():
             if not self.scrollable():

@@ -6,6 +6,7 @@ is only Kapat, and each section has its own "Varsayılanlara dön".
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -268,6 +269,12 @@ class SettingsDialog(QDialog):
         self.retention.currentIndexChanged.connect(self._save_retention)
         return self._finish(page, box)
 
+    def _current_settings(self) -> Settings:
+        try:
+            return load_settings(self._retention_path)
+        except SettingsError:
+            return Settings()
+
     def _load_retention(self) -> None:
         value = KEEP
         self.retention_note.setText("Dışa aktarılan iş bu bilgisayarda ne kadar saklansın.")
@@ -285,7 +292,9 @@ class SettingsDialog(QDialog):
 
     def _save_retention(self) -> None:
         try:
-            save_settings(Settings(self.retention.currentData()), self._retention_path)
+            current = self._current_settings()
+            save_settings(dataclasses.replace(current, retention=self.retention.currentData()),
+                          self._retention_path)
         except (OSError, SettingsError) as error:
             self.retention_note.setText(f"Ayar kaydedilemedi: {error}")
             return
@@ -312,7 +321,29 @@ class SettingsDialog(QDialog):
         choose.clicked.connect(self.choose_folder)
         row.addWidget(choose)
         box.addLayout(row)
+        self.check_subfolder = QCheckBox("Kontrol gerekenleri ayrı klasöre koy")
+        self.check_subfolder.setChecked(self._current_settings().check_subfolder)
+        self.check_subfolder.toggled.connect(self._save_check_subfolder)
+        box.addWidget(self.check_subfolder)
+        self.export_note = QLabel()  # a failed save is said here, on its own page
+        self.export_note.setProperty("textRole", "secondary")
+        self.export_note.setWordWrap(True)
+        self.export_note.hide()
+        box.addWidget(self.export_note)
         return self._finish(page, box)
+
+    def _save_check_subfolder(self, on: bool) -> None:
+        try:
+            save_settings(dataclasses.replace(self._current_settings(), check_subfolder=on),
+                          self._retention_path)
+        except OSError as error:
+            self.check_subfolder.blockSignals(True)
+            self.check_subfolder.setChecked(not on)  # the box shows what is saved
+            self.check_subfolder.blockSignals(False)
+            self.export_note.setText(f"Ayar kaydedilemedi: {error}")
+            self.export_note.show()
+            return
+        self.export_note.hide()
 
     def choose_folder(self) -> None:
         start = self.export_folder.text() or str(Path.home())
@@ -326,3 +357,4 @@ class SettingsDialog(QDialog):
 
     def reset_export(self) -> None:
         self.set_export_folder("")
+        self.check_subfolder.setChecked(True)

@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from evrakci.ui import theme
 from evrakci.ui.chrome import make_icon
 from evrakci.ui.disa_aktar_parts import PartsButton
+from evrakci.ui.widgets import centre_action_buttons
 
 COUNT_ROLE = Qt.ItemDataRole.UserRole + 1
 
@@ -41,12 +42,15 @@ class SearchField(QLineEdit):
         self.setAccessibleName("Rehberde ara")
         self.setToolTip(f"Rehberde ara ({key_hint})")
         self.lead = QAction("Ara", self)
+        self.lead.setProperty("action_id", "app.bul")
         self.addAction(self.lead, QLineEdit.ActionPosition.LeadingPosition)
         self.clear_action = QAction("Aramayı temizle", self)
+        self.clear_action.setProperty("action_id", "rehber.aramayi_temizle")
         self.clear_action.setToolTip("Aramayı temizle (Esc)")
         self.clear_action.triggered.connect(self.clear_requested)
         self.addAction(self.clear_action, QLineEdit.ActionPosition.TrailingPosition)
         self.clear_action.setVisible(False)
+        centre_action_buttons(self)
         self.textChanged.connect(self._sync)
         theme.follow(self, self._restyle, "search-field")
 
@@ -198,7 +202,7 @@ class EmptyResults(QWidget):
         self.title.setProperty("textRole", "panel")
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title.setWordWrap(True)
-        self.text = QLabel("Daha kısa bir sözcük deneyin; Türkçe harf fark etmez.")
+        self.text = QLabel("Daha kısa bir sözcük deneyin. ç, ş, ı yerine c, s, i yazabilirsiniz.")
         self.text.setProperty("textRole", "secondary")
         self.text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.text.setWordWrap(True)
@@ -210,7 +214,9 @@ class EmptyResults(QWidget):
         row.setSpacing(m.size("s2"))
         row.addStretch(1)
         self.clear = PartsButton("Aramayı temizle", "x", primary=True, large=True)
+        self.clear.setProperty("action_id", "rehber.aramayi_temizle")
         self.keys = PartsButton("Kısayolları göster", "keyboard", large=True)
+        self.keys.setProperty("action_id", "app.kisayollar")
         self.clear.clicked.connect(self.clear_clicked)
         self.keys.clicked.connect(self.keys_clicked)
         row.addWidget(self.clear)

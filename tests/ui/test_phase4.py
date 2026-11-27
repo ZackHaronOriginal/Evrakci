@@ -162,7 +162,7 @@ def test_settings_and_sheet_give_focus_back(demo):
 
 
 # -- Ctrl+S, Ctrl+E and Ctrl+F: one owner per action, a route on every tab --------------------
-def test_kaydet_belongs_to_the_tab_and_a_template_sync_elsewhere_does_not_enable_it(demo):
+def test_kaydet_belongs_to_the_tab_and_a_template_sync_elsewhere_does_not_enable_it(demo, qtbot):
     demo.show_tab("rehber")
     _settle()
     assert not demo.registry.is_enabled("app.kaydet")  # nothing to save on Rehber
@@ -172,7 +172,7 @@ def test_kaydet_belongs_to_the_tab_and_a_template_sync_elsewhere_does_not_enable
     _settle()
     assert demo.registry.is_enabled("app.kaydet")
     demo.registry.action("app.kaydet").trigger()
-    assert demo.toaster.current_text().startswith("İş kaydedildi")
+    qtbot.waitUntil(lambda: demo.toaster.current_text().startswith("İş kaydedildi"), timeout=3000)
 
 
 def test_export_action_has_one_owner(demo):
@@ -337,7 +337,9 @@ with tempfile.TemporaryDirectory() as tmp:
         report.append({"slug": slug, "clipped": s.clipping(window, slug),
                        "selected_shown": window.title_tabs.isTabVisible(index),
                        "overflow": window.title_band.overflow.isVisible(),
-                       "name_elided": window.job_switch.name.is_elided()})
+                       "name_elided": window.job_switch.name.is_elided(),
+                       "tabs_shown": sum(window.title_tabs.isTabVisible(i)
+                                         for i in range(window.title_tabs.count()))})
     window.close()
 print(json.dumps(report))
 """
@@ -368,11 +370,14 @@ def test_no_tab_clips_at_1366x768_100_percent():
         assert not tab["name_elided"] and not tab["overflow"], tab["slug"]
 
 
-def test_title_band_at_150_percent_keeps_selected_tab_and_full_job_name():
-    """Option b at 1366 px and 150 %: the tabs overflow into "»" before the job name gives
-    way, the selected tab is in the strip however it was chosen, and nothing clips."""
+def test_title_band_at_150_percent_gives_tabs_priority_over_the_job_name():
+    """S-4 at 1366 px and 150 %: the save state drops its words first and a long name keeps at
+    most a fifth of the band, so three of six tabs fit (two before), the rest are in "»", the
+    selected tab is in the strip however it was chosen, the usual job name still shows whole,
+    and nothing clips."""
     for tab in _tab_report(150):
         assert tab["selected_shown"] and tab["overflow"], tab["slug"]
+        assert tab["tabs_shown"] >= 3, tab["slug"]
         assert not tab["name_elided"], tab["slug"]
         assert tab["clipped"] == [], tab["slug"]
 
@@ -481,12 +486,13 @@ def test_placeholder_has_no_form_shapes():
 
 # -- Şablonlar -------------------------------------------------------------------------------------
 def test_a_variable_without_a_box_is_not_a_false_kontrol():
+    from evrakci.pipeline.templates.read import flagged_count
     from evrakci.pipeline.templates.values import VariableValue
     from evrakci.ui import sablon_read
 
     nothing = VariableValue("", 0.0, None, True)
     assert sablon_read.shown_for(nothing, None, 0.9).level == "okunmadi"
-    assert sablon_read.flagged_count({"k": nothing}) == 0
+    assert flagged_count({"k": nothing}) == 0
 
 
 def test_a_box_can_be_drawn_and_resized_from_the_keyboard(demo):

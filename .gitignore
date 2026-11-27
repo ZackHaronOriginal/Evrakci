@@ -53,3 +53,6 @@ docs/superpowers/mockups/fonts/
 # ui_measure CI report
 ui-measure.tsv
 .claude/worktrees/
+
+# Owner idea handoffs: verbatim owner words and real forms, never commit
+.claude/ideas-private/

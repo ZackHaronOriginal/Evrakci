@@ -121,3 +121,12 @@ Scope
 - **Examples of manual work to replace:** checking a document by hand against the real documents; scanning a large
   number of documents only to send them off one by one; collecting data from TOBB and other sources and typing it into
   a document.
+
+**What "scalable" means (owner, 2026-11-27).** Features and usability for the people, not server load:
+- many more kinds of jobs to handle;
+- many different kinds of fields;
+- much bigger piles;
+- maybe a local network setup (several PCs in the office), to be thought through.
+
+**TOBB exports** come as PDF, Excel or similar formats, so data import must take PDFs as a data source too, not only
+spreadsheets.

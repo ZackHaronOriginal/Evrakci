@@ -12,6 +12,7 @@ and unverified points marked. The reports were not re-checked claim by claim; tr
 | 5 | [Local network sharing](05-local-network-sharing.md) | Local work plus check-out/check-in on a shared folder; no live database on a share; no server for offices without IT. |
 | 6 | [Extensible architecture](06-extensible-architecture.md) | Pull the abstraction from 2-3 real job kinds; design only boundaries and saved-file formats up front; version every file. |
 | 8 | [Introduction and warm-up](08-introduction-and-warm-up.md) | Naming chambers already using it beats features; demo on their own pile, one job; tours get skipped, so a sample job, teaching empty screens and printed sheets; an 18-step plan for one chamber. |
+| 9 | [React UI on Python](09-react-ui-on-python.md) | pywebview shell around a React/Vite UI (Python stays the only native language, WebView2); Tauri 2 + Python sidecar as plan B; versioned JSON-RPC, thumbnails as files; measure first. |
 | 7 | [Adoption and physical workflow](07-adoption-and-physical-workflow.md) | Paper prep is the hidden cost; usefulness and fit with current work drive adoption; champions, small wins, a 13-step playbook for office heads. |
 
 ## Where the reports agree

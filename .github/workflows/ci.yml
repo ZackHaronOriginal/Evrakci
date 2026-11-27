@@ -1,9 +1,17 @@
 name: CI
 
 on:
+  # A change that touches only plans or ideas skips CI; nothing tested reads them. Other docs
+  # still run it: docs/ui-goal holds files the checks below compare against.
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/superpowers/**"
+      - "docs/ideas/**"
   pull_request:
+    paths-ignore:
+      - "docs/superpowers/**"
+      - "docs/ideas/**"
 
 permissions:
   contents: read

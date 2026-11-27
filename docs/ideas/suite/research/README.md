@@ -15,7 +15,7 @@ and unverified points marked. The reports were not re-checked claim by claim; tr
 | 9 | [React UI on Python](09-react-ui-on-python.md) | pywebview shell around a React/Vite UI (Python stays the only native language, WebView2); Tauri 2 + Python sidecar as plan B; versioned JSON-RPC, thumbnails as files; measure first. |
 | 10 | [UI framework comparison](10-ui-framework-comparison.md) | Scored head-to-head: React in pywebview and React in Electron tie (56/60); Tauri 51, Flutter 49, PySide6 QML 48, Avalonia 46; MAUI, WinUI/WPF and Qt C++ out. |
 | 11 | [What big products use](11-what-big-products-use.md) | Most big apps (Notion, Slack, VS Code, Figma, 1Password, Teams, new Outlook) use web UIs; more moved to web than away; about half keep a separate native core; Calibre and Anki are the closest matches. |
-| 12 | [Shell measurements](12-shell-measurements.md) | Windows laptop (4 GB): pywebview + WebView2 smooth, ~500 MB, but 6-12 s startup; Linux: Qt WebEngine stutters, Electron smooth. |
+| 12 | [Shell measurements](12-shell-measurements.md) | On a 4 GB Windows laptop Electron started in 1.05 s (pywebview 2.2 s), used 466 MB after scrolling (pywebview 525) and both scrolled smoothly; on Linux only Electron was smooth. **Decision: Electron.** |
 | 7 | [Adoption and physical workflow](07-adoption-and-physical-workflow.md) | Paper prep is the hidden cost; usefulness and fit with current work drive adoption; champions, small wins, a 13-step playbook for office heads. |
 
 ## Where the reports agree
@@ -54,3 +54,5 @@ and unverified points marked. The reports were not re-checked claim by claim; tr
   suggests destroying originals; what institutions do with paper is their responsibility.
 - **UI technology:** the owner would like a React (npm) UI, being used to it and because good UI tooling and skills
   exist for the web. To be researched against the Python backend before deciding.
+- **Shell (decided 2026-11-27): Electron.** React + TypeScript UI in Electron, Python backend as a separate
+  process, one versioned JSON-RPC bridge. Measured on the owner's 4 GB Windows laptop and on Linux (report 12).

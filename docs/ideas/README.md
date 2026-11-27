@@ -17,6 +17,8 @@ until the owner picks it. Collected 2026-11-27.
   digitalisation and low tech comfort, and give heads of offices concrete advice on changing the work. (§9)
 - Research how to introduce the app and warm an office up to it; a React UI on the Python backend.
   (`suite/research/README.md`)
+- **Decided 2026-11-27:** the new UI is React + TypeScript in **Electron**, with the Python backend as a
+  separate process behind one versioned API (`suite/research/12-shell-measurements.md`).
 - Print-template library: A5 sheet, folder labels, binder spines, EK-1 Bilgi Formu, more at the chamber. (§2)
 - Data in: predefined mappings for known exports, or load/paste any spreadsheet and map its headers yourself. TOBB
   exports come as PDF, Excel and similar. (§3, §9)

@@ -9,7 +9,10 @@ until the owner picks it. Collected 2026-11-27.
   editor. Groundwork that takes future additions well; easy for staff. (`suite/ideas.md` §1, §9)
 - "Scalable" means more job kinds, more field kinds, bigger piles, maybe a local network setup. (§9)
 - Network: share files and work between staff, take over or edit someone's work, get outputs; send prepared files to
-  institutions easily instead of email or USB sticks. (§9)
+  institutions easily instead of email or USB sticks; sending itself stays with staff. Jobs carry tags/states
+  (finished, not finished). (§9)
+- Separate UI and backend completely (swap the UI via a connector); open to leaving Python (C#/.NET or other);
+  research first. (§9)
 - Print-template library: A5 sheet, folder labels, binder spines, EK-1 Bilgi Formu, more at the chamber. (§2)
 - Data in: predefined mappings for known exports, or load/paste any spreadsheet and map its headers yourself. TOBB
   exports come as PDF, Excel and similar. (§3, §9)

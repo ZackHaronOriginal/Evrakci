@@ -134,4 +134,14 @@ boxes, read values), so a TOBB PDF can go through the same reading.
 **Network: sharing and handing work on (owner, 2026-11-27).**
 - Easily share files between staff, look at each other's work, take over or edit someone's work, get their outputs.
 - Easily get a prepared file to the institution it is for. Today staff email it or carry it on a USB stick; that
-  hand-off should be much easier.
+  hand-off should be much easier. **Sending itself is not Evrakçı's job** (owner, 2026-11-27): staff send. Evrakçı
+  makes the finished files easy to find, take and hand over.
+- Jobs carry tags or a state (finished, not finished and so on), so everyone sees where each job stands.
+
+**Architecture and stack (owner, 2026-11-27).**
+- Separate the UI and the backend completely. Changing the UI later should mean writing a connector and the new
+  design, and it just works.
+- The backend has to drive Python-side tools (Tesseract and others), but Python may hurt in the long run. Open to
+  moving to another stack (C#/.NET or something else) and to another UI framework later.
+- Before deciding: research with several agents on real architectures, field studies and research, what was tried,
+  what failed and what worked.

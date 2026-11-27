@@ -145,3 +145,10 @@ boxes, read values), so a TOBB PDF can go through the same reading.
   moving to another stack (C#/.NET or something else) and to another UI framework later.
 - Before deciding: research with several agents on real architectures, field studies and research, what was tried,
   what failed and what worked.
+
+**Adoption and the physical workflow (owner, 2026-11-27): "make or break".**
+- The manual side (scanning, getting paper into digital form, how the office's flow changes) and integration with how
+  the workplace already works are what decide whether the product gets used.
+- Resistance to digitalisation is real; most users, especially public officials, are not comfortable with technology.
+- Research this thoroughly, so Evrakçı can come with concrete advice for heads of offices: how to set up the work,
+  which changes to make, in what order.

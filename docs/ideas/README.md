@@ -13,6 +13,8 @@ until the owner picks it. Collected 2026-11-27.
   (finished, not finished). (§9)
 - Separate UI and backend completely (swap the UI via a connector); open to leaving Python (C#/.NET or other);
   research first. (§9)
+- Adoption is make or break: research the physical workflow (scanning, paper to digital), resistance to
+  digitalisation and low tech comfort, and give heads of offices concrete advice on changing the work. (§9)
 - Print-template library: A5 sheet, folder labels, binder spines, EK-1 Bilgi Formu, more at the chamber. (§2)
 - Data in: predefined mappings for known exports, or load/paste any spreadsheet and map its headers yourself. TOBB
   exports come as PDF, Excel and similar. (§3, §9)

@@ -9,7 +9,7 @@ This is an interpretation of the owner's own message and of a follow-up message,
 - Today Evrakçı is mostly about reading documents.
 - The owner wants it to be common ground for several tools: a suite that hosts several tools, of which document reading is one.
 - Tools mentioned or implied: document reading (existing), a print-template library, spreadsheet/data import, document editing, and export to spreadsheet or PDF.
-- The standalone Member Search / Bilgi Formu tool should become part of Evrakçı itself rather than a separate HTML file.
+- Evrakçı should be able to do what the standalone Member Search / Bilgi Formu tool does. The tool is an example of the idea, not a part to move in. (Corrected 2026-11-27 by the owner: the earlier line here said the tool itself should become part of Evrakçı.)
 
 ## 2. Print-template library
 
@@ -99,4 +99,4 @@ Storage
 
 Scope
 13. OCR was dropped for the standalone tool as too much work. Evrakçı already reads documents, so does that existing capability replace the need for it?
-14. Is the Member Search tool ported feature-for-feature first, or rebuilt on the generalised template engine straight away?
+14. Which parts of what the Member Search tool does matter most for the Evrakçı version?

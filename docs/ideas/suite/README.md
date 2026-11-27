@@ -32,7 +32,7 @@ Everything here is anonymized and paraphrased. The standalone tool and its sampl
    what it does. (Corrected 2026-11-27 by the owner: earlier versions said to bring the tool in, then to do what it
    does; neither was said.)
 
-More ideas from the owner on 2026-11-27 are in `ideas.md` section 9.
+More ideas from the owner on 2026-11-27 are in `ideas.md` section 9. Research on the suite (seven reports and a summary) is in `research/`.
 
 Data note from the owner: the handoff holds no real member data only because the session that made it never had any.
 Evrakçı keeps data on the PC and publishes nothing, so holding real member data locally is fine.
